@@ -37,7 +37,7 @@ describe('createApiClient', () => {
       const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
       client.setAuthHooks({
         getAccessToken: () => 'token-123',
-        onUnauthorized: async () => null
+        onUnauthorized: () => Promise.resolve(null)
       });
 
       await client.get('/protected');
@@ -59,7 +59,7 @@ describe('createApiClient', () => {
       const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
       client.setAuthHooks({
         getAccessToken: () => 'expired-token',
-        onUnauthorized: async () => 'refreshed-token'
+        onUnauthorized: () => Promise.resolve('refreshed-token')
       });
 
       await expect(client.get('/protected')).resolves.toEqual({ ok: true });
@@ -74,7 +74,7 @@ describe('createApiClient', () => {
       const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
       client.setAuthHooks({
         getAccessToken: () => 'expired-token',
-        onUnauthorized: async () => null
+        onUnauthorized: () => Promise.resolve(null)
       });
 
       await expect(client.get('/protected')).rejects.toMatchObject({ status: 401 });
