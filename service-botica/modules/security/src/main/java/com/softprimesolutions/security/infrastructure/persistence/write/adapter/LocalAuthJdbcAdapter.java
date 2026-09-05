@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -60,7 +61,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE usuario_id = :userId
                         """)
                 .param("passwordHash", passwordHash).param("requireChange", requireChange)
-                .param("at", at).param("userId", userInternalId.get()).update();
+                .param("at", toOffsetDateTime(at)).param("userId", userInternalId.get()).update();
         if (updated == 1) {
             updateUserPasswordChangeRequirement(tenantId, userId, requireChange, at);
             revokeAllUserSessions(tenantId, userId, "CREDENCIAL_REEMPLAZADA", at);
@@ -74,7 +75,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                             VALUES (:userId, :passwordHash, :requireChange, 'ACTIVA', :at, :at)
                             """)
                     .param("userId", userInternalId.get()).param("passwordHash", passwordHash)
-                    .param("requireChange", requireChange).param("at", at).update();
+                    .param("requireChange", requireChange)
+                    .param("at", toOffsetDateTime(at)).update();
             updateUserPasswordChangeRequirement(tenantId, userId, requireChange, at);
             return ProvisionOutcome.CREATED;
         } catch (DataIntegrityViolationException concurrentInsert) {
@@ -98,8 +100,10 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("maximumAttempts", maximumAttempts).param("lockedUntil", lockedUntil)
-                .param("at", at).param("tenantId", tenantId).param("userId", userId).update();
+                .param("maximumAttempts", maximumAttempts)
+                .param("lockedUntil", toOffsetDateTime(lockedUntil))
+                .param("at", toOffsetDateTime(at))
+                .param("tenantId", tenantId).param("userId", userId).update();
     }
 
     @Override
@@ -113,13 +117,15 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("at", at).param("tenantId", tenantId).param("userId", userId).update();
+                .param("at", toOffsetDateTime(at))
+                .param("tenantId", tenantId).param("userId", userId).update();
         jdbc.sql("""
                         UPDATE sch_seguridad.usuario u SET ultimo_login_at = :at, updated_at = :at
                          WHERE u.uuid_publico = :userId AND u.tenant_id = (
                                SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId)
                         """)
-                .param("at", at).param("tenantId", tenantId).param("userId", userId).update();
+                .param("at", toOffsetDateTime(at))
+                .param("tenantId", tenantId).param("userId", userId).update();
     }
 
     @Override
@@ -139,7 +145,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                            AND u.estado = 'ACTIVO'
                         """)
                 .param("sessionId", session.sessionId()).param("channel", session.channel())
-                .param("loginAt", session.loginAt()).param("expiresAt", session.expiresAt())
+                .param("loginAt", toOffsetDateTime(session.loginAt()))
+                .param("expiresAt", toOffsetDateTime(session.expiresAt()))
                 .param("tenantId", session.tenantId()).param("userId", session.userId())
                 .param("ipAddress", session.ipAddress(), Types.OTHER)
                 .param("userAgent", session.userAgent(), Types.VARCHAR)
@@ -175,7 +182,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE token_hash = :currentHash AND usado_at IS NULL AND revocado_at IS NULL
                            AND expira_at > :at
                         """)
-                .param("at", at).param("replacementId", replacement.id())
+                .param("at", toOffsetDateTime(at)).param("replacementId", replacement.id())
                 .param("currentHash", currentHash).update();
         return updated == 1 && insertRefresh(replacement) == 1;
     }
@@ -192,12 +199,13 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("at", at).param("reason", reason).param("sessionId", sessionId)
+                .param("at", toOffsetDateTime(at)).param("reason", reason).param("sessionId", sessionId)
                 .param("tenantId", tenantId).param("userId", userId).update();
         jdbc.sql("""
                         UPDATE sch_seguridad.token_refresh SET revocado_at = :at
                          WHERE sesion_uuid = :sessionId AND revocado_at IS NULL
-                        """).param("at", at).param("sessionId", sessionId).update();
+                        """)
+                .param("at", toOffsetDateTime(at)).param("sessionId", sessionId).update();
         return updated == 1;
     }
 
@@ -213,14 +221,17 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE tenant_id = :tenantId AND usuario_id = :userId
                            AND consumido_at IS NULL AND revocado_at IS NULL
                         """)
-                .param("at", at).param("tenantId", tenantInternalId).param("userId", userInternalId).update();
+                .param("at", toOffsetDateTime(at))
+                .param("tenantId", tenantInternalId).param("userId", userInternalId).update();
         jdbc.sql("""
                         INSERT INTO sch_seguridad.token_recuperacion_password
                             (tenant_id, usuario_id, token_hash, expira_at, created_at)
                         VALUES (:tenantId, :userId, :tokenHash, :expiresAt, :at)
                         """)
                 .param("tenantId", tenantInternalId).param("userId", userInternalId)
-                .param("tokenHash", tokenHash).param("expiresAt", expiresAt).param("at", at).update();
+                .param("tokenHash", tokenHash)
+                .param("expiresAt", toOffsetDateTime(expiresAt))
+                .param("at", toOffsetDateTime(at)).update();
     }
 
     @Override
@@ -234,7 +245,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE p.token_hash = :tokenHash AND p.consumido_at IS NULL
                            AND p.revocado_at IS NULL AND p.expira_at > :at
                         """)
-                .param("tokenHash", tokenHash).param("at", at)
+                .param("tokenHash", tokenHash).param("at", toOffsetDateTime(at))
                 .query((rs, row) -> new UserReference(uuid(rs, "tenant_uuid"), uuid(rs, "user_uuid")))
                 .optional();
         if (target.isEmpty()) return false;
@@ -242,7 +253,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         UPDATE sch_seguridad.token_recuperacion_password SET consumido_at = :at
                          WHERE token_hash = :tokenHash AND consumido_at IS NULL
                            AND revocado_at IS NULL AND expira_at > :at
-                        """).param("at", at).param("tokenHash", tokenHash).update();
+                        """)
+                .param("at", toOffsetDateTime(at)).param("tokenHash", tokenHash).update();
         if (consumed != 1) return false;
         return replacePasswordAndRevoke(target.get(), newPasswordHash, at, "PASSWORD_RECUPERADA");
     }
@@ -272,7 +284,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                            AND (s.expira_at IS NULL OR s.expira_at > :at)
                         """)
                 .param("tenantId", tenantId).param("userId", userId)
-                .param("sessionId", sessionId).param("at", at).query(Long.class).single() == 1;
+                .param("sessionId", sessionId).param("at", toOffsetDateTime(at))
+                .query(Long.class).single() == 1;
     }
 
     @Override
@@ -305,7 +318,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                            AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= :at)
                          ORDER BY p.codigo
                         """)
-                .param("tenantId", tenantId).param("userId", userId).param("at", at)
+                .param("tenantId", tenantId).param("userId", userId)
+                .param("at", toOffsetDateTime(at))
                 .query(String.class).list());
     }
 
@@ -321,7 +335,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         """)
                 .param("id", value.id()).param("sessionId", value.sessionId())
                 .param("familyId", value.familyId()).param("tokenHash", value.tokenHash())
-                .param("expiresAt", value.expiresAt()).param("createdAt", value.createdAt())
+                .param("expiresAt", toOffsetDateTime(value.expiresAt()))
+                .param("createdAt", toOffsetDateTime(value.createdAt()))
                 .param("tenantId", value.tenantId()).param("userId", value.userId()).update();
     }
 
@@ -337,7 +352,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("passwordHash", newPasswordHash).param("at", at)
+                .param("passwordHash", newPasswordHash).param("at", toOffsetDateTime(at))
                 .param("tenantId", user.tenantId()).param("userId", user.userId()).update();
         if (updated != 1) return false;
         updateUserPasswordChangeRequirement(user.tenantId(), user.userId(), false, at);
@@ -354,7 +369,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("at", at).param("reason", reason)
+                .param("at", toOffsetDateTime(at)).param("reason", reason)
                 .param("tenantId", tenantId).param("userId", userId).update();
         jdbc.sql("""
                         UPDATE sch_seguridad.token_refresh r SET revocado_at = :at
@@ -363,7 +378,8 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId)
                         """)
-                .param("at", at).param("tenantId", tenantId).param("userId", userId).update();
+                .param("at", toOffsetDateTime(at))
+                .param("tenantId", tenantId).param("userId", userId).update();
     }
 
     private void updateUserPasswordChangeRequirement(
@@ -374,7 +390,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE u.uuid_publico = :userId AND u.tenant_id = (
                                SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId)
                         """)
-                .param("requireChange", requireChange).param("at", at)
+                .param("requireChange", requireChange).param("at", toOffsetDateTime(at))
                 .param("tenantId", tenantId).param("userId", userId).update();
     }
 
@@ -421,6 +437,10 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         var value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 
     private record UserReference(UUID tenantId, UUID userId) {

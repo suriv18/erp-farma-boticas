@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,7 +36,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                            AND t.uuid_publico = :tenantId
                            AND u.uuid_publico = :userId
                         """)
-                .param("status", status).param("changedAt", changedAt)
+                .param("status", status).param("changedAt", toOffsetDateTime(changedAt))
                 .param("tenantId", tenantId).param("userId", userId).update() == 1;
     }
 
@@ -50,7 +51,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                            AND t.uuid_publico = :tenantId
                            AND r.uuid_publico = :roleId
                         """)
-                .param("status", status).param("changedAt", changedAt)
+                .param("status", status).param("changedAt", toOffsetDateTime(changedAt))
                 .param("tenantId", tenantId).param("roleId", roleId).update() == 1;
     }
 
@@ -87,7 +88,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                              WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
                             """)
                     .param("provider", data.provider()).param("subject", data.subject())
-                    .param("createdAt", createdAt).param("tenantId", tenantId).param("userId", userId);
+                    .param("createdAt", toOffsetDateTime(createdAt)).param("tenantId", tenantId).param("userId", userId);
             query = data.issuer() == null
                     ? query.param("issuer", null, Types.VARCHAR) : query.param("issuer", data.issuer());
             query = data.emailClaim() == null
@@ -180,7 +181,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                            AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= :at)
                       ORDER BY p.codigo
                         """)
-                .param("tenantId", tenantId).param("userId", userId).param("at", at)
+                .param("tenantId", tenantId).param("userId", userId).param("at", toOffsetDateTime(at))
                 .query(String.class).list());
     }
 
@@ -226,7 +227,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                          WHERE t.id = s.tenant_id AND t.uuid_publico = :tenantId
                            AND s.uuid_sesion = :sessionId AND s.estado = 'ACTIVA'
                         """)
-                .param("revokedAt", revokedAt).param("tenantId", tenantId).param("sessionId", sessionId);
+                .param("revokedAt", toOffsetDateTime(revokedAt)).param("tenantId", tenantId).param("sessionId", sessionId);
         query = reason == null ? query.param("reason", null, Types.VARCHAR) : query.param("reason", reason);
         return query.update() == 1;
     }
@@ -271,7 +272,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                           %s
                          WHERE t.uuid_publico = :tenantId
                         """.formatted(terminalValue, terminalJoin))
-                .param("deviceId", deviceId).param("registeredAt", registeredAt)
+                .param("deviceId", deviceId).param("registeredAt", toOffsetDateTime(registeredAt))
                 .param("tenantId", data.tenantId()).param("companyId", data.companyId())
                 .param("establishmentId", data.establishmentId());
         if (data.terminalId() != null) query = query.param("terminalId", data.terminalId());
@@ -331,5 +332,9 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         var value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 }

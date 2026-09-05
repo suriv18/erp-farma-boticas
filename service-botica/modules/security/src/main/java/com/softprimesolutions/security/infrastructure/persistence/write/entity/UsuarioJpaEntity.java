@@ -35,10 +35,10 @@ public class UsuarioJpaEntity {
     @Column(length = 180)
     private String apellidos;
 
-    @Column(length = 150)
+    @Column(columnDefinition = "citext")
     private String username;
 
-    @Column(length = 254)
+    @Column(columnDefinition = "citext")
     private String email;
 
     @Column(length = 40)

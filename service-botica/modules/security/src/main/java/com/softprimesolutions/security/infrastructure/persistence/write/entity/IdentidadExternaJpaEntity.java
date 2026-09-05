@@ -28,7 +28,7 @@ public class IdentidadExternaJpaEntity {
     @Column(length = 500)
     private String issuer;
 
-    @Column(name = "email_claim", length = 254)
+    @Column(name = "email_claim", columnDefinition = "citext")
     private String emailClaim;
 
     @Column(name = "ultimo_login_at")

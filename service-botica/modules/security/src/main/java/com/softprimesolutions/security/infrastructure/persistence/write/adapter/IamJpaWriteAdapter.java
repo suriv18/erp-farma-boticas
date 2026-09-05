@@ -12,6 +12,8 @@ import com.softprimesolutions.security.infrastructure.persistence.write.reposito
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.UsuarioJpaRepository;
 import com.softprimesolutions.security.infrastructure.persistence.write.entity.IdentidadExternaJpaEntity;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -98,7 +100,7 @@ public class IamJpaWriteAdapter implements IamWritePort {
                         .param("roleType", role.roleType().name())
                         .param("systemRole", role.systemRole())
                         .param("status", role.status().name())
-                        .param("updatedAt", role.updatedAt())
+                        .param("updatedAt", toOffsetDateTime(role.updatedAt()))
                         .param("roleId", role.id().value())
                         .update();
                 return SaveRolOutcome.UPDATED;
@@ -129,13 +131,13 @@ public class IamJpaWriteAdapter implements IamWritePort {
                             """)
                     .param("tenantId", entity.get().getTenantId())
                     .param("roleId", entity.get().getId())
-                    .param("grantedAt", grantedAt)
+                    .param("grantedAt", toOffsetDateTime(grantedAt))
                     .param("grantedBy", grantedBy)
                     .param("permissionCode", permissionCode)
                     .update();
         }
         jdbcClient.sql("UPDATE sch_seguridad.rol SET updated_at = :updatedAt WHERE id = :roleId")
-                .param("updatedAt", grantedAt)
+                .param("updatedAt", toOffsetDateTime(grantedAt))
                 .param("roleId", entity.get().getId())
                 .update();
         return SaveRolOutcome.UPDATED;
@@ -337,6 +339,10 @@ public class IamJpaWriteAdapter implements IamWritePort {
 
     private static long valueOrZero(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 
     private record ResolvedScope(Long companyId, Long establishmentId, Long warehouseId, Long terminalId) {
