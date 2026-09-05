@@ -1,25 +1,66 @@
 # ERP Botica
 
-Monorepo de una plataforma integral para cadena de farmacias en Perú.
+Monorepo de una plataforma integral para una cadena de farmacias en Perú: backend modular en Java/Spring Boot y frontend en React, con documentación de dominio y arquitectura versionada junto al código.
 
-## Fuente única de verdad
+## Estructura del repositorio
 
-El punto de entrada canónico es
-[`docs/cadena-farmacias-docs/docs/00-gobierno/01-fuente-unica-verdad.md`](docs/cadena-farmacias-docs/docs/00-gobierno/01-fuente-unica-verdad.md).
-Allí se define la precedencia entre requisitos, ADR, código existente y artefactos legados.
+```text
+erp-botica/
+├── service-botica/    Backend Java 25 / Spring Boot 4.1, Gradle multimodulo
+├── frontend/           Frontend React 19 / Vite, workspace pnpm
+├── docs/               Documentacion de negocio, dominio y arquitectura
+├── Dockerfile, docker-compose.yml, .env.example   Entorno local con Docker
+└── CLAUDE.md           Guia de contexto del repo para Claude Code
+```
+
+## Documentación
+
+La documentación de negocio, dominio, arquitectura, seguridad y estándares de desarrollo vive en [`docs/cadena-farmacias-docs/docs/`](docs/cadena-farmacias-docs/docs/), organizada por área (`01-negocio`, `04-dominio`, `05-arquitectura`, `08-seguridad`, etc.). Las carpetas `docs/arquitectura/`, `docs/sprint/`, `docs/decisiones-adr/` y `docs/db/` contienen antecedentes y borradores legados, conservados solo para trazabilidad histórica — ante cualquier discrepancia, prevalece la documentación en `docs/cadena-farmacias-docs/docs/`.
 
 ## Estado actual
 
-- `service-botica/`: monolito modular Java/Spring; Organización contiene el primer agregado y caso
-  de uso probados, pero aún no hay endpoints, adapters de persistencia, entidades JPA ni migraciones SQL.
-- `frontend/`: scaffold React operativo; login simulado, dashboard con mock/datos fijos, inventario
-  con fixtures, Organización contra contrato mock y siete módulos placeholder.
-- `docs/cadena-farmacias-docs/`: documentación canónica de negocio a entrega.
-- `docs/arquitectura`, `docs/sprint`, `docs/decisiones-adr` y `docs/db`: antecedentes o borradores
-  legados conservados para trazabilidad.
+- **`service-botica/`**: monolito modular (17 bounded contexts como subproyectos Gradle). El módulo `security` (IAM: login, JWT con refresh y rotación, RBAC por ámbito organizacional, sesiones, dispositivos) es el más completo y tiene endpoints REST, persistencia JPA/JDBC y migraciones Flyway funcionando contra PostgreSQL real. El módulo `organizacion` tiene un primer slice parcial. El resto de los módulos de negocio (ventas, inventario, compras, etc.) siguen siendo scaffolds sin lógica.
+- **`frontend/`**: scaffold React navegable, no un ERP funcional. El login es simulado (no llama al backend), el dashboard usa datos mock, y la mayoría de los módulos (catálogo, ventas, POS, caja, clientes, seguridad) son placeholders visuales.
+- **Docker**: el backend puede levantarse junto con PostgreSQL con un solo comando (`docker compose up`), ver más abajo.
 
-Una pantalla visible, un módulo detectado o una tabla en el DDL legado no equivalen a una capacidad
-terminada. La entrega sigue el flujo `RF/RN → CU/CA → dominio → ADR → contrato/modelo → slice → pruebas`.
+Una pantalla visible o un módulo detectado en el código no equivalen a una capacidad terminada.
+
+## Cómo levantar el proyecto
+
+### Backend + base de datos con Docker
+
+```bash
+cp .env.example .env
+# Editar .env y generar BOTICA_JWT_SECRET:
+openssl rand -base64 32
+
+docker compose up --build
+```
+
+La API queda disponible en `http://localhost:8080` (`GET /actuator/health` para verificar).
+
+### Backend en local (sin Docker)
+
+Requiere JDK 25 y PostgreSQL disponible.
+
+```powershell
+cd service-botica
+.\gradlew.bat check
+.\gradlew.bat :bootstrap-app:bootRun
+```
+
+### Frontend
+
+Requiere Node.js 24.14.1 y pnpm 11.9.0.
+
+```bash
+cd frontend
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+La aplicación queda disponible en `http://localhost:5173` (modo mock con MSW, sin necesitar el backend).
 
 ## Verificación local
 
@@ -32,14 +73,11 @@ cd service-botica
 
 Frontend:
 
-```powershell
+```bash
 cd frontend
-corepack pnpm check
-corepack pnpm format:check
+pnpm check
 ```
 
-El consolidado documental se regenera desde sus fuentes con:
+## Para trabajar con Claude Code
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File ./docs/cadena-farmacias-docs/scripts/regenerar-documentacion.ps1
-```
+Este repositorio incluye [`CLAUDE.md`](CLAUDE.md) con comandos de build/test y la arquitectura de alto nivel del backend y frontend, pensado como contexto de arranque rápido para agentes de código.
