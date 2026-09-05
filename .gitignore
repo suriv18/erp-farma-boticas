@@ -1,6 +1,9 @@
 # Herramientas de analisis/generacion (no es codigo fuente del proyecto)
 graphify-out/
 
+# Scratch de ejecucion de skills (briefs, reportes y diffs intermedios de subagentes)
+.superpowers/
+
 # Sistema operativo / editores
 .DS_Store
 Thumbs.db
