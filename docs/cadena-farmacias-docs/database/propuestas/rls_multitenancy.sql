@@ -1,0 +1,15 @@
+-- PROPUESTA NO ACTIVA
+-- PostgreSQL 18 - ejemplo de RLS multi-tenant.
+-- No activar hasta cerrar ADR de autenticación, pool de conexiones y propagación de tenant.
+
+-- Ejemplo conceptual:
+-- ALTER TABLE sch_farmacia.venta ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY venta_por_tenant ON sch_farmacia.venta
+-- USING (tenant_id = current_setting('app.tenant_id', true)::bigint)
+-- WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::bigint);
+--
+-- Requisitos antes de activar:
+-- 1. SET LOCAL app.tenant_id dentro de cada transacción.
+-- 2. La cuenta de aplicación no debe usar BYPASSRLS.
+-- 3. Pruebas de conexión/pooling para impedir fuga de contexto entre requests.
+-- 4. RLS complementa, no reemplaza, RBAC/ámbito/autorización de dominio.

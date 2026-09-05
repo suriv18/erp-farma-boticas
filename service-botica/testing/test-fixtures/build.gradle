@@ -1,0 +1,8 @@
+plugins {
+    id 'boticas.quality'
+    id 'java-test-fixtures'
+}
+
+dependencies {
+    api project(':shared-kernel')
+}

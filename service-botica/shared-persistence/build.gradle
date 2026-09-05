@@ -1,0 +1,11 @@
+plugins {
+    id 'boticas.quality'
+}
+
+dependencies {
+    api platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    api project(':shared-application')
+    implementation 'org.springframework.data:spring-data-jpa'
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-tx'
+}

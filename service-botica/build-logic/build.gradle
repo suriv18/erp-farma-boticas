@@ -1,0 +1,10 @@
+plugins {
+    id 'groovy-gradle-plugin'
+}
+
+group = 'com.softprimesolutions.buildlogic'
+
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+}

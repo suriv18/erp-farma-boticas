@@ -1,0 +1,13 @@
+# Herramientas de analisis/generacion (no es codigo fuente del proyecto)
+graphify-out/
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Variables de entorno locales
+.env
+.env.local

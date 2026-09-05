@@ -1,0 +1,60 @@
+plugins {
+    id 'boticas.quality'
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    implementation platform('org.springframework.modulith:spring-modulith-bom:2.1.0')
+
+    implementation project(':shared-web')
+    implementation project(':shared-persistence')
+    implementation project(':modules:security')
+    implementation project(':modules:organizacion')
+    implementation project(':modules:catalogo')
+    implementation project(':modules:farmacia')
+    implementation project(':modules:inventario')
+    implementation project(':modules:compras')
+    implementation project(':modules:ventas')
+    implementation project(':modules:clientes')
+    implementation project(':modules:finanzas')
+    implementation project(':modules:rrhh')
+    implementation project(':modules:crm')
+    implementation project(':modules:cmr')
+    implementation project(':modules:app-channel')
+    implementation project(':modules:logistica')
+    implementation project(':modules:pagos')
+    implementation project(':modules:notificaciones')
+    implementation project(':modules:integraciones')
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.modulith:spring-modulith-starter-jpa'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'org.springframework.modulith:spring-modulith-starter-insight'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir rootProject.file('../docs/cadena-farmacias-docs/database')
+        }
+    }
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'service-botica.jar'
+}

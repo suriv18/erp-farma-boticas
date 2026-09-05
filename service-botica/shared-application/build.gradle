@@ -1,0 +1,7 @@
+plugins {
+    id 'boticas.quality'
+}
+
+dependencies {
+    api project(':shared-kernel')
+}

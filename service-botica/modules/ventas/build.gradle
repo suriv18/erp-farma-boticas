@@ -1,0 +1,2 @@
+plugins { id 'boticas.spring-module'; id 'boticas.quality' }
+dependencies { api project(':shared-kernel'); implementation project(':shared-application') }

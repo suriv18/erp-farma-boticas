@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  msw: true
+
+disallowWorkspaceCycles: true

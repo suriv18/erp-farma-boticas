@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+apps/erp-web/public/mockServiceWorker.js
+packages/api-client/src/generated/

@@ -1,0 +1,43 @@
+pluginManagement {
+    includeBuild 'build-logic'
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'backend-parent'
+
+include 'bootstrap-app'
+include 'shared-kernel'
+include 'shared-application'
+include 'shared-web'
+include 'shared-persistence'
+
+include 'modules:security'
+include 'modules:organizacion'
+include 'modules:catalogo'
+include 'modules:farmacia'
+include 'modules:inventario'
+include 'modules:compras'
+include 'modules:ventas'
+include 'modules:clientes'
+include 'modules:finanzas'
+include 'modules:rrhh'
+include 'modules:crm'
+include 'modules:cmr'
+include 'modules:app-channel'
+include 'modules:logistica'
+include 'modules:pagos'
+include 'modules:notificaciones'
+include 'modules:integraciones'
+
+include 'testing:test-fixtures'
+include 'testing:architecture-tests'

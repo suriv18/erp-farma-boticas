@@ -1,0 +1,41 @@
+plugins {
+    id 'base'
+    id 'org.springframework.boot' version '4.1.0' apply false
+}
+
+group = 'com.softprimesolutions'
+version = '0.1.0-SNAPSHOT'
+
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
+}
+
+tasks.register('testAll') {
+    group = 'verification'
+    description = 'Ejecuta todas las pruebas unitarias del backend.'
+    dependsOn subprojects
+            .findAll { it.path != ':modules' && it.path != ':testing' }
+            .collect { "${it.path}:test" }
+}
+
+tasks.register('integrationTest') {
+    group = 'verification'
+    description = 'Ejecuta todas las pruebas de integración.'
+    dependsOn subprojects
+            .findAll { it.path != ':modules' && it.path != ':testing' }
+            .collect { "${it.path}:integrationTest" }
+}
+
+tasks.register('architectureTest') {
+    group = 'verification'
+    description = 'Verifica los límites físicos y lógicos de la arquitectura.'
+    dependsOn ':testing:architecture-tests:test'
+}
+
+tasks.named('check') {
+    dependsOn subprojects
+            .findAll { it.path != ':modules' && it.path != ':testing' }
+            .collect { "${it.path}:check" }
+    dependsOn tasks.named('architectureTest')
+}

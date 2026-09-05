@@ -1,0 +1,10 @@
+plugins {
+    id 'boticas.quality'
+}
+
+dependencies {
+    testImplementation platform('org.springframework.modulith:spring-modulith-bom:2.1.0')
+    testImplementation project(':bootstrap-app')
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+    testImplementation 'com.tngtech.archunit:archunit'
+}

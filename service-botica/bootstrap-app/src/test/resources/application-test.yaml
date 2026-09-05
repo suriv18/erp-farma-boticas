@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: "jdbc:h2:mem:erp_botica;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS sch_seguridad\\;CREATE SCHEMA IF NOT EXISTS sch_farmacia"
+    username: sa
+    password:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create
+  modulith:
+    runtime:
+      verification-enabled: true
+
+security:
+  local-auth:
+    jwt-secret: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+    issuer: "service-botica-test"
+    audience: "service-botica-api-test"
+    access-token-ttl: PT10M
+    refresh-token-ttl: P7D
+    password-reset-ttl: PT30M
+    max-failed-attempts: 5
+    lock-duration: PT15M

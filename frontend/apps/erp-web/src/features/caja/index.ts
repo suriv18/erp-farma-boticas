@@ -1,0 +1,1 @@
+export { cashRegisterRoutes } from './routes';
