@@ -1,4 +1,5 @@
 import { ApiError } from './api-error';
+import type { AuthHooks } from './auth-hooks';
 import type { ProblemDetails } from './problem-details';
 
 export type ApiClientConfig = {
@@ -13,6 +14,7 @@ export type ApiClient = {
   put<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse>;
   patch<TResponse, TBody>(path: string, body: TBody, init?: RequestInit): Promise<TResponse>;
   delete<T>(path: string, init?: RequestInit): Promise<T>;
+  setAuthHooks(hooks: AuthHooks | null): void;
 };
 
 function resolveUrl(baseUrl: string, path: string): string {
@@ -28,8 +30,9 @@ function resolveUrl(baseUrl: string, path: string): string {
 export function createApiClient(config: ApiClientConfig): ApiClient {
   const credentials = config.credentials ?? 'include';
   const timeoutMs = config.timeoutMs ?? 15_000;
+  let authHooks: AuthHooks | null = null;
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  async function performFetch(path: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const callerSignal = init.signal;
@@ -41,30 +44,48 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     const headers = new Headers(init.headers);
     if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
+    const accessToken = authHooks?.getAccessToken();
+    if (accessToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${accessToken}`);
+    }
+
     try {
-      const response = await fetch(resolveUrl(config.baseUrl, path), {
+      return await fetch(resolveUrl(config.baseUrl, path), {
         ...init,
         credentials,
         signal: controller.signal,
         headers
       });
-
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => undefined)) as
-          ProblemDetails | undefined;
-        throw new ApiError(
-          problem?.detail ?? problem?.title ?? 'La solicitud no pudo completarse.',
-          response.status,
-          problem
-        );
-      }
-
-      if (response.status === 204) return undefined as T;
-      return (await response.json()) as T;
     } finally {
       clearTimeout(timeout);
       callerSignal?.removeEventListener('abort', abortFromCaller);
     }
+  }
+
+  async function toApiError(response: Response): Promise<ApiError> {
+    const problem = (await response.json().catch(() => undefined)) as ProblemDetails | undefined;
+    return new ApiError(
+      problem?.detail ?? problem?.title ?? 'La solicitud no pudo completarse.',
+      response.status,
+      problem
+    );
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    let response = await performFetch(path, init);
+
+    if (response.status === 401 && authHooks) {
+      const newToken = await authHooks.onUnauthorized();
+      if (newToken) {
+        const retryHeaders = new Headers(init.headers);
+        retryHeaders.set('Authorization', `Bearer ${newToken}`);
+        response = await performFetch(path, { ...init, headers: retryHeaders });
+      }
+    }
+
+    if (!response.ok) throw await toApiError(response);
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
   }
 
   function sendJson<TResponse, TBody>(
@@ -92,6 +113,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       sendJson<TResponse, TBody>('PUT', path, body, init),
     patch: <TResponse, TBody>(path: string, body: TBody, init?: RequestInit) =>
       sendJson<TResponse, TBody>('PATCH', path, body, init),
-    delete: <T>(path: string, init?: RequestInit) => request<T>(path, { ...init, method: 'DELETE' })
+    delete: <T>(path: string, init?: RequestInit) => request<T>(path, { ...init, method: 'DELETE' }),
+    setAuthHooks(hooks: AuthHooks | null) {
+      authHooks = hooks;
+    }
   };
 }
