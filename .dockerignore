@@ -1,0 +1,39 @@
+# No se necesita para compilar bootstrap-app
+frontend/
+graphify-out/
+.git/
+.github/
+
+# Documentacion no requerida por el build de Gradle
+docs/arquitectura/
+docs/cadena-farmacias-docs/DOCUMENTACION_COMPLETA.md
+docs/cadena-farmacias-docs/README.md
+docs/cadena-farmacias-docs/docs/
+docs/cadena-farmacias-docs/database/README.md
+docs/cadena-farmacias-docs/database/propuestas/
+docs/cadena-farmacias-docs/database/cadena_farmacias_postgresql18.sql
+docs/cadena-farmacias-documentacion-md.zip
+docs/db/
+docs/decisiones-adr/
+docs/sprint/
+docs/superpowers/
+docs/README.md
+
+# Artefactos de build ya generados (se regeneran dentro del contenedor)
+service-botica/build/
+service-botica/**/build/
+service-botica/.gradle/
+service-botica/**/.gradle/
+service-botica/.idea/
+service-botica/*.iml
+
+# Editor/OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Secretos locales
+.env
+.env.local
