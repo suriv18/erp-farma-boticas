@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
-import { apiClient } from '../../../app/api';
+import { apiClient, refreshApiClient } from '../../../app/api';
 import { login as loginRequest, logout as logoutRequest, refresh as refreshRequest } from '../api/auth.api';
 import type { LoginCredentials } from '../schemas/login.schema';
 import { AuthSessionContext, type AuthSession } from './auth-session.context';
@@ -9,12 +9,12 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const pendingRefresh = useRef<Promise<string | null> | null>(null);
 
-  const performRefresh = useCallback(async (): Promise<string | null> => {
+  const doRefresh = useCallback(async (): Promise<string | null> => {
     const storedRefreshToken = readRefreshToken();
     if (!storedRefreshToken) return null;
 
     try {
-      const response = await refreshRequest(apiClient, storedRefreshToken);
+      const response = await refreshRequest(refreshApiClient, storedRefreshToken);
       setAccessToken(response.accessToken);
       saveRefreshToken(response.refreshToken);
       return response.accessToken;
@@ -25,13 +25,17 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
-  const onUnauthorized = useCallback((): Promise<string | null> => {
+  const performRefresh = useCallback((): Promise<string | null> => {
     if (!pendingRefresh.current) {
-      pendingRefresh.current = performRefresh().finally(() => {
+      pendingRefresh.current = doRefresh().finally(() => {
         pendingRefresh.current = null;
       });
     }
     return pendingRefresh.current;
+  }, [doRefresh]);
+
+  const onUnauthorized = useCallback((): Promise<string | null> => {
+    return performRefresh();
   }, [performRefresh]);
 
   useEffect(() => {
