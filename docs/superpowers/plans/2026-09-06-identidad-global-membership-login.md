@@ -305,7 +305,7 @@ class IdentidadTest {
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.domain.model.IdentidadTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.domain.model.IdentidadTest"`
 Expected: FAIL — `Identidad` e `IdentidadId` no existen todavía (error de compilación).
 
 - [ ] **Step 3: Crear `IdentidadId`**
@@ -496,7 +496,7 @@ public final class Identidad extends AggregateRoot {
 
 - [ ] **Step 5: Ejecutar y verificar que pasa**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.domain.model.IdentidadTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.domain.model.IdentidadTest"`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -575,7 +575,7 @@ class UsuarioTest {
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.domain.model.UsuarioTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.domain.model.UsuarioTest"`
 Expected: FAIL — la firma actual de `Usuario.register` no coincide (error de compilación).
 
 - [ ] **Step 3: Reescribir `Usuario.java`**
@@ -697,8 +697,8 @@ Run: `rm service-botica/modules/security/src/main/java/com/softprimesolutions/se
 
 - [ ] **Step 5: Ejecutar y verificar que pasa**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.domain.model.UsuarioTest"`
-Expected: PASS. Nota: el módulo `security` no compilará completo todavía (otros archivos como `CrearUsuarioHandler`, `IamWriteMapper` referencian la API vieja de `Usuario`) — eso se corrige en las tareas siguientes; no ejecutar `:security:check` completo hasta terminar la Fase 3.
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.domain.model.UsuarioTest"`
+Expected: PASS. Nota: el módulo `security` no compilará completo todavía (otros archivos como `CrearUsuarioHandler`, `IamWriteMapper` referencian la API vieja de `Usuario`) — eso se corrige en las tareas siguientes; no ejecutar `:modules:security:check` completo hasta terminar la Fase 3.
 
 - [ ] **Step 6: Commit**
 
@@ -943,7 +943,7 @@ Run: `rm service-botica/modules/security/src/main/java/com/softprimesolutions/se
 
 - [ ] **Step 5: Compilar el módulo (esperado con errores en otros archivos, solo para confirmar que estos 4 archivos nuevos compilan sin error propio)**
 
-Run: `cd service-botica && .\gradlew.bat :security:compileJava 2>&1 | Select-String -Pattern "IdentidadJpaEntity|MembershipJpaEntity|IdentidadJpaRepository|MembershipJpaRepository"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava 2>&1 | Select-String -Pattern "IdentidadJpaEntity|MembershipJpaEntity|IdentidadJpaRepository|MembershipJpaRepository"`
 Expected: sin líneas de error referidas a estos 4 archivos nuevos (los errores de `IamJpaWriteAdapter`/`IamWriteMapper` referenciando `UsuarioJpaEntity` son esperados y se resuelven en la Task 5).
 
 - [ ] **Step 6: Commit**
@@ -1093,7 +1093,7 @@ class CrearUsuarioHandlerTest {
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandlerTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandlerTest"`
 Expected: FAIL — error de compilación, `CrearUsuarioCommand` todavía tiene la firma vieja con campos SSO.
 
 - [ ] **Step 3: Reescribir `CrearUsuarioCommand.java`**
@@ -1500,7 +1500,7 @@ Y quitar el import/uso de `Usuario` como único parámetro si quedó obsoleto en
 
 - [ ] **Step 11: Ejecutar y verificar que pasa**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandlerTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandlerTest"`
 Expected: PASS
 
 - [ ] **Step 12: Commit**
@@ -1560,7 +1560,7 @@ Y en la query SQL de duplicados dentro de ese mismo método, la columna `usuario
 
 - [ ] **Step 2: Compilar el módulo completo**
 
-Run: `cd service-botica && .\gradlew.bat :security:compileJava`
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
 Expected: BUILD SUCCESSFUL (sin errores de compilación en `IamJpaWriteAdapter`). Si aparecen errores en `AsignacionRolJpaEntity`/`IamWriteMapper.toEntity(AsignacionRol, ...)` por el nombre de columna `usuario_id` de esa entidad JPA, revisar si `AsignacionRolJpaEntity` mapea directamente esa columna por nombre literal `"usuario_id"` — si es así, actualizar su anotación `@Column(name = "usuario_id")` a `@Column(name = "membership_id")` en `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/AsignacionRolJpaEntity.java`.
 
 - [ ] **Step 3: Commit**
@@ -1626,7 +1626,7 @@ En `FakeStore`, cambiar la firma sobreescrita:
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
 Expected: FAIL — error de compilación, `LoginCommand`/`PasswordResetRequest`/`findAccountByLogin` todavía tienen la firma vieja con `tenantId`.
 
 - [ ] **Step 3: Actualizar `LocalAuthStorePort.java`**
@@ -1684,7 +1684,7 @@ El resto de ambos métodos permanece igual (usan `account`, `value`, etc. de la 
 
 - [ ] **Step 6: Ejecutar y verificar que pasa**
 
-Run: `cd service-botica && .\gradlew.bat :security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
+Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
 Expected: PASS — los 15 tests existentes en verde con la nueva firma.
 
 - [ ] **Step 7: Commit**
@@ -2130,7 +2130,7 @@ Nota: las columnas `usuario_id` de `token_refresh` y `token_recuperacion_passwor
 
 - [ ] **Step 2: Compilar el módulo**
 
-Run: `cd service-botica && .\gradlew.bat :security:compileJava`
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
 Expected: BUILD SUCCESSFUL
 
 - [ ] **Step 3: Commit**
@@ -2299,7 +2299,7 @@ Y en `requestPasswordReset`:
 
 - [ ] **Step 7: Compilar el módulo**
 
-Run: `cd service-botica && .\gradlew.bat :security:compileJava`
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
 Expected: BUILD SUCCESSFUL
 
 - [ ] **Step 8: Commit**
@@ -2594,7 +2594,7 @@ Abrir cada archivo resultante (probablemente un `ListarUsuariosHandler` o simila
 
 - [ ] **Step 7: Compilar el módulo**
 
-Run: `cd service-botica && .\gradlew.bat :security:compileJava`
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
 Expected: BUILD SUCCESSFUL
 
 - [ ] **Step 8: Commit**
