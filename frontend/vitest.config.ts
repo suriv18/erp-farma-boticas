@@ -10,6 +10,11 @@ export default defineConfig({
         test: {
           name: 'erp-web',
           environment: 'jsdom',
+          environmentOptions: {
+            jsdom: {
+              url: 'http://localhost/'
+            }
+          },
           globals: true,
           setupFiles: ['./apps/erp-web/src/test/setup-tests.ts'],
           include: ['apps/erp-web/**/*.test.{ts,tsx}']
