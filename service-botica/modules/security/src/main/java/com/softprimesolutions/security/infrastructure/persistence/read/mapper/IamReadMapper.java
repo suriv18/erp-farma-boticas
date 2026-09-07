@@ -14,11 +14,10 @@ public final class IamReadMapper {
 
     public static UsuarioResult toResult(UsuarioProjection value) {
         return new UsuarioResult(
-                value.id(), value.tenantId(), value.identityProvider(), value.identityIssuer(),
-                value.identitySubject(), value.emailClaim(), value.documentType(), value.documentNumber(),
-                value.firstNames(), value.lastNames(), value.username(), value.email(), value.displayName(),
-                value.phone(), value.credentialChangeRequired(), value.mfaRequired(), value.status(),
-                value.createdAt(), value.updatedAt());
+                value.id(), value.tenantId(), value.documentType(), value.documentNumber(),
+                value.firstNames(), value.lastNames(), value.username(), value.email(),
+                value.displayName(), value.phone(), value.credentialChangeRequired(), value.mfaRequired(),
+                value.status(), value.createdAt(), value.updatedAt());
     }
 
     public static RolResult toResult(RolProjection value) {

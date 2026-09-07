@@ -1,6 +1,7 @@
 package com.softprimesolutions.security.application.port.out;
 
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.domain.valueobject.AmbitoOrganizacional;
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 public interface IamWritePort {
 
-    SaveUsuarioOutcome save(Usuario user);
+    SaveUsuarioOutcome save(Identidad identidad, Usuario user);
 
     SaveRolOutcome save(Rol role);
 
@@ -34,7 +35,6 @@ public interface IamWritePort {
     enum SaveUsuarioOutcome {
         CREATED,
         TENANT_NOT_FOUND,
-        DUPLICATE_IDENTITY,
         DUPLICATE_USERNAME,
         DUPLICATE_EMAIL,
         DUPLICATE_DOCUMENT,

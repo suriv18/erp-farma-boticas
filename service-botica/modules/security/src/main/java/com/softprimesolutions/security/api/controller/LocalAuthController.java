@@ -44,7 +44,7 @@ public class LocalAuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         var command = new LoginCommand(
-                request.tenantId(), request.login(), request.password(), request.channel(),
+                request.login(), request.password(), request.channel(),
                 httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"), request.deviceId());
         return auth.login(command).fold(LocalAuthController::tokenResponse, IamControllerSupport::problem);
     }
@@ -65,7 +65,7 @@ public class LocalAuthController {
     @PostMapping("/auth/password/forgot")
     public ResponseEntity<?> requestPasswordReset(
             @Valid @RequestBody SolicitarRecuperacionPasswordRequest request) {
-        return auth.requestPasswordReset(new PasswordResetRequest(request.tenantId(), request.login())).fold(
+        return auth.requestPasswordReset(new PasswordResetRequest(request.login())).fold(
                 ignored -> ResponseEntity.accepted().build(), IamControllerSupport::problem);
     }
 

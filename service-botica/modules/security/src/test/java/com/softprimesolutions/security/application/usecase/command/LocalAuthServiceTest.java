@@ -66,7 +66,7 @@ class LocalAuthServiceTest {
         var longAgent = "agent".repeat(250);
 
         var result = service.login(new LoginCommand(
-                TENANT_ID, " local.admin ", CURRENT_PASSWORD, " web ", longIp, longAgent, null));
+                " local.admin ", CURRENT_PASSWORD, " web ", longIp, longAgent, null));
 
         assertTrue(result.isSuccess());
         var token = result.getOrElse(error -> null);
@@ -88,14 +88,14 @@ class LocalAuthServiceTest {
     @Test
     void returnsTheSameGenericErrorForUnknownAndIncorrectCredentials() {
         var unknown = service.login(new LoginCommand(
-                TENANT_ID, "unknown", "WrongPass!2026", "WEB", null, null, null));
+                "unknown", "WrongPass!2026", "WEB", null, null, null));
         assertFailureCode(unknown, "AUTH_INVALID_CREDENTIALS");
         assertEquals(1, passwords.matchCalls);
         assertEquals(0, store.loginFailures);
 
         store.accountByLogin = Optional.of(account("ACTIVO", "ACTIVA", null, false, false));
         var incorrect = service.login(new LoginCommand(
-                TENANT_ID, "local.admin", "WrongPass!2026", "WEB", null, null, null));
+                "local.admin", "WrongPass!2026", "WEB", null, null, null));
         assertFailureCode(incorrect, "AUTH_INVALID_CREDENTIALS");
         assertEquals(1, store.loginFailures);
         assertEquals(5, store.failureMaximumAttempts);
@@ -106,7 +106,7 @@ class LocalAuthServiceTest {
     void rejectsMissingCommandsAndRequiredValuesWithoutCallingPersistence() {
         assertFailureCode(service.login(null), "AUTH_REQUEST_INVALID");
         assertFailureCode(service.login(new LoginCommand(
-                null, "user", CURRENT_PASSWORD, "WEB", null, null, null)), "AUTH_REQUEST_INVALID");
+                "", CURRENT_PASSWORD, "WEB", null, null, null)), "AUTH_REQUEST_INVALID");
         assertFailureCode(service.refresh(" "), "AUTH_INVALID_CREDENTIALS");
         assertFailureCode(service.refresh("not-found"), "AUTH_INVALID_CREDENTIALS");
         assertFailureCode(service.requestPasswordReset(null), "AUTH_REQUEST_INVALID");
@@ -122,7 +122,7 @@ class LocalAuthServiceTest {
         store.accountByLogin = Optional.of(account("ACTIVO", "ACTIVA", null, false, false));
 
         var result = service.login(new LoginCommand(
-                TENANT_ID, "local.admin", CURRENT_PASSWORD, " ", " ", null, null));
+                "local.admin", CURRENT_PASSWORD, " ", " ", null, null));
 
         assertTrue(result.isSuccess());
         assertEquals("WEB", store.createdSession.channel());
@@ -133,7 +133,7 @@ class LocalAuthServiceTest {
     @Test
     void rejectsInvalidChannelAndFailsClosedForLockedInactiveOrMfaAccounts() {
         assertFailureCode(service.login(new LoginCommand(
-                TENANT_ID, "user", CURRENT_PASSWORD, "UNKNOWN", null, null, null)), "AUTH_REQUEST_INVALID");
+                "user", CURRENT_PASSWORD, "UNKNOWN", null, null, null)), "AUTH_REQUEST_INVALID");
 
         store.accountByLogin = Optional.of(account(
                 "ACTIVO", "ACTIVA", NOW.plusSeconds(1), false, false));
@@ -151,18 +151,18 @@ class LocalAuthServiceTest {
     void requiresATrustedDeviceForPosAndHandlesSessionPersistenceFailure() {
         store.accountByLogin = Optional.of(account("ACTIVO", "ACTIVA", null, false, false));
         assertFailureCode(service.login(new LoginCommand(
-                TENANT_ID, "local.admin", CURRENT_PASSWORD, "POS", null, null, null)),
+                "local.admin", CURRENT_PASSWORD, "POS", null, null, null)),
                 "AUTH_INVALID_CREDENTIALS");
 
         store.trustedDevice = false;
         assertFailureCode(service.login(new LoginCommand(
-                TENANT_ID, "local.admin", CURRENT_PASSWORD, "POS", null, null, DEVICE_ID)),
+                "local.admin", CURRENT_PASSWORD, "POS", null, null, DEVICE_ID)),
                 "AUTH_INVALID_CREDENTIALS");
 
         store.trustedDevice = true;
         store.createSessionResult = false;
         assertFailureCode(service.login(new LoginCommand(
-                TENANT_ID, "local.admin", CURRENT_PASSWORD, "POS", null, null, DEVICE_ID)),
+                "local.admin", CURRENT_PASSWORD, "POS", null, null, DEVICE_ID)),
                 "AUTH_UNEXPECTED");
     }
 
@@ -213,7 +213,7 @@ class LocalAuthServiceTest {
     void createsOneTimePasswordRecoveryMaterialWithoutRevealingUnknownAccounts() {
         store.accountByLogin = Optional.of(account("ACTIVO", "ACTIVA", null, false, false));
 
-        var existing = service.requestPasswordReset(new PasswordResetRequest(TENANT_ID, " local.admin "));
+        var existing = service.requestPasswordReset(new PasswordResetRequest(" local.admin "));
 
         assertTrue(existing.isSuccess());
         assertEquals("digest:opaque-1", store.resetTokenHash);
@@ -223,7 +223,7 @@ class LocalAuthServiceTest {
 
         store.accountByLogin = Optional.empty();
         notifications.message = null;
-        var unknown = service.requestPasswordReset(new PasswordResetRequest(TENANT_ID, "unknown"));
+        var unknown = service.requestPasswordReset(new PasswordResetRequest("unknown"));
         assertTrue(unknown.isSuccess());
         assertNull(notifications.message);
         assertEquals(2, passwords.matchCalls);
@@ -303,7 +303,7 @@ class LocalAuthServiceTest {
 
     private Result<?, ApplicationError> loginWeb() {
         return service.login(new LoginCommand(
-                TENANT_ID, "local.admin", CURRENT_PASSWORD, "WEB", null, null, null));
+                "local.admin", CURRENT_PASSWORD, "WEB", null, null, null));
     }
 
     private static LocalAccount account(
@@ -409,7 +409,7 @@ class LocalAuthServiceTest {
         private boolean provisionRequireChange;
 
         @Override
-        public Optional<LocalAccount> findAccountByLogin(UUID tenantId, String login) {
+        public Optional<LocalAccount> findAccountByLogin(String login) {
             return accountByLogin;
         }
 

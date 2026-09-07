@@ -29,12 +29,12 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
     @Transactional
     public boolean updateUserStatus(UUID tenantId, UUID userId, String status, Instant changedAt) {
         return jdbc.sql("""
-                        UPDATE sch_seguridad.usuario u
+                        UPDATE sch_seguridad.membership m
                            SET estado = :status, updated_at = :changedAt
                           FROM sch_farmacia.tenant t
-                         WHERE t.id = u.tenant_id
+                         WHERE t.id = m.tenant_id
                            AND t.uuid_publico = :tenantId
-                           AND u.uuid_publico = :userId
+                           AND m.uuid_publico = :userId
                         """)
                 .param("status", status).param("changedAt", toOffsetDateTime(changedAt))
                 .param("tenantId", tenantId).param("userId", userId).update() == 1;
@@ -62,9 +62,9 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                         SELECT i.provider, i.subject, i.issuer, CAST(i.email_claim AS VARCHAR) AS email_claim,
                                i.ultimo_login_at, i.created_at
                           FROM sch_seguridad.identidad_externa i
-                          JOIN sch_seguridad.usuario u ON u.id = i.usuario_id
-                          JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                          JOIN sch_seguridad.membership m ON m.identidad_id = i.identidad_id
+                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                       ORDER BY i.created_at, i.id
                         """)
                 .param("tenantId", tenantId).param("userId", userId)
@@ -81,11 +81,11 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
         try {
             var query = jdbc.sql("""
                             INSERT INTO sch_seguridad.identidad_externa
-                                (usuario_id, provider, subject, issuer, email_claim, created_at)
-                            SELECT u.id, :provider, :subject, :issuer, :emailClaim, :createdAt
-                              FROM sch_seguridad.usuario u
-                              JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-                             WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                                (identidad_id, provider, subject, issuer, email_claim, created_at)
+                            SELECT m.identidad_id, :provider, :subject, :issuer, :emailClaim, :createdAt
+                              FROM sch_seguridad.membership m
+                              JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                             WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                             """)
                     .param("provider", data.provider()).param("subject", data.subject())
                     .param("createdAt", toOffsetDateTime(createdAt)).param("tenantId", tenantId).param("userId", userId);
@@ -106,14 +106,14 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                         DELETE FROM sch_seguridad.identidad_externa i
                          WHERE i.provider = :provider AND i.subject = :subject
                            AND EXISTS (
-                               SELECT 1 FROM sch_seguridad.usuario u
-                               JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-                                WHERE u.id = i.usuario_id AND u.uuid_publico = :userId
+                               SELECT 1 FROM sch_seguridad.membership m
+                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                                WHERE m.identidad_id = i.identidad_id AND m.uuid_publico = :userId
                                   AND t.uuid_publico = :tenantId
                            )
                            AND EXISTS (
                                SELECT 1 FROM sch_seguridad.identidad_externa other
-                                WHERE other.usuario_id = i.usuario_id AND other.id <> i.id
+                                WHERE other.identidad_id = i.identidad_id AND other.id <> i.id
                            )
                         """)
                 .param("provider", provider).param("subject", subject)
@@ -130,14 +130,14 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                                w.uuid_publico AS almacen_uuid, p.uuid_publico AS terminal_uuid,
                                a.vigente_desde, a.vigente_hasta, a.estado, a.created_by, a.created_at
                           FROM sch_seguridad.usuario_rol_ambito a
-                          JOIN sch_seguridad.usuario u ON u.id = a.usuario_id AND u.tenant_id = a.tenant_id
+                          JOIN sch_seguridad.membership m ON m.id = a.membership_id AND m.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
                           JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
                      LEFT JOIN sch_farmacia.empresa_operadora e ON e.id = a.empresa_id
                      LEFT JOIN sch_farmacia.establecimiento_farmaceutico s ON s.id = a.establecimiento_id
                      LEFT JOIN sch_farmacia.almacen w ON w.id = a.almacen_id
                      LEFT JOIN sch_farmacia.terminal_pos p ON p.id = a.terminal_id
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                       ORDER BY a.created_at DESC, a.id DESC
                         """)
                 .param("tenantId", tenantId).param("userId", userId)
@@ -153,10 +153,10 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                          WHERE a.uuid_publico = :assignmentId AND a.estado = 'ACTIVO'
                            AND EXISTS (
                                SELECT 1
-                                 FROM sch_seguridad.usuario u
-                                 JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-                                WHERE u.id = a.usuario_id AND u.tenant_id = a.tenant_id
-                                  AND t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                                 FROM sch_seguridad.membership m
+                                 JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                                WHERE m.id = a.membership_id AND m.tenant_id = a.tenant_id
+                                  AND t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            )
                         """)
                 .param("tenantId", tenantId).param("userId", userId)
@@ -169,13 +169,13 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
         return new LinkedHashSet<>(jdbc.sql("""
                         SELECT DISTINCT p.codigo
                           FROM sch_seguridad.usuario_rol_ambito a
-                          JOIN sch_seguridad.usuario u ON u.id = a.usuario_id AND u.tenant_id = a.tenant_id
+                          JOIN sch_seguridad.membership m ON m.id = a.membership_id AND m.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol_permiso rp ON rp.rol_id = r.id AND rp.tenant_id = r.tenant_id
                           JOIN sch_seguridad.permiso p ON p.id = rp.permiso_id
                           JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
-                           AND u.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
+                           AND m.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
                            AND a.estado = 'ACTIVO' AND rp.estado = 'ACTIVO' AND p.estado = 'ACTIVO'
                            AND a.vigente_desde <= :at
                            AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= :at)
@@ -202,15 +202,15 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
     @Transactional(readOnly = true)
     public List<SessionView> findSessions(UUID tenantId, UUID userId) {
         var sql = """
-                SELECT s.uuid_sesion, u.uuid_publico AS usuario_uuid, s.provider, s.auth_method,
+                SELECT s.uuid_sesion, m.uuid_publico AS usuario_uuid, s.provider, s.auth_method,
                        s.canal, CAST(s.ip_origen AS VARCHAR) AS ip_origen, s.user_agent,
                        s.dispositivo_ref, s.login_at, s.ultimo_uso_at, s.expira_at,
                        s.logout_at, s.revocado_at, s.motivo_revocacion, s.estado
                   FROM sch_seguridad.sesion_usuario s
-                  JOIN sch_seguridad.usuario u ON u.id = s.usuario_id AND u.tenant_id = s.tenant_id
+                  JOIN sch_seguridad.membership m ON m.id = s.membership_id AND m.tenant_id = s.tenant_id
                   JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
                  WHERE t.uuid_publico = :tenantId
-                """ + (userId == null ? "" : " AND u.uuid_publico = :userId")
+                """ + (userId == null ? "" : " AND m.uuid_publico = :userId")
                 + " ORDER BY s.login_at DESC, s.id DESC";
         var query = jdbc.sql(sql).param("tenantId", tenantId);
         if (userId != null) query = query.param("userId", userId);

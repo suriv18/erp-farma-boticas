@@ -2,15 +2,15 @@ package com.softprimesolutions.security.infrastructure.persistence.write.adapter
 
 import com.softprimesolutions.security.application.port.out.IamWritePort;
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.infrastructure.persistence.write.mapper.IamWriteMapper;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.AsignacionRolJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.repository.IdentidadExternaJpaRepository;
+import com.softprimesolutions.security.infrastructure.persistence.write.repository.IdentidadJpaRepository;
+import com.softprimesolutions.security.infrastructure.persistence.write.repository.MembershipJpaRepository;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.PermisoJpaRepository;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.RolJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.repository.UsuarioJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.entity.IdentidadExternaJpaEntity;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -26,52 +26,45 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class IamJpaWriteAdapter implements IamWritePort {
 
-    private final UsuarioJpaRepository userRepository;
+    private final IdentidadJpaRepository identidadRepository;
+    private final MembershipJpaRepository membershipRepository;
     private final RolJpaRepository roleRepository;
     private final PermisoJpaRepository permissionRepository;
     private final AsignacionRolJpaRepository assignmentRepository;
-    private final IdentidadExternaJpaRepository externalIdentityRepository;
     private final JdbcClient jdbcClient;
 
     public IamJpaWriteAdapter(
-            UsuarioJpaRepository userRepository,
+            IdentidadJpaRepository identidadRepository,
+            MembershipJpaRepository membershipRepository,
             RolJpaRepository roleRepository,
             PermisoJpaRepository permissionRepository,
             AsignacionRolJpaRepository assignmentRepository,
-            IdentidadExternaJpaRepository externalIdentityRepository,
             JdbcClient jdbcClient) {
-        this.userRepository = userRepository;
+        this.identidadRepository = identidadRepository;
+        this.membershipRepository = membershipRepository;
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.assignmentRepository = assignmentRepository;
-        this.externalIdentityRepository = externalIdentityRepository;
         this.jdbcClient = jdbcClient;
     }
 
     @Override
     @Transactional
-    public SaveUsuarioOutcome save(Usuario user) {
+    public SaveUsuarioOutcome save(Identidad identidad, Usuario user) {
         var tenantId = findTenantId(user.tenantId().value());
         if (tenantId.isEmpty()) return SaveUsuarioOutcome.TENANT_NOT_FOUND;
-        if (externalIdentityRepository.existsByProviderAndSubject(
-                user.identity().provider(), user.identity().subject())) {
-            return SaveUsuarioOutcome.DUPLICATE_IDENTITY;
-        }
-        if (user.username() != null && userRepository.existsByTenantIdAndUsername(tenantId.get(), user.username())) {
+        if (identidadRepository.existsByEmail(identidad.email())) return SaveUsuarioOutcome.DUPLICATE_EMAIL;
+        if (identidad.username() != null && identidadRepository.existsByUsername(identidad.username())) {
             return SaveUsuarioOutcome.DUPLICATE_USERNAME;
         }
-        if (user.email() != null && userRepository.existsByTenantIdAndEmail(tenantId.get(), user.email())) {
-            return SaveUsuarioOutcome.DUPLICATE_EMAIL;
-        }
-        if (user.documentNumber() != null && userRepository.existsByTenantIdAndTipoDocumentoAndNumeroDocumento(
-                tenantId.get(), user.documentType(), user.documentNumber())) {
+        if (identidad.documentNumber() != null && identidadRepository.existsByTipoDocumentoAndNumeroDocumento(
+                identidad.documentType(), identidad.documentNumber())) {
             return SaveUsuarioOutcome.DUPLICATE_DOCUMENT;
         }
         try {
-            var entity = userRepository.saveAndFlush(IamWriteMapper.toEntity(user, tenantId.get()));
-            externalIdentityRepository.saveAndFlush(new IdentidadExternaJpaEntity(
-                    entity.getId(), user.identity().provider(), user.identity().subject(),
-                    user.identity().issuer(), user.identity().emailClaim(), user.createdAt()));
+            var identidadEntity = identidadRepository.saveAndFlush(IamWriteMapper.toEntity(identidad));
+            membershipRepository.saveAndFlush(
+                    IamWriteMapper.toEntity(user, tenantId.get(), identidadEntity.getId()));
             return SaveUsuarioOutcome.CREATED;
         } catch (DataIntegrityViolationException exception) {
             return SaveUsuarioOutcome.DUPLICATE_CONSTRAINT;
@@ -165,8 +158,8 @@ public class IamJpaWriteAdapter implements IamWritePort {
 
     @Override
     public boolean userBelongsToTenant(UUID userId, UUID tenantId) {
-        return userRepository.findByUuidPublico(userId)
-                .map(user -> findTenantId(tenantId).filter(user.getTenantId()::equals).isPresent())
+        return membershipRepository.findByUuidPublico(userId)
+                .map(membership -> findTenantId(tenantId).filter(membership.getTenantId()::equals).isPresent())
                 .orElse(false);
     }
 
@@ -188,7 +181,7 @@ public class IamJpaWriteAdapter implements IamWritePort {
     @Transactional
     public SaveAssignmentOutcome save(AsignacionRol assignment) {
         var tenantId = findTenantId(assignment.tenantId().value());
-        var user = userRepository.findByUuidPublico(assignment.userId().value());
+        var user = membershipRepository.findByUuidPublico(assignment.userId().value());
         var role = roleRepository.findByUuidPublico(assignment.roleId().value());
         var scope = resolveScope(assignment.tenantId().value(), assignment.scope());
         if (tenantId.isEmpty() || user.isEmpty() || role.isEmpty() || scope.isEmpty()) {
@@ -199,7 +192,7 @@ public class IamJpaWriteAdapter implements IamWritePort {
                         SELECT COUNT(*)
                           FROM sch_seguridad.usuario_rol_ambito
                          WHERE tenant_id = :tenantId
-                           AND usuario_id = :userId
+                           AND membership_id = :userId
                            AND rol_id = :roleId
                            AND tipo_ambito = :scopeType
                            AND COALESCE(empresa_id, 0) = :companyId

@@ -10,8 +10,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "usuario", schema = "sch_seguridad")
-public class UsuarioJpaEntity {
+@Table(name = "membership", schema = "sch_seguridad")
+public class MembershipJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,26 +23,8 @@ public class UsuarioJpaEntity {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "tipo_documento", length = 20)
-    private String tipoDocumento;
-
-    @Column(name = "numero_documento", length = 30)
-    private String numeroDocumento;
-
-    @Column(length = 150)
-    private String nombres;
-
-    @Column(length = 180)
-    private String apellidos;
-
-    @Column(columnDefinition = "citext")
-    private String username;
-
-    @Column(columnDefinition = "citext")
-    private String email;
-
-    @Column(length = 40)
-    private String telefono;
+    @Column(name = "identidad_id", nullable = false)
+    private Long identidadId;
 
     @Column(name = "nombre_mostrar", length = 250)
     private String nombreMostrar;
@@ -68,23 +50,16 @@ public class UsuarioJpaEntity {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    protected UsuarioJpaEntity() {
+    protected MembershipJpaEntity() {
     }
 
-    public UsuarioJpaEntity(
-            UUID uuidPublico, Long tenantId, String tipoDocumento, String numeroDocumento,
-            String nombres, String apellidos, String username, String email, String telefono,
-            String nombreMostrar, boolean requiereCambioCredencial, boolean mfaRequerido,
-            String estado, Instant createdAt, Instant updatedAt) {
+    public MembershipJpaEntity(
+            UUID uuidPublico, Long tenantId, Long identidadId, String nombreMostrar,
+            boolean requiereCambioCredencial, boolean mfaRequerido, String estado,
+            Instant createdAt, Instant updatedAt) {
         this.uuidPublico = uuidPublico;
         this.tenantId = tenantId;
-        this.tipoDocumento = tipoDocumento;
-        this.numeroDocumento = numeroDocumento;
-        this.nombres = nombres;
-        this.apellidos = apellidos;
-        this.username = username;
-        this.email = email;
-        this.telefono = telefono;
+        this.identidadId = identidadId;
         this.nombreMostrar = nombreMostrar;
         this.requiereCambioCredencial = requiereCambioCredencial;
         this.mfaRequerido = mfaRequerido;
@@ -96,13 +71,7 @@ public class UsuarioJpaEntity {
     public Long getId() { return id; }
     public UUID getUuidPublico() { return uuidPublico; }
     public Long getTenantId() { return tenantId; }
-    public String getTipoDocumento() { return tipoDocumento; }
-    public String getNumeroDocumento() { return numeroDocumento; }
-    public String getNombres() { return nombres; }
-    public String getApellidos() { return apellidos; }
-    public String getUsername() { return username; }
-    public String getEmail() { return email; }
-    public String getTelefono() { return telefono; }
+    public Long getIdentidadId() { return identidadId; }
     public String getNombreMostrar() { return nombreMostrar; }
     public boolean isRequiereCambioCredencial() { return requiereCambioCredencial; }
     public boolean isMfaRequerido() { return mfaRequerido; }
