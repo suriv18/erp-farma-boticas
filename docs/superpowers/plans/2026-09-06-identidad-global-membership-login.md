@@ -20,7 +20,7 @@
 
 ---
 
-## Fase 1 — Dominio y persistencia
+## Fase 1 — Backend completo
 
 ### Task 1: Agregado `Identidad`
 
@@ -31,7 +31,7 @@
 
 **Interfaces:**
 - Consumes: nada nuevo (usa tipos ya existentes: `Result`, `ErrorDetail`, `AggregateRoot`).
-- Produces: `Identidad.register(IdentidadId id, String documentType, String documentNumber, String firstNames, String lastNames, String username, String email, String phone, Instant createdAt): Result<Identidad, ErrorDetail>`, `Identidad.restore(...)`, getters `id()`, `documentType()`, `documentNumber()`, `firstNames()`, `lastNames()`, `username()`, `email()`, `phone()`, `createdAt()`, `updatedAt()`. Usado por Task 3 (`CrearUsuarioHandler`) y Task 4 (persistencia).
+- Produces: `Identidad.register(IdentidadId id, String documentType, String documentNumber, String firstNames, String lastNames, String username, String email, String phone, Instant createdAt): Result<Identidad, ErrorDetail>`, `Identidad.restore(...)`, getters `id()`, `documentType()`, `documentNumber()`, `firstNames()`, `lastNames()`, `username()`, `email()`, `phone()`, `createdAt()`, `updatedAt()`. Usado por Task 2, Parte A (`CrearUsuarioHandler`) y Parte B (persistencia).
 
 Este task es puramente de dominio (`:modules:security:test`), sin dependencia de Spring Boot ni de la base de datos — verificable de forma aislada.
 
@@ -301,14 +301,24 @@ git commit -m "feat(security): agregar agregado de dominio Identidad"
 
 ---
 
-### Task 2: `Usuario`→Membership, `CrearUsuarioHandler`, persistencia completa (migración + JPA)
+### Task 2: Backend completo — dominio, persistencia, login sin tenantId, API HTTP, test de integración
 
-**Esta tarea fusiona lo que en versiones anteriores del plan eran las Tasks 2, 3 y 4 por separado.** Motivo: `service-botica/modules/security` es un único módulo Gradle con un solo sourceSet — `gradlew :modules:security:test` (incluso con un filtro `--tests` acotado a una sola clase) siempre compila TODO el `main` sourceSet antes de ejecutar cualquier test. Un implementador real que reescribió solo `Usuario.java` (sin tocar sus consumidores) confirmó que el módulo queda sin compilar hasta que **todos** los archivos que usan la API vieja de `Usuario` (`CrearUsuarioHandler`, `IamApplicationMapper`, `IamWriteMapper`, `IamJpaWriteAdapter`) se actualizan — lo cual solo es completo cuando la persistencia JPA y la migración SQL también aterrizan. Por eso, igual que se hizo antes con la migración de base de datos, esta tarea fusiona el cambio de dominio con TODOS sus consumidores para que el módulo compile limpio de nuevo al final de la tarea.
+**Esta tarea fusiona TODO el backend de `security` que antes eran varias tareas separadas.** Motivo: `service-botica/modules/security` es un único módulo Gradle con un solo sourceSet — `gradlew :modules:security:compileJava`/`test` siempre compila TODO el `main` sourceSet (dominio, aplicación, infraestructura de persistencia, API HTTP) de una vez, sin importar qué subconjunto de archivos se quiera verificar. Tres implementadores reales confirmaron este patrón en capas sucesivas:
 
-**Trabajo ya realizado y commiteado, punto de partida de esta tarea — NO rehacer:**
-- Commit `dd5e525` — `refactor(security): convertir Usuario en el agregado Membership sin SSO obligatorio` — ya reescribió `Usuario.java` (ahora representa Membership: `id`, `tenantId`, `identidadId`, `displayName`, `credentialChangeRequired`, `mfaRequired`, `status`, `createdAt`, `updatedAt`, sin datos de persona), eliminó `ReferenciaIdentidad.java`, y reemplazó `UsuarioTest.java`. Fue revisado y aprobado en su propio alcance (sin exigir que el módulo compilara completo, porque en ese punto no se sabía que era imposible de forma aislada). Verificar que este commit ya existe en el historial antes de empezar (`git log --oneline | grep dd5e525`); si por alguna razón no existe en este checkout, aplicar primero exactamente lo que describe el Step 1 de la sección "Usuario→Membership (ya hecho, ver arriba)" más abajo en este documento antes de continuar.
+1. Separar la migración SQL de las entidades JPA rompía `@SpringBootTest` (Hibernate valida todas las `@Entity` contra el esquema real en cada test de Spring Boot).
+2. Separar el cambio de dominio (`Usuario`→Membership) de sus consumidores de aplicación/persistencia (`CrearUsuarioHandler`, `IamWriteMapper`, `IamJpaWriteAdapter`) rompía `compileJava` del módulo completo.
+3. Separar la creación de usuario sin SSO (dominio/aplicación) de sus consumidores en la capa API HTTP (`IamApiMapper`, `CrearUsuarioRequest`, `UsuarioResponse`) también rompía `compileJava` — mismo patrón, una capa más arriba.
 
-Esta tarea continúa desde ahí: actualiza todo lo que consume la API vieja de `Usuario`/crea la nueva persistencia, hasta dejar el módulo compilando limpio y el backend arrancando `@SpringBootTest` de nuevo.
+Por eso esta tarea cubre el módulo `security` completo (dominio, persistencia JPA, login sin tenantId, DTOs/controller HTTP) más el test de integración existente que lo ejercita, para que `:modules:security:check` y `:bootstrap-app:test` (incluyendo `@SpringBootTest`) pasen limpio solo una vez, al final de esta única tarea — no en un punto intermedio.
+
+**Trabajo ya realizado y commiteado, punto de partida — NO rehacer:**
+- Commit `dd5e525` — `Usuario`→Membership ya reescrito (dominio).
+- Trabajo en curso sin commitear de un intento anterior de esta misma tarea (verificar con `git status` al empezar): puede haber cambios ya aplicados a `CrearUsuarioCommand.java`, `UsuarioResult.java`, `IamWritePort.java`, `CrearUsuarioHandler.java`, `IamApplicationMapper.java`, `CrearUsuarioHandlerTest.java`, y el archivo `MigrationV021Test.java` con anotaciones ya alineadas a `IamApiIntegrationTest`. Revisar el estado real de cada archivo contra lo que pide cada Parte de esta tarea antes de reescribir — si ya coincide, no hace falta tocarlo de nuevo.
+- Puede haber también archivos sin commitear de un intento aún más antiguo: `service-botica/bootstrap-app/src/main/resources/db/migration/V021__separar_identidad_membership.sql` y `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/db/MigrationV021Test.java`. Comparar su contenido contra la Parte B más abajo; si coinciden, reusar tal cual.
+
+Esta tarea se organiza en partes (A a I). Seguir el orden. Solo se compila/ejecuta el módulo completo (`:modules:security:compileJava`/`test`, `:bootstrap-app:test`) en los checkpoints explícitos que cada parte indica — entre partes es NORMAL y ESPERADO que el módulo no compile completo, eso no es un error a corregir de inmediato sino el estado RED intermedio propio de una tarea grande.
+
+**Un solo commit al final de toda la tarea (todas las partes A-I).**
 
 #### Parte A — `CrearUsuarioCommand`/`CrearUsuarioHandler` sin SSO obligatorio
 
@@ -322,7 +332,7 @@ Esta tarea continúa desde ahí: actualiza todo lo que consume la API vieja de `
 
 **Interfaces:**
 - Consumes: `Identidad` (Task 1), `Usuario` (ya hecho, commit `dd5e525`).
-- Produces: `CrearUsuarioCommand(UUID tenantId, String documentType, String documentNumber, String firstNames, String lastNames, String username, String email, String phone, String displayName, boolean credentialChangeRequired, boolean mfaRequired)`, `IamWritePort.save(Identidad identidad, Usuario user): SaveUsuarioOutcome` (nueva firma, sin `DUPLICATE_IDENTITY`). Usado por Parte B de esta misma tarea (implementación real del puerto) y por Task 5 (controller HTTP).
+- Produces: `CrearUsuarioCommand(UUID tenantId, String documentType, String documentNumber, String firstNames, String lastNames, String username, String email, String phone, String displayName, boolean credentialChangeRequired, boolean mfaRequired)`, `IamWritePort.save(Identidad identidad, Usuario user): SaveUsuarioOutcome` (nueva firma, sin `DUPLICATE_IDENTITY`). Usado por Parte B de esta misma tarea (implementación real del puerto) y por Parte C (controller HTTP).
 
 El test de esta parte usa un fake del puerto, no la implementación real — el módulo seguirá sin compilar completo hasta terminar la Parte B de esta misma tarea (`IamJpaWriteAdapter`/`IamWriteMapper` siguen referenciando la API vieja hasta entonces). No ejecutar `:modules:security:check` completo ni ningún `@SpringBootTest` de `bootstrap-app` hasta terminar toda la Task 2 (Partes A, B y C).
 
@@ -675,10 +685,10 @@ En `service-botica/modules/security/src/main/java/com/softprimesolutions/securit
 
 Agregar el import `com.softprimesolutions.security.domain.model.Identidad` al inicio del archivo.
 
-- [ ] **Paso A8: Confirmar que el módulo sigue sin compilar completo (esperado — `IamJpaWriteAdapter`/`IamWriteMapper` aún usan la API vieja, se corrige en la Parte B)**
+- [ ] **Paso A8: Confirmar que el módulo sigue sin compilar completo (esperado — varios archivos aún usan la API vieja de `Usuario`/`CrearUsuarioCommand`/`UsuarioResult`, se corrigen en las Partes B y C de esta misma tarea)**
 
 Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
-Expected: FAILED, con errores confinados a `IamJpaWriteAdapter.java` e `IamWriteMapper.java` (los dos archivos que la Parte B de esta misma tarea corrige a continuación). Si aparecen errores en otros archivos no mencionados aquí ni en la Parte B, detenerse y reportar BLOCKED — indicaría un consumidor de la API vieja no identificado en el plan.
+Expected: FAILED, con errores confinados a estos archivos (todos corregidos más adelante en esta misma tarea, no en una tarea distinta): `IamJpaWriteAdapter.java`, `IamWriteMapper.java` (Parte B), e `IamApiMapper.java` (Parte C — este último construye `CrearUsuarioCommand` con la firma vieja de 15 argumentos y lee accesores SSO de `UsuarioResult` que ya no existen). Si aparecen errores en algún archivo no mencionado aquí ni en ninguna Parte de esta tarea, detenerse y reportar BLOCKED — indicaría un consumidor de la API vieja no identificado en el plan.
 
 No hacer commit todavía de esta Parte A por separado — continuar directamente con la Parte B; el commit final de esta Task 2 se hace una sola vez al terminar toda la tarea (ver el Step final de commit al cierre de la Parte C).
 
@@ -1174,7 +1184,7 @@ public class IdentidadExternaJpaEntity {
 }
 ```
 
-Nota: este archivo ya no se usa desde `IamJpaWriteAdapter.save` (Step 12 de esta tarea deja de crear identidades externas automáticamente al registrar un usuario — ver Task 3, que ya quitó ese acoplamiento). Sigue existiendo para el CRUD administrativo de `SecurityControlPort`, que se actualiza en una tarea posterior de la Fase 5 del plan.
+Nota: este archivo ya no se usa desde `IamJpaWriteAdapter.save` (Parte A de esta tarea ya quitó ese acoplamiento — la creación de usuario ya no crea identidades externas automáticamente). Sigue existiendo para el CRUD administrativo de `SecurityControlPort`, que se actualiza más adelante en la Parte G de esta misma tarea.
 
 - [ ] **Paso B18 (Step 10 original): Actualizar `AsignacionRolJpaEntity.java` — columna `usuario_id` pasa a `membership_id`**
 
@@ -1626,26 +1636,117 @@ Expected: PASS — el Spring context arranca completo (JPA valida limpio contra 
 Run: `cd service-botica && .\gradlew.bat :modules:security:test`
 Expected: BUILD SUCCESSFUL — todos los tests unitarios existentes (incluidos IdentidadTest, UsuarioTest y CrearUsuarioHandlerTest) en verde.
 
-- [ ] **Paso B24 (Step 16 original): Ejecutar el pre-existente `IamApiIntegrationTest` y confirmar que sigue arrancando (aunque pueda fallar en aserciones de negocio que se corrigen en tareas posteriores de la Fase 5)**
+- [ ] **Paso B24 (Step 16 original): Ejecutar el pre-existente `IamApiIntegrationTest` y confirmar que sigue arrancando (aunque pueda fallar en aserciones de negocio que se corrigen en la Parte H de esta misma tarea)**
 
 Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.security.api.IamApiIntegrationTest"`
-Expected: el Spring context debe arrancar sin `SchemaManagementException`. Es aceptable (y esperado) que algún test de este archivo falle por aserciones de negocio relacionadas con los campos SSO que ya no existen en `CrearUsuarioRequest` — eso se corrige explícitamente en una tarea posterior de la Fase 5 dedicada a actualizar este archivo de test. Lo que NO es aceptable en este punto es que el contexto de Spring falle a arrancar; si eso ocurre, hay un problema real en la migración o las entidades de esta tarea y debe resolverse aquí, no diferirse.
+Expected: el Spring context debe arrancar sin `SchemaManagementException`. Es aceptable (y esperado, en este punto intermedio) que algún test de este archivo falle todavía por aserciones de negocio relacionadas con los campos SSO que ya no existen en `CrearUsuarioRequest`, o por `tenantId` en el body de login — eso se corrige explícitamente en la Parte H (`IamApiIntegrationTest`) de esta misma tarea, más adelante. Lo que NO es aceptable en este punto es que el contexto de Spring falle a arrancar; si eso ocurre, hay un problema real en la migración o las entidades de esta tarea y debe resolverse aquí, no diferirse.
 
-- [ ] **Paso B25 (Step 17 original): Commit final de toda la Task 2 (Parte A + Parte B)**
-
-Este es el único commit de la Task 2 completa — incluye tanto los archivos de la Parte A (`CrearUsuarioCommand`, `CrearUsuarioHandler`, etc.) como los de esta Parte B:
-
-```bash
-git add service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/dto/command/CrearUsuarioCommand.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/dto/result/UsuarioResult.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/mapper/IamApplicationMapper.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/usecase/command/CrearUsuarioHandler.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/out/IamWritePort.java service-botica/modules/security/src/test/java/com/softprimesolutions/security/application/usecase/command/CrearUsuarioHandlerTest.java service-botica/bootstrap-app/src/main/resources/db/migration/V021__separar_identidad_membership.sql service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/db/MigrationV021Test.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/IdentidadJpaEntity.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/MembershipJpaEntity.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/repository/IdentidadJpaRepository.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/repository/MembershipJpaRepository.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/UsuarioJpaEntity.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/repository/UsuarioJpaRepository.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/IdentidadExternaJpaEntity.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/entity/AsignacionRolJpaEntity.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/mapper/IamWriteMapper.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/adapter/IamJpaWriteAdapter.java
-git commit -m "feat(security): crear usuario sin SSO y migrar persistencia a identidad global + membership por tenant"
-```
-
-Nota: el commit `dd5e525` (`Usuario`→Membership) ya existe por separado en el historial y no se incluye aquí — este commit es adicional a ese, no lo reemplaza.
+**No hacer commit aquí.** Esta Parte B termina así — continuar directamente con la Parte C. El único commit de toda la Task 2 (Partes A a H) va al final, después de la Parte H.
 
 ---
-## Fase 2 — Login sin tenantId
+#### Parte C — `CrearUsuarioRequest`/`UsuarioResponse`/`IamApiMapper` sin campos SSO (resuelve el compileJava del módulo para creación de usuario)
 
-### Task 3: `LocalAuthStorePort.findAccountByLogin` sin tenantId
+**Files:**
+- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/CrearUsuarioRequest.java`
+- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/response/UsuarioResponse.java`
+- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/mapper/IamApiMapper.java`
+
+**Interfaces:**
+- Consumes: `CrearUsuarioCommand`/`UsuarioResult` (Parte A de esta misma tarea).
+- Produces: `POST /api/v1/usuarios` sin campos SSO en el body ni en la respuesta. `UsuarioController` (que ya usa `IamApiMapper.toCommand`/`toResponse`/`toUsuarioPage` sin acceder a campos por nombre) sigue compilando sin cambios propios.
+
+Esta parte existe específicamente porque `IamApiMapper.java` vive en el mismo sourceSet que todo lo demás y construye `CrearUsuarioCommand`/lee `UsuarioResult` — un implementador real de una versión anterior de esta tarea confirmó que `:modules:security:compileJava` no llega a "BUILD SUCCESSFUL" sin este archivo actualizado, aunque conceptualmente pertenezca a la capa de API HTTP.
+
+- [ ] **Paso C1: Actualizar `CrearUsuarioRequest.java`**
+
+Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/CrearUsuarioRequest.java`:
+
+```java
+package com.softprimesolutions.security.api.dto.request;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record CrearUsuarioRequest(
+        @NotNull UUID tenantId,
+        @Size(max = 20) String documentType,
+        @Size(max = 30) String documentNumber,
+        @Size(max = 150) String firstNames,
+        @Size(max = 180) String lastNames,
+        @Size(max = 150) String username,
+        @Email @Size(max = 254) String email,
+        @Size(max = 40) String phone,
+        @Size(max = 250) String displayName,
+        Boolean credentialChangeRequired,
+        Boolean mfaRequired) {
+}
+```
+
+- [ ] **Paso C2: Actualizar `UsuarioResponse.java`**
+
+Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/response/UsuarioResponse.java`:
+
+```java
+package com.softprimesolutions.security.api.dto.response;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record UsuarioResponse(
+        UUID id,
+        UUID tenantId,
+        String documentType,
+        String documentNumber,
+        String firstNames,
+        String lastNames,
+        String username,
+        String email,
+        String displayName,
+        String phone,
+        boolean credentialChangeRequired,
+        boolean mfaRequired,
+        String status,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+- [ ] **Paso C3: Actualizar `IamApiMapper.java` — `toCommand(CrearUsuarioRequest)` y `toResponse(UsuarioResult)`**
+
+En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/mapper/IamApiMapper.java`, reemplazar esos dos métodos (dejar `toCommand(CrearRolRequest)`, `toCommand(ReemplazarPermisosRolRequest, ...)`, `toCommand(AsignarRolUsuarioRequest, ...)`, `toResponse(RolResult)`, `toResponse(PermisoResult)`, `toResponse(AsignacionRolResult)`, `toUsuarioPage`, `toRolPage` sin cambios):
+
+```java
+    public static CrearUsuarioCommand toCommand(CrearUsuarioRequest request) {
+        return new CrearUsuarioCommand(
+                request.tenantId(), request.documentType(), request.documentNumber(),
+                request.firstNames(), request.lastNames(), request.username(), request.email(),
+                request.phone(), request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
+                Boolean.TRUE.equals(request.mfaRequired()));
+    }
+```
+
+```java
+    public static UsuarioResponse toResponse(UsuarioResult result) {
+        return new UsuarioResponse(
+                result.id(), result.tenantId(), result.documentType(), result.documentNumber(),
+                result.firstNames(), result.lastNames(), result.username(), result.email(),
+                result.displayName(), result.phone(), result.credentialChangeRequired(),
+                result.mfaRequired(), result.status(), result.createdAt(), result.updatedAt());
+    }
+```
+
+- [ ] **Paso C4: Confirmar que los errores de compilación restantes están confinados a lo que falta de esta tarea**
+
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
+Expected: FAILED, con errores confinados ahora solo a `IamJpaWriteAdapter.java` e `IamWriteMapper.java` (Parte B — si la Parte B ya se hizo antes que esta Parte C, en cuyo caso el compile ya debería pasar aquí; seguir el orden A→B→C tal como está en este documento). Si aparece un error en cualquier archivo no cubierto por las Partes A, B o C, detenerse y reportar BLOCKED.
+
+No hacer commit todavía — continuar con la Parte D.
+
+---
+
+#### Parte D — `LocalAuthStorePort.findAccountByLogin` sin tenantId
 
 **Files:**
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/out/LocalAuthStorePort.java`
@@ -1655,9 +1756,9 @@ Nota: el commit `dd5e525` (`Usuario`→Membership) ya existe por separado en el 
 
 **Interfaces:**
 - Consumes: nada nuevo.
-- Produces: `LocalAuthStorePort.findAccountByLogin(String login): Optional<LocalAccount>` (sin tenantId), `LocalAuthUseCase.LoginCommand` sin `tenantId`, `LocalAuthUseCase.PasswordResetRequest(String login)` sin `tenantId`. Usado por Task 4 (adapter JDBC), Task 5 (controller/DTOs HTTP).
+- Produces: `LocalAuthStorePort.findAccountByLogin(String login): Optional<LocalAccount>` (sin tenantId), `LocalAuthUseCase.LoginCommand` sin `tenantId`, `LocalAuthUseCase.PasswordResetRequest(String login)` sin `tenantId`. Usado por Parte E de esta misma tarea (adapter JDBC), Parte F (controller/DTOs HTTP).
 
-- [ ] **Step 1: Actualizar el test que falla — `LocalAuthServiceTest.java`**
+- [ ] **Paso D1: Actualizar el test que falla — `LocalAuthServiceTest.java`**
 
 En `service-botica/modules/security/src/test/java/com/softprimesolutions/security/application/usecase/command/LocalAuthServiceTest.java`, reemplazar cada construcción de `new LoginCommand(TENANT_ID, ...)` quitando `TENANT_ID` como primer argumento. Por ejemplo, el primer test:
 
@@ -1695,12 +1796,12 @@ En `FakeStore`, cambiar la firma sobreescrita:
         }
 ```
 
-- [ ] **Step 2: Ejecutar y verificar que falla**
+- [ ] **Paso D2: Ejecutar y verificar que falla**
 
 Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
 Expected: FAIL — error de compilación, `LoginCommand`/`PasswordResetRequest`/`findAccountByLogin` todavía tienen la firma vieja con `tenantId`.
 
-- [ ] **Step 3: Actualizar `LocalAuthStorePort.java`**
+- [ ] **Paso D3: Actualizar `LocalAuthStorePort.java`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/out/LocalAuthStorePort.java`, cambiar la firma:
 
@@ -1708,7 +1809,7 @@ En `service-botica/modules/security/src/main/java/com/softprimesolutions/securit
     Optional<LocalAccount> findAccountByLogin(String login);
 ```
 
-- [ ] **Step 4: Actualizar `LocalAuthUseCase.java`**
+- [ ] **Paso D4: Actualizar `LocalAuthUseCase.java`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/in/LocalAuthUseCase.java`, cambiar los records:
 
@@ -1722,7 +1823,7 @@ En `service-botica/modules/security/src/main/java/com/softprimesolutions/securit
     }
 ```
 
-- [ ] **Step 5: Actualizar `LocalAuthService.java` — métodos `login` y `requestPasswordReset`**
+- [ ] **Paso D5: Actualizar `LocalAuthService.java` — métodos `login` y `requestPasswordReset`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/usecase/command/LocalAuthService.java`, reemplazar el inicio de `login`:
 
@@ -1753,30 +1854,27 @@ Y reemplazar el inicio de `requestPasswordReset`:
 
 El resto de ambos métodos permanece igual (usan `account`, `value`, etc. de la misma forma).
 
-- [ ] **Step 6: Ejecutar y verificar que pasa**
+- [ ] **Paso D6: Confirmar el estado esperado del módulo (todavía no compila completo — `LocalAuthJdbcAdapter` implementa `LocalAuthStorePort` con la firma vieja)**
 
-Run: `cd service-botica && .\gradlew.bat :modules:security:test --tests "com.softprimesolutions.security.application.usecase.command.LocalAuthServiceTest"`
-Expected: PASS — los 15 tests existentes en verde con la nueva firma.
+Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
+Expected: FAILED, con errores confinados a `LocalAuthJdbcAdapter.java` (Parte E, a continuación) más los ya conocidos de `IamJpaWriteAdapter.java`/`IamWriteMapper.java` si la Parte B todavía no se completó en este momento del recorrido (seguir el orden A→B→C→D→E tal como está en este documento; si se sigue ese orden, en este punto solo debería faltar `LocalAuthJdbcAdapter.java`).
 
-- [ ] **Step 7: Commit**
+No ejecutar todavía `:modules:security:test` con el archivo de test de esta parte esperando PASS real — el módulo no compila completo hasta terminar la Parte E, así que ese PASS solo se confirma en el checkpoint de compilación completa más adelante en esta tarea.
 
-```bash
-git add service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/out/LocalAuthStorePort.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/port/in/LocalAuthUseCase.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/application/usecase/command/LocalAuthService.java service-botica/modules/security/src/test/java/com/softprimesolutions/security/application/usecase/command/LocalAuthServiceTest.java
-git commit -m "feat(security): login y recuperacion de password ya no requieren tenantId"
-```
+No hacer commit todavía — continuar con la Parte E.
 
 ---
 
-### Task 4: `LocalAuthJdbcAdapter` sobre `identidad`/`membership`
+#### Parte E — `LocalAuthJdbcAdapter` sobre `identidad`/`membership`
 
 **Files:**
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/adapter/LocalAuthJdbcAdapter.java`
 
 **Interfaces:**
-- Consumes: esquema `identidad`/`membership` (Task 2).
-- Produces: `LocalAuthJdbcAdapter` compilable y funcional sobre el nuevo esquema. Usado por Task 8 (test de integración).
+- Consumes: esquema `identidad`/`membership` (Parte B de esta misma tarea).
+- Produces: `LocalAuthJdbcAdapter` compilable y funcional sobre el nuevo esquema. Usado por la Parte G (test de integración) de esta misma tarea.
 
-- [ ] **Step 1: Reemplazar `findAccountByLogin`**
+- [ ] **Paso E1: Reemplazar `findAccountByLogin`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/adapter/LocalAuthJdbcAdapter.java`:
 
@@ -1793,7 +1891,7 @@ En `service-botica/modules/security/src/main/java/com/softprimesolutions/securit
     }
 ```
 
-- [ ] **Step 2: Actualizar `accountSelect()` y `account(ResultSet)`**
+- [ ] **Paso E2: Actualizar `accountSelect()` y `account(ResultSet)`**
 
 Reemplazar `accountSelect()`:
 
@@ -1816,7 +1914,7 @@ Reemplazar `accountSelect()`:
 
 `account(ResultSet)` no cambia (lee las mismas columnas por alias).
 
-- [ ] **Step 3: Reemplazar el resto de queries que usan `sch_seguridad.usuario` — `findAccountByUser`**
+- [ ] **Paso E3: Reemplazar el resto de queries que usan `sch_seguridad.usuario` — `findAccountByUser`**
 
 ```java
     @Override
@@ -1830,7 +1928,7 @@ Reemplazar `accountSelect()`:
     }
 ```
 
-- [ ] **Step 4: Actualizar `provisionCredential`, `recordLoginFailure`, `recordLoginSuccess`, `createSessionAndRefresh`, `findRefreshToken`, `rotateRefreshToken` (sin cambio de tablas), `revokeSession`, `createPasswordReset`, `resetPassword`, `changePassword`, `isSessionActive`, `findEffectivePermissions`, `insertRefresh`, `replacePasswordAndRevoke`, `revokeAllUserSessions`, `updateUserPasswordChangeRequirement`, `findUserInternalId`**
+- [ ] **Paso E4: Actualizar `provisionCredential`, `recordLoginFailure`, `recordLoginSuccess`, `createSessionAndRefresh`, `findRefreshToken`, `rotateRefreshToken` (sin cambio de tablas), `revokeSession`, `createPasswordReset`, `resetPassword`, `changePassword`, `isSessionActive`, `findEffectivePermissions`, `insertRefresh`, `replacePasswordAndRevoke`, `revokeAllUserSessions`, `updateUserPasswordChangeRequirement`, `findUserInternalId`**
 
 Reemplazar todo el cuerpo del archivo desde `provisionCredential` hasta el final de la clase (antes de `uuid`/`instant`/`toOffsetDateTime`/`UserReference`) por:
 
@@ -2197,37 +2295,29 @@ Reemplazar todo el cuerpo del archivo desde `provisionCredential` hasta el final
     }
 ```
 
-Nota: las columnas de `token_refresh` y `token_recuperacion_password` que antes se llamaban `usuario_id` se renombraron a `membership_id` en la migración de la Task 2 (igual que `credencial_local`, `usuario_rol_ambito`, `sesion_usuario`), porque esas dos tablas también tenían una FK directa a `sch_seguridad.usuario` que había que repuntar antes de poder eliminar esa tabla.
+Nota: las columnas de `token_refresh` y `token_recuperacion_password` que antes se llamaban `usuario_id` se renombraron a `membership_id` en la migración de la Parte B de esta misma tarea (igual que `credencial_local`, `usuario_rol_ambito`, `sesion_usuario`), porque esas dos tablas también tenían una FK directa a `sch_seguridad.usuario` que había que repuntar antes de poder eliminar esa tabla.
 
-- [ ] **Step 2: Compilar el módulo**
+- [ ] **Paso E5: Compilar el módulo completo — checkpoint real de `compileJava` limpio**
 
 Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
-Expected: BUILD SUCCESSFUL
+Expected: BUILD SUCCESSFUL. Con las Partes A a E completas, todos los archivos identificados hasta ahora que consumían la API vieja de `Usuario`/`CrearUsuarioCommand`/`LocalAuthStorePort` ya están actualizados. Si aparece algún error, detenerse y reportar BLOCKED — sería un consumidor no identificado en el plan.
 
-- [ ] **Step 3: Commit**
-
-```bash
-git add service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/write/adapter/LocalAuthJdbcAdapter.java
-git commit -m "feat(security): LocalAuthJdbcAdapter opera sobre identidad y membership"
-```
+No hacer commit todavía — continuar con la Parte F.
 
 ---
 
-### Task 5: DTOs HTTP de login sin `tenantId` y controller
+#### Parte F — DTOs HTTP de login sin `tenantId` y controller
 
 **Files:**
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/LoginRequest.java`
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/SolicitarRecuperacionPasswordRequest.java`
-- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/CrearUsuarioRequest.java`
-- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/response/UsuarioResponse.java`
-- Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/mapper/IamApiMapper.java`
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/controller/LocalAuthController.java`
 
 **Interfaces:**
-- Consumes: `LoginCommand`/`PasswordResetRequest` (Task 3), `CrearUsuarioCommand`/`UsuarioResult` (Task 3).
-- Produces: `POST /auth/login` y `POST /auth/password/forgot` sin `tenantId` en el body; `POST /api/v1/usuarios` sin campos SSO. Usado por Task 8 (test de integración) y por el frontend (Task 9+).
+- Consumes: `LoginCommand`/`PasswordResetRequest` (Parte D de esta misma tarea).
+- Produces: `POST /auth/login` y `POST /auth/password/forgot` sin `tenantId` en el body. Usado por la Parte G (test de integración) de esta misma tarea y por el frontend (Tasks siguientes de la Fase 4).
 
-- [ ] **Step 1: Actualizar `LoginRequest.java`**
+- [ ] **Paso F1: Actualizar `LoginRequest.java`**
 
 Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/LoginRequest.java`:
 
@@ -2246,7 +2336,7 @@ public record LoginRequest(
 }
 ```
 
-- [ ] **Step 2: Actualizar `SolicitarRecuperacionPasswordRequest.java`**
+- [ ] **Paso F2: Actualizar `SolicitarRecuperacionPasswordRequest.java`**
 
 Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/SolicitarRecuperacionPasswordRequest.java`:
 
@@ -2261,87 +2351,7 @@ public record SolicitarRecuperacionPasswordRequest(
 }
 ```
 
-- [ ] **Step 3: Actualizar `CrearUsuarioRequest.java`**
-
-Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/CrearUsuarioRequest.java`:
-
-```java
-package com.softprimesolutions.security.api.dto.request;
-
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.util.UUID;
-
-public record CrearUsuarioRequest(
-        @NotNull UUID tenantId,
-        @Size(max = 20) String documentType,
-        @Size(max = 30) String documentNumber,
-        @Size(max = 150) String firstNames,
-        @Size(max = 180) String lastNames,
-        @Size(max = 150) String username,
-        @Email @Size(max = 254) String email,
-        @Size(max = 40) String phone,
-        @Size(max = 250) String displayName,
-        Boolean credentialChangeRequired,
-        Boolean mfaRequired) {
-}
-```
-
-- [ ] **Step 4: Actualizar `UsuarioResponse.java`**
-
-Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/response/UsuarioResponse.java`:
-
-```java
-package com.softprimesolutions.security.api.dto.response;
-
-import java.time.Instant;
-import java.util.UUID;
-
-public record UsuarioResponse(
-        UUID id,
-        UUID tenantId,
-        String documentType,
-        String documentNumber,
-        String firstNames,
-        String lastNames,
-        String username,
-        String email,
-        String displayName,
-        String phone,
-        boolean credentialChangeRequired,
-        boolean mfaRequired,
-        String status,
-        Instant createdAt,
-        Instant updatedAt) {
-}
-```
-
-- [ ] **Step 5: Actualizar `IamApiMapper.java`**
-
-En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/mapper/IamApiMapper.java`, reemplazar `toCommand(CrearUsuarioRequest)` y `toResponse(UsuarioResult)`:
-
-```java
-    public static CrearUsuarioCommand toCommand(CrearUsuarioRequest request) {
-        return new CrearUsuarioCommand(
-                request.tenantId(), request.documentType(), request.documentNumber(),
-                request.firstNames(), request.lastNames(), request.username(), request.email(),
-                request.phone(), request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
-                Boolean.TRUE.equals(request.mfaRequired()));
-    }
-```
-
-```java
-    public static UsuarioResponse toResponse(UsuarioResult result) {
-        return new UsuarioResponse(
-                result.id(), result.tenantId(), result.documentType(), result.documentNumber(),
-                result.firstNames(), result.lastNames(), result.username(), result.email(),
-                result.displayName(), result.phone(), result.credentialChangeRequired(),
-                result.mfaRequired(), result.status(), result.createdAt(), result.updatedAt());
-    }
-```
-
-- [ ] **Step 6: Actualizar `LocalAuthController.java`**
+- [ ] **Paso F3: Actualizar `LocalAuthController.java`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/controller/LocalAuthController.java`, reemplazar la construcción del command en `login`:
 
@@ -2368,23 +2378,16 @@ Y en `requestPasswordReset`:
     }
 ```
 
-- [ ] **Step 7: Compilar el módulo**
+- [ ] **Paso F4: Compilar el módulo**
 
 Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
-Expected: BUILD SUCCESSFUL
+Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 8: Commit**
-
-```bash
-git add service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/LoginRequest.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/SolicitarRecuperacionPasswordRequest.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/request/CrearUsuarioRequest.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/dto/response/UsuarioResponse.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/mapper/IamApiMapper.java service-botica/modules/security/src/main/java/com/softprimesolutions/security/api/controller/LocalAuthController.java
-git commit -m "feat(security): API HTTP de login y creacion de usuario sin tenantId/SSO"
-```
+No hacer commit todavía — continuar con la Parte G.
 
 ---
 
-## Fase 3 — Adapters de lectura y control administrativo
-
-### Task 6: `SecurityControlJdbcAdapter` e `IamJdbcReadRepository` sobre `identidad`/`membership`
+#### Parte G — `SecurityControlJdbcAdapter` e `IamJdbcReadRepository` sobre `identidad`/`membership`
 
 **Files:**
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/read/adapter/SecurityControlJdbcAdapter.java`
@@ -2392,10 +2395,10 @@ git commit -m "feat(security): API HTTP de login y creacion de usuario sin tenan
 - Modify: `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/read/projection/UsuarioProjection.java`
 
 **Interfaces:**
-- Consumes: esquema `identidad`/`membership` (Task 2).
-- Produces: `SecurityControlJdbcAdapter`/`IamJdbcReadRepository` compilables y funcionales. Usado por Task 8.
+- Consumes: esquema `identidad`/`membership` (Parte B de esta misma tarea).
+- Produces: `SecurityControlJdbcAdapter`/`IamJdbcReadRepository` compilables y funcionales. Usado por la Parte H de esta misma tarea.
 
-- [ ] **Step 1: Actualizar `SecurityControlJdbcAdapter.updateUserStatus`**
+- [ ] **Paso G1: Actualizar `SecurityControlJdbcAdapter.updateUserStatus`**
 
 ```java
     @Override
@@ -2414,7 +2417,7 @@ git commit -m "feat(security): API HTTP de login y creacion de usuario sin tenan
     }
 ```
 
-- [ ] **Step 2: Actualizar `findExternalIdentities`, `createExternalIdentity`, `deleteExternalIdentity`**
+- [ ] **Paso G2: Actualizar `findExternalIdentities`, `createExternalIdentity`, `deleteExternalIdentity`**
 
 ```java
     @Override
@@ -2483,7 +2486,7 @@ git commit -m "feat(security): API HTTP de login y creacion de usuario sin tenan
     }
 ```
 
-- [ ] **Step 3: Actualizar `findAssignments`, `revokeAssignment`, `findEffectivePermissions`, `findSessions`**
+- [ ] **Paso G3: Actualizar `findAssignments`, `revokeAssignment`, `findEffectivePermissions`, `findSessions`**
 
 ```java
     @Override
@@ -2573,7 +2576,7 @@ git commit -m "feat(security): API HTTP de login y creacion de usuario sin tenan
     }
 ```
 
-- [ ] **Step 4: Actualizar `IamJdbcReadRepository` — `USER_FILTER`, `findUsers`, `UsuarioProjection`**
+- [ ] **Paso G4: Actualizar `IamJdbcReadRepository` — `USER_FILTER`, `findUsers`, `UsuarioProjection`**
 
 En `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/read/repository/IamJdbcReadRepository.java`, reemplazar `USER_FILTER`:
 
@@ -2628,7 +2631,7 @@ Reemplazar `findUsers`:
     }
 ```
 
-- [ ] **Step 5: Actualizar `UsuarioProjection.java`**
+- [ ] **Paso G5: Actualizar `UsuarioProjection.java`**
 
 Reemplazar `service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/read/projection/UsuarioProjection.java`:
 
@@ -2657,35 +2660,30 @@ public record UsuarioProjection(
 }
 ```
 
-- [ ] **Step 6: Buscar y actualizar el mapeo de `UsuarioProjection` a `UsuarioResult`/query handler de listado**
+- [ ] **Paso G6: Buscar y actualizar el mapeo de `UsuarioProjection` a `UsuarioResult`/query handler de listado**
 
 Run: `grep -rln "UsuarioProjection" service-botica/modules/security/src/main/java`
 
 Abrir cada archivo resultante (probablemente un `ListarUsuariosHandler` o similar en `application/usecase/query/`) y ajustar la construcción de `UsuarioResult`/DTO de página para que use los campos nuevos de `UsuarioProjection` (sin `identityProvider`/`identityIssuer`/`identitySubject`/`emailClaim`), replicando el mismo patrón de mapeo campo-por-campo ya usado en Task 2 (Parte A, Paso A7) para `IamApplicationMapper.toResult`.
 
-- [ ] **Step 7: Compilar el módulo**
+- [ ] **Paso G7: Compilar el módulo**
 
 Run: `cd service-botica && .\gradlew.bat :modules:security:compileJava`
 Expected: BUILD SUCCESSFUL
 
-- [ ] **Step 8: Commit**
-
-```bash
-git add service-botica/modules/security/src/main/java/com/softprimesolutions/security/infrastructure/persistence/read/
-git commit -m "feat(security): adapters de lectura y control administrativo sobre identidad/membership"
-```
+No hacer commit todavía — continuar con la Parte H.
 
 ---
 
-### Task 7: `IamApiIntegrationTest` — actualizar body de creación de usuario y validación HTTP
+#### Parte H — `IamApiIntegrationTest` — actualizar body de creación de usuario y validación HTTP
 
 **Files:**
 - Modify: `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/IamApiIntegrationTest.java`
 
 **Interfaces:**
-- Consumes: `CrearUsuarioRequest` (Task 5).
+- Consumes: `CrearUsuarioRequest` (Parte C de esta misma tarea).
 
-- [ ] **Step 1: Actualizar el body de creación de usuario (alrededor de la línea 326)**
+- [ ] **Paso H1: Actualizar el body de creación de usuario (alrededor de la línea 326)**
 
 En `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/IamApiIntegrationTest.java`, reemplazar el bloque:
 
@@ -2709,7 +2707,7 @@ En `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/a
         String userId = JsonPath.read(userResponse, "$.id");
 ```
 
-- [ ] **Step 2: Actualizar `returnsProblemDetailsForInvalidHttpInput` (línea 454-465)**
+- [ ] **Paso H2: Actualizar `returnsProblemDetailsForInvalidHttpInput` (línea 454-465)**
 
 Reemplazar el body que fuerza el 400: como `CrearUsuarioRequest` ya no tiene `identityIssuer`/`identitySubject` obligatorios, forzar la validación con `tenantId` ausente (sigue siendo `@NotNull`):
 
@@ -2728,12 +2726,12 @@ Reemplazar el body que fuerza el 400: como `CrearUsuarioRequest` ya no tiene `id
     }
 ```
 
-- [ ] **Step 3: Ejecutar y verificar que pasa**
+- [ ] **Paso H3: Ejecutar y verificar que pasa**
 
 Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.security.api.IamApiIntegrationTest"`
 Expected: PASS. Si falla por otra razón relacionada con `login`/`auth`, revisar si algún otro método de esta clase (no listado en este plan porque no se identificó al momento de escribirlo) también construye un body de login con `tenantId` — buscar con `grep -n "auth/login\|tenantId" service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/IamApiIntegrationTest.java` y ajustar cualquier body de login encontrado para quitar `tenantId`, igual que se hizo con el body de creación de usuario en el Step 1.
 
-- [ ] **Step 4: Commit**
+- [ ] **Paso H4: Commit**
 
 ```bash
 git add service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/IamApiIntegrationTest.java
@@ -2742,15 +2740,15 @@ git commit -m "test(security): actualizar IamApiIntegrationTest para creacion de
 
 ---
 
-### Task 8: Verificación completa del backend (`check`) y test de login real end-to-end
+#### Parte I — Verificación completa del backend (`check`) y test de login real end-to-end
 
 **Files:**
 - Test: `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/LocalAuthLoginWithoutTenantIdTest.java`
 
 **Interfaces:**
-- Consumes: todo lo construido en las Tasks 1-11.
+- Consumes: todo lo construido en las Partes A-H de esta misma tarea.
 
-- [ ] **Step 1: Escribir el test de integración que falla — login sin tenantId resuelve el tenant correctamente**
+- [ ] **Paso I1: Escribir el test de integración que falla — login sin tenantId resuelve el tenant correctamente**
 
 Crear `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/LocalAuthLoginWithoutTenantIdTest.java`, copiando la configuración de clase (`@SpringBootTest`, Testcontainers, `@AutoConfigureMockMvc` o equivalente) exactamente de `IamApiIntegrationTest.java`:
 
@@ -2820,33 +2818,43 @@ class LocalAuthLoginWithoutTenantIdTest {
 
 Este esqueleto usa un placeholder `SEED_TENANT_ID` y helpers que deben copiarse literalmente de `IamApiIntegrationTest` (constante de tenant sembrado en el `@BeforeAll`/`@Sql` de esa clase, y la forma exacta en que ese test siembra el tenant antes de sus casos) — revisar `IamApiIntegrationTest.java` completo (no solo el fragmento ya leído en este plan) para copiar la configuración de sembrado de tenant, ya que no se incluye aquí por no haber sido inspeccionada en su totalidad al escribir este plan.
 
-- [ ] **Step 2: Ejecutar y verificar que falla o pasa, y ajustar el esqueleto según la configuración real de `IamApiIntegrationTest`**
+- [ ] **Paso I2: Ejecutar y verificar que falla o pasa, y ajustar el esqueleto según la configuración real de `IamApiIntegrationTest`**
 
 Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.security.api.LocalAuthLoginWithoutTenantIdTest"`
 
 Si falla por configuración de clase incompleta (falta `@SpringBootTest`, Testcontainers, etc.), completar copiando exactamente de `IamApiIntegrationTest`. Iterar hasta que el test compile y corra.
 
-- [ ] **Step 3: Ajustar hasta que pase**
+- [ ] **Paso I3: Ajustar hasta que pase**
 
 Expected final: PASS — login exitoso sin `tenantId` en el body, y el `AuthTokenResponse` sigue devolviendo `tenantId`/`userId` resueltos correctamente por el backend.
 
-- [ ] **Step 4: Ejecutar la suite completa del backend**
+- [ ] **Paso I4: Ejecutar la suite completa del backend**
 
 Run: `cd service-botica && .\gradlew.bat check --warning-mode all`
 Expected: BUILD SUCCESSFUL — todos los tests, ArchUnit y Spring Modulith `verify()` en verde.
 
-- [ ] **Step 5: Commit**
+- [ ] **Paso I5: Commit único de toda la Task 2 (Partes A a I)**
+
+Este es el único commit de la Task 2 completa. Incluye todos los archivos tocados en las Partes A a I — usar `git status --short service-botica/` para confirmar la lista completa de archivos modificados/creados/eliminados por esta tarea antes de armar el `git add`, en vez de confiar en una lista estática (la tarea es grande y un archivo olvidado aquí quedaría sin commitear):
 
 ```bash
-git add service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/LocalAuthLoginWithoutTenantIdTest.java
-git commit -m "test(security): verificar login end-to-end sin tenantId visible"
+git status --short service-botica/
 ```
+
+Revisar que la lista incluya (al menos): `CrearUsuarioCommand.java`, `UsuarioResult.java`, `IamApplicationMapper.java`, `CrearUsuarioHandler.java`, `IamWritePort.java`, `CrearUsuarioHandlerTest.java` (Parte A); la migración `V021__separar_identidad_membership.sql`, `MigrationV021Test.java`, `IdentidadJpaEntity.java`, `MembershipJpaEntity.java`, `IdentidadJpaRepository.java`, `MembershipJpaRepository.java`, eliminación de `UsuarioJpaEntity.java`/`UsuarioJpaRepository.java`, `IdentidadExternaJpaEntity.java`, `AsignacionRolJpaEntity.java`, `IamWriteMapper.java`, `IamJpaWriteAdapter.java` (Parte B); `CrearUsuarioRequest.java`, `UsuarioResponse.java`, `IamApiMapper.java` (Parte C); `LocalAuthStorePort.java`, `LocalAuthUseCase.java`, `LocalAuthService.java`, `LocalAuthServiceTest.java` (Parte D); `LocalAuthJdbcAdapter.java` (Parte E); `LoginRequest.java`, `SolicitarRecuperacionPasswordRequest.java`, `LocalAuthController.java` (Parte F); `SecurityControlJdbcAdapter.java`, `IamJdbcReadRepository.java`, `UsuarioProjection.java`, y el handler de query afectado encontrado en el Paso G6 (Parte G); `IamApiIntegrationTest.java` (Parte H); `LocalAuthLoginWithoutTenantIdTest.java` (Parte I).
+
+```bash
+git add service-botica/
+git commit -m "feat(security): backend completo de identidad global + membership, login sin tenantId"
+```
+
+Nota: el commit `dd5e525` (`Usuario`→Membership) ya existe por separado en el historial y no se incluye aquí — este commit es adicional a ese, no lo reemplaza.
 
 ---
 
-## Fase 4 — Frontend
+## Fase 2 — Frontend
 
-### Task 9: Quitar `tenantId` del schema, formulario y cliente de API
+### Task 3: Quitar `tenantId` del schema, formulario y cliente de API
 
 **Files:**
 - Modify: `frontend/apps/erp-web/src/features/auth/schemas/login.schema.ts`
@@ -2856,7 +2864,7 @@ git commit -m "test(security): verificar login end-to-end sin tenantId visible"
 - Modify: `frontend/apps/erp-web/src/features/auth/model/AuthSessionProvider.tsx`
 
 **Interfaces:**
-- Produces: `LoginCredentials` sin `tenantId`. Usado por Task 10 (tests).
+- Produces: `LoginCredentials` sin `tenantId`. Usado por Task 4 (tests).
 
 - [ ] **Step 1: Actualizar `login.schema.ts`**
 
@@ -2920,7 +2928,7 @@ En `frontend/apps/erp-web/src/features/auth/model/AuthSessionProvider.tsx`, reem
 - [ ] **Step 6: Verificar tipos con typecheck**
 
 Run: `cd frontend && pnpm typecheck`
-Expected: puede fallar todavía por `LoginPage.test.tsx` y `AuthSessionProvider.test.tsx` (Task 10) usando `tenantId` en sus fixtures — eso se corrige en la siguiente tarea. Si falla por algo en los archivos de producción tocados en esta tarea, corregirlo antes de continuar.
+Expected: puede fallar todavía por `LoginPage.test.tsx` y `AuthSessionProvider.test.tsx` (Task 4) usando `tenantId` en sus fixtures — eso se corrige en la siguiente tarea. Si falla por algo en los archivos de producción tocados en esta tarea, corregirlo antes de continuar.
 
 - [ ] **Step 7: Commit**
 
@@ -2931,7 +2939,7 @@ git commit -m "feat(auth): quitar tenantId del login en frontend"
 
 ---
 
-### Task 10: Actualizar tests de frontend (`LoginPage`, `AuthSessionProvider`, handler MSW)
+### Task 4: Actualizar tests de frontend (`LoginPage`, `AuthSessionProvider`, handler MSW)
 
 **Files:**
 - Modify: `frontend/apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
@@ -2939,7 +2947,7 @@ git commit -m "feat(auth): quitar tenantId del login en frontend"
 - Modify: `frontend/apps/erp-web/src/test/mocks/handlers.ts`
 
 **Interfaces:**
-- Consumes: `LoginCredentials` sin `tenantId` (Task 9).
+- Consumes: `LoginCredentials` sin `tenantId` (Task 3).
 
 - [ ] **Step 1: Reescribir `LoginPage.test.tsx` sin el campo tenant**
 
@@ -3066,7 +3074,7 @@ git commit -m "test(auth): actualizar tests de login sin tenantId"
 
 ---
 
-### Task 11: Verificación manual end-to-end contra el backend real
+### Task 5: Verificación manual end-to-end contra el backend real
 
 **Files:** ninguno (verificación manual).
 
@@ -3104,27 +3112,32 @@ Si no hubo ajustes, no se crea commit en esta tarea.
 
 ## Self-Review
 
+**Estructura final del plan:** 5 tareas en 2 fases. Fase 1 (Backend completo): Task 1 (agregado `Identidad`, dominio puro, aislado) + Task 2 (todo lo demás del backend `security`, en 9 partes A-I, un solo commit al final). Fase 2 (Frontend): Tasks 3-5.
+
 **Cobertura de la spec:**
-- Dominio: agregado `Identidad`: Task 1. ✓ `Usuario`→Membership + `CrearUsuarioHandler` sin SSO + persistencia JPA completa: Task 2 (Parte A + Parte B). ✓
+- Dominio: agregado `Identidad`: Task 1. ✓
+- `Usuario`→Membership + `CrearUsuarioHandler` sin SSO: Task 2, Partes A y C. ✓
 - Modelo de datos (identidad/membership, FKs, eliminación de `usuario`) + persistencia JPA completa: Task 2, Parte B. ✓
-- Login sin `tenantId` (backend completo: puerto, adapter, DTOs, controller): Tasks 3, 4, 5. ✓
-- `SecurityControlJdbcAdapter`/`IamJdbcReadRepository` migrados: Task 6. ✓
-- `identidad_externa` con FK a `identidad_id`: Task 2 Parte B (migración + entidad JPA) + Task 6 (queries de `SecurityControlJdbcAdapter`). ✓
-- `POST /auth/password/forgot` sin `tenantId`: Task 3 (`PasswordResetRequest`) + Task 5 (`SolicitarRecuperacionPasswordRequest`). ✓
-- Test de integración existente actualizado: Task 7. ✓
-- Verificación completa backend (`check`): Task 8. ✓
-- Frontend sin campo tenant, bug del UUID fixture resuelto por eliminación del campo: Tasks 9, 10. ✓
-- Verificación manual end-to-end: Task 11. ✓
+- Login sin `tenantId` (backend completo: puerto, adapter, DTOs, controller): Task 2, Partes D, E, F. ✓
+- `SecurityControlJdbcAdapter`/`IamJdbcReadRepository` migrados: Task 2, Parte G. ✓
+- `identidad_externa` con FK a `identidad_id`: Task 2 Parte B (migración + entidad JPA) + Parte G (queries de `SecurityControlJdbcAdapter`). ✓
+- `POST /auth/password/forgot` sin `tenantId`: Task 2, Parte D (`PasswordResetRequest`) + Parte F (`SolicitarRecuperacionPasswordRequest`). ✓
+- Test de integración existente actualizado: Task 2, Parte H. ✓
+- Verificación completa backend (`check`) y login end-to-end: Task 2, Parte I. ✓
+- Frontend sin campo tenant, bug del UUID fixture resuelto por eliminación del campo: Tasks 3, 4. ✓
+- Verificación manual end-to-end: Task 5. ✓
 - Fuera de alcance (selector post-login, reusar identidad en otro tenant, migración de datos productivos): correctamente no incluidos como tareas. ✓
 
-**Consistencia de nombres verificada:** `findAccountByLogin(String login)` (Task 3, puerto) se implementa igual en Task 4 (adapter). `IamWritePort.save(Identidad, Usuario)` (definido en Task 2 Parte A, implementado en Task 2 Parte B) coincide entre la interfaz y `IamJpaWriteAdapter`. `CrearUsuarioCommand` sin campos SSO se usa consistentemente en Task 2 (handler), Task 5 (mapper HTTP) y Task 7 (test de integración). `membership_id` como nombre de columna (incluyendo `token_refresh`/`token_recuperacion_password`, corregido tras el bloqueo real del primer implementador) se usa consistentemente en Task 2 Parte B (migración), Task 4 y Task 6.
+**Consistencia de nombres verificada:** `findAccountByLogin(String login)` (Parte D, puerto) se implementa igual en Parte E (adapter). `IamWritePort.save(Identidad, Usuario)` (definido en Parte A, implementado en Parte B) coincide entre la interfaz y `IamJpaWriteAdapter`. `CrearUsuarioCommand` sin campos SSO se usa consistentemente en Parte A (handler), Parte C (mapper HTTP) y Parte H (test de integración). `membership_id` como nombre de columna (incluyendo `token_refresh`/`token_recuperacion_password`) se usa consistentemente en Parte B (migración), Parte E y Parte G.
 
-**Riesgo identificado y mitigado:** las Tasks 8 y 7 dependen de la estructura exacta de `IamApiIntegrationTest` (helpers de siembra de tenant, configuración de Testcontainers) que no se leyó en su totalidad al escribir este plan — ambas tareas incluyen instrucciones explícitas de copiar esa configuración del archivo real en vez de asumirla, para no bloquear la ejecución con una firma inventada.
+**Riesgo identificado y mitigado:** las Partes H e I dependen de la estructura exacta de `IamApiIntegrationTest` (helpers de siembra de tenant, configuración de Testcontainers) que no se leyó en su totalidad al escribir este plan — ambas incluyen instrucciones explícitas de copiar esa configuración del archivo real en vez de asumirla, para no bloquear la ejecución con una firma inventada.
 
-**Resecuenciación tras dos bloqueos reales:**
+**Resecuenciación tras tres bloqueos reales (todos con la misma causa raíz):**
 
-1. La primera versión de este plan separaba "Task 1: solo migración SQL" de "Tasks 4/6: entidades JPA e IamJpaWriteAdapter", asumiendo que ambas podían verificarse por separado. Un implementador real quedó BLOCKED al descubrir que `bootstrap-app/src/test/resources/application-test.yaml` usa Postgres real vía Testcontainers con `spring.jpa.hibernate.ddl-auto: validate` — Hibernate valida TODAS las `@Entity` del classpath contra el esquema migrado en CADA `@SpringBootTest`, no solo en el test de la entidad tocada. Aterrizar la migración sin las entidades JPA correspondientes rompe todo `@SpringBootTest` existente, incluido `IamApiIntegrationTest`. El mismo implementador también encontró y corrigió un gap real en el diseño original: `token_refresh` y `token_recuperacion_password` (definidas en `V020__local_authentication_jwt.sql`) tienen FKs directas a `sch_seguridad.usuario` que el diseño original no mencionaba, lo cual habría hecho fallar el `DROP TABLE usuario` final.
+1. La primera versión separaba "migración SQL" de "entidades JPA" en tareas distintas. Un implementador quedó BLOCKED: `bootstrap-app/src/test/resources/application-test.yaml` usa Postgres real vía Testcontainers con `spring.jpa.hibernate.ddl-auto: validate` — Hibernate valida TODAS las `@Entity` del classpath contra el esquema migrado en CADA `@SpringBootTest`. Aterrizar la migración sin las entidades JPA rompe todo `@SpringBootTest` existente. El mismo implementador encontró y corrigió un gap real: `token_refresh`/`token_recuperacion_password` (V020) tienen FKs directas a `usuario` no contempladas, que habrían roto el `DROP TABLE` final.
 
-2. Una segunda versión ya fusionaba migración+JPA en una sola tarea, pero seguía separando el cambio de dominio (`Usuario`→Membership) de sus consumidores de aplicación (`CrearUsuarioHandler`) en tareas distintas. Un implementador real de esa versión (commit `dd5e525`, `Usuario`→Membership) reportó DONE_WITH_CONCERNS: `service-botica/modules/security` es un único módulo Gradle con un solo sourceSet, así que `gradlew :modules:security:test` (incluso con `--tests` acotado) siempre compila TODO el `main` sourceSet primero — modificar `Usuario.java` deja el módulo sin poder compilar hasta que **todos** sus consumidores (`CrearUsuarioHandler`, `IamApplicationMapper`, `IamWriteMapper`, `IamJpaWriteAdapter`) se actualizan, lo cual solo es completo al terminar también la persistencia JPA. La Task 2 de esta versión fusiona el cambio de dominio con absolutamente todos sus consumidores (aplicación y persistencia) en una sola tarea de dos partes (A y B), reutilizando el commit `dd5e525` ya hecho como punto de partida, para que el módulo compile limpio solo al final de la tarea completa — no en un punto intermedio.
+2. Una segunda versión ya fusionaba migración+JPA, pero separaba el cambio de dominio (`Usuario`→Membership) de sus consumidores de aplicación (`CrearUsuarioHandler`). Un implementador (commit `dd5e525`) reportó DONE_WITH_CONCERNS: `:modules:security` es un único sourceSet Gradle — `compileJava` compila TODO el módulo de una vez, así que modificar `Usuario.java` rompe la compilación hasta que TODOS sus consumidores (`CrearUsuarioHandler`, `IamApplicationMapper`, `IamWriteMapper`, `IamJpaWriteAdapter`) se actualizan.
 
-**Lección aplicada:** en un módulo de un solo sourceSet Gradle, la unidad mínima verificable de una tarea no es "un archivo" ni "una capa arquitectónica", sino "un cambio de firma más todos sus consumidores directos e indirectos". Las Tasks 3-11 restantes de este plan fueron revisadas bajo este mismo criterio antes de dejarlas como están: cada una modifica una firma y, en el mismo paso, actualiza todos los archivos que la consumen dentro de su propio alcance (por ejemplo, Task 3 cambia `LocalAuthStorePort`/`LocalAuthUseCase` y en el mismo task actualiza `LocalAuthService`, su único consumidor de aplicación) — no se identificó ningún otro caso de una firma cambiada sin todos sus consumidores en la misma tarea.
+3. Una tercera versión fusionó dominio+aplicación+persistencia JPA en una Task 2 de dos partes, pero dejó la capa API HTTP (`IamApiMapper`, `CrearUsuarioRequest`, `UsuarioResponse`) en una Task 5 separada. Un implementador de esa versión quedó NEEDS_CONTEXT en el mismo punto: `IamApiMapper.java` vive en el mismo sourceSet y construye `CrearUsuarioCommand`/lee `UsuarioResult`, así que tampoco podía diferirse a una tarea posterior sin romper `compileJava`.
+
+**Lección aplicada (definitiva):** en `:modules:security`, un único sourceSet Gradle, NINGÚN cambio de firma en dominio, aplicación, persistencia o API HTTP puede verificarse de forma aislada — el módulo entero es la unidad mínima de compilación. Por eso esta versión fusiona TODO el backend de `security` (antes iba a ser 8 tareas separadas) en una sola Task 2 de 9 partes (A-I), con un único commit al final. Cada parte deja explícito qué archivos quedan con la API vieja y en qué parte posterior de la MISMA tarea se corrigen — nunca en una tarea distinta. Las Tasks 3-5 de frontend sí son independientes entre sí y del backend (Node/TypeScript, sin este problema de sourceSet compartido), por lo que se mantienen como tareas separadas.
