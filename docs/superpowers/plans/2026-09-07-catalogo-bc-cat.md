@@ -4081,3 +4081,1004 @@ git commit -m "feat(catalogo): agregar puertos de entrada y salida de aplicacion
 ```
 
 ---
+
+### Task 11: Mapper de aplicación + handlers de escritura de los 5 catálogos de soporte + PrincipioActivo
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCondicionVentaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearFormaFarmaceuticaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarFormaFarmaceuticaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearViaAdministracionHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarViaAdministracionHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearUnidadMedidaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarUnidadMedidaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearClasificacionControladaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarClasificacionControladaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarPrincipioActivoHandler.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandlerTest.java`
+
+**Interfaces:**
+- Consumes: agregados de dominio (Task 3, 4), DTOs (Task 9), `CatalogoSoportePort` (Task 10).
+- Produces: `CatalogoApplicationMapper.toResult(X): XResult` para las 6 entidades, y los 12 handlers listados, cada uno implementando su `UseCase` correspondiente (Task 10). Usados por Task 23 (controllers).
+
+Este plan escribe TDD completo solo para 2 handlers representativos (`CrearCondicionVentaHandler`, `CrearPrincipioActivoHandler` — uno con PK String, otro con PK UUID) para no repetir 12 veces el mismo ciclo RED/GREEN; los 10 handlers restantes se crean directamente con su código completo (mecánicos, mismo patrón, sin fakes nuevos que inventar) y se verifican todos juntos al final de la tarea.
+
+- [ ] **Step 1: Escribir el test que falla para `CrearCondicionVentaHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearCondicionVentaHandlerTest {
+
+    @Test
+    void createsACondicionVentaSuccessfully() {
+        var writePort = new FakeCatalogoSoportePort();
+        var handler = new CrearCondicionVentaHandler(writePort);
+
+        var result = handler.execute(new CrearCondicionVentaCommand(
+                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null));
+
+        assertTrue(result.isSuccess());
+        assertEquals("SIN-RECETA", result.getOrElse(error -> null).codigo());
+    }
+
+    @Test
+    void failsWithConflictWhenCodigoAlreadyExists() {
+        var writePort = new FakeCatalogoSoportePort();
+        writePort.outcome = CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO;
+        var handler = new CrearCondicionVentaHandler(writePort);
+
+        var result = handler.execute(new CrearCondicionVentaCommand(
+                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CONDICION_VENTA_DUPLICADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
+        private SaveOutcome outcome = SaveOutcome.CREATED;
+
+        @Override
+        public SaveOutcome save(CondicionVenta condicionVenta) {
+            return outcome;
+        }
+
+        @Override
+        public SaveOutcome save(FormaFarmaceutica formaFarmaceutica) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveOutcome save(ViaAdministracion viaAdministracion) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveOutcome save(UnidadMedida unidadMedida) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveOutcome save(ClasificacionControlada clasificacionControlada) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean condicionVentaExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean formaFarmaceuticaExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean viaAdministracionExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean unidadMedidaExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean clasificacionControladaExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean principioActivoExists(UUID principioActivoId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCondicionVentaHandlerTest"`
+Expected: FAIL — `CrearCondicionVentaHandler` no existe todavía.
+
+- [ ] **Step 3: Crear `CatalogoApplicationMapper` (los 6 métodos `toResult` de esta tarea)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.mapper;
+
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+
+public final class CatalogoApplicationMapper {
+
+    private CatalogoApplicationMapper() {
+    }
+
+    public static CondicionVentaResult toResult(CondicionVenta condicionVenta) {
+        return new CondicionVentaResult(
+                condicionVenta.codigo(), condicionVenta.denominacion(), condicionVenta.requiereReceta(),
+                condicionVenta.requiereRetencion(), condicionVenta.fuente(), condicionVenta.versionFuente(),
+                condicionVenta.vigenteDesde(), condicionVenta.vigenteHasta(), condicionVenta.estado().name());
+    }
+
+    public static FormaFarmaceuticaResult toResult(FormaFarmaceutica formaFarmaceutica) {
+        return new FormaFarmaceuticaResult(
+                formaFarmaceutica.codigo(), formaFarmaceutica.denominacion(), formaFarmaceutica.fuente(),
+                formaFarmaceutica.estado().name());
+    }
+
+    public static ViaAdministracionResult toResult(ViaAdministracion viaAdministracion) {
+        return new ViaAdministracionResult(
+                viaAdministracion.codigo(), viaAdministracion.denominacion(), viaAdministracion.fuente(),
+                viaAdministracion.estado().name());
+    }
+
+    public static UnidadMedidaResult toResult(UnidadMedida unidadMedida) {
+        return new UnidadMedidaResult(
+                unidadMedida.codigo(), unidadMedida.denominacion(), unidadMedida.simbolo(),
+                unidadMedida.permiteDecimal(), unidadMedida.fuente(), unidadMedida.estado().name());
+    }
+
+    public static ClasificacionControladaResult toResult(ClasificacionControlada clasificacionControlada) {
+        return new ClasificacionControladaResult(
+                clasificacionControlada.codigo(), clasificacionControlada.denominacion(),
+                clasificacionControlada.normaFuente(), clasificacionControlada.requiereRecetaEspecial(),
+                clasificacionControlada.retieneReceta(), clasificacionControlada.vigenciaRecetaDias(),
+                clasificacionControlada.estado().name());
+    }
+
+    public static PrincipioActivoResult toResult(PrincipioActivo principioActivo) {
+        return new PrincipioActivoResult(
+                principioActivo.id().value(), principioActivo.codigoFuente(), principioActivo.denominacion(),
+                principioActivo.nombreNormalizado(), principioActivo.fuente(), principioActivo.estado().name());
+    }
+}
+```
+
+- [ ] **Step 4: Crear `CrearCondicionVentaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearCondicionVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearCondicionVentaHandler implements CrearCondicionVentaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public CrearCondicionVentaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<CondicionVentaResult, ApplicationError> execute(CrearCondicionVentaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var condicionVenta = CondicionVenta.create(
+                command.codigo(), command.denominacion(), command.requiereReceta(), command.requiereRetencion(),
+                command.fuente(), command.versionFuente(), command.vigenteDesde(), command.vigenteHasta());
+        return condicionVenta.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CondicionVentaResult, ApplicationError> persist(CondicionVenta condicionVenta) {
+        var outcome = writePort.save(condicionVenta);
+        if (outcome == CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CONDICION_VENTA_DUPLICADA", "Ya existe una condición de venta con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(condicionVenta));
+    }
+
+    private Result<CondicionVentaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCondicionVentaHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 6: Crear `ActualizarCondicionVentaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCondicionVentaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCondicionVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarCondicionVentaHandler implements ActualizarCondicionVentaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarCondicionVentaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<CondicionVentaResult, ApplicationError> execute(ActualizarCondicionVentaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var condicionVenta = CondicionVenta.create(
+                command.codigo(), command.denominacion(), command.requiereReceta(), command.requiereRetencion(),
+                command.fuente(), command.versionFuente(), command.vigenteDesde(), command.vigenteHasta());
+        return condicionVenta.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CondicionVentaResult, ApplicationError> persist(CondicionVenta condicionVenta) {
+        var outcome = writePort.save(condicionVenta);
+        if (outcome == CatalogoSoportePort.SaveOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CONDICION_VENTA_NO_ENCONTRADA", "La condición de venta indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(condicionVenta));
+    }
+
+    private Result<CondicionVentaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 7: Crear los 8 handlers restantes de los catálogos de soporte (misma forma exacta que Step 4/6, cambiando el tipo de agregado y el código de error)**
+
+Cada handler sigue exactamente la forma de `CrearCondicionVentaHandler`/`ActualizarCondicionVentaHandler`, cambiando: el nombre de la clase, la interfaz `UseCase` implementada, el tipo de comando, el tipo de dominio (`FormaFarmaceutica`/`ViaAdministracion`/`UnidadMedida`/`ClasificacionControlada`), la llamada al factory `create(...)` con los campos propios de cada entidad (ver Task 3 para las firmas exactas), y el código de error `CAT_<ENTIDAD>_DUPLICADA`/`CAT_<ENTIDAD>_NO_ENCONTRADA`.
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearFormaFarmaceuticaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearFormaFarmaceuticaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearFormaFarmaceuticaHandler implements CrearFormaFarmaceuticaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public CrearFormaFarmaceuticaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<FormaFarmaceuticaResult, ApplicationError> execute(CrearFormaFarmaceuticaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var forma = FormaFarmaceutica.create(command.codigo(), command.denominacion(), command.fuente());
+        return forma.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<FormaFarmaceuticaResult, ApplicationError> persist(FormaFarmaceutica forma) {
+        var outcome = writePort.save(forma);
+        if (outcome == CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_FORMA_FARMACEUTICA_DUPLICADA", "Ya existe una forma farmacéutica con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(forma));
+    }
+
+    private Result<FormaFarmaceuticaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarFormaFarmaceuticaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarFormaFarmaceuticaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarFormaFarmaceuticaHandler implements ActualizarFormaFarmaceuticaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarFormaFarmaceuticaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<FormaFarmaceuticaResult, ApplicationError> execute(ActualizarFormaFarmaceuticaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var forma = FormaFarmaceutica.create(command.codigo(), command.denominacion(), command.fuente());
+        return forma.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<FormaFarmaceuticaResult, ApplicationError> persist(FormaFarmaceutica forma) {
+        var outcome = writePort.save(forma);
+        if (outcome == CatalogoSoportePort.SaveOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", "La forma farmacéutica indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(forma));
+    }
+
+    private Result<FormaFarmaceuticaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearViaAdministracionHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearViaAdministracionUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearViaAdministracionHandler implements CrearViaAdministracionUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public CrearViaAdministracionHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ViaAdministracionResult, ApplicationError> execute(CrearViaAdministracionCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var via = ViaAdministracion.create(command.codigo(), command.denominacion(), command.fuente());
+        return via.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ViaAdministracionResult, ApplicationError> persist(ViaAdministracion via) {
+        var outcome = writePort.save(via);
+        if (outcome == CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_VIA_ADMINISTRACION_DUPLICADA", "Ya existe una vía de administración con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(via));
+    }
+
+    private Result<ViaAdministracionResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarViaAdministracionHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdministracionUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarViaAdministracionHandler implements ActualizarViaAdministracionUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarViaAdministracionHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ViaAdministracionResult, ApplicationError> execute(ActualizarViaAdministracionCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var via = ViaAdministracion.create(command.codigo(), command.denominacion(), command.fuente());
+        return via.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ViaAdministracionResult, ApplicationError> persist(ViaAdministracion via) {
+        var outcome = writePort.save(via);
+        if (outcome == CatalogoSoportePort.SaveOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", "La vía de administración indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(via));
+    }
+
+    private Result<ViaAdministracionResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearUnidadMedidaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearUnidadMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearUnidadMedidaHandler implements CrearUnidadMedidaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public CrearUnidadMedidaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<UnidadMedidaResult, ApplicationError> execute(CrearUnidadMedidaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var unidad = UnidadMedida.create(
+                command.codigo(), command.denominacion(), command.simbolo(), command.permiteDecimal(),
+                command.fuente());
+        return unidad.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<UnidadMedidaResult, ApplicationError> persist(UnidadMedida unidad) {
+        var outcome = writePort.save(unidad);
+        if (outcome == CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_UNIDAD_MEDIDA_DUPLICADA", "Ya existe una unidad de medida con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(unidad));
+    }
+
+    private Result<UnidadMedidaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarUnidadMedidaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarUnidadMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarUnidadMedidaHandler implements ActualizarUnidadMedidaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarUnidadMedidaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<UnidadMedidaResult, ApplicationError> execute(ActualizarUnidadMedidaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var unidad = UnidadMedida.create(
+                command.codigo(), command.denominacion(), command.simbolo(), command.permiteDecimal(),
+                command.fuente());
+        return unidad.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<UnidadMedidaResult, ApplicationError> persist(UnidadMedida unidad) {
+        var outcome = writePort.save(unidad);
+        if (outcome == CatalogoSoportePort.SaveOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_UNIDAD_MEDIDA_NO_ENCONTRADA", "La unidad de medida indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(unidad));
+    }
+
+    private Result<UnidadMedidaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearClasificacionControladaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearClasificacionControladaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearClasificacionControladaHandler implements CrearClasificacionControladaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public CrearClasificacionControladaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ClasificacionControladaResult, ApplicationError> execute(
+            CrearClasificacionControladaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var clasificacion = ClasificacionControlada.create(
+                command.codigo(), command.denominacion(), command.normaFuente(),
+                command.requiereRecetaEspecial(), command.retieneReceta(), command.vigenciaRecetaDias());
+        return clasificacion.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ClasificacionControladaResult, ApplicationError> persist(ClasificacionControlada clasificacion) {
+        var outcome = writePort.save(clasificacion);
+        if (outcome == CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CLASIFICACION_CONTROLADA_DUPLICADA",
+                    "Ya existe una clasificación controlada con el código indicado.", ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(clasificacion));
+    }
+
+    private Result<ClasificacionControladaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarClasificacionControladaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarClasificacionControladaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarClasificacionControladaHandler implements ActualizarClasificacionControladaUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarClasificacionControladaHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ClasificacionControladaResult, ApplicationError> execute(
+            ActualizarClasificacionControladaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var clasificacion = ClasificacionControlada.create(
+                command.codigo(), command.denominacion(), command.normaFuente(),
+                command.requiereRecetaEspecial(), command.retieneReceta(), command.vigenciaRecetaDias());
+        return clasificacion.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ClasificacionControladaResult, ApplicationError> persist(ClasificacionControlada clasificacion) {
+        var outcome = writePort.save(clasificacion);
+        if (outcome == CatalogoSoportePort.SaveOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CLASIFICACION_CONTROLADA_NO_ENCONTRADA",
+                    "La clasificación controlada indicada no existe.", ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(clasificacion));
+    }
+
+    private Result<ClasificacionControladaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 8: Ejecutar y verificar que los 5 handlers de `CrearX`/`ActualizarX` de soporte compilan y no rompen nada**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL (los handlers de `PrincipioActivo`, `Marca`, `CategoriaProducto`, `ProductoRegulado`, `SKUComercial` referenciados por sus `UseCase` en `CatalogoModuleConfiguration` todavía no existen — eso es esperado hasta Tasks 12-14; en este punto solo se compila `:modules:catalogo` de forma aislada, sin wiring de Spring, así que no hay error).
+
+- [ ] **Step 9: Escribir el test que falla para `CrearPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearPrincipioActivoHandlerTest {
+
+    @Test
+    void createsAPrincipioActivoSuccessfully() {
+        var writePort = new FakeCatalogoSoportePort();
+        var handler = new CrearPrincipioActivoHandler(writePort, () -> UUID.fromString(
+                "98a1587e-27ef-4077-befd-6f5af4901589"));
+
+        var result = handler.execute(new CrearPrincipioActivoCommand(null, "Paracetamol", null, null));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Paracetamol", result.getOrElse(error -> null).denominacion());
+    }
+
+    private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
+        @Override
+        public SaveOutcome save(CondicionVenta condicionVenta) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(FormaFarmaceutica formaFarmaceutica) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(ViaAdministracion viaAdministracion) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(UnidadMedida unidadMedida) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(ClasificacionControlada clasificacionControlada) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
+            return SavePrincipioActivoOutcome.CREATED;
+        }
+
+        @Override
+        public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean formaFarmaceuticaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean viaAdministracionExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean unidadMedidaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean clasificacionControladaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean principioActivoExists(UUID principioActivoId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 10: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearPrincipioActivoHandlerTest"`
+Expected: FAIL — `CrearPrincipioActivoHandler` no existe todavía.
+
+- [ ] **Step 11: Crear `CrearPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearPrincipioActivoHandler implements CrearPrincipioActivoUseCase {
+
+    private final CatalogoSoportePort writePort;
+    private final IdentifierGenerator identifierGenerator;
+
+    public CrearPrincipioActivoHandler(CatalogoSoportePort writePort, IdentifierGenerator identifierGenerator) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+    }
+
+    @Override
+    public Result<PrincipioActivoResult, ApplicationError> execute(CrearPrincipioActivoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var principioActivo = PrincipioActivo.create(
+                new PrincipioActivoId(identifierGenerator.next()), command.codigoFuente(), command.denominacion(),
+                command.nombreNormalizado(), command.fuente());
+        return principioActivo.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<PrincipioActivoResult, ApplicationError> persist(PrincipioActivo principioActivo) {
+        writePort.save(principioActivo);
+        return Result.success(CatalogoApplicationMapper.toResult(principioActivo));
+    }
+
+    private Result<PrincipioActivoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 12: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearPrincipioActivoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 13: Crear `ActualizarPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarPrincipioActivoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarPrincipioActivoHandler implements ActualizarPrincipioActivoUseCase {
+
+    private final CatalogoSoportePort writePort;
+
+    public ActualizarPrincipioActivoHandler(CatalogoSoportePort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<PrincipioActivoResult, ApplicationError> execute(ActualizarPrincipioActivoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var principioActivo = PrincipioActivo.create(
+                new PrincipioActivoId(command.principioActivoId()), command.codigoFuente(), command.denominacion(),
+                command.nombreNormalizado(), command.fuente());
+        return principioActivo.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<PrincipioActivoResult, ApplicationError> persist(PrincipioActivo principioActivo) {
+        var outcome = writePort.save(principioActivo);
+        if (outcome == CatalogoSoportePort.SavePrincipioActivoOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", "El principio activo indicado no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(principioActivo));
+    }
+
+    private Result<PrincipioActivoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 14: Ejecutar todos los tests de la tarea juntos**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.Crear*HandlerTest"`
+Expected: PASS
+
+- [ ] **Step 15: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCondicionVentaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearFormaFarmaceuticaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarFormaFarmaceuticaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearViaAdministracionHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarViaAdministracionHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearUnidadMedidaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarUnidadMedidaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearClasificacionControladaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarClasificacionControladaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarPrincipioActivoHandler.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCondicionVentaHandlerTest.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearPrincipioActivoHandlerTest.java
+git commit -m "feat(catalogo): agregar handlers de escritura de catalogos de soporte y principio activo"
+```
+
+---
