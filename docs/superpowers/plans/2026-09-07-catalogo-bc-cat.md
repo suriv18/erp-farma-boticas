@@ -6070,3 +6070,635 @@ git commit -m "feat(catalogo): agregar handlers de escritura de ProductoRegulado
 ```
 
 ---
+
+### Task 14: Handlers de escritura de `SKUComercial` (crear, actualizar, códigos de barra)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarSkuHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/EliminarCodigoBarraHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/MarcarCodigoBarraPrincipalHandler.java`
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java` (agregar `toResult(SKUComercial)`)
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoComercialPort.java` (agregar `Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId)` — necesario para los CU de códigos de barra, que leen-modifican-guardan el agregado igual que `AsociarPrincipioActivoHandler`)
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `SKUComercial`, `CodigoBarraSku` (Task 8), `CatalogoComercialPort` (Task 10, ampliado en esta tarea).
+- Produces: `CrearSkuHandler implements CrearSkuUseCase`, `ActualizarSkuHandler implements ActualizarSkuUseCase`, `AgregarCodigoBarraHandler implements AgregarCodigoBarraUseCase`, `EliminarCodigoBarraHandler implements EliminarCodigoBarraUseCase`, `MarcarCodigoBarraPrincipalHandler implements MarcarCodigoBarraPrincipalUseCase`. Usados por Task 23 (controller).
+
+- [ ] **Step 1: Ampliar `CatalogoComercialPort` con `findSkuById`**
+
+Modificar `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoComercialPort.java`: agregar el import `java.util.Optional` y el método `Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId);` a la interfaz (junto a los demás métodos, antes del bloque de enums).
+
+- [ ] **Step 2: Escribir el test que falla para `CrearSkuHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearSkuHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void createsANoRegulatedSkuSuccessfully() {
+        var writePort = new FakeCatalogoComercialPort();
+        var handler = new CrearSkuHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearSkuCommand(
+                TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
+                null, null, null, null, null, null, null, false, null, true, true, true,
+                BigDecimal.ZERO, null, null, "test"));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Alcohol en gel", result.getOrElse(error -> null).descripcionComercial());
+    }
+
+    @Test
+    void failsWithConflictWhenCodigoInternoAlreadyExists() {
+        var writePort = new FakeCatalogoComercialPort();
+        writePort.skuOutcome = CatalogoComercialPort.SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
+        var handler = new CrearSkuHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearSkuCommand(
+                TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
+                null, null, null, null, null, null, null, false, null, true, true, true,
+                BigDecimal.ZERO, null, null, "test"));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_SKU_CODIGO_INTERNO_DUPLICADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
+        private SaveSkuOutcome skuOutcome = SaveSkuOutcome.CREATED;
+
+        @Override
+        public SaveMarcaOutcome save(Marca marca) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveCategoriaOutcome save(CategoriaProducto categoria) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveSkuOutcome save(SKUComercial sku) { return skuOutcome; }
+
+        @Override
+        public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean marcaExists(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 3: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearSkuHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 4: Agregar `toResult(SKUComercial)` a `CatalogoApplicationMapper`**
+
+Modificar `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`, agregando estos imports y este método:
+
+```java
+import com.softprimesolutions.catalogo.application.dto.result.CodigoBarraSkuResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+```
+
+```java
+    public static SkuResult toResult(SKUComercial sku) {
+        return new SkuResult(
+                sku.id().value(), sku.tenantId().value(),
+                sku.productoReguladoId() == null ? null : sku.productoReguladoId().value(),
+                sku.categoriaId() == null ? null : sku.categoriaId().value(),
+                sku.marcaId() == null ? null : sku.marcaId().value(),
+                sku.tipoSku().name(), sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(),
+                sku.presentacionComercial(), sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(),
+                sku.pesoGramos(), sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(),
+                sku.factorFraccion(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
+                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(),
+                sku.codigosBarra().stream()
+                        .map(codigo -> new CodigoBarraSkuResult(
+                                codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),
+                                codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name()))
+                        .toList(),
+                sku.estado().name(), sku.createdBy(), sku.createdAt(), sku.updatedBy(), sku.updatedAt());
+    }
+```
+
+- [ ] **Step 5: Crear `CrearSkuHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.domain.model.TipoSku;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.catalogo.domain.valueobject.SkuId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+
+public final class CrearSkuHandler implements CrearSkuUseCase {
+
+    private final CatalogoComercialPort writePort;
+    private final IdentifierGenerator identifierGenerator;
+    private final ClockPort clock;
+
+    public CrearSkuHandler(
+            CatalogoComercialPort writePort, IdentifierGenerator identifierGenerator, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(CrearSkuCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+
+        final TipoSku tipoSku;
+        try {
+            tipoSku = TipoSku.valueOf(command.tipoSku() == null ? "" : command.tipoSku().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_INVALIDO", "El tipo de SKU no es válido.", ErrorCategory.VALIDATION,
+                    Map.of("field", "tipoSku")));
+        }
+
+        var sku = SKUComercial.create(
+                new SkuId(identifierGenerator.next()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.productoReguladoId() == null ? null : new ProductoReguladoId(command.productoReguladoId()),
+                command.categoriaId() == null ? null : new CategoriaProductoId(command.categoriaId()),
+                command.marcaId() == null ? null : new MarcaId(command.marcaId()),
+                tipoSku, command.codigoInterno(), command.descripcionComercial(), command.nombreCorto(),
+                command.presentacionComercial(), command.unidadVentaCodigo(), command.contenido(),
+                command.unidadContenidoCodigo(), command.pesoGramos(), command.altoCm(), command.anchoCm(),
+                command.largoCm(), command.permiteVentaFraccion(), command.factorFraccion(),
+                command.requiereLote(), command.requiereVencimiento(), command.afectoIgv(),
+                command.stockMinimoDefault(), command.stockMaximoDefault(), command.imagenUri(),
+                command.createdBy(), clock.now());
+        return sku.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<SkuResult, ApplicationError> persist(SKUComercial sku) {
+        var outcome = writePort.save(sku);
+        var error = mapOutcomeToError(outcome);
+        if (error != null) return Result.failure(error);
+        return Result.success(CatalogoApplicationMapper.toResult(sku));
+    }
+
+    private static ApplicationError mapOutcomeToError(CatalogoComercialPort.SaveSkuOutcome outcome) {
+        return switch (outcome) {
+            case TENANT_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND);
+            case PRODUCTO_REGULADO_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CATEGORIA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CATEGORIA_PRODUCTO_NO_ENCONTRADA", "La categoría indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case MARCA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_MARCA_NO_ENCONTRADA", "La marca indicada no existe.", ErrorCategory.NOT_FOUND);
+            case NOT_FOUND -> new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND);
+            case DUPLICATE_CODIGO_INTERNO -> new StandardApplicationError(
+                    "CAT_SKU_CODIGO_INTERNO_DUPLICADO", "Ya existe un SKU con el código interno indicado.",
+                    ErrorCategory.CONFLICT);
+            case DUPLICATE_CODIGO_BARRA -> new StandardApplicationError(
+                    "CAT_SKU_CODIGO_BARRA_DUPLICADO", "Ya existe un SKU con el código de barras indicado.",
+                    ErrorCategory.CONFLICT);
+            case CREATED, UPDATED -> null;
+        };
+    }
+
+    private Result<SkuResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 6: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearSkuHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 7: Crear `ActualizarSkuHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarSkuHandler.java` (misma lógica que `CrearSkuHandler`, usa `command.skuId()`/`command.updatedBy()` en vez de generar id/usar `createdBy`, sin `IdentifierGenerator`):
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.domain.model.TipoSku;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.catalogo.domain.valueobject.SkuId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+
+public final class ActualizarSkuHandler implements ActualizarSkuUseCase {
+
+    private final CatalogoComercialPort writePort;
+    private final ClockPort clock;
+
+    public ActualizarSkuHandler(CatalogoComercialPort writePort, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(ActualizarSkuCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+
+        final TipoSku tipoSku;
+        try {
+            tipoSku = TipoSku.valueOf(command.tipoSku() == null ? "" : command.tipoSku().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_INVALIDO", "El tipo de SKU no es válido.", ErrorCategory.VALIDATION,
+                    Map.of("field", "tipoSku")));
+        }
+
+        var existing = writePort.findSkuById(command.tenantId(), command.skuId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+
+        var sku = SKUComercial.create(
+                new SkuId(command.skuId()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.productoReguladoId() == null ? null : new ProductoReguladoId(command.productoReguladoId()),
+                command.categoriaId() == null ? null : new CategoriaProductoId(command.categoriaId()),
+                command.marcaId() == null ? null : new MarcaId(command.marcaId()),
+                tipoSku, command.codigoInterno(), command.descripcionComercial(), command.nombreCorto(),
+                command.presentacionComercial(), command.unidadVentaCodigo(), command.contenido(),
+                command.unidadContenidoCodigo(), command.pesoGramos(), command.altoCm(), command.anchoCm(),
+                command.largoCm(), command.permiteVentaFraccion(), command.factorFraccion(),
+                command.requiereLote(), command.requiereVencimiento(), command.afectoIgv(),
+                command.stockMinimoDefault(), command.stockMaximoDefault(), command.imagenUri(),
+                existing.get().createdBy(), existing.get().createdAt());
+        return sku.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<SkuResult, ApplicationError> persist(SKUComercial sku) {
+        var outcome = writePort.save(sku);
+        var error = ActualizarSkuHandler.mapOutcomeToError(outcome);
+        if (error != null) return Result.failure(error);
+        return Result.success(CatalogoApplicationMapper.toResult(sku));
+    }
+
+    private static ApplicationError mapOutcomeToError(CatalogoComercialPort.SaveSkuOutcome outcome) {
+        return switch (outcome) {
+            case NOT_FOUND -> new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND);
+            case TENANT_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND);
+            case PRODUCTO_REGULADO_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CATEGORIA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CATEGORIA_PRODUCTO_NO_ENCONTRADA", "La categoría indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case MARCA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_MARCA_NO_ENCONTRADA", "La marca indicada no existe.", ErrorCategory.NOT_FOUND);
+            case DUPLICATE_CODIGO_INTERNO -> new StandardApplicationError(
+                    "CAT_SKU_CODIGO_INTERNO_DUPLICADO", "Ya existe un SKU con el código interno indicado.",
+                    ErrorCategory.CONFLICT);
+            case DUPLICATE_CODIGO_BARRA -> new StandardApplicationError(
+                    "CAT_SKU_CODIGO_BARRA_DUPLICADO", "Ya existe un SKU con el código de barras indicado.",
+                    ErrorCategory.CONFLICT);
+            case CREATED, UPDATED -> null;
+        };
+    }
+
+    private Result<SkuResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 8: Escribir el test que falla para `AgregarCodigoBarraHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.domain.model.TipoSku;
+import com.softprimesolutions.catalogo.domain.valueobject.SkuId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class AgregarCodigoBarraHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID SKU_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+
+    @Test
+    void addsABarcodeSuccessfully() {
+        var existing = SKUComercial.create(
+                        new SkuId(SKU_ID), new TenantId(TENANT_ID), null, null, null, TipoSku.NO_REGULADO,
+                        "SKU-001", "Alcohol en gel", null, null, null, null, null, null, null, null, null,
+                        false, null, true, true, true, BigDecimal.ZERO, null, null, "test",
+                        Instant.parse("2026-09-07T10:00:00Z"))
+                .getOrElse(error -> null);
+        var writePort = new FakeCatalogoComercialPort(existing);
+        var handler = new AgregarCodigoBarraHandler(writePort);
+
+        var result = handler.execute(new AgregarCodigoBarraCommand(
+                TENANT_ID, SKU_ID, "7501234567890", "EAN13", null, null));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).codigosBarra().size());
+    }
+
+    @Test
+    void failsWithNotFoundWhenSkuDoesNotExist() {
+        var writePort = new FakeCatalogoComercialPort(null);
+        var handler = new AgregarCodigoBarraHandler(writePort);
+
+        var result = handler.execute(new AgregarCodigoBarraCommand(
+                TENANT_ID, SKU_ID, "7501234567890", "EAN13", null, null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_SKU_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
+        private final SKUComercial existing;
+
+        private FakeCatalogoComercialPort(SKUComercial existing) {
+            this.existing = existing;
+        }
+
+        @Override
+        public SaveMarcaOutcome save(Marca marca) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveCategoriaOutcome save(CategoriaProducto categoria) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveSkuOutcome save(SKUComercial sku) { return SaveSkuOutcome.UPDATED; }
+
+        @Override
+        public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { return Optional.ofNullable(existing); }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean marcaExists(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 9: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.AgregarCodigoBarraHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 10: Crear `AgregarCodigoBarraHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CodigoBarraSku;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class AgregarCodigoBarraHandler implements AgregarCodigoBarraUseCase {
+
+    private final CatalogoComercialPort writePort;
+
+    public AgregarCodigoBarraHandler(CatalogoComercialPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(AgregarCodigoBarraCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var existing = writePort.findSkuById(command.tenantId(), command.skuId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+
+        var codigo = new CodigoBarraSku(
+                command.codigoBarra(), command.tipoCodigo() == null ? "EAN13" : command.tipoCodigo(), false,
+                command.vigenteDesde(), command.vigenteHasta(), EstadoCatalogoSoporte.ACTIVO);
+        var updated = existing.get().conCodigoBarra(codigo);
+
+        var outcome = writePort.save(updated);
+        if (outcome == CatalogoComercialPort.SaveSkuOutcome.DUPLICATE_CODIGO_BARRA) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_CODIGO_BARRA_DUPLICADO", "Ya existe un SKU con el código de barras indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(updated));
+    }
+}
+```
+
+- [ ] **Step 11: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.AgregarCodigoBarraHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 12: Crear `EliminarCodigoBarraHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/EliminarCodigoBarraHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.EliminarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.EliminarCodigoBarraUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class EliminarCodigoBarraHandler implements EliminarCodigoBarraUseCase {
+
+    private final CatalogoComercialPort writePort;
+
+    public EliminarCodigoBarraHandler(CatalogoComercialPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(EliminarCodigoBarraCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var existing = writePort.findSkuById(command.tenantId(), command.skuId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+
+        var updated = existing.get().sinCodigoBarra(command.codigoBarra());
+        writePort.save(updated);
+        return Result.success(CatalogoApplicationMapper.toResult(updated));
+    }
+}
+```
+
+- [ ] **Step 13: Crear `MarcarCodigoBarraPrincipalHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/MarcarCodigoBarraPrincipalHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.MarcarCodigoBarraPrincipalCommand;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.MarcarCodigoBarraPrincipalUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class MarcarCodigoBarraPrincipalHandler implements MarcarCodigoBarraPrincipalUseCase {
+
+    private final CatalogoComercialPort writePort;
+
+    public MarcarCodigoBarraPrincipalHandler(CatalogoComercialPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(MarcarCodigoBarraPrincipalCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var existing = writePort.findSkuById(command.tenantId(), command.skuId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+
+        var updated = existing.get().conCodigoBarraPrincipal(command.codigoBarra());
+        writePort.save(updated);
+        return Result.success(CatalogoApplicationMapper.toResult(updated));
+    }
+}
+```
+
+- [ ] **Step 14: Ejecutar todos los tests de la tarea juntos y compilar el módulo completo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.*"`
+Expected: PASS (todos los handlers de escritura creados en Tasks 11-14, verdes).
+
+- [ ] **Step 15: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoComercialPort.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarSkuHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/EliminarCodigoBarraHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/MarcarCodigoBarraPrincipalHandler.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearSkuHandlerTest.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AgregarCodigoBarraHandlerTest.java
+git commit -m "feat(catalogo): agregar handlers de escritura de SKUComercial y codigos de barra"
+```
+
+---
