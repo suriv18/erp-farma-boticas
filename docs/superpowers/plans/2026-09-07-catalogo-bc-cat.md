@@ -5573,3 +5573,500 @@ git commit -m "feat(catalogo): agregar handlers de escritura de Marca y Categori
 ```
 
 ---
+
+### Task 13: Handlers de escritura de `ProductoRegulado` (crear, actualizar, asociar/desasociar principio activo)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoReguladoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/DesasociarPrincipioActivoHandler.java`
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java` (agregar `toResult(ProductoRegulado)`)
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `ProductoRegulado`, `PrincipioActivoAsociado` (Task 7), `ProductoReguladoPort` (Task 10).
+- Produces: `CrearProductoReguladoHandler implements CrearProductoReguladoUseCase`, `ActualizarProductoReguladoHandler implements ActualizarProductoReguladoUseCase`, `AsociarPrincipioActivoHandler implements AsociarPrincipioActivoUseCase`, `DesasociarPrincipioActivoHandler implements DesasociarPrincipioActivoUseCase`. Usados por Task 23 (controller).
+
+- [ ] **Step 1: Escribir el test que falla para `CrearProductoReguladoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearProductoReguladoHandlerTest {
+
+    @Test
+    void createsAProductoReguladoSuccessfully() {
+        var writePort = new FakeProductoReguladoPort();
+        var handler = new CrearProductoReguladoHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoReguladoCommand(
+                "MEDICAMENTO", null, null, null, "Paracetamol 500mg", null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Paracetamol 500mg", result.getOrElse(error -> null).denominacion());
+    }
+
+    @Test
+    void failsWithNotFoundWhenFormaFarmaceuticaDoesNotExist() {
+        var writePort = new FakeProductoReguladoPort();
+        writePort.outcome = ProductoReguladoPort.SaveOutcome.FORMA_FARMACEUTICA_NOT_FOUND;
+        var handler = new CrearProductoReguladoHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoReguladoCommand(
+                "MEDICAMENTO", null, null, null, "Paracetamol 500mg", null, null, "TABLETA", null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeProductoReguladoPort implements ProductoReguladoPort {
+        private SaveOutcome outcome = SaveOutcome.CREATED;
+
+        @Override
+        public SaveOutcome save(ProductoRegulado productoRegulado) { return outcome; }
+
+        @Override
+        public Optional<ProductoRegulado> findById(UUID productoReguladoId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearProductoReguladoHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Agregar `toResult(ProductoRegulado)` a `CatalogoApplicationMapper`**
+
+Modificar `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`, agregando estos imports y este método:
+
+```java
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoAsociadoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+```
+
+```java
+    public static ProductoReguladoResult toResult(ProductoRegulado producto) {
+        return new ProductoReguladoResult(
+                producto.id().value(), producto.tipoProducto(), producto.rubroCodigo(), producto.tipoRegistro(),
+                producto.numeroRegistro(), producto.denominacion(), producto.concentracionTexto(),
+                producto.presentacionRegulatoria(), producto.formaFarmaceuticaCodigo(),
+                producto.viaAdministracionCodigo(), producto.unidadMedidaCodigo(), producto.condicionVentaCodigo(),
+                producto.clasificacionAtc(), producto.clasificacionControladaCodigo(), producto.tipoLiberacion(),
+                producto.origenFabricacion(), producto.paisOrigen(), producto.subpartidaNacional(),
+                producto.titularRegistro(), producto.fabricante(), producto.importador(),
+                producto.establecimientoExpendio(), producto.vigenteDesde(), producto.vigenteHasta(),
+                producto.fuente(), producto.versionFuente(),
+                producto.principiosActivos().stream()
+                        .map(asociado -> new PrincipioActivoAsociadoResult(
+                                asociado.principioActivoId().value(), asociado.concentracionTexto(),
+                                asociado.cantidad(), asociado.unidadMedidaCodigo(), asociado.esPrincipal(),
+                                asociado.orden()))
+                        .toList(),
+                producto.estado().name(), producto.createdAt(), producto.updatedAt());
+    }
+```
+
+- [ ] **Step 4: Crear `CrearProductoReguladoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearProductoReguladoHandler implements CrearProductoReguladoUseCase {
+
+    private final ProductoReguladoPort writePort;
+    private final IdentifierGenerator identifierGenerator;
+    private final ClockPort clock;
+
+    public CrearProductoReguladoHandler(
+            ProductoReguladoPort writePort, IdentifierGenerator identifierGenerator, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoReguladoResult, ApplicationError> execute(CrearProductoReguladoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var producto = ProductoRegulado.create(
+                new ProductoReguladoId(identifierGenerator.next()), command.tipoProducto(), command.rubroCodigo(),
+                command.tipoRegistro(), command.numeroRegistro(), command.denominacion(),
+                command.concentracionTexto(), command.presentacionRegulatoria(), command.formaFarmaceuticaCodigo(),
+                command.viaAdministracionCodigo(), command.unidadMedidaCodigo(), command.condicionVentaCodigo(),
+                command.clasificacionAtc(), command.clasificacionControladaCodigo(), command.tipoLiberacion(),
+                command.origenFabricacion(), command.paisOrigen(), command.subpartidaNacional(),
+                command.titularRegistro(), command.fabricante(), command.importador(),
+                command.establecimientoExpendio(), command.vigenteDesde(), command.vigenteHasta(),
+                command.fuente(), command.versionFuente(), clock.now());
+        return producto.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ProductoReguladoResult, ApplicationError> persist(ProductoRegulado producto) {
+        var outcome = writePort.save(producto);
+        var error = mapOutcomeToError(outcome);
+        if (error != null) return Result.failure(error);
+        return Result.success(CatalogoApplicationMapper.toResult(producto));
+    }
+
+    private static ApplicationError mapOutcomeToError(ProductoReguladoPort.SaveOutcome outcome) {
+        return switch (outcome) {
+            case FORMA_FARMACEUTICA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", "La forma farmacéutica indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case VIA_ADMINISTRACION_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", "La vía de administración indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case UNIDAD_MEDIDA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_UNIDAD_MEDIDA_NO_ENCONTRADA", "La unidad de medida indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CONDICION_VENTA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CONDICION_VENTA_NO_ENCONTRADA", "La condición de venta indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CLASIFICACION_CONTROLADA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CLASIFICACION_CONTROLADA_NO_ENCONTRADA", "La clasificación controlada indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case PRINCIPIO_ACTIVO_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", "El principio activo indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CREATED, UPDATED -> null;
+        };
+    }
+
+    private Result<ProductoReguladoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearProductoReguladoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 6: Crear `ActualizarProductoReguladoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoReguladoHandler.java` (misma lógica que `CrearProductoReguladoHandler`, pero usa `command.productoReguladoId()` en vez de generar uno nuevo, y no requiere `IdentifierGenerator`):
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarProductoReguladoHandler implements ActualizarProductoReguladoUseCase {
+
+    private final ProductoReguladoPort writePort;
+    private final ClockPort clock;
+
+    public ActualizarProductoReguladoHandler(ProductoReguladoPort writePort, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoReguladoResult, ApplicationError> execute(ActualizarProductoReguladoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var producto = ProductoRegulado.create(
+                new ProductoReguladoId(command.productoReguladoId()), command.tipoProducto(),
+                command.rubroCodigo(), command.tipoRegistro(), command.numeroRegistro(), command.denominacion(),
+                command.concentracionTexto(), command.presentacionRegulatoria(), command.formaFarmaceuticaCodigo(),
+                command.viaAdministracionCodigo(), command.unidadMedidaCodigo(), command.condicionVentaCodigo(),
+                command.clasificacionAtc(), command.clasificacionControladaCodigo(), command.tipoLiberacion(),
+                command.origenFabricacion(), command.paisOrigen(), command.subpartidaNacional(),
+                command.titularRegistro(), command.fabricante(), command.importador(),
+                command.establecimientoExpendio(), command.vigenteDesde(), command.vigenteHasta(),
+                command.fuente(), command.versionFuente(), clock.now());
+        return producto.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ProductoReguladoResult, ApplicationError> persist(ProductoRegulado producto) {
+        var outcome = writePort.save(producto);
+        var error = ActualizarProductoReguladoHandler.mapOutcomeToError(outcome);
+        if (error != null) return Result.failure(error);
+        return Result.success(CatalogoApplicationMapper.toResult(producto));
+    }
+
+    private static ApplicationError mapOutcomeToError(ProductoReguladoPort.SaveOutcome outcome) {
+        return switch (outcome) {
+            case NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case FORMA_FARMACEUTICA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", "La forma farmacéutica indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case VIA_ADMINISTRACION_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", "La vía de administración indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case UNIDAD_MEDIDA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_UNIDAD_MEDIDA_NO_ENCONTRADA", "La unidad de medida indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CONDICION_VENTA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CONDICION_VENTA_NO_ENCONTRADA", "La condición de venta indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CLASIFICACION_CONTROLADA_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_CLASIFICACION_CONTROLADA_NO_ENCONTRADA", "La clasificación controlada indicada no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case PRINCIPIO_ACTIVO_NOT_FOUND -> new StandardApplicationError(
+                    "CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", "El principio activo indicado no existe.",
+                    ErrorCategory.NOT_FOUND);
+            case CREATED, UPDATED -> null;
+        };
+    }
+
+    private Result<ProductoReguladoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 7: Escribir el test que falla para `AsociarPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.AsociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class AsociarPrincipioActivoHandlerTest {
+
+    private static final UUID PRODUCTO_REGULADO_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+
+    @Test
+    void associatesAnActiveIngredientSuccessfully() {
+        var existing = ProductoRegulado.create(
+                        new com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId(PRODUCTO_REGULADO_ID),
+                        "MEDICAMENTO", null, null, null, "Paracetamol 500mg", null, null, null, null, null,
+                        null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                        Instant.parse("2026-09-07T10:00:00Z"))
+                .getOrElse(error -> null);
+        var writePort = new FakeProductoReguladoPort(existing);
+        var handler = new AsociarPrincipioActivoHandler(writePort);
+
+        var result = handler.execute(new AsociarPrincipioActivoCommand(
+                PRODUCTO_REGULADO_ID, UUID.randomUUID(), "500mg", new BigDecimal("500"), "MG", true, (short) 1));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).principiosActivos().size());
+    }
+
+    @Test
+    void failsWithNotFoundWhenProductoReguladoDoesNotExist() {
+        var writePort = new FakeProductoReguladoPort(null);
+        var handler = new AsociarPrincipioActivoHandler(writePort);
+
+        var result = handler.execute(new AsociarPrincipioActivoCommand(
+                PRODUCTO_REGULADO_ID, UUID.randomUUID(), null, null, null, true, (short) 1));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeProductoReguladoPort implements ProductoReguladoPort {
+        private final ProductoRegulado existing;
+
+        private FakeProductoReguladoPort(ProductoRegulado existing) {
+            this.existing = existing;
+        }
+
+        @Override
+        public SaveOutcome save(ProductoRegulado productoRegulado) { return SaveOutcome.UPDATED; }
+
+        @Override
+        public Optional<ProductoRegulado> findById(UUID productoReguladoId) { return Optional.ofNullable(existing); }
+
+        @Override
+        public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 8: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.AsociarPrincipioActivoHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 9: Crear `AsociarPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.AsociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.AsociarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivoAsociado;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class AsociarPrincipioActivoHandler implements AsociarPrincipioActivoUseCase {
+
+    private final ProductoReguladoPort writePort;
+
+    public AsociarPrincipioActivoHandler(ProductoReguladoPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoReguladoResult, ApplicationError> execute(AsociarPrincipioActivoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var existing = writePort.findById(command.productoReguladoId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+
+        var asociado = new PrincipioActivoAsociado(
+                new PrincipioActivoId(command.principioActivoId()), command.concentracionTexto(),
+                command.cantidad(), command.unidadMedidaCodigo(), command.esPrincipal(), command.orden());
+        var updated = existing.get().conPrincipioActivoAsociado(asociado);
+
+        var outcome = writePort.save(updated);
+        if (outcome == ProductoReguladoPort.SaveOutcome.PRINCIPIO_ACTIVO_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", "El principio activo indicado no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(updated));
+    }
+}
+```
+
+- [ ] **Step 10: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.AsociarPrincipioActivoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 11: Crear `DesasociarPrincipioActivoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/DesasociarPrincipioActivoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.DesasociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.DesasociarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class DesasociarPrincipioActivoHandler implements DesasociarPrincipioActivoUseCase {
+
+    private final ProductoReguladoPort writePort;
+
+    public DesasociarPrincipioActivoHandler(ProductoReguladoPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoReguladoResult, ApplicationError> execute(DesasociarPrincipioActivoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var existing = writePort.findById(command.productoReguladoId());
+        if (existing.isEmpty()) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+
+        var updated = existing.get().sinPrincipioActivoAsociado(new PrincipioActivoId(command.principioActivoId()));
+        writePort.save(updated);
+        return Result.success(CatalogoApplicationMapper.toResult(updated));
+    }
+}
+```
+
+- [ ] **Step 12: Ejecutar todos los tests de la tarea juntos y commit**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearProductoReguladoHandlerTest" --tests "com.softprimesolutions.catalogo.application.usecase.command.AsociarPrincipioActivoHandlerTest"`
+Expected: PASS
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoReguladoHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/DesasociarPrincipioActivoHandler.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoReguladoHandlerTest.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/AsociarPrincipioActivoHandlerTest.java
+git commit -m "feat(catalogo): agregar handlers de escritura de ProductoRegulado"
+```
+
+---
