@@ -26,12 +26,34 @@ Este documento cubre **solo el backend de Catálogo** (agregados `Producto` y `C
 
 ## Arquitectura
 
-Sigue Clean Architecture + DDD + Ports & Adapters + CQRS, como el resto de `service-botica`, combinando dos convenciones ya presentes en el repo:
+Sigue exactamente el mismo patrón de Clean Architecture + DDD + Ports & Adapters + CQRS ya usado y maduro en `modules/security` — no el estilo más nuevo/simplificado de `modules/organizacion` (que todavía no tiene infraestructura ni controller de referencia). Esto da consistencia con el módulo más completo del backend y evita introducir una segunda convención en el repo.
 
-- **`domain/`, `api/` (commands/queries), `application/` (handlers)**: siguen el estilo CQRS-puro más reciente usado en `modules/organizacion` — commands/resultados como records en `api/`, handlers en `application/` con puertos en `application/port/`, sin capa `port/in` separada ni DTOs HTTP en esta capa.
-- **`infrastructure/persistence/{read,write}`, `api/controller`**: `organizacion` no tiene ejemplos de estas capas todavía, así que siguen el estilo ya maduro de `modules/security` (entidades JPA + repos Spring Data + adapters en `write`; projections + `JdbcClient` + mapper + adapter en `read`; controller con `.fold(success, ProblemDetail)`).
+Como en `security`, `catalogo` no define infraestructura propia común: reutiliza los tipos base ya existentes en los módulos transversales `shared-*` (no hay un módulo literal `common`):
+- `shared-kernel`: `Result<T,E>`, `ErrorDetail`, `AggregateRoot`, `EntityId<T>` — sin dependencia de Spring.
+- `shared-application`: `Command<R>`, `CommandHandler<C,R>`, `Query<R>`, `QueryHandler<Q,R>`, `ApplicationError`, `ErrorCategory`, `StandardApplicationError`, `IdentifierGenerator`, `ClockPort`.
+- `shared-web`: `GlobalExceptionHandler`, `ApplicationErrorHttpMapper` (traduce `ApplicationError` → `ProblemDetail` RFC 9457 según `ErrorCategory`).
+- `shared-persistence`: solo config técnica de transacciones (sin repositorios concretos).
 
-No hay import cruzado entre `Producto` y `Categoria` como módulos separados — ambos viven dentro de `catalogo`, en paquetes `domain/producto` y `domain/categoria`.
+`TenantId` **no** vive en ningún `shared-*` — `security` define su propio `TenantId` (record sobre `UUID`) dentro de su paquete `domain/valueobject`, y `catalogo` hace lo mismo con el suyo, sin compartir el tipo entre módulos (no existe todavía un `ActorId`/`TenantId` reutilizable transversal, según lo documentado en `CLAUDE.md`).
+
+Capas, siguiendo la misma nomenclatura de `security`:
+
+- `domain/model/` — agregados (`Categoria`, `Producto`) y enums de estado (`EstadoCategoria`, `EstadoProducto`, `TipoProducto`, `CondicionVenta`).
+- `domain/valueobject/` — IDs fuertes (`CategoriaId`, `ProductoId`, reutilizando el mismo patrón `record` con `UUID` que `RolId`/`UsuarioId`; `TenantId` propio del módulo, igual que `security` define su propio `TenantId` en vez de compartir uno).
+- `application/dto/{command,query,result}/` — records de entrada/salida.
+- `application/port/in/` — una interfaz `@FunctionalInterface` por caso de uso (`CrearCategoriaUseCase`, `ListarCategoriasUseCase`, etc.), método único `execute(...)`.
+- `application/port/out/` — dos puertos por módulo (no uno por agregado, igual que `IamWritePort`/`IamReadPort` agrupan Usuario+Rol+Permiso): `CatalogoWritePort` (con outcomes enum como `SaveCategoriaOutcome`, `SaveProductoOutcome`) y `CatalogoReadPort`.
+- `application/usecase/{command,query}/` — handlers, uno por caso de uso, implementando su interfaz de `port/in`.
+- `application/mapper/` — `CatalogoApplicationMapper` (dominio → `*Result`), estático, igual que `IamApplicationMapper`.
+- `infrastructure/persistence/write/{entity,repository,adapter,mapper}` — JPA.
+- `infrastructure/persistence/read/{projection,repository,adapter,mapper}` — JDBC vía `JdbcClient`.
+- `api/controller/` — `CategoriaController`, `ProductoController`, inyectando los puertos `in` (no los handlers directamente), con un `CatalogoControllerSupport` package-private igual a `IamControllerSupport`.
+- `api/dto/{request,response}/` — DTOs HTTP con validación Jakarta.
+- `api/mapper/` — `CatalogoApiMapper` estático (DTO ↔ Command/Query ↔ Result).
+
+Activar/desactivar (`Categoria`/`Producto`) sigue el patrón de `SecurityControlService.changeUserStatus`: es un `UPDATE` directo vía el puerto de escritura (`changeCategoriaStatus`/`changeProductoStatus`), sin reconstruir el agregado completo desde el dominio — el dominio no necesita un método `activate()/deactivate()` porque la transición no tiene invariantes propias más allá del enum válido.
+
+No hay import cruzado entre `Categoria` y `Producto` como módulos separados — ambos viven dentro de `catalogo`, agrupados por sufijo de nombre de clase (`CrearCategoriaX` vs `CrearProductoX`), igual que `security` agrupa Usuario/Rol/Permiso en el mismo árbol de paquetes sin subcarpetas por agregado.
 
 ### Estructura de paquetes
 
@@ -39,118 +61,155 @@ No hay import cruzado entre `Producto` y `Categoria` como módulos separados —
 modules/catalogo/src/main/java/com/softprimesolutions/catalogo/
 ├── package-info.java                          (ya existe, @ApplicationModule)
 ├── domain/
-│   ├── categoria/
+│   ├── model/
 │   │   ├── Categoria.java                     (AggregateRoot)
-│   │   ├── CategoriaId.java                   (record VO)
-│   │   └── EstadoCategoria.java               (enum: ACTIVA, INACTIVA)
-│   └── producto/
-│       ├── Producto.java                      (AggregateRoot)
-│       ├── ProductoId.java                    (record VO)
-│       ├── TipoProducto.java                  (enum: MEDICAMENTO, DISPOSITIVO_MEDICO, PRODUCTO_SANITARIO, SUPLEMENTO_ALIMENTO, ARTICULO_NO_SANITARIO)
-│       ├── CondicionVenta.java                (enum: SIN_RECETA, CON_RECETA, RECETA_RETENIDA)
-│       └── EstadoProducto.java                (enum: ACTIVO, INACTIVO)
+│   │   ├── EstadoCategoria.java               (enum: ACTIVA, INACTIVA)
+│   │   ├── Producto.java                      (AggregateRoot)
+│   │   ├── EstadoProducto.java                (enum: ACTIVO, INACTIVO)
+│   │   ├── TipoProducto.java                  (enum: MEDICAMENTO, DISPOSITIVO_MEDICO, PRODUCTO_SANITARIO, SUPLEMENTO_ALIMENTO, ARTICULO_NO_SANITARIO)
+│   │   └── CondicionVenta.java                (enum: SIN_RECETA, CON_RECETA, RECETA_RETENIDA)
+│   └── valueobject/
+│       ├── CategoriaId.java                   (record VO sobre UUID)
+│       ├── ProductoId.java                    (record VO sobre UUID)
+│       └── TenantId.java                      (record VO sobre UUID, propio del módulo)
 ├── api/
 │   ├── package-info.java                      (ya existe, @NamedInterface("api"))
-│   ├── categoria/
-│   │   ├── CrearCategoriaCommand.java
-│   │   ├── ActualizarCategoriaCommand.java
-│   │   ├── DesactivarCategoriaCommand.java
-│   │   ├── ReactivarCategoriaCommand.java
-│   │   ├── ListarCategoriasQuery.java
-│   │   ├── CategoriaResultado.java             (record de resultado, usado por commands y query)
-│   │   └── controller/CategoriaController.java
-│   └── producto/
-│       ├── CrearProductoCommand.java
-│       ├── ActualizarProductoCommand.java
-│       ├── DesactivarProductoCommand.java
-│       ├── ReactivarProductoCommand.java
-│       ├── ConsultarProductoQuery.java
-│       ├── ListarProductosQuery.java
-│       ├── ProductoResultado.java
-│       ├── ProductoResumen.java                (record ligero para listados)
-│       └── controller/ProductoController.java
+│   ├── controller/
+│   │   ├── CategoriaController.java
+│   │   ├── ProductoController.java
+│   │   └── CatalogoControllerSupport.java     (package-private, Result→ProblemDetail)
+│   ├── dto/
+│   │   ├── request/
+│   │   │   ├── CrearCategoriaRequest.java
+│   │   │   ├── ActualizarCategoriaRequest.java
+│   │   │   ├── CambiarEstadoRequest.java       (reutilizado por categoria y producto: {"status": "..."})
+│   │   │   ├── CrearProductoRequest.java
+│   │   │   └── ActualizarProductoRequest.java
+│   │   └── response/
+│   │       ├── CategoriaResponse.java
+│   │       ├── ProductoResponse.java
+│   │       └── PaginaResponse.java             (genérico, igual a security)
+│   └── mapper/
+│       └── CatalogoApiMapper.java
 ├── application/
-│   ├── categoria/
-│   │   ├── CrearCategoriaHandler.java
-│   │   ├── ActualizarCategoriaHandler.java
-│   │   ├── DesactivarCategoriaHandler.java
-│   │   ├── ReactivarCategoriaHandler.java
-│   │   ├── ListarCategoriasHandler.java
-│   │   └── port/
-│   │       ├── CategoriaWritePort.java
-│   │       └── CategoriaReadPort.java
-│   └── producto/
-│       ├── CrearProductoHandler.java
-│       ├── ActualizarProductoHandler.java
-│       ├── DesactivarProductoHandler.java
-│       ├── ReactivarProductoHandler.java
-│       ├── ConsultarProductoHandler.java
-│       ├── ListarProductosHandler.java
-│       └── port/
-│           ├── ProductoWritePort.java
-│           └── ProductoReadPort.java
+│   ├── dto/
+│   │   ├── command/
+│   │   │   ├── CrearCategoriaCommand.java
+│   │   │   ├── ActualizarCategoriaCommand.java
+│   │   │   ├── CrearProductoCommand.java
+│   │   │   └── ActualizarProductoCommand.java
+│   │   ├── query/
+│   │   │   ├── ListarCategoriasQuery.java
+│   │   │   ├── ConsultarProductoQuery.java
+│   │   │   └── ListarProductosQuery.java
+│   │   └── result/
+│   │       ├── CategoriaResult.java
+│   │       ├── ProductoResult.java
+│   │       └── PaginaResult.java               (genérico, igual a security)
+│   ├── mapper/
+│   │   └── CatalogoApplicationMapper.java
+│   ├── port/
+│   │   ├── in/
+│   │   │   ├── CrearCategoriaUseCase.java
+│   │   │   ├── ActualizarCategoriaUseCase.java
+│   │   │   ├── ListarCategoriasUseCase.java
+│   │   │   ├── CrearProductoUseCase.java
+│   │   │   ├── ActualizarProductoUseCase.java
+│   │   │   ├── ConsultarProductoUseCase.java
+│   │   │   ├── ListarProductosUseCase.java
+│   │   │   └── CatalogoControlUseCase.java      (activar/desactivar categoria y producto)
+│   │   └── out/
+│   │       ├── CatalogoWritePort.java
+│   │       └── CatalogoReadPort.java
+│   └── usecase/
+│       ├── command/
+│       │   ├── CrearCategoriaHandler.java
+│       │   ├── ActualizarCategoriaHandler.java
+│       │   ├── CrearProductoHandler.java
+│       │   ├── ActualizarProductoHandler.java
+│       │   └── CatalogoControlService.java      (implementa CatalogoControlUseCase)
+│       └── query/
+│           ├── ListarCategoriasHandler.java
+│           ├── ConsultarProductoHandler.java
+│           └── ListarProductosHandler.java
 └── infrastructure/
     └── persistence/
         ├── write/
-        │   ├── entity/{CategoriaJpaEntity,ProductoJpaEntity}.java
-        │   ├── repository/{CategoriaJpaRepository,ProductoJpaRepository}.java
-        │   ├── mapper/{CategoriaWriteMapper,ProductoWriteMapper}.java
-        │   └── adapter/{CategoriaJpaWriteAdapter,ProductoJpaWriteAdapter}.java
+        │   ├── entity/
+        │   │   ├── CategoriaJpaEntity.java
+        │   │   └── ProductoJpaEntity.java
+        │   ├── repository/
+        │   │   ├── CategoriaJpaRepository.java
+        │   │   └── ProductoJpaRepository.java
+        │   ├── mapper/
+        │   │   └── CatalogoWriteMapper.java
+        │   └── adapter/
+        │       └── CatalogoJpaWriteAdapter.java  (implementa CatalogoWritePort completo)
         └── read/
-            ├── projection/{CategoriaProjection,ProductoProjection}.java
-            ├── repository/CatalogoJdbcReadRepository.java
-            ├── mapper/CatalogoReadMapper.java
-            └── adapter/{CategoriaJdbcReadAdapter,ProductoJdbcReadAdapter}.java
+            ├── projection/
+            │   ├── CategoriaProjection.java
+            │   └── ProductoProjection.java
+            ├── repository/
+            │   └── CatalogoJdbcReadRepository.java
+            ├── mapper/
+            │   └── CatalogoReadMapper.java
+            └── adapter/
+                └── CatalogoJdbcReadAdapter.java  (implementa CatalogoReadPort completo)
 ```
 
 ## Dominio
 
+Siguiendo el patrón de `Rol`/`Usuario` en `security`: el agregado expone un factory estático `create(...)` (equivalente a `register`) que valida invariantes y devuelve `Result<T, ErrorDetail>`, y un factory `restore(...)` para reconstrucción desde persistencia sin validar de nuevo. **Activar/desactivar no pasa por el agregado** — sigue el patrón de `SecurityControlService.changeUserStatus`: es un `UPDATE` directo emitido por el puerto de escritura (`CatalogoWritePort.changeCategoriaStatus`/`changeProductoStatus`), devolviendo `boolean` (encontrado/no encontrado), sin reconstruir ni revalidar el agregado completo.
+
 ### `Categoria`
 
-Campos: `id` (CategoriaId), `tenantId` (UUID), `nombre` (2-100 chars, normalizado trim+colapso espacios, único por tenant), `descripcion` (opcional, hasta 500 chars), `estado` (ACTIVA por defecto al crear), `createdAt`, `updatedAt`.
+Campos: `id` (CategoriaId), `tenantId` (TenantId propio del módulo, envuelve UUID), `nombre` (2-100 chars, normalizado trim+colapso espacios, único por tenant), `descripcion` (opcional, hasta 500 chars), `estado` (ACTIVA por defecto al crear), `createdAt`, `updatedAt`.
 
 Invariantes: `id`, `tenantId`, `nombre` obligatorios; `nombre` dentro de longitud; unicidad de nombre por tenant se valida en el `WritePort` (outcome `DUPLICATE_NAME`), no en el dominio (el dominio no consulta persistencia).
 
-Factory: `Categoria.register(CategoriaId, UUID tenantId, String nombre, String descripcion, Instant createdAt): Result<Categoria, ErrorDetail>`, más `restore(...)` para reconstrucción desde persistencia, y métodos de transición `activate()`/`deactivate()` que devuelven una nueva instancia con `estado` actualizado (los agregados son inmutables, siguiendo el patrón de `EmpresaOperadora`/`Usuario`).
+Factory: `Categoria.create(CategoriaId, TenantId, String nombre, String descripcion, Instant createdAt): Result<Categoria, ErrorDetail>`, más `restore(CategoriaId, TenantId, String nombre, String descripcion, EstadoCategoria, Instant createdAt, Instant updatedAt): Categoria`.
 
 Código de error: `CAT_CATEGORIA_INVALIDA`.
 
 ### `Producto`
 
-Campos: `id` (ProductoId), `tenantId`, `categoriaId` (CategoriaId, obligatorio — no se valida existencia en dominio, eso es responsabilidad del handler vía `CategoriaReadPort`), `nombre` (2-200 chars), `tipo` (TipoProducto), `laboratorio` (opcional, hasta 150 chars), `unidadMedida` (obligatorio, hasta 30 chars, ej. "Tableta", "Frasco"), `presentacion` (opcional, hasta 150 chars), `unidadesPorPaquete` (entero positivo, default 1), `codigoBarras` (opcional, hasta 40 chars), `precioVenta` (BigDecimal, > 0), `condicionVenta` (opcional salvo excepción abajo), `esGenerico` (boolean, default false), `esGenericoEsencial` (boolean, default false), `grupoTerapeutico` (opcional, hasta 150 chars), `codigoDigemid` (opcional, hasta 40 chars), `principioActivo` (opcional salvo excepción abajo, hasta 200 chars), `concentracion` (opcional, hasta 60 chars), `requiereLote` (boolean, default false), `requiereVencimiento` (boolean, default false), `estado` (ACTIVO por defecto), `createdAt`, `updatedAt`.
+Campos: `id` (ProductoId), `tenantId` (TenantId), `categoriaId` (CategoriaId, obligatorio — no se valida existencia en dominio, eso es responsabilidad del handler vía `CatalogoReadPort`/`CatalogoWritePort`), `nombre` (2-200 chars), `tipo` (TipoProducto), `laboratorio` (opcional, hasta 150 chars), `unidadMedida` (obligatorio, hasta 30 chars, ej. "Tableta", "Frasco"), `presentacion` (opcional, hasta 150 chars), `unidadesPorPaquete` (entero positivo, default 1), `codigoBarras` (opcional, hasta 40 chars), `precioVenta` (BigDecimal, > 0), `condicionVenta` (opcional salvo excepción abajo), `esGenerico` (boolean, default false), `esGenericoEsencial` (boolean, default false), `grupoTerapeutico` (opcional, hasta 150 chars), `codigoDigemid` (opcional, hasta 40 chars), `principioActivo` (opcional salvo excepción abajo, hasta 200 chars), `concentracion` (opcional, hasta 60 chars), `requiereLote` (boolean, default false), `requiereVencimiento` (boolean, default false), `estado` (ACTIVO por defecto), `createdAt`, `updatedAt`.
 
 **Invariante de negocio clave**: si `tipo == MEDICAMENTO`, entonces `principioActivo` y `condicionVenta` son obligatorios (no nulos/vacíos). Para los demás tipos, ambos campos son opcionales.
 
-Factory: `Producto.register(ProductoId, UUID tenantId, CategoriaId, String nombre, TipoProducto, String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete, String codigoBarras, BigDecimal precioVenta, CondicionVenta, boolean esGenerico, boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion, boolean requiereLote, boolean requiereVencimiento, Instant createdAt): Result<Producto, ErrorDetail>`, más `restore(...)` y transiciones `activate()`/`deactivate()`.
+Factory: `Producto.create(ProductoId, TenantId, CategoriaId, String nombre, TipoProducto, String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete, String codigoBarras, BigDecimal precioVenta, CondicionVenta, boolean esGenerico, boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion, boolean requiereLote, boolean requiereVencimiento, Instant createdAt): Result<Producto, ErrorDetail>`, más `restore(...)` equivalente con todos los campos + `EstadoProducto` + `updatedAt`.
 
 Código de error: `CAT_PRODUCTO_INVALIDO`.
 
-## Casos de uso (Commands/Queries)
+## Casos de uso (puertos `in` + Commands/Queries)
 
-Todos los commands/queries llevan `tenantId` (UUID público de `sch_farmacia.tenant`) explícito como campo (no hay contexto de actor compartido — cada módulo lo resuelve por su cuenta, igual que `security`). Los adapters de persistencia resuelven ese UUID al `id` interno (`BIGINT`) de `sch_farmacia.tenant` antes de leer/escribir, con el mismo patrón `findTenantInternalId(UUID): Optional<Long>` ya usado en `LocalAuthJdbcAdapter`.
+Cada caso de uso es una interfaz `@FunctionalInterface` en `application/port/in/` con un único método `execute(...)`, implementada por un handler en `application/usecase/{command,query}/` — igual que `CrearRolUseCase`/`CrearRolHandler` en `security`. Todos los commands/queries llevan `tenantId` (UUID público de `sch_farmacia.tenant`) explícito como campo (no hay contexto de actor compartido — cada módulo lo resuelve por su cuenta, igual que `security`). Los adapters de persistencia resuelven ese UUID al `id` interno (`BIGINT`) de `sch_farmacia.tenant` antes de leer/escribir, con el mismo patrón `findTenantInternalId(UUID): Optional<Long>` ya usado en `LocalAuthJdbcAdapter`.
 
 **Categoría:**
-- `CrearCategoriaCommand(UUID tenantId, String nombre, String descripcion)` → `CategoriaResultado`
-- `ActualizarCategoriaCommand(UUID tenantId, UUID categoriaId, String nombre, String descripcion)` → `CategoriaResultado`
-- `DesactivarCategoriaCommand(UUID tenantId, UUID categoriaId)` → `CategoriaResultado`
-- `ReactivarCategoriaCommand(UUID tenantId, UUID categoriaId)` → `CategoriaResultado`
-- `ListarCategoriasQuery(UUID tenantId, String estado)` → `List<CategoriaResultado>` (sin paginar; el volumen esperado de categorías es bajo)
+- `CrearCategoriaUseCase.execute(CrearCategoriaCommand(UUID tenantId, String nombre, String descripcion))` → `Result<CategoriaResult, ApplicationError>`
+- `ActualizarCategoriaUseCase.execute(ActualizarCategoriaCommand(UUID tenantId, UUID categoriaId, String nombre, String descripcion))` → `Result<CategoriaResult, ApplicationError>`
+- `ListarCategoriasUseCase.execute(ListarCategoriasQuery(UUID tenantId, String estado))` → `Result<List<CategoriaResult>, ApplicationError>` (sin paginar; el volumen esperado de categorías es bajo)
 
 **Producto:**
-- `CrearProductoCommand(UUID tenantId, UUID categoriaId, String nombre, TipoProducto tipo, String laboratorio, String unidadMedida, String presentacion, Integer unidadesPorPaquete, String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico, boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion, boolean requiereLote, boolean requiereVencimiento)` → `ProductoResultado`
-- `ActualizarProductoCommand(...)` (mismos campos + `productoId`) → `ProductoResultado`
-- `DesactivarProductoCommand(UUID tenantId, UUID productoId)` → `ProductoResultado`
-- `ReactivarProductoCommand(UUID tenantId, UUID productoId)` → `ProductoResultado`
-- `ConsultarProductoQuery(UUID tenantId, UUID productoId)` → `ProductoResultado`
-- `ListarProductosQuery(UUID tenantId, String texto, UUID categoriaId, TipoProducto tipo, String estado, int page, int size)` → página de `ProductoResumen`
+- `CrearProductoUseCase.execute(CrearProductoCommand(UUID tenantId, UUID categoriaId, String nombre, TipoProducto tipo, String laboratorio, String unidadMedida, String presentacion, Integer unidadesPorPaquete, String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico, boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion, boolean requiereLote, boolean requiereVencimiento))` → `Result<ProductoResult, ApplicationError>`
+- `ActualizarProductoUseCase.execute(ActualizarProductoCommand(...))` (mismos campos + `productoId`) → `Result<ProductoResult, ApplicationError>`
+- `ConsultarProductoUseCase.execute(ConsultarProductoQuery(UUID tenantId, UUID productoId))` → `Result<ProductoResult, ApplicationError>`
+- `ListarProductosUseCase.execute(ListarProductosQuery(UUID tenantId, String texto, UUID categoriaId, TipoProducto tipo, String estado, int page, int size))` → `Result<PaginaResult<ProductoResult>, ApplicationError>`
+
+**Control de estado (activar/desactivar), un único puerto para ambos agregados — igual patrón que `SecurityControlUseCase`:**
+- `CatalogoControlUseCase.changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status)` → `Result<Unit, ApplicationError>`
+- `CatalogoControlUseCase.changeProductoStatus(UUID tenantId, UUID productoId, String status)` → `Result<Unit, ApplicationError>`
+
+Implementado por `CatalogoControlService` en `application/usecase/command/`, igual que `SecurityControlService`.
 
 ### Manejo de errores de aplicación
 
 - Validación de dominio fallida → `ApplicationError` categoría `VALIDATION`, código heredado del dominio (`CAT_CATEGORIA_INVALIDA`/`CAT_PRODUCTO_INVALIDO`).
 - Nombre de categoría duplicado → `CAT_CATEGORIA_DUPLICADA`, categoría `CONFLICT`.
 - Código de barras duplicado → `CAT_PRODUCTO_CODIGO_BARRAS_DUPLICADO`, categoría `CONFLICT`.
-- Categoría referenciada no existe (al crear/actualizar producto) → `CAT_CATEGORIA_NO_ENCONTRADA`, categoría `NOT_FOUND` (el handler de producto consulta `CategoriaReadPort` antes de persistir).
-- Producto/categoría no encontrado por id (consultar/actualizar/desactivar/reactivar) → `CAT_PRODUCTO_NO_ENCONTRADO` / `CAT_CATEGORIA_NO_ENCONTRADA`, categoría `NOT_FOUND`.
+- Categoría referenciada no existe (al crear/actualizar producto) → `CAT_CATEGORIA_NO_ENCONTRADA`, categoría `NOT_FOUND` (el handler de producto consulta `CatalogoWritePort.categoriaExists` antes de persistir).
+- Producto/categoría no encontrado por id (consultar/actualizar/cambiar estado) → `CAT_PRODUCTO_NO_ENCONTRADO` / `CAT_CATEGORIA_NO_ENCONTRADA`, categoría `NOT_FOUND`.
+- Estado inválido en cambio de estado (valor fuera de `ACTIVA/INACTIVA` o `ACTIVO/INACTIVO`) → `CAT_ESTADO_INVALIDO`, categoría `VALIDATION` (igual patrón que `SecurityControlService.invalidStatus`).
 
 ## Persistencia
 
@@ -228,30 +287,30 @@ Autorización con `@PreAuthorize("hasAuthority(...)")`, resuelta en cada request
 ```
 POST   /api/v1/catalogo/categorias                    catalogo.categorias.gestionar
 PUT    /api/v1/catalogo/categorias/{id}                catalogo.categorias.gestionar
-POST   /api/v1/catalogo/categorias/{id}/desactivar     catalogo.categorias.gestionar
-POST   /api/v1/catalogo/categorias/{id}/reactivar      catalogo.categorias.gestionar
-GET    /api/v1/catalogo/categorias                     catalogo.categorias.consultar
+PATCH  /api/v1/catalogo/categorias/{id}/estado         catalogo.categorias.gestionar   body: {"status":"ACTIVA"|"INACTIVA"}
+GET    /api/v1/catalogo/categorias                     catalogo.categorias.consultar   ?estado=
 
 POST   /api/v1/catalogo/productos                      catalogo.productos.gestionar
 PUT    /api/v1/catalogo/productos/{id}                 catalogo.productos.gestionar
-POST   /api/v1/catalogo/productos/{id}/desactivar      catalogo.productos.gestionar
-POST   /api/v1/catalogo/productos/{id}/reactivar       catalogo.productos.gestionar
+PATCH  /api/v1/catalogo/productos/{id}/estado          catalogo.productos.gestionar    body: {"status":"ACTIVO"|"INACTIVO"}
 GET    /api/v1/catalogo/productos/{id}                 catalogo.productos.consultar
 GET    /api/v1/catalogo/productos                      catalogo.productos.consultar
          ?q=&categoriaId=&tipo=&estado=&page=&size=
 ```
 
-`tenantId` se extrae del JWT (`@AuthenticationPrincipal Jwt jwt`, claim `tid`) en cada endpoint, igual que `LocalAuthController.tenantId(Jwt)` — no viaja en el body ni en query params.
+Sigue el mismo patrón HTTP que `RolController`/`UsuarioController`/`SecurityControlController` en `security` (`PATCH /{id}/estado` con body `{"status": "..."}`, en vez de dos endpoints `POST .../desactivar` + `POST .../reactivar`).
+
+`tenantId` viaja como `@RequestParam UUID tenantId` obligatorio en **todos** los endpoints de Catálogo (crear, actualizar, cambiar estado, consultar, listar) — es el mismo patrón que usan de forma consistente `RolController`, `UsuarioController` y `SecurityControlController` en `security` para toda gestión de entidades (no el patrón de `LocalAuthController`, que extrae `tenantId` del JWT solo porque ahí todavía no existe una sesión autenticada con la que resolverlo de otra forma). En los endpoints con body (`POST`/`PUT`/`PATCH`), `tenantId` viaja tanto en el `@RequestParam` de la URL como, cuando el DTO de request ya lo requiere para el Command (`CrearCategoriaCommand`, `CrearProductoCommand`), dentro del propio body — replicando exactamente cómo `CrearRolRequest`/`CrearUsuarioRequest` ya incluyen `tenantId` como campo del JSON en `security`.
 
 Respuestas de error siguen `ProblemDetail` (RFC 9457) vía `GlobalExceptionHandler`/`ErrorCategory` → status HTTP existente en `shared-web`.
 
 ## Testing
 
-Siguiendo TDD y el patrón de test existente (`RegistrarEmpresaOperadoraHandlerTest`, `IdentidadTest`, `UsuarioTest`):
+Siguiendo TDD y el patrón de test existente en `security` (`IdentidadTest`, `UsuarioTest` para dominio; `CrearUsuarioHandlerTest`, `ReemplazarPermisosRolHandlerTest` para aplicación, con fakes manuales — no mocks de librería — implementando los puertos `@FunctionalInterface`):
 
 - **Dominio**: `CategoriaTest`, `ProductoTest` — invariantes, normalización, la regla condicional de `MEDICAMENTO`.
-- **Aplicación**: un test de handler por caso de uso, con fakes manuales de los puertos (`@FunctionalInterface`, mismo patrón que `CapturingRepository` en `organizacion`) — casos: éxito, error de validación, duplicado (nombre/código de barras), categoría no encontrada, entidad no encontrada.
-- **Integración** (`bootstrap-app`): un test de API HTTP end-to-end (`CatalogoApiIntegrationTest`, siguiendo el patrón de `IamApiIntegrationTest` con Testcontainers+Postgres real) que cubre: crear categoría → crear producto referenciándola → listar con filtros → actualizar → desactivar → intentos con datos inválidos devuelven `ProblemDetail` correcto.
+- **Aplicación**: un test de handler por caso de uso, con un fake manual de `CatalogoWritePort`/`CatalogoReadPort` (clase estática privada anidada implementando la interfaz, igual que `CapturingRepository`/`StubWritePort` en los tests existentes) — casos: éxito, error de validación, duplicado (nombre/código de barras), categoría no encontrada, entidad no encontrada, estado inválido.
+- **Integración** (`bootstrap-app`): un test de API HTTP end-to-end (`CatalogoApiIntegrationTest`, copiando las anotaciones de clase exactas de `IamApiIntegrationTest` — `@Transactional @ActiveProfiles("test") @Import(PostgresTestContainerConfiguration.class) @AutoConfigureMockMvc @SpringBootTest`) que cubre: crear categoría → crear producto referenciándola → listar con filtros → actualizar → cambiar estado → intentos con datos inválidos devuelven `ProblemDetail` correcto.
 - **Migración**: test de verificación de esquema (patrón `MigrationV021Test`) confirmando que `sch_catalogo.categoria`/`producto` existen con las constraints esperadas.
 
 ## Fuera de alcance / seguimientos
