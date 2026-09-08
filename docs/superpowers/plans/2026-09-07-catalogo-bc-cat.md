@@ -5082,3 +5082,494 @@ git commit -m "feat(catalogo): agregar handlers de escritura de catalogos de sop
 ```
 
 ---
+
+### Task 12: Handlers de escritura de `Marca` y `CategoriaProducto`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarMarcaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaProductoHandler.java`
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java` (agregar `toResult(Marca)` y `toResult(CategoriaProducto)`)
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `Marca`, `CategoriaProducto` (Task 5, 6), `CatalogoComercialPort` (Task 10), `IdentifierGenerator` (shared-application).
+- Produces: `CrearMarcaHandler implements CrearMarcaUseCase`, `ActualizarMarcaHandler implements ActualizarMarcaUseCase`, `CrearCategoriaProductoHandler implements CrearCategoriaProductoUseCase`, `ActualizarCategoriaProductoHandler implements ActualizarCategoriaProductoUseCase`. Usados por Task 23 (controllers).
+
+- [ ] **Step 1: Escribir el test que falla para `CrearMarcaHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearMarcaHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void createsAMarcaSuccessfully() {
+        var writePort = new FakeCatalogoComercialPort();
+        var handler = new CrearMarcaHandler(writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"));
+
+        var result = handler.execute(new CrearMarcaCommand(TENANT_ID, "BAYER", "Bayer", null));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Bayer", result.getOrElse(error -> null).nombre());
+    }
+
+    @Test
+    void failsWithConflictWhenCodigoAlreadyExists() {
+        var writePort = new FakeCatalogoComercialPort();
+        writePort.marcaOutcome = CatalogoComercialPort.SaveMarcaOutcome.DUPLICATE_CODIGO;
+        var handler = new CrearMarcaHandler(writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"));
+
+        var result = handler.execute(new CrearMarcaCommand(TENANT_ID, "BAYER", "Bayer", null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_MARCA_DUPLICADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
+        private SaveMarcaOutcome marcaOutcome = SaveMarcaOutcome.CREATED;
+
+        @Override
+        public SaveMarcaOutcome save(Marca marca) { return marcaOutcome; }
+
+        @Override
+        public SaveCategoriaOutcome save(CategoriaProducto categoria) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveSkuOutcome save(SKUComercial sku) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean marcaExists(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearMarcaHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Agregar `toResult(Marca)` y `toResult(CategoriaProducto)` a `CatalogoApplicationMapper`**
+
+Modificar `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`, agregando estos imports y métodos (al final de la clase, antes del cierre `}`):
+
+```java
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+```
+
+```java
+    public static MarcaResult toResult(Marca marca) {
+        return new MarcaResult(
+                marca.id().value(), marca.tenantId().value(), marca.codigo(), marca.nombre(),
+                marca.descripcion(), marca.estado().name());
+    }
+
+    public static CategoriaProductoResult toResult(CategoriaProducto categoria) {
+        return new CategoriaProductoResult(
+                categoria.id().value(), categoria.tenantId().value(),
+                categoria.categoriaPadreId() == null ? null : categoria.categoriaPadreId().value(),
+                categoria.codigo(), categoria.nombre(), categoria.descripcion(), categoria.nivel(),
+                categoria.orden(), categoria.estado().name());
+    }
+```
+
+- [ ] **Step 4: Crear `CrearMarcaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearMarcaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearMarcaHandler implements CrearMarcaUseCase {
+
+    private final CatalogoComercialPort writePort;
+    private final IdentifierGenerator identifierGenerator;
+
+    public CrearMarcaHandler(CatalogoComercialPort writePort, IdentifierGenerator identifierGenerator) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+    }
+
+    @Override
+    public Result<MarcaResult, ApplicationError> execute(CrearMarcaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var marca = Marca.create(
+                new MarcaId(identifierGenerator.next()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.codigo(), command.nombre(), command.descripcion());
+        return marca.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<MarcaResult, ApplicationError> persist(Marca marca) {
+        var outcome = writePort.save(marca);
+        if (outcome == CatalogoComercialPort.SaveMarcaOutcome.TENANT_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveMarcaOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_MARCA_DUPLICADA", "Ya existe una marca con el código indicado.", ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(marca));
+    }
+
+    private Result<MarcaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearMarcaHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 6: Crear `ActualizarMarcaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarMarcaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarMarcaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarMarcaHandler implements ActualizarMarcaUseCase {
+
+    private final CatalogoComercialPort writePort;
+
+    public ActualizarMarcaHandler(CatalogoComercialPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<MarcaResult, ApplicationError> execute(ActualizarMarcaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var marca = Marca.create(
+                new MarcaId(command.marcaId()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.codigo(), command.nombre(), command.descripcion());
+        return marca.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<MarcaResult, ApplicationError> persist(Marca marca) {
+        var outcome = writePort.save(marca);
+        if (outcome == CatalogoComercialPort.SaveMarcaOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_MARCA_NO_ENCONTRADA", "La marca indicada no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveMarcaOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_MARCA_DUPLICADA", "Ya existe una marca con el código indicado.", ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(marca));
+    }
+
+    private Result<MarcaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 7: Escribir el test que falla para `CrearCategoriaProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearCategoriaProductoHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void createsARootCategoriaSuccessfully() {
+        var writePort = new FakeCatalogoComercialPort();
+        var handler = new CrearCategoriaProductoHandler(writePort, () -> UUID.fromString(
+                "98a1587e-27ef-4077-befd-6f5af4901589"));
+
+        var result = handler.execute(new CrearCategoriaProductoCommand(
+                TENANT_ID, null, "ANALGESICOS", "Analgésicos", null, 1, 0));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Analgésicos", result.getOrElse(error -> null).nombre());
+    }
+
+    @Test
+    void failsWithNotFoundWhenCategoriaPadreDoesNotExist() {
+        var writePort = new FakeCatalogoComercialPort();
+        writePort.categoriaOutcome = CatalogoComercialPort.SaveCategoriaOutcome.CATEGORIA_PADRE_NOT_FOUND;
+        var handler = new CrearCategoriaProductoHandler(writePort, () -> UUID.fromString(
+                "98a1587e-27ef-4077-befd-6f5af4901589"));
+
+        var result = handler.execute(new CrearCategoriaProductoCommand(
+                TENANT_ID, UUID.randomUUID(), "ANTIINFLAMATORIOS", "Antiinflamatorios", null, 2, 0));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_PADRE_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
+        private SaveCategoriaOutcome categoriaOutcome = SaveCategoriaOutcome.CREATED;
+
+        @Override
+        public SaveMarcaOutcome save(Marca marca) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveCategoriaOutcome save(CategoriaProducto categoria) { return categoriaOutcome; }
+
+        @Override
+        public SaveSkuOutcome save(SKUComercial sku) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean marcaExists(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 8: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaProductoHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 9: Crear `CrearCategoriaProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearCategoriaProductoHandler implements CrearCategoriaProductoUseCase {
+
+    private final CatalogoComercialPort writePort;
+    private final IdentifierGenerator identifierGenerator;
+
+    public CrearCategoriaProductoHandler(CatalogoComercialPort writePort, IdentifierGenerator identifierGenerator) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+    }
+
+    @Override
+    public Result<CategoriaProductoResult, ApplicationError> execute(CrearCategoriaProductoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var categoria = CategoriaProducto.create(
+                new CategoriaProductoId(identifierGenerator.next()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.categoriaPadreId() == null ? null : new CategoriaProductoId(command.categoriaPadreId()),
+                command.codigo(), command.nombre(), command.descripcion(), command.nivel(), command.orden());
+        return categoria.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CategoriaProductoResult, ApplicationError> persist(CategoriaProducto categoria) {
+        var outcome = writePort.save(categoria);
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.TENANT_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.CATEGORIA_PADRE_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_PADRE_NO_ENCONTRADA", "La categoría padre indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_PRODUCTO_DUPLICADA", "Ya existe una categoría con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(categoria));
+    }
+
+    private Result<CategoriaProductoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 10: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaProductoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 11: Crear `ActualizarCategoriaProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarCategoriaProductoHandler implements ActualizarCategoriaProductoUseCase {
+
+    private final CatalogoComercialPort writePort;
+
+    public ActualizarCategoriaProductoHandler(CatalogoComercialPort writePort) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+    }
+
+    @Override
+    public Result<CategoriaProductoResult, ApplicationError> execute(ActualizarCategoriaProductoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var categoria = CategoriaProducto.create(
+                new CategoriaProductoId(command.categoriaId()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.categoriaPadreId() == null ? null : new CategoriaProductoId(command.categoriaPadreId()),
+                command.codigo(), command.nombre(), command.descripcion(), command.nivel(), command.orden());
+        return categoria.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CategoriaProductoResult, ApplicationError> persist(CategoriaProducto categoria) {
+        var outcome = writePort.save(categoria);
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_PRODUCTO_NO_ENCONTRADA", "La categoría indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.CATEGORIA_PADRE_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_PADRE_NO_ENCONTRADA", "La categoría padre indicada no existe.",
+                    ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoComercialPort.SaveCategoriaOutcome.DUPLICATE_CODIGO) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_PRODUCTO_DUPLICADA", "Ya existe una categoría con el código indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(categoria));
+    }
+
+    private Result<CategoriaProductoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 12: Ejecutar todos los tests de la tarea juntos y commit**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearMarcaHandlerTest" --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaProductoHandlerTest"`
+Expected: PASS
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarMarcaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaProductoHandler.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearMarcaHandlerTest.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaProductoHandlerTest.java
+git commit -m "feat(catalogo): agregar handlers de escritura de Marca y CategoriaProducto"
+```
+
+---
