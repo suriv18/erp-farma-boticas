@@ -1469,3 +1469,520 @@ git commit -m "feat(catalogo): agregar puertos de entrada y salida de aplicacion
 ```
 
 ---
+
+### Task 8: Mapper de aplicación y handlers de Categoría (crear, actualizar, listar)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasHandler.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `Categoria` (Task 4), DTOs (Task 6), puertos (Task 7), `IdentifierGenerator`, `ClockPort` (shared-application).
+- Produces: `CrearCategoriaHandler implements CrearCategoriaUseCase`, `ActualizarCategoriaHandler implements ActualizarCategoriaUseCase`, `ListarCategoriasHandler implements ListarCategoriasUseCase`, `CatalogoApplicationMapper.toResult(Categoria): CategoriaResult`. Usados por Task 14 (controller).
+
+- [ ] **Step 1: Escribir el test que falla para `CrearCategoriaHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearCategoriaHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void createsACategoriaSuccessfully() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new CrearCategoriaHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearCategoriaCommand(TENANT_ID, "Analgésicos", null));
+
+        assertTrue(result.isSuccess());
+        var created = result.getOrElse(error -> null);
+        assertEquals("Analgésicos", created.nombre());
+        assertEquals("ACTIVA", created.estado());
+    }
+
+    @Test
+    void failsWithValidationErrorWhenNameIsTooShort() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new CrearCategoriaHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearCategoriaCommand(TENANT_ID, "A", null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void failsWithConflictWhenNameAlreadyExists() {
+        var writePort = new FakeCatalogoWritePort();
+        writePort.categoriaOutcome = CatalogoWritePort.SaveCategoriaOutcome.DUPLICATE_NAME;
+        var handler = new CrearCategoriaHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearCategoriaCommand(TENANT_ID, "Analgésicos", null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_DUPLICADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class SequentialIds implements com.softprimesolutions.shared.application.port.IdentifierGenerator {
+        private long sequence;
+
+        @Override
+        public UUID next() {
+            return new UUID(0, ++sequence);
+        }
+    }
+
+    private static final class FakeCatalogoWritePort implements CatalogoWritePort {
+        private SaveCategoriaOutcome categoriaOutcome = SaveCategoriaOutcome.CREATED;
+
+        @Override
+        public SaveCategoriaOutcome save(Categoria categoria) {
+            return categoriaOutcome;
+        }
+
+        @Override
+        public SaveProductoOutcome save(Producto producto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaHandlerTest"`
+Expected: FAIL — `CrearCategoriaHandler` no existe todavía (error de compilación).
+
+- [ ] **Step 3: Crear `CatalogoApplicationMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/CatalogoApplicationMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.mapper;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+
+public final class CatalogoApplicationMapper {
+
+    private CatalogoApplicationMapper() {
+    }
+
+    public static CategoriaResult toResult(Categoria categoria) {
+        return new CategoriaResult(
+                categoria.id().value(),
+                categoria.tenantId().value(),
+                categoria.nombre(),
+                categoria.descripcion(),
+                categoria.estado().name(),
+                categoria.createdAt(),
+                categoria.updatedAt());
+    }
+
+    public static ProductoResult toResult(Producto producto) {
+        return new ProductoResult(
+                producto.id().value(),
+                producto.tenantId().value(),
+                producto.categoriaId().value(),
+                producto.nombre(),
+                producto.tipo().name(),
+                producto.laboratorio(),
+                producto.unidadMedida(),
+                producto.presentacion(),
+                producto.unidadesPorPaquete(),
+                producto.codigoBarras(),
+                producto.precioVenta(),
+                producto.condicionVenta() == null ? null : producto.condicionVenta().name(),
+                producto.esGenerico(),
+                producto.esGenericoEsencial(),
+                producto.grupoTerapeutico(),
+                producto.codigoDigemid(),
+                producto.principioActivo(),
+                producto.concentracion(),
+                producto.requiereLote(),
+                producto.requiereVencimiento(),
+                producto.estado().name(),
+                producto.createdAt(),
+                producto.updatedAt());
+    }
+}
+```
+
+- [ ] **Step 4: Crear `CrearCategoriaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class CrearCategoriaHandler implements CrearCategoriaUseCase {
+
+    private final CatalogoWritePort writePort;
+    private final IdentifierGenerator identifierGenerator;
+    private final ClockPort clock;
+
+    public CrearCategoriaHandler(CatalogoWritePort writePort, IdentifierGenerator identifierGenerator, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<CategoriaResult, ApplicationError> execute(CrearCategoriaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var categoria = Categoria.create(
+                new CategoriaId(identifierGenerator.next()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.nombre(), command.descripcion(), clock.now());
+        return categoria.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CategoriaResult, ApplicationError> persist(Categoria categoria) {
+        var outcome = writePort.save(categoria);
+        if (outcome == CatalogoWritePort.SaveCategoriaOutcome.TENANT_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveCategoriaOutcome.DUPLICATE_NAME) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_DUPLICADA", "Ya existe una categoría con el nombre indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(categoria));
+    }
+
+    private Result<CategoriaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 6: Escribir el test que falla para `ActualizarCategoriaHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ActualizarCategoriaHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID CATEGORIA_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+
+    @Test
+    void updatesACategoriaSuccessfully() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new ActualizarCategoriaHandler(writePort, () -> Instant.parse("2026-09-07T11:00:00Z"));
+
+        var result = handler.execute(new ActualizarCategoriaCommand(
+                TENANT_ID, CATEGORIA_ID, "Analgésicos y antipiréticos", "Descripción actualizada"));
+
+        assertTrue(result.isSuccess());
+        var updated = result.getOrElse(error -> null);
+        assertEquals("Analgésicos y antipiréticos", updated.nombre());
+    }
+
+    @Test
+    void failsWithNotFoundWhenCategoriaDoesNotExist() {
+        var writePort = new FakeCatalogoWritePort();
+        writePort.categoriaOutcome = CatalogoWritePort.SaveCategoriaOutcome.NOT_FOUND;
+        var handler = new ActualizarCategoriaHandler(writePort, () -> Instant.parse("2026-09-07T11:00:00Z"));
+
+        var result = handler.execute(new ActualizarCategoriaCommand(
+                TENANT_ID, CATEGORIA_ID, "Analgésicos", null));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoWritePort implements CatalogoWritePort {
+        private SaveCategoriaOutcome categoriaOutcome = SaveCategoriaOutcome.UPDATED;
+
+        @Override
+        public SaveCategoriaOutcome save(Categoria categoria) {
+            return categoriaOutcome;
+        }
+
+        @Override
+        public SaveProductoOutcome save(Producto producto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 7: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.ActualizarCategoriaHandlerTest"`
+Expected: FAIL — `ActualizarCategoriaHandler` no existe todavía.
+
+- [ ] **Step 8: Crear `ActualizarCategoriaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ActualizarCategoriaHandler implements ActualizarCategoriaUseCase {
+
+    private final CatalogoWritePort writePort;
+    private final ClockPort clock;
+
+    public ActualizarCategoriaHandler(CatalogoWritePort writePort, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<CategoriaResult, ApplicationError> execute(ActualizarCategoriaCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+        var categoria = Categoria.create(
+                new CategoriaId(command.categoriaId()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.nombre(), command.descripcion(), clock.now());
+        return categoria.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<CategoriaResult, ApplicationError> persist(Categoria categoria) {
+        var outcome = writePort.save(categoria);
+        if (outcome == CatalogoWritePort.SaveCategoriaOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_NO_ENCONTRADA", "La categoría indicada no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveCategoriaOutcome.DUPLICATE_NAME) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_DUPLICADA", "Ya existe una categoría con el nombre indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(categoria));
+    }
+
+    private Result<CategoriaResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 9: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.ActualizarCategoriaHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 10: Escribir el test que falla para `ListarCategoriasHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ListarCategoriasHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void returnsCategoriasFromReadPort() {
+        var categoria = new CategoriaResult(
+                UUID.randomUUID(), TENANT_ID, "Analgésicos", null, "ACTIVA",
+                Instant.parse("2026-09-07T10:00:00Z"), null);
+        var readPort = new FakeCatalogoReadPort(List.of(categoria));
+        var handler = new ListarCategoriasHandler(readPort);
+
+        var result = handler.execute(new ListarCategoriasQuery(TENANT_ID, null));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).size());
+    }
+
+    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
+        private final List<CategoriaResult> categorias;
+
+        private FakeCatalogoReadPort(List<CategoriaResult> categorias) {
+            this.categorias = categorias;
+        }
+
+        @Override
+        public List<CategoriaResult> findCategorias(UUID tenantId, String estado) {
+            return categorias;
+        }
+
+        @Override
+        public Optional<ProductoResult> findProducto(UUID tenantId, UUID productoId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public PaginaResult<ProductoResult> findProductos(
+                UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int page, int size) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 11: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasHandlerTest"`
+Expected: FAIL — `ListarCategoriasHandler` no existe todavía.
+
+- [ ] **Step 12: Crear `ListarCategoriasHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarCategoriasHandler implements ListarCategoriasUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarCategoriasHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<CategoriaResult>, ApplicationError> execute(ListarCategoriasQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findCategorias(query.tenantId(), query.estado()));
+    }
+}
+```
+
+- [ ] **Step 13: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 14: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/mapper/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearCategoriaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarCategoriaHandler.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasHandler.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/
+git commit -m "feat(catalogo): agregar handlers de crear, actualizar y listar categorias"
+```
+
+---
