@@ -3678,3 +3678,406 @@ git commit -m "feat(catalogo): agregar DTOs de aplicacion command/query/result"
 ```
 
 ---
+
+### Task 10: Puertos `application/port/{in,out}` completos
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoSoportePort.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoComercialPort.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/ProductoReguladoPort.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/` — una interfaz por caso de uso (lista completa abajo).
+
+**Interfaces:**
+- Consumes: DTOs (Task 9), agregados de dominio (Task 3-8).
+- Produces: todas las interfaces listadas — contratos que las Tasks 11-16 (handlers) implementan y las Tasks 18-21 (adapters) implementan del lado `out`.
+
+No requiere test dedicado (interfaces puras).
+
+- [ ] **Step 1: Crear `CatalogoSoportePort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoSoportePort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import java.time.Instant;
+import java.util.UUID;
+
+public interface CatalogoSoportePort {
+
+    SaveOutcome save(CondicionVenta condicionVenta);
+
+    SaveOutcome save(FormaFarmaceutica formaFarmaceutica);
+
+    SaveOutcome save(ViaAdministracion viaAdministracion);
+
+    SaveOutcome save(UnidadMedida unidadMedida);
+
+    SaveOutcome save(ClasificacionControlada clasificacionControlada);
+
+    SavePrincipioActivoOutcome save(PrincipioActivo principioActivo);
+
+    boolean condicionVentaExists(String codigo);
+
+    boolean formaFarmaceuticaExists(String codigo);
+
+    boolean viaAdministracionExists(String codigo);
+
+    boolean unidadMedidaExists(String codigo);
+
+    boolean clasificacionControladaExists(String codigo);
+
+    boolean principioActivoExists(UUID principioActivoId);
+
+    boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt);
+
+    boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt);
+
+    boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt);
+
+    boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt);
+
+    boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt);
+
+    boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt);
+
+    enum SaveOutcome { CREATED, UPDATED, DUPLICATE_CODIGO, NOT_FOUND }
+
+    enum SavePrincipioActivoOutcome { CREATED, UPDATED, NOT_FOUND }
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoComercialPort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoComercialPort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import java.time.Instant;
+import java.util.UUID;
+
+public interface CatalogoComercialPort {
+
+    SaveMarcaOutcome save(Marca marca);
+
+    SaveCategoriaOutcome save(CategoriaProducto categoria);
+
+    SaveSkuOutcome save(SKUComercial sku);
+
+    boolean categoriaExists(UUID tenantId, UUID categoriaId);
+
+    boolean marcaExists(UUID tenantId, UUID marcaId);
+
+    boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt);
+
+    boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt);
+
+    boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt);
+
+    enum SaveMarcaOutcome { CREATED, UPDATED, DUPLICATE_CODIGO, TENANT_NOT_FOUND, NOT_FOUND }
+
+    enum SaveCategoriaOutcome { CREATED, UPDATED, DUPLICATE_CODIGO, TENANT_NOT_FOUND, CATEGORIA_PADRE_NOT_FOUND, NOT_FOUND }
+
+    enum SaveSkuOutcome {
+        CREATED, UPDATED, DUPLICATE_CODIGO_INTERNO, DUPLICATE_CODIGO_BARRA, TENANT_NOT_FOUND,
+        PRODUCTO_REGULADO_NOT_FOUND, CATEGORIA_NOT_FOUND, MARCA_NOT_FOUND, NOT_FOUND
+    }
+}
+```
+
+- [ ] **Step 3: Crear `ProductoReguladoPort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/ProductoReguladoPort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ProductoReguladoPort {
+
+    SaveOutcome save(ProductoRegulado productoRegulado);
+
+    Optional<ProductoRegulado> findById(UUID productoReguladoId);
+
+    boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt);
+
+    enum SaveOutcome {
+        CREATED, UPDATED, NOT_FOUND, FORMA_FARMACEUTICA_NOT_FOUND, VIA_ADMINISTRACION_NOT_FOUND,
+        UNIDAD_MEDIDA_NOT_FOUND, CONDICION_VENTA_NOT_FOUND, CLASIFICACION_CONTROLADA_NOT_FOUND,
+        PRINCIPIO_ACTIVO_NOT_FOUND
+    }
+}
+```
+
+- [ ] **Step 4: Crear `CatalogoReadPort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import java.util.List;
+import java.util.UUID;
+
+public interface CatalogoReadPort {
+
+    List<CondicionVentaResult> findCondicionesVenta(String estado);
+
+    List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado);
+
+    List<ViaAdministracionResult> findViasAdministracion(String estado);
+
+    List<UnidadMedidaResult> findUnidadesMedida(String estado);
+
+    List<ClasificacionControladaResult> findClasificacionesControladas(String estado);
+
+    List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado);
+
+    List<MarcaResult> findMarcas(UUID tenantId, String estado);
+
+    List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado);
+
+    PaginaResult<ProductoReguladoResumen> findProductosRegulados(
+            String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size);
+
+    PaginaResult<SkuResumen> findSkus(
+            UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado,
+            int page, int size);
+}
+```
+
+- [ ] **Step 5: Crear los puertos `in` de los 5 catálogos de soporte + PrincipioActivo**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CrearCondicionVentaUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface CrearCondicionVentaUseCase {
+    Result<CondicionVentaResult, ApplicationError> execute(CrearCondicionVentaCommand command);
+}
+```
+
+Crear cada uno de los siguientes archivos con exactamente esta forma (paquete `com.softprimesolutions.catalogo.application.port.in`, `@FunctionalInterface`, único método `execute`), sustituyendo nombre de interfaz/command/result según la tabla:
+
+| Archivo | Command | Result |
+|---|---|---|
+| `ActualizarCondicionVentaUseCase.java` | `ActualizarCondicionVentaCommand` | `CondicionVentaResult` |
+| `CrearFormaFarmaceuticaUseCase.java` | `CrearFormaFarmaceuticaCommand` | `FormaFarmaceuticaResult` |
+| `ActualizarFormaFarmaceuticaUseCase.java` | `ActualizarFormaFarmaceuticaCommand` | `FormaFarmaceuticaResult` |
+| `CrearViaAdministracionUseCase.java` | `CrearViaAdministracionCommand` | `ViaAdministracionResult` |
+| `ActualizarViaAdministracionUseCase.java` | `ActualizarViaAdministracionCommand` | `ViaAdministracionResult` |
+| `CrearUnidadMedidaUseCase.java` | `CrearUnidadMedidaCommand` | `UnidadMedidaResult` |
+| `ActualizarUnidadMedidaUseCase.java` | `ActualizarUnidadMedidaCommand` | `UnidadMedidaResult` |
+| `CrearClasificacionControladaUseCase.java` | `CrearClasificacionControladaCommand` | `ClasificacionControladaResult` |
+| `ActualizarClasificacionControladaUseCase.java` | `ActualizarClasificacionControladaCommand` | `ClasificacionControladaResult` |
+| `CrearPrincipioActivoUseCase.java` | `CrearPrincipioActivoCommand` | `PrincipioActivoResult` |
+| `ActualizarPrincipioActivoUseCase.java` | `ActualizarPrincipioActivoCommand` | `PrincipioActivoResult` |
+
+Plantilla exacta (ejemplo instanciado para `ActualizarCondicionVentaUseCase.java`, repetir cambiando solo los 3 nombres de la fila correspondiente):
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ActualizarCondicionVentaUseCase {
+    Result<CondicionVentaResult, ApplicationError> execute(ActualizarCondicionVentaCommand command);
+}
+```
+
+Ahora los puertos `in` de consulta, misma forma pero con `Query` en vez de `Command` y `List<XResult>` como tipo de éxito:
+
+| Archivo | Query | Tipo de éxito |
+|---|---|---|
+| `ListarCondicionesVentaUseCase.java` | `ListarCondicionesVentaQuery` | `List<CondicionVentaResult>` |
+| `ListarFormasFarmaceuticasUseCase.java` | `ListarFormasFarmaceuticasQuery` | `List<FormaFarmaceuticaResult>` |
+| `ListarViasAdministracionUseCase.java` | `ListarViasAdministracionQuery` | `List<ViaAdministracionResult>` |
+| `ListarUnidadesMedidaUseCase.java` | `ListarUnidadesMedidaQuery` | `List<UnidadMedidaResult>` |
+| `ListarClasificacionesControladasUseCase.java` | `ListarClasificacionesControladasQuery` | `List<ClasificacionControladaResult>` |
+| `ListarPrincipioActivoUseCase.java` | `ListarPrincipioActivoQuery` | `List<PrincipioActivoResult>` |
+
+Plantilla exacta (ejemplo instanciado para `ListarCondicionesVentaUseCase.java`):
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+
+@FunctionalInterface
+public interface ListarCondicionesVentaUseCase {
+    Result<List<CondicionVentaResult>, ApplicationError> execute(ListarCondicionesVentaQuery query);
+}
+```
+
+- [ ] **Step 6: Crear los puertos `in` de Marca, CategoriaProducto, ProductoRegulado, SKUComercial**
+
+Comandos (misma plantilla del Step 5, sustituyendo nombres):
+
+| Archivo | Command | Result |
+|---|---|---|
+| `CrearMarcaUseCase.java` | `CrearMarcaCommand` | `MarcaResult` |
+| `ActualizarMarcaUseCase.java` | `ActualizarMarcaCommand` | `MarcaResult` |
+| `CrearCategoriaProductoUseCase.java` | `CrearCategoriaProductoCommand` | `CategoriaProductoResult` |
+| `ActualizarCategoriaProductoUseCase.java` | `ActualizarCategoriaProductoCommand` | `CategoriaProductoResult` |
+| `CrearProductoReguladoUseCase.java` | `CrearProductoReguladoCommand` | `ProductoReguladoResult` |
+| `ActualizarProductoReguladoUseCase.java` | `ActualizarProductoReguladoCommand` | `ProductoReguladoResult` |
+| `AsociarPrincipioActivoUseCase.java` | `AsociarPrincipioActivoCommand` | `ProductoReguladoResult` |
+| `DesasociarPrincipioActivoUseCase.java` | `DesasociarPrincipioActivoCommand` | `ProductoReguladoResult` |
+| `CrearSkuUseCase.java` | `CrearSkuCommand` | `SkuResult` |
+| `ActualizarSkuUseCase.java` | `ActualizarSkuCommand` | `SkuResult` |
+| `AgregarCodigoBarraUseCase.java` | `AgregarCodigoBarraCommand` | `SkuResult` |
+| `EliminarCodigoBarraUseCase.java` | `EliminarCodigoBarraCommand` | `SkuResult` |
+| `MarcarCodigoBarraPrincipalUseCase.java` | `MarcarCodigoBarraPrincipalCommand` | `SkuResult` |
+
+Cada uno con la misma forma que la plantilla del Step 5 (ejemplo instanciado para `CrearMarcaUseCase.java`):
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface CrearMarcaUseCase {
+    Result<MarcaResult, ApplicationError> execute(CrearMarcaCommand command);
+}
+```
+
+Consultas (misma plantilla del Step 5 con `Query`):
+
+| Archivo | Query | Tipo de éxito |
+|---|---|---|
+| `ListarMarcasUseCase.java` | `ListarMarcasQuery` | `List<MarcaResult>` |
+| `ListarCategoriasProductoUseCase.java` | `ListarCategoriasProductoQuery` | `List<CategoriaProductoResult>` |
+| `ConsultarProductoReguladoUseCase.java` | `ConsultarProductoReguladoQuery` | `ProductoReguladoResult` (sin `List<>`) |
+| `ListarProductosReguladosUseCase.java` | `ListarProductosReguladosQuery` | `PaginaResult<ProductoReguladoResumen>` (sin `List<>`) |
+| `ConsultarSkuUseCase.java` | `ConsultarSkuQuery` | `SkuResult` (sin `List<>`) |
+| `ListarSkusUseCase.java` | `ListarSkusQuery` | `PaginaResult<SkuResumen>` (sin `List<>`) |
+
+Ejemplo instanciado para `ConsultarProductoReguladoUseCase.java` (tipo de éxito simple, sin `List`):
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoReguladoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ConsultarProductoReguladoUseCase {
+    Result<ProductoReguladoResult, ApplicationError> execute(ConsultarProductoReguladoQuery query);
+}
+```
+
+Ejemplo instanciado para `ListarProductosReguladosUseCase.java` (tipo de éxito `PaginaResult<T>`, sin `List` externo):
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosReguladosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ListarProductosReguladosUseCase {
+    Result<PaginaResult<ProductoReguladoResumen>, ApplicationError> execute(ListarProductosReguladosQuery query);
+}
+```
+
+`ListarMarcasUseCase.java` y `ListarCategoriasProductoUseCase.java` siguen la plantilla `List<XResult>` del Step 5 (ejemplo `ListarCondicionesVentaUseCase.java`). `ConsultarSkuUseCase.java` sigue la plantilla de `ConsultarProductoReguladoUseCase.java`. `ListarSkusUseCase.java` sigue la plantilla de `ListarProductosReguladosUseCase.java`.
+
+- [ ] **Step 7: Crear `CatalogoControlUseCase` (transversal, activar/desactivar las 9 entidades)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CatalogoControlUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import com.softprimesolutions.shared.kernel.result.Unit;
+import java.util.UUID;
+
+public interface CatalogoControlUseCase {
+
+    Result<Unit, ApplicationError> changeCondicionVentaStatus(String codigo, String status);
+
+    Result<Unit, ApplicationError> changeFormaFarmaceuticaStatus(String codigo, String status);
+
+    Result<Unit, ApplicationError> changeViaAdministracionStatus(String codigo, String status);
+
+    Result<Unit, ApplicationError> changeUnidadMedidaStatus(String codigo, String status);
+
+    Result<Unit, ApplicationError> changeClasificacionControladaStatus(String codigo, String status);
+
+    Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status);
+
+    Result<Unit, ApplicationError> changeMarcaStatus(UUID tenantId, UUID marcaId, String status);
+
+    Result<Unit, ApplicationError> changeCategoriaProductoStatus(UUID tenantId, UUID categoriaId, String status);
+
+    Result<Unit, ApplicationError> changeProductoReguladoStatus(UUID productoReguladoId, String status);
+
+    Result<Unit, ApplicationError> changeSkuStatus(UUID tenantId, UUID skuId, String status);
+}
+```
+
+- [ ] **Step 8: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL. Nota: los puertos `in` creados según el patrón descrito en el Step 5/6 (no repetidos literalmente en este documento) deben crearse todos como archivos reales, uno por interfaz, en `application/port/in/`, siguiendo exactamente el molde de `CrearCondicionVentaUseCase.java`.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/
+git commit -m "feat(catalogo): agregar puertos de entrada y salida de aplicacion"
+```
+
+---
