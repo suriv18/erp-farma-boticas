@@ -1986,3 +1986,721 @@ git commit -m "feat(catalogo): agregar handlers de crear, actualizar y listar ca
 ```
 
 ---
+
+### Task 9: Handlers de Producto (crear, actualizar, consultar, listar)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarProductoHandler.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosHandler.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarProductoHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `Producto` (Task 5), DTOs (Task 6), puertos (Task 7), `CatalogoApplicationMapper` (Task 8).
+- Produces: `CrearProductoHandler implements CrearProductoUseCase`, `ActualizarProductoHandler implements ActualizarProductoUseCase`, `ConsultarProductoHandler implements ConsultarProductoUseCase`, `ListarProductosHandler implements ListarProductosUseCase`. Usados por Task 14 (controller).
+
+- [ ] **Step 1: Escribir el test que falla para `CrearProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CrearProductoHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID CATEGORIA_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+
+    @Test
+    void createsAProductSuccessfully() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new CrearProductoHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoCommand(
+                TENANT_ID, CATEGORIA_ID, "Alcohol en gel 250ml", "PRODUCTO_SANITARIO", null, "Frasco",
+                null, 1, null, new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isSuccess());
+        var created = result.getOrElse(error -> null);
+        assertEquals("Alcohol en gel 250ml", created.nombre());
+        assertEquals("ACTIVO", created.estado());
+    }
+
+    @Test
+    void failsWithValidationErrorWhenTypeIsInvalid() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new CrearProductoHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoCommand(
+                TENANT_ID, CATEGORIA_ID, "Producto X", "TIPO_INEXISTENTE", null, "Unidad",
+                null, 1, null, new BigDecimal("10.00"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void failsWithNotFoundWhenCategoriaDoesNotExist() {
+        var writePort = new FakeCatalogoWritePort();
+        writePort.productoOutcome = CatalogoWritePort.SaveProductoOutcome.CATEGORIA_NOT_FOUND;
+        var handler = new CrearProductoHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoCommand(
+                TENANT_ID, CATEGORIA_ID, "Alcohol en gel", "PRODUCTO_SANITARIO", null, "Frasco",
+                null, 1, null, new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void failsWithConflictWhenBarcodeAlreadyExists() {
+        var writePort = new FakeCatalogoWritePort();
+        writePort.productoOutcome = CatalogoWritePort.SaveProductoOutcome.DUPLICATE_BARCODE;
+        var handler = new CrearProductoHandler(writePort, new SequentialIds(), () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearProductoCommand(
+                TENANT_ID, CATEGORIA_ID, "Alcohol en gel", "PRODUCTO_SANITARIO", null, "Frasco",
+                null, 1, "7501234567890", new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_CODIGO_BARRAS_DUPLICADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class SequentialIds implements com.softprimesolutions.shared.application.port.IdentifierGenerator {
+        private long sequence;
+
+        @Override
+        public UUID next() {
+            return new UUID(0, ++sequence);
+        }
+    }
+
+    private static final class FakeCatalogoWritePort implements CatalogoWritePort {
+        private SaveProductoOutcome productoOutcome = SaveProductoOutcome.CREATED;
+
+        @Override
+        public SaveCategoriaOutcome save(Categoria categoria) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveProductoOutcome save(Producto producto) {
+            return productoOutcome;
+        }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearProductoHandlerTest"`
+Expected: FAIL — `CrearProductoHandler` no existe todavía.
+
+- [ ] **Step 3: Crear `CrearProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CrearProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.CrearProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import com.softprimesolutions.catalogo.domain.model.TipoProducto;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+
+public final class CrearProductoHandler implements CrearProductoUseCase {
+
+    private final CatalogoWritePort writePort;
+    private final IdentifierGenerator identifierGenerator;
+    private final ClockPort clock;
+
+    public CrearProductoHandler(CatalogoWritePort writePort, IdentifierGenerator identifierGenerator, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.identifierGenerator = Objects.requireNonNull(identifierGenerator, "identifierGenerator es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoResult, ApplicationError> execute(CrearProductoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+
+        final TipoProducto tipo;
+        try {
+            tipo = TipoProducto.valueOf(command.tipo() == null ? "" : command.tipo().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_INVALIDO", "El tipo de producto no es válido.", ErrorCategory.VALIDATION,
+                    Map.of("field", "tipo")));
+        }
+
+        CondicionVenta condicionVenta = null;
+        if (command.condicionVenta() != null) {
+            try {
+                condicionVenta = CondicionVenta.valueOf(command.condicionVenta().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                return Result.failure(new StandardApplicationError(
+                        "CAT_PRODUCTO_INVALIDO", "La condición de venta no es válida.", ErrorCategory.VALIDATION,
+                        Map.of("field", "condicionVenta")));
+            }
+        }
+
+        var producto = Producto.create(
+                new ProductoId(identifierGenerator.next()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.categoriaId() == null ? null : new CategoriaId(command.categoriaId()),
+                command.nombre(), tipo, command.laboratorio(), command.unidadMedida(), command.presentacion(),
+                command.unidadesPorPaquete() == null ? 1 : command.unidadesPorPaquete(), command.codigoBarras(),
+                command.precioVenta(), condicionVenta, command.esGenerico(), command.esGenericoEsencial(),
+                command.grupoTerapeutico(), command.codigoDigemid(), command.principioActivo(),
+                command.concentracion(), command.requiereLote(), command.requiereVencimiento(), clock.now());
+        return producto.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ProductoResult, ApplicationError> persist(Producto producto) {
+        var outcome = writePort.save(producto);
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.TENANT_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.CATEGORIA_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_NO_ENCONTRADA", "La categoría indicada no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.DUPLICATE_BARCODE) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_CODIGO_BARRAS_DUPLICADO", "Ya existe un producto con el código de barras indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(producto));
+    }
+
+    private Result<ProductoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CrearProductoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 5: Escribir el test que falla para `ActualizarProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoCommand;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ActualizarProductoHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID CATEGORIA_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+    private static final UUID PRODUCTO_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @Test
+    void updatesAProductSuccessfully() {
+        var writePort = new FakeCatalogoWritePort();
+        var handler = new ActualizarProductoHandler(writePort, () -> Instant.parse("2026-09-07T11:00:00Z"));
+
+        var result = handler.execute(new ActualizarProductoCommand(
+                TENANT_ID, PRODUCTO_ID, CATEGORIA_ID, "Alcohol en gel 500ml", "PRODUCTO_SANITARIO", null,
+                "Frasco", null, 1, null, new BigDecimal("18.00"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isSuccess());
+        var updated = result.getOrElse(error -> null);
+        assertEquals("Alcohol en gel 500ml", updated.nombre());
+    }
+
+    @Test
+    void failsWithNotFoundWhenProductDoesNotExist() {
+        var writePort = new FakeCatalogoWritePort();
+        writePort.productoOutcome = CatalogoWritePort.SaveProductoOutcome.NOT_FOUND;
+        var handler = new ActualizarProductoHandler(writePort, () -> Instant.parse("2026-09-07T11:00:00Z"));
+
+        var result = handler.execute(new ActualizarProductoCommand(
+                TENANT_ID, PRODUCTO_ID, CATEGORIA_ID, "Alcohol en gel", "PRODUCTO_SANITARIO", null,
+                "Frasco", null, 1, null, new BigDecimal("18.00"), null, false, false, null, null, null, null,
+                false, false));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoWritePort implements CatalogoWritePort {
+        private SaveProductoOutcome productoOutcome = SaveProductoOutcome.UPDATED;
+
+        @Override
+        public SaveCategoriaOutcome save(Categoria categoria) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveProductoOutcome save(Producto producto) {
+            return productoOutcome;
+        }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 6: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.ActualizarProductoHandlerTest"`
+Expected: FAIL — `ActualizarProductoHandler` no existe todavía.
+
+- [ ] **Step 7: Crear `ActualizarProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/ActualizarProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import com.softprimesolutions.catalogo.domain.model.TipoProducto;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+
+public final class ActualizarProductoHandler implements ActualizarProductoUseCase {
+
+    private final CatalogoWritePort writePort;
+    private final ClockPort clock;
+
+    public ActualizarProductoHandler(CatalogoWritePort writePort, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoResult, ApplicationError> execute(ActualizarProductoCommand command) {
+        Objects.requireNonNull(command, "command es obligatorio");
+
+        final TipoProducto tipo;
+        try {
+            tipo = TipoProducto.valueOf(command.tipo() == null ? "" : command.tipo().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_INVALIDO", "El tipo de producto no es válido.", ErrorCategory.VALIDATION,
+                    Map.of("field", "tipo")));
+        }
+
+        CondicionVenta condicionVenta = null;
+        if (command.condicionVenta() != null) {
+            try {
+                condicionVenta = CondicionVenta.valueOf(command.condicionVenta().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                return Result.failure(new StandardApplicationError(
+                        "CAT_PRODUCTO_INVALIDO", "La condición de venta no es válida.", ErrorCategory.VALIDATION,
+                        Map.of("field", "condicionVenta")));
+            }
+        }
+
+        var producto = Producto.create(
+                new ProductoId(command.productoId()),
+                command.tenantId() == null ? null : new TenantId(command.tenantId()),
+                command.categoriaId() == null ? null : new CategoriaId(command.categoriaId()),
+                command.nombre(), tipo, command.laboratorio(), command.unidadMedida(), command.presentacion(),
+                command.unidadesPorPaquete() == null ? 1 : command.unidadesPorPaquete(), command.codigoBarras(),
+                command.precioVenta(), condicionVenta, command.esGenerico(), command.esGenericoEsencial(),
+                command.grupoTerapeutico(), command.codigoDigemid(), command.principioActivo(),
+                command.concentracion(), command.requiereLote(), command.requiereVencimiento(), clock.now());
+        return producto.fold(this::persist, this::validationFailure);
+    }
+
+    private Result<ProductoResult, ApplicationError> persist(Producto producto) {
+        var outcome = writePort.save(producto);
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_NO_ENCONTRADO", "El producto indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.CATEGORIA_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_CATEGORIA_NO_ENCONTRADA", "La categoría indicada no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == CatalogoWritePort.SaveProductoOutcome.DUPLICATE_BARCODE) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRODUCTO_CODIGO_BARRAS_DUPLICADO", "Ya existe un producto con el código de barras indicado.",
+                    ErrorCategory.CONFLICT));
+        }
+        return Result.success(CatalogoApplicationMapper.toResult(producto));
+    }
+
+    private Result<ProductoResult, ApplicationError> validationFailure(ErrorDetail error) {
+        return Result.failure(new StandardApplicationError(
+                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
+    }
+}
+```
+
+- [ ] **Step 8: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.ActualizarProductoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 9: Escribir el test que falla para `ConsultarProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarProductoHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ConsultarProductoHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID PRODUCTO_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @Test
+    void returnsTheProductWhenItExists() {
+        var producto = sampleProducto();
+        var readPort = new FakeCatalogoReadPort(Optional.of(producto));
+        var handler = new ConsultarProductoHandler(readPort);
+
+        var result = handler.execute(new ConsultarProductoQuery(TENANT_ID, PRODUCTO_ID));
+
+        assertTrue(result.isSuccess());
+        assertEquals("Alcohol en gel", result.getOrElse(error -> null).nombre());
+    }
+
+    @Test
+    void failsWithNotFoundWhenProductDoesNotExist() {
+        var readPort = new FakeCatalogoReadPort(Optional.empty());
+        var handler = new ConsultarProductoHandler(readPort);
+
+        var result = handler.execute(new ConsultarProductoQuery(TENANT_ID, PRODUCTO_ID));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static ProductoResult sampleProducto() {
+        return new ProductoResult(
+                PRODUCTO_ID, TENANT_ID, UUID.randomUUID(), "Alcohol en gel", "PRODUCTO_SANITARIO", null,
+                "Frasco", null, 1, null, new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false, "ACTIVO", Instant.parse("2026-09-07T10:00:00Z"), null);
+    }
+
+    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
+        private final Optional<ProductoResult> producto;
+
+        private FakeCatalogoReadPort(Optional<ProductoResult> producto) {
+            this.producto = producto;
+        }
+
+        @Override
+        public List<CategoriaResult> findCategorias(UUID tenantId, String estado) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<ProductoResult> findProducto(UUID tenantId, UUID productoId) {
+            return producto;
+        }
+
+        @Override
+        public PaginaResult<ProductoResult> findProductos(
+                UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int page, int size) {
+            throw new UnsupportedOperationException();
+        }
+    }
+}
+```
+
+- [ ] **Step 10: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoHandlerTest"`
+Expected: FAIL — `ConsultarProductoHandler` no existe todavía.
+
+- [ ] **Step 11: Crear `ConsultarProductoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ConsultarProductoHandler implements ConsultarProductoUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ConsultarProductoHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoResult, ApplicationError> execute(ConsultarProductoQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return readPort.findProducto(query.tenantId(), query.productoId())
+                .map(Result::<ProductoResult, ApplicationError>success)
+                .orElseGet(() -> Result.failure(new StandardApplicationError(
+                        "CAT_PRODUCTO_NO_ENCONTRADO", "El producto indicado no existe.", ErrorCategory.NOT_FOUND)));
+    }
+}
+```
+
+- [ ] **Step 12: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 13: Escribir el test que falla para `ListarProductosHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ListarProductosHandlerTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void returnsAPageOfProductsFromReadPort() {
+        var producto = new ProductoResult(
+                UUID.randomUUID(), TENANT_ID, UUID.randomUUID(), "Alcohol en gel", "PRODUCTO_SANITARIO", null,
+                "Frasco", null, 1, null, new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false, "ACTIVO", Instant.parse("2026-09-07T10:00:00Z"), null);
+        var page = new PaginaResult<>(List.of(producto), 0, 20, 1);
+        var readPort = new FakeCatalogoReadPort(page);
+        var handler = new ListarProductosHandler(readPort);
+
+        var result = handler.execute(new ListarProductosQuery(TENANT_ID, null, null, null, null, 0, 20));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).items().size());
+    }
+
+    @Test
+    void failsWithValidationErrorWhenPaginationIsInvalid() {
+        var readPort = new FakeCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarProductosHandler(readPort);
+
+        var result = handler.execute(new ListarProductosQuery(TENANT_ID, null, null, null, null, -1, 20));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
+        private final PaginaResult<ProductoResult> page;
+
+        private FakeCatalogoReadPort(PaginaResult<ProductoResult> page) {
+            this.page = page;
+        }
+
+        @Override
+        public List<CategoriaResult> findCategorias(UUID tenantId, String estado) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<ProductoResult> findProducto(UUID tenantId, UUID productoId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public PaginaResult<ProductoResult> findProductos(
+                UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int page, int size) {
+            return this.page;
+        }
+    }
+}
+```
+
+- [ ] **Step 14: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarProductosHandlerTest"`
+Expected: FAIL — `ListarProductosHandler` no existe todavía.
+
+- [ ] **Step 15: Crear `ListarProductosHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarProductosUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+import java.util.Objects;
+
+public final class ListarProductosHandler implements ListarProductosUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarProductosHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<PaginaResult<ProductoResult>, ApplicationError> execute(ListarProductosQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        if (query.page() < 0 || query.size() < 1 || query.size() > 100) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PAGINACION_INVALIDA",
+                    "page debe ser mayor o igual a 0 y size debe estar entre 1 y 100.",
+                    ErrorCategory.VALIDATION,
+                    Map.of("page", query.page(), "size", query.size())));
+        }
+        return Result.success(readPort.findProductos(
+                query.tenantId(), query.texto(), query.categoriaId(), query.tipo(), query.estado(),
+                query.page(), query.size()));
+    }
+}
+```
+
+- [ ] **Step 16: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarProductosHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 17: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/ service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/
+git commit -m "feat(catalogo): agregar handlers de crear, actualizar, consultar y listar productos"
+```
+
+---
