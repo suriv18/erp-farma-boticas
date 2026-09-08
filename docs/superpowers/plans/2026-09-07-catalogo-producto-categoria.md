@@ -3829,3 +3829,310 @@ git commit -m "feat(catalogo): agregar read side JDBC de Categoria y Producto"
 ```
 
 ---
+
+## Fase 5 — API REST
+
+### Task 14: DTOs HTTP y `CatalogoApiMapper`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CrearCategoriaRequest.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ActualizarCategoriaRequest.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoRequest.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CrearProductoRequest.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ActualizarProductoRequest.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CategoriaResponse.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoResponse.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PaginaResponse.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`
+
+**Interfaces:**
+- Consumes: DTOs de aplicación (Task 6).
+- Produces: todos los DTOs HTTP y `CatalogoApiMapper` (métodos estáticos `toCommand`/`toQuery`/`toResponse`). Usado por Task 15 (controllers).
+
+Son records/clases de mapeo puro — no requieren test dedicado, se validan indirectamente vía Task 17 (test de integración HTTP).
+
+- [ ] **Step 1: Crear los DTOs de `request`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CrearCategoriaRequest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record CrearCategoriaRequest(
+        @NotNull UUID tenantId,
+        @NotBlank @Size(min = 2, max = 100) String nombre,
+        @Size(max = 500) String descripcion) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ActualizarCategoriaRequest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record ActualizarCategoriaRequest(
+        @NotNull UUID tenantId,
+        @NotBlank @Size(min = 2, max = 100) String nombre,
+        @Size(max = 500) String descripcion) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoRequest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+
+public record CambiarEstadoRequest(@NotNull UUID tenantId, @NotBlank String status) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CrearProductoRequest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record CrearProductoRequest(
+        @NotNull UUID tenantId,
+        @NotNull UUID categoriaId,
+        @NotBlank @Size(min = 2, max = 200) String nombre,
+        @NotBlank String tipo,
+        @Size(max = 150) String laboratorio,
+        @NotBlank @Size(max = 30) String unidadMedida,
+        @Size(max = 150) String presentacion,
+        Integer unidadesPorPaquete,
+        @Size(max = 40) String codigoBarras,
+        @NotNull @DecimalMin(value = "0.01") BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        @Size(max = 150) String grupoTerapeutico,
+        @Size(max = 40) String codigoDigemid,
+        @Size(max = 200) String principioActivo,
+        @Size(max = 60) String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ActualizarProductoRequest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record ActualizarProductoRequest(
+        @NotNull UUID tenantId,
+        @NotNull UUID categoriaId,
+        @NotBlank @Size(min = 2, max = 200) String nombre,
+        @NotBlank String tipo,
+        @Size(max = 150) String laboratorio,
+        @NotBlank @Size(max = 30) String unidadMedida,
+        @Size(max = 150) String presentacion,
+        Integer unidadesPorPaquete,
+        @Size(max = 40) String codigoBarras,
+        @NotNull @DecimalMin(value = "0.01") BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        @Size(max = 150) String grupoTerapeutico,
+        @Size(max = 40) String codigoDigemid,
+        @Size(max = 200) String principioActivo,
+        @Size(max = 60) String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento) {
+}
+```
+
+- [ ] **Step 2: Crear los DTOs de `response`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CategoriaResponse.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record CategoriaResponse(
+        UUID id,
+        UUID tenantId,
+        String nombre,
+        String descripcion,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoResponse.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+public record ProductoResponse(
+        UUID id,
+        UUID tenantId,
+        UUID categoriaId,
+        String nombre,
+        String tipo,
+        String laboratorio,
+        String unidadMedida,
+        String presentacion,
+        int unidadesPorPaquete,
+        String codigoBarras,
+        BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        String grupoTerapeutico,
+        String codigoDigemid,
+        String principioActivo,
+        String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PaginaResponse.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.List;
+
+public record PaginaResponse<T>(List<T> items, int page, int size, long totalElements) {
+
+    public PaginaResponse {
+        items = List.copyOf(items);
+    }
+}
+```
+
+- [ ] **Step 3: Crear `CatalogoApiMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.mapper;
+
+import com.softprimesolutions.catalogo.api.dto.request.ActualizarCategoriaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ActualizarProductoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CrearCategoriaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CrearProductoRequest;
+import com.softprimesolutions.catalogo.api.dto.response.CategoriaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PaginaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ProductoResponse;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import java.util.UUID;
+
+public final class CatalogoApiMapper {
+
+    private CatalogoApiMapper() {
+    }
+
+    public static CrearCategoriaCommand toCommand(CrearCategoriaRequest request) {
+        return new CrearCategoriaCommand(request.tenantId(), request.nombre(), request.descripcion());
+    }
+
+    public static ActualizarCategoriaCommand toCommand(UUID categoriaId, ActualizarCategoriaRequest request) {
+        return new ActualizarCategoriaCommand(
+                request.tenantId(), categoriaId, request.nombre(), request.descripcion());
+    }
+
+    public static CrearProductoCommand toCommand(CrearProductoRequest request) {
+        return new CrearProductoCommand(
+                request.tenantId(), request.categoriaId(), request.nombre(), request.tipo(),
+                request.laboratorio(), request.unidadMedida(), request.presentacion(),
+                request.unidadesPorPaquete(), request.codigoBarras(), request.precioVenta(),
+                request.condicionVenta(), request.esGenerico(), request.esGenericoEsencial(),
+                request.grupoTerapeutico(), request.codigoDigemid(), request.principioActivo(),
+                request.concentracion(), request.requiereLote(), request.requiereVencimiento());
+    }
+
+    public static ActualizarProductoCommand toCommand(UUID productoId, ActualizarProductoRequest request) {
+        return new ActualizarProductoCommand(
+                request.tenantId(), productoId, request.categoriaId(), request.nombre(), request.tipo(),
+                request.laboratorio(), request.unidadMedida(), request.presentacion(),
+                request.unidadesPorPaquete(), request.codigoBarras(), request.precioVenta(),
+                request.condicionVenta(), request.esGenerico(), request.esGenericoEsencial(),
+                request.grupoTerapeutico(), request.codigoDigemid(), request.principioActivo(),
+                request.concentracion(), request.requiereLote(), request.requiereVencimiento());
+    }
+
+    public static CategoriaResponse toResponse(CategoriaResult result) {
+        return new CategoriaResponse(
+                result.id(), result.tenantId(), result.nombre(), result.descripcion(), result.estado(),
+                result.createdAt(), result.updatedAt());
+    }
+
+    public static ProductoResponse toResponse(ProductoResult result) {
+        return new ProductoResponse(
+                result.id(), result.tenantId(), result.categoriaId(), result.nombre(), result.tipo(),
+                result.laboratorio(), result.unidadMedida(), result.presentacion(), result.unidadesPorPaquete(),
+                result.codigoBarras(), result.precioVenta(), result.condicionVenta(), result.esGenerico(),
+                result.esGenericoEsencial(), result.grupoTerapeutico(), result.codigoDigemid(),
+                result.principioActivo(), result.concentracion(), result.requiereLote(),
+                result.requiereVencimiento(), result.estado(), result.createdAt(), result.updatedAt());
+    }
+
+    public static PaginaResponse<ProductoResponse> toProductoPage(PaginaResult<ProductoResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+}
+```
+
+- [ ] **Step 4: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/
+git commit -m "feat(catalogo): agregar DTOs HTTP y CatalogoApiMapper"
+```
+
+---
