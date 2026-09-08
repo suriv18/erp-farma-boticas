@@ -2704,3 +2704,211 @@ git commit -m "feat(catalogo): agregar handlers de crear, actualizar, consultar 
 ```
 
 ---
+
+### Task 10: `CatalogoControlService` (activar/desactivar Categoria y Producto)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java`
+
+**Interfaces:**
+- Consumes: `CatalogoControlUseCase` (Task 7), `CatalogoWritePort` (Task 7), `ClockPort` (shared-application).
+- Produces: `CatalogoControlService implements CatalogoControlUseCase`. Usado por Task 14 (controller).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CatalogoControlServiceTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+    private static final UUID CATEGORIA_ID = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+    private static final UUID PRODUCTO_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @Test
+    void changesCategoriaStatusSuccessfully() {
+        var writePort = new FakeCatalogoWritePort(true);
+        var service = new CatalogoControlService(writePort, () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeCategoriaStatus(TENANT_ID, CATEGORIA_ID, "inactiva");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void rejectsAnInvalidCategoriaStatus() {
+        var writePort = new FakeCatalogoWritePort(true);
+        var service = new CatalogoControlService(writePort, () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeCategoriaStatus(TENANT_ID, CATEGORIA_ID, "SUSPENDIDA");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_ESTADO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void reportsNotFoundWhenCategoriaDoesNotExist() {
+        var writePort = new FakeCatalogoWritePort(false);
+        var service = new CatalogoControlService(writePort, () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeCategoriaStatus(TENANT_ID, CATEGORIA_ID, "ACTIVA");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void changesProductoStatusSuccessfully() {
+        var writePort = new FakeCatalogoWritePort(true);
+        var service = new CatalogoControlService(writePort, () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeProductoStatus(TENANT_ID, PRODUCTO_ID, "inactivo");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void reportsNotFoundWhenProductoDoesNotExist() {
+        var writePort = new FakeCatalogoWritePort(false);
+        var service = new CatalogoControlService(writePort, () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeProductoStatus(TENANT_ID, PRODUCTO_ID, "ACTIVO");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoWritePort implements CatalogoWritePort {
+        private final boolean found;
+
+        private FakeCatalogoWritePort(boolean found) {
+            this.found = found;
+        }
+
+        @Override
+        public SaveCategoriaOutcome save(Categoria categoria) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveProductoOutcome save(Producto producto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+            return found;
+        }
+
+        @Override
+        public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+            return found;
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CatalogoControlServiceTest"`
+Expected: FAIL — `CatalogoControlService` no existe todavía.
+
+- [ ] **Step 3: Crear `CatalogoControlService`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.result.Result;
+import com.softprimesolutions.shared.kernel.result.Unit;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+public final class CatalogoControlService implements CatalogoControlUseCase {
+
+    private static final Set<String> CATEGORIA_STATUSES = Set.of("ACTIVA", "INACTIVA");
+    private static final Set<String> PRODUCTO_STATUSES = Set.of("ACTIVO", "INACTIVO");
+
+    private final CatalogoWritePort writePort;
+    private final ClockPort clock;
+
+    public CatalogoControlService(CatalogoWritePort writePort, ClockPort clock) {
+        this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!CATEGORIA_STATUSES.contains(normalized)) return invalidStatus(CATEGORIA_STATUSES);
+        return writePort.changeCategoriaStatus(tenantId, categoriaId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_CATEGORIA_NO_ENCONTRADA", "La categoría no existe en el tenant indicado.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeProductoStatus(UUID tenantId, UUID productoId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!PRODUCTO_STATUSES.contains(normalized)) return invalidStatus(PRODUCTO_STATUSES);
+        return writePort.changeProductoStatus(tenantId, productoId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_PRODUCTO_NO_ENCONTRADO", "El producto no existe en el tenant indicado.");
+    }
+
+    private static String normalizeStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static Result<Unit, ApplicationError> invalidStatus(Set<String> allowed) {
+        return Result.failure(new StandardApplicationError(
+                "CAT_ESTADO_INVALIDO", "El estado indicado no es válido.",
+                ErrorCategory.VALIDATION, Map.of("allowed", allowed)));
+    }
+
+    private static Result<Unit, ApplicationError> notFound(String code, String message) {
+        return Result.failure(new StandardApplicationError(code, message, ErrorCategory.NOT_FOUND));
+    }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CatalogoControlServiceTest"`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java
+git commit -m "feat(catalogo): agregar CatalogoControlService para cambio de estado"
+```
+
+---
