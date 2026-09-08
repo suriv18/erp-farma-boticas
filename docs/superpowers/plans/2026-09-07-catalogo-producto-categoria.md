@@ -4391,3 +4391,128 @@ git commit -m "feat(catalogo): agregar CategoriaController y ProductoController"
 ```
 
 ---
+
+### Task 16: `CatalogoModuleConfiguration` — wiring de Spring beans
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/configuration/CatalogoModuleConfiguration.java`
+
+**Interfaces:**
+- Consumes: todos los handlers (Task 8-10), `CatalogoWritePort`/`CatalogoReadPort` (resueltos automáticamente por Spring desde `CatalogoJpaWriteAdapter`/`CatalogoJdbcReadAdapter`, ambos `@Repository`).
+- Produces: beans `CrearCategoriaUseCase`, `ActualizarCategoriaUseCase`, `ListarCategoriasUseCase`, `CrearProductoUseCase`, `ActualizarProductoUseCase`, `ConsultarProductoUseCase`, `ListarProductosUseCase`, `CatalogoControlUseCase`, más `Clock`/`ClockPort`/`IdentifierGenerator` propios del módulo (igual patrón que `security` define los suyos, sin compartirlos). Habilita que `CategoriaController`/`ProductoController` (Task 15) reciban sus dependencias por constructor.
+
+No requiere test dedicado — se verifica indirectamente porque, si el wiring está mal, el contexto de Spring falla al arrancar en el test de integración de Task 17.
+
+- [ ] **Step 1: Crear `CatalogoModuleConfiguration`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/configuration/CatalogoModuleConfiguration.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.configuration;
+
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarProductosUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.application.usecase.command.ActualizarCategoriaHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.ActualizarProductoHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.CatalogoControlService;
+import com.softprimesolutions.catalogo.application.usecase.command.CrearCategoriaHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.CrearProductoHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ListarProductosHandler;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.UUID;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration(proxyBeanMethods = false)
+public class CatalogoModuleConfiguration {
+
+    @Bean
+    Clock catalogoClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    ClockPort catalogoClockPort(Clock catalogoClock) {
+        return () -> Instant.now(catalogoClock);
+    }
+
+    @Bean
+    IdentifierGenerator catalogoIdentifierGenerator() {
+        return UUID::randomUUID;
+    }
+
+    @Bean
+    CrearCategoriaUseCase crearCategoriaUseCase(
+            CatalogoWritePort writePort, IdentifierGenerator catalogoIdentifierGenerator, ClockPort catalogoClockPort) {
+        return new CrearCategoriaHandler(writePort, catalogoIdentifierGenerator, catalogoClockPort);
+    }
+
+    @Bean
+    ActualizarCategoriaUseCase actualizarCategoriaUseCase(CatalogoWritePort writePort, ClockPort catalogoClockPort) {
+        return new ActualizarCategoriaHandler(writePort, catalogoClockPort);
+    }
+
+    @Bean
+    ListarCategoriasUseCase listarCategoriasUseCase(CatalogoReadPort readPort) {
+        return new ListarCategoriasHandler(readPort);
+    }
+
+    @Bean
+    CrearProductoUseCase crearProductoUseCase(
+            CatalogoWritePort writePort, IdentifierGenerator catalogoIdentifierGenerator, ClockPort catalogoClockPort) {
+        return new CrearProductoHandler(writePort, catalogoIdentifierGenerator, catalogoClockPort);
+    }
+
+    @Bean
+    ActualizarProductoUseCase actualizarProductoUseCase(CatalogoWritePort writePort, ClockPort catalogoClockPort) {
+        return new ActualizarProductoHandler(writePort, catalogoClockPort);
+    }
+
+    @Bean
+    ConsultarProductoUseCase consultarProductoUseCase(CatalogoReadPort readPort) {
+        return new ConsultarProductoHandler(readPort);
+    }
+
+    @Bean
+    ListarProductosUseCase listarProductosUseCase(CatalogoReadPort readPort) {
+        return new ListarProductosHandler(readPort);
+    }
+
+    @Bean
+    CatalogoControlUseCase catalogoControlUseCase(CatalogoWritePort writePort, ClockPort catalogoClockPort) {
+        return new CatalogoControlService(writePort, catalogoClockPort);
+    }
+}
+```
+
+- [ ] **Step 2: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 3: Verificar que el módulo completo compila y sus propios tests unitarios pasan**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test`
+Expected: BUILD SUCCESSFUL. Deben pasar todos los tests de dominio (Task 4-5) y aplicación (Task 8-10) escritos hasta ahora.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/configuration/
+git commit -m "feat(catalogo): agregar CatalogoModuleConfiguration con wiring de beans"
+```
+
+---
