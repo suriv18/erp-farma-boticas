@@ -2754,3 +2754,863 @@ git commit -m "feat(catalogo): agregar read side JDBC completo"
 ```
 
 ---
+
+## Fase 5 — API REST
+
+### Task 22: DTOs HTTP y `CatalogoApiMapper`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/` — un record por request (lista completa abajo).
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/` — un record por response.
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`
+
+**Interfaces:**
+- Consumes: DTOs de aplicación (Task 9 del documento anterior).
+- Produces: todos los DTOs HTTP y `CatalogoApiMapper` (métodos estáticos `toCommand`/`toQuery`/`toResponse`). Usado por Task 23 (controllers). Son records/clases de mapeo puro — no requieren test dedicado, se validan indirectamente vía Task 25.
+
+- [ ] **Step 1: Crear los DTOs de `request` para los 5 catálogos de soporte + `CambiarEstadoGlobalRequest`/`CambiarEstadoTenantRequest`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CondicionVentaRequest.java` (usado tanto para crear como actualizar, dado que ambos comandos tienen exactamente los mismos campos):
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record CondicionVentaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        boolean requiereReceta,
+        boolean requiereRetencion,
+        @Size(max = 300) String fuente,
+        @Size(max = 100) String versionFuente,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta) {
+}
+```
+
+Crear, con la misma forma (`@NotBlank @Size(max = 30 o 40) codigo`, `@NotBlank @Size(min = 2, max = 200) denominacion`, `@Size(max = 300) fuente`, más los campos propios de cada entidad según su factory en el documento anterior), los siguientes 3 requests:
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/FormaFarmaceuticaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record FormaFarmaceuticaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String fuente) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ViaAdministracionRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ViaAdministracionRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String fuente) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/UnidadMedidaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record UnidadMedidaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 150) String denominacion,
+        @Size(max = 30) String simbolo,
+        boolean permiteDecimal,
+        @Size(max = 300) String fuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ClasificacionControladaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ClasificacionControladaRequest(
+        @NotBlank @Size(max = 40) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String normaFuente,
+        boolean requiereRecetaEspecial,
+        boolean retieneReceta,
+        Integer vigenciaRecetaDias) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoGlobalRequest.java` (para las entidades sin tenant: soporte, PrincipioActivo, ProductoRegulado):
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record CambiarEstadoGlobalRequest(@NotBlank String status) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoTenantRequest.java` (para las entidades tenant-scoped: Marca, CategoriaProducto, SKUComercial):
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+
+public record CambiarEstadoTenantRequest(@NotNull UUID tenantId, @NotBlank String status) {
+}
+```
+
+- [ ] **Step 2: Crear los DTOs de `request` de PrincipioActivo, Marca, CategoriaProducto**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/PrincipioActivoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record PrincipioActivoRequest(
+        @Size(max = 80) String codigoFuente,
+        @NotBlank @Size(min = 2, max = 300) String denominacion,
+        @Size(max = 300) String nombreNormalizado,
+        @Size(max = 300) String fuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/MarcaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record MarcaRequest(
+        @NotNull UUID tenantId,
+        @NotBlank @Size(min = 2, max = 50) String codigo,
+        @NotBlank @Size(min = 2, max = 180) String nombre,
+        @Size(max = 500) String descripcion) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CategoriaProductoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record CategoriaProductoRequest(
+        @NotNull UUID tenantId,
+        UUID categoriaPadreId,
+        @NotBlank @Size(min = 2, max = 50) String codigo,
+        @NotBlank @Size(min = 2, max = 180) String nombre,
+        @Size(max = 500) String descripcion,
+        int nivel,
+        int orden) {
+}
+```
+
+- [ ] **Step 3: Crear los DTOs de `request` de ProductoRegulado**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ProductoReguladoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record ProductoReguladoRequest(
+        @NotBlank @Size(min = 2, max = 40) String tipoProducto,
+        @Size(max = 50) String rubroCodigo,
+        @Size(max = 40) String tipoRegistro,
+        @Size(max = 100) String numeroRegistro,
+        @NotBlank @Size(min = 2, max = 500) String denominacion,
+        @Size(max = 300) String concentracionTexto,
+        @Size(max = 500) String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        @Size(max = 30) String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        @Size(max = 40) String tipoLiberacion,
+        @Size(max = 40) String origenFabricacion,
+        @Size(max = 100) String paisOrigen,
+        @Size(max = 30) String subpartidaNacional,
+        @Size(max = 300) String titularRegistro,
+        @Size(max = 300) String fabricante,
+        @Size(max = 300) String importador,
+        @Size(max = 200) String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        @Size(max = 300) String fuente,
+        @Size(max = 100) String versionFuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/AsociarPrincipioActivoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record AsociarPrincipioActivoRequest(
+        @NotNull UUID principioActivoId, String concentracionTexto, BigDecimal cantidad,
+        String unidadMedidaCodigo, boolean esPrincipal, short orden) {
+}
+```
+
+- [ ] **Step 4: Crear los DTOs de `request` de SKUComercial**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/SkuRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record SkuRequest(
+        @NotNull UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        @NotBlank String tipoSku,
+        @NotBlank @Size(min = 2, max = 60) String codigoInterno,
+        @NotBlank @Size(min = 2, max = 500) String descripcionComercial,
+        @Size(max = 200) String nombreCorto,
+        @Size(max = 300) String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/AgregarCodigoBarraRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+
+public record AgregarCodigoBarraRequest(
+        @NotBlank String codigoBarra, String tipoCodigo, LocalDate vigenteDesde, LocalDate vigenteHasta) {
+}
+```
+
+- [ ] **Step 5: Crear los DTOs de `response` y `PaginaResponse`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CondicionVentaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.LocalDate;
+
+public record CondicionVentaResponse(
+        String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+        String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear, con la misma forma (mismos campos que su `*Result` de aplicación correspondiente), los siguientes 8 responses:
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/FormaFarmaceuticaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record FormaFarmaceuticaResponse(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ViaAdministracionResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record ViaAdministracionResponse(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/UnidadMedidaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record UnidadMedidaResponse(
+        String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ClasificacionControladaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record ClasificacionControladaResponse(
+        String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+        boolean retieneReceta, Integer vigenciaRecetaDias, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PrincipioActivoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record PrincipioActivoResponse(
+        UUID id, String codigoFuente, String denominacion, String nombreNormalizado, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/MarcaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record MarcaResponse(UUID id, UUID tenantId, String codigo, String nombre, String descripcion, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CategoriaProductoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record CategoriaProductoResponse(
+        UUID id, UUID tenantId, UUID categoriaPadreId, String codigo, String nombre, String descripcion,
+        int nivel, int orden, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PrincipioActivoAsociadoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record PrincipioActivoAsociadoResponse(
+        UUID principioActivoId, String concentracionTexto, BigDecimal cantidad, String unidadMedidaCodigo,
+        boolean esPrincipal, short orden) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoReguladoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record ProductoReguladoResponse(
+        UUID id,
+        String tipoProducto,
+        String rubroCodigo,
+        String tipoRegistro,
+        String numeroRegistro,
+        String denominacion,
+        String concentracionTexto,
+        String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        String tipoLiberacion,
+        String origenFabricacion,
+        String paisOrigen,
+        String subpartidaNacional,
+        String titularRegistro,
+        String fabricante,
+        String importador,
+        String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        String fuente,
+        String versionFuente,
+        List<PrincipioActivoAsociadoResponse> principiosActivos,
+        String estadoRegulatorio,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoReguladoResumenResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record ProductoReguladoResumenResponse(
+        UUID id, String denominacion, String condicionVentaCodigo, String estadoRegulatorio) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CodigoBarraSkuResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.LocalDate;
+
+public record CodigoBarraSkuResponse(
+        String codigoBarra, String tipoCodigo, boolean esPrincipal, LocalDate vigenteDesde,
+        LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/SkuResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+public record SkuResponse(
+        UUID id,
+        UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        String tipoSku,
+        String codigoInterno,
+        String descripcionComercial,
+        String nombreCorto,
+        String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri,
+        List<CodigoBarraSkuResponse> codigosBarra,
+        String estado,
+        String createdBy,
+        Instant createdAt,
+        String updatedBy,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/SkuResumenResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record SkuResumenResponse(UUID id, String codigoInterno, String descripcionComercial, String tipoSku, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PaginaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.List;
+
+public record PaginaResponse<T>(List<T> items, int page, int size, long totalElements) {
+
+    public PaginaResponse {
+        items = List.copyOf(items);
+    }
+}
+```
+
+- [ ] **Step 6: Crear `CatalogoApiMapper` — parte 1: soporte + PrincipioActivo + Marca + CategoriaProducto**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`, empezando con:
+
+```java
+package com.softprimesolutions.catalogo.api.mapper;
+
+import com.softprimesolutions.catalogo.api.dto.request.CategoriaProductoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ClasificacionControladaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CondicionVentaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.MarcaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
+import com.softprimesolutions.catalogo.api.dto.response.CategoriaProductoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ClasificacionControladaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.CondicionVentaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.FormaFarmaceuticaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.MarcaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ViaAdministracionResponse;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import java.util.UUID;
+
+public final class CatalogoApiMapper {
+
+    private CatalogoApiMapper() {
+    }
+
+    public static CrearCondicionVentaCommand toCreateCommand(CondicionVentaRequest request) {
+        return new CrearCondicionVentaCommand(
+                request.codigo(), request.denominacion(), request.requiereReceta(), request.requiereRetencion(),
+                request.fuente(), request.versionFuente(), request.vigenteDesde(), request.vigenteHasta());
+    }
+
+    public static ActualizarCondicionVentaCommand toUpdateCommand(CondicionVentaRequest request) {
+        return new ActualizarCondicionVentaCommand(
+                request.codigo(), request.denominacion(), request.requiereReceta(), request.requiereRetencion(),
+                request.fuente(), request.versionFuente(), request.vigenteDesde(), request.vigenteHasta());
+    }
+
+    public static CondicionVentaResponse toResponse(CondicionVentaResult result) {
+        return new CondicionVentaResponse(
+                result.codigo(), result.denominacion(), result.requiereReceta(), result.requiereRetencion(),
+                result.fuente(), result.versionFuente(), result.vigenteDesde(), result.vigenteHasta(),
+                result.estado());
+    }
+
+    public static CrearFormaFarmaceuticaCommand toCreateCommand(FormaFarmaceuticaRequest request) {
+        return new CrearFormaFarmaceuticaCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ActualizarFormaFarmaceuticaCommand toUpdateCommand(FormaFarmaceuticaRequest request) {
+        return new ActualizarFormaFarmaceuticaCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static FormaFarmaceuticaResponse toResponse(FormaFarmaceuticaResult result) {
+        return new FormaFarmaceuticaResponse(
+                result.codigo(), result.denominacion(), result.fuente(), result.estado());
+    }
+
+    public static CrearViaAdministracionCommand toCreateCommand(ViaAdministracionRequest request) {
+        return new CrearViaAdministracionCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ActualizarViaAdministracionCommand toUpdateCommand(ViaAdministracionRequest request) {
+        return new ActualizarViaAdministracionCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ViaAdministracionResponse toResponse(ViaAdministracionResult result) {
+        return new ViaAdministracionResponse(
+                result.codigo(), result.denominacion(), result.fuente(), result.estado());
+    }
+
+    public static CrearUnidadMedidaCommand toCreateCommand(UnidadMedidaRequest request) {
+        return new CrearUnidadMedidaCommand(
+                request.codigo(), request.denominacion(), request.simbolo(), request.permiteDecimal(),
+                request.fuente());
+    }
+
+    public static ActualizarUnidadMedidaCommand toUpdateCommand(UnidadMedidaRequest request) {
+        return new ActualizarUnidadMedidaCommand(
+                request.codigo(), request.denominacion(), request.simbolo(), request.permiteDecimal(),
+                request.fuente());
+    }
+
+    public static UnidadMedidaResponse toResponse(UnidadMedidaResult result) {
+        return new UnidadMedidaResponse(
+                result.codigo(), result.denominacion(), result.simbolo(), result.permiteDecimal(),
+                result.fuente(), result.estado());
+    }
+
+    public static CrearClasificacionControladaCommand toCreateCommand(ClasificacionControladaRequest request) {
+        return new CrearClasificacionControladaCommand(
+                request.codigo(), request.denominacion(), request.normaFuente(),
+                request.requiereRecetaEspecial(), request.retieneReceta(), request.vigenciaRecetaDias());
+    }
+
+    public static ActualizarClasificacionControladaCommand toUpdateCommand(ClasificacionControladaRequest request) {
+        return new ActualizarClasificacionControladaCommand(
+                request.codigo(), request.denominacion(), request.normaFuente(),
+                request.requiereRecetaEspecial(), request.retieneReceta(), request.vigenciaRecetaDias());
+    }
+
+    public static ClasificacionControladaResponse toResponse(ClasificacionControladaResult result) {
+        return new ClasificacionControladaResponse(
+                result.codigo(), result.denominacion(), result.normaFuente(), result.requiereRecetaEspecial(),
+                result.retieneReceta(), result.vigenciaRecetaDias(), result.estado());
+    }
+
+    public static CrearPrincipioActivoCommand toCreateCommand(PrincipioActivoRequest request) {
+        return new CrearPrincipioActivoCommand(
+                request.codigoFuente(), request.denominacion(), request.nombreNormalizado(), request.fuente());
+    }
+
+    public static ActualizarPrincipioActivoCommand toUpdateCommand(UUID principioActivoId, PrincipioActivoRequest request) {
+        return new ActualizarPrincipioActivoCommand(
+                principioActivoId, request.codigoFuente(), request.denominacion(), request.nombreNormalizado(),
+                request.fuente());
+    }
+
+    public static PrincipioActivoResponse toResponse(PrincipioActivoResult result) {
+        return new PrincipioActivoResponse(
+                result.id(), result.codigoFuente(), result.denominacion(), result.nombreNormalizado(),
+                result.fuente(), result.estado());
+    }
+
+    public static CrearMarcaCommand toCreateCommand(MarcaRequest request) {
+        return new CrearMarcaCommand(request.tenantId(), request.codigo(), request.nombre(), request.descripcion());
+    }
+
+    public static ActualizarMarcaCommand toUpdateCommand(UUID marcaId, MarcaRequest request) {
+        return new ActualizarMarcaCommand(
+                request.tenantId(), marcaId, request.codigo(), request.nombre(), request.descripcion());
+    }
+
+    public static MarcaResponse toResponse(MarcaResult result) {
+        return new MarcaResponse(
+                result.id(), result.tenantId(), result.codigo(), result.nombre(), result.descripcion(),
+                result.estado());
+    }
+
+    public static CrearCategoriaProductoCommand toCreateCommand(CategoriaProductoRequest request) {
+        return new CrearCategoriaProductoCommand(
+                request.tenantId(), request.categoriaPadreId(), request.codigo(), request.nombre(),
+                request.descripcion(), request.nivel(), request.orden());
+    }
+
+    public static ActualizarCategoriaProductoCommand toUpdateCommand(UUID categoriaId, CategoriaProductoRequest request) {
+        return new ActualizarCategoriaProductoCommand(
+                request.tenantId(), categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
+                request.descripcion(), request.nivel(), request.orden());
+    }
+
+    public static CategoriaProductoResponse toResponse(CategoriaProductoResult result) {
+        return new CategoriaProductoResponse(
+                result.id(), result.tenantId(), result.categoriaPadreId(), result.codigo(), result.nombre(),
+                result.descripcion(), result.nivel(), result.orden(), result.estado());
+    }
+}
+```
+
+- [ ] **Step 7: Ampliar `CatalogoApiMapper` — parte 2: ProductoRegulado + SKUComercial + paginación**
+
+Añadir a `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`: los imports adicionales necesarios y los siguientes métodos, dentro de la misma clase (antes del cierre `}`):
+
+```java
+import com.softprimesolutions.catalogo.api.dto.request.AgregarCodigoBarraRequest;
+import com.softprimesolutions.catalogo.api.dto.request.AsociarPrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
+import com.softprimesolutions.catalogo.api.dto.response.CodigoBarraSkuResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PaginaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoAsociadoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.SkuResponse;
+import com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.dto.command.AsociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+```
+
+```java
+    public static CrearProductoReguladoCommand toCreateCommand(ProductoReguladoRequest request) {
+        return new CrearProductoReguladoCommand(
+                request.tipoProducto(), request.rubroCodigo(), request.tipoRegistro(), request.numeroRegistro(),
+                request.denominacion(), request.concentracionTexto(), request.presentacionRegulatoria(),
+                request.formaFarmaceuticaCodigo(), request.viaAdministracionCodigo(), request.unidadMedidaCodigo(),
+                request.condicionVentaCodigo(), request.clasificacionAtc(), request.clasificacionControladaCodigo(),
+                request.tipoLiberacion(), request.origenFabricacion(), request.paisOrigen(),
+                request.subpartidaNacional(), request.titularRegistro(), request.fabricante(),
+                request.importador(), request.establecimientoExpendio(), request.vigenteDesde(),
+                request.vigenteHasta(), request.fuente(), request.versionFuente());
+    }
+
+    public static ActualizarProductoReguladoCommand toUpdateCommand(
+            UUID productoReguladoId, ProductoReguladoRequest request) {
+        return new ActualizarProductoReguladoCommand(
+                productoReguladoId, request.tipoProducto(), request.rubroCodigo(), request.tipoRegistro(),
+                request.numeroRegistro(), request.denominacion(), request.concentracionTexto(),
+                request.presentacionRegulatoria(), request.formaFarmaceuticaCodigo(),
+                request.viaAdministracionCodigo(), request.unidadMedidaCodigo(), request.condicionVentaCodigo(),
+                request.clasificacionAtc(), request.clasificacionControladaCodigo(), request.tipoLiberacion(),
+                request.origenFabricacion(), request.paisOrigen(), request.subpartidaNacional(),
+                request.titularRegistro(), request.fabricante(), request.importador(),
+                request.establecimientoExpendio(), request.vigenteDesde(), request.vigenteHasta(),
+                request.fuente(), request.versionFuente());
+    }
+
+    public static AsociarPrincipioActivoCommand toCommand(UUID productoReguladoId, AsociarPrincipioActivoRequest request) {
+        return new AsociarPrincipioActivoCommand(
+                productoReguladoId, request.principioActivoId(), request.concentracionTexto(),
+                request.cantidad(), request.unidadMedidaCodigo(), request.esPrincipal(), request.orden());
+    }
+
+    public static ProductoReguladoResponse toResponse(ProductoReguladoResult result) {
+        return new ProductoReguladoResponse(
+                result.id(), result.tipoProducto(), result.rubroCodigo(), result.tipoRegistro(),
+                result.numeroRegistro(), result.denominacion(), result.concentracionTexto(),
+                result.presentacionRegulatoria(), result.formaFarmaceuticaCodigo(),
+                result.viaAdministracionCodigo(), result.unidadMedidaCodigo(), result.condicionVentaCodigo(),
+                result.clasificacionAtc(), result.clasificacionControladaCodigo(), result.tipoLiberacion(),
+                result.origenFabricacion(), result.paisOrigen(), result.subpartidaNacional(),
+                result.titularRegistro(), result.fabricante(), result.importador(),
+                result.establecimientoExpendio(), result.vigenteDesde(), result.vigenteHasta(), result.fuente(),
+                result.versionFuente(),
+                result.principiosActivos().stream()
+                        .map(asociado -> new PrincipioActivoAsociadoResponse(
+                                asociado.principioActivoId(), asociado.concentracionTexto(), asociado.cantidad(),
+                                asociado.unidadMedidaCodigo(), asociado.esPrincipal(), asociado.orden()))
+                        .toList(),
+                result.estadoRegulatorio(), result.createdAt(), result.updatedAt());
+    }
+
+    public static PaginaResponse<ProductoReguladoResumenResponse> toProductoReguladoPage(
+            PaginaResult<ProductoReguladoResumen> result) {
+        return new PaginaResponse<>(
+                result.items().stream()
+                        .map(resumen -> new ProductoReguladoResumenResponse(
+                                resumen.id(), resumen.denominacion(), resumen.condicionVentaCodigo(),
+                                resumen.estadoRegulatorio()))
+                        .toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static CrearSkuCommand toCreateCommand(SkuRequest request, String createdBy) {
+        return new CrearSkuCommand(
+                request.tenantId(), request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
+                request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
+                request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
+                request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
+                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
+                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), createdBy);
+    }
+
+    public static ActualizarSkuCommand toUpdateCommand(UUID skuId, SkuRequest request, String updatedBy) {
+        return new ActualizarSkuCommand(
+                request.tenantId(), skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
+                request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
+                request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
+                request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
+                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
+                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), updatedBy);
+    }
+
+    public static AgregarCodigoBarraCommand toCommand(UUID tenantId, UUID skuId, AgregarCodigoBarraRequest request) {
+        return new AgregarCodigoBarraCommand(
+                tenantId, skuId, request.codigoBarra(), request.tipoCodigo(), request.vigenteDesde(),
+                request.vigenteHasta());
+    }
+
+    public static SkuResponse toResponse(SkuResult result) {
+        return new SkuResponse(
+                result.id(), result.tenantId(), result.productoReguladoId(), result.categoriaId(),
+                result.marcaId(), result.tipoSku(), result.codigoInterno(), result.descripcionComercial(),
+                result.nombreCorto(), result.presentacionComercial(), result.unidadVentaCodigo(),
+                result.contenido(), result.unidadContenidoCodigo(), result.pesoGramos(), result.altoCm(),
+                result.anchoCm(), result.largoCm(), result.permiteVentaFraccion(), result.factorFraccion(),
+                result.requiereLote(), result.requiereVencimiento(), result.afectoIgv(),
+                result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
+                result.codigosBarra().stream()
+                        .map(codigo -> new CodigoBarraSkuResponse(
+                                codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),
+                                codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado()))
+                        .toList(),
+                result.estado(), result.createdBy(), result.createdAt(), result.updatedBy(), result.updatedAt());
+    }
+
+    public static PaginaResponse<SkuResumenResponse> toSkuPage(PaginaResult<SkuResumen> result) {
+        return new PaginaResponse<>(
+                result.items().stream()
+                        .map(resumen -> new SkuResumenResponse(
+                                resumen.id(), resumen.codigoInterno(), resumen.descripcionComercial(),
+                                resumen.tipoSku(), resumen.estado()))
+                        .toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+```
+
+- [ ] **Step 8: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/
+git commit -m "feat(catalogo): agregar DTOs HTTP y CatalogoApiMapper"
+```
+
+---
