@@ -2912,3 +2912,293 @@ git commit -m "feat(catalogo): agregar CatalogoControlService para cambio de est
 ```
 
 ---
+
+## Fase 4 — Persistencia (JPA escritura, JDBC lectura)
+
+### Task 11: Entidades y repositorios JPA (`CategoriaJpaEntity`, `ProductoJpaEntity`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CategoriaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CategoriaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoJpaRepository.java`
+
+**Interfaces:**
+- Produces: `CategoriaJpaEntity` (id, uuidPublico, tenantId, nombre, descripcion, estado, createdAt, updatedAt), `ProductoJpaEntity` (id, uuidPublico, tenantId, categoriaId, nombre, tipo, laboratorio, unidadMedida, presentacion, unidadesPorPaquete, codigoBarras, precioVenta, condicionVenta, esGenerico, esGenericoEsencial, grupoTerapeutico, codigoDigemid, principioActivo, concentracion, requiereLote, requiereVencimiento, estado, createdAt, updatedAt), `CategoriaJpaRepository.findByUuidPublico(UUID)`, `existsByTenantIdAndNombre(Long, String)`, `ProductoJpaRepository.findByUuidPublico(UUID)`, `existsByTenantIdAndCodigoBarras(Long, String)`. Usados por Task 12.
+
+No hay test unitario dedicado para entidades JPA (son POJOs de mapeo sin lógica); se validan indirectamente vía Task 12 y el test de integración de Task 17.
+
+- [ ] **Step 1: Crear `CategoriaJpaEntity.java`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CategoriaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "categoria", schema = "sch_catalogo")
+public class CategoriaJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false, length = 100)
+    private String nombre;
+
+    @Column(length = 500)
+    private String descripcion;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    protected CategoriaJpaEntity() {
+    }
+
+    public CategoriaJpaEntity(
+            UUID uuidPublico, Long tenantId, String nombre, String descripcion, String estado,
+            Instant createdAt, Instant updatedAt) {
+        this.uuidPublico = uuidPublico;
+        this.tenantId = tenantId;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.estado = estado;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public Long getTenantId() { return tenantId; }
+    public String getNombre() { return nombre; }
+    public String getDescripcion() { return descripcion; }
+    public String getEstado() { return estado; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+}
+```
+
+- [ ] **Step 2: Crear `ProductoJpaEntity.java`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "producto", schema = "sch_catalogo")
+public class ProductoJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(name = "categoria_id", nullable = false)
+    private Long categoriaId;
+
+    @Column(nullable = false, length = 200)
+    private String nombre;
+
+    @Column(nullable = false, length = 30)
+    private String tipo;
+
+    @Column(length = 150)
+    private String laboratorio;
+
+    @Column(name = "unidad_medida", nullable = false, length = 30)
+    private String unidadMedida;
+
+    @Column(length = 150)
+    private String presentacion;
+
+    @Column(name = "unidades_por_paquete", nullable = false)
+    private int unidadesPorPaquete;
+
+    @Column(name = "codigo_barras", length = 40)
+    private String codigoBarras;
+
+    @Column(name = "precio_venta", nullable = false, precision = 12, scale = 2)
+    private BigDecimal precioVenta;
+
+    @Column(name = "condicion_venta", length = 20)
+    private String condicionVenta;
+
+    @Column(name = "es_generico", nullable = false)
+    private boolean esGenerico;
+
+    @Column(name = "es_generico_esencial", nullable = false)
+    private boolean esGenericoEsencial;
+
+    @Column(name = "grupo_terapeutico", length = 150)
+    private String grupoTerapeutico;
+
+    @Column(name = "codigo_digemid", length = 40)
+    private String codigoDigemid;
+
+    @Column(name = "principio_activo", length = 200)
+    private String principioActivo;
+
+    @Column(length = 60)
+    private String concentracion;
+
+    @Column(name = "requiere_lote", nullable = false)
+    private boolean requiereLote;
+
+    @Column(name = "requiere_vencimiento", nullable = false)
+    private boolean requiereVencimiento;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    protected ProductoJpaEntity() {
+    }
+
+    public ProductoJpaEntity(
+            UUID uuidPublico, Long tenantId, Long categoriaId, String nombre, String tipo, String laboratorio,
+            String unidadMedida, String presentacion, int unidadesPorPaquete, String codigoBarras,
+            BigDecimal precioVenta, String condicionVenta, boolean esGenerico, boolean esGenericoEsencial,
+            String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion,
+            boolean requiereLote, boolean requiereVencimiento, String estado, Instant createdAt,
+            Instant updatedAt) {
+        this.uuidPublico = uuidPublico;
+        this.tenantId = tenantId;
+        this.categoriaId = categoriaId;
+        this.nombre = nombre;
+        this.tipo = tipo;
+        this.laboratorio = laboratorio;
+        this.unidadMedida = unidadMedida;
+        this.presentacion = presentacion;
+        this.unidadesPorPaquete = unidadesPorPaquete;
+        this.codigoBarras = codigoBarras;
+        this.precioVenta = precioVenta;
+        this.condicionVenta = condicionVenta;
+        this.esGenerico = esGenerico;
+        this.esGenericoEsencial = esGenericoEsencial;
+        this.grupoTerapeutico = grupoTerapeutico;
+        this.codigoDigemid = codigoDigemid;
+        this.principioActivo = principioActivo;
+        this.concentracion = concentracion;
+        this.requiereLote = requiereLote;
+        this.requiereVencimiento = requiereVencimiento;
+        this.estado = estado;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public Long getTenantId() { return tenantId; }
+    public Long getCategoriaId() { return categoriaId; }
+    public String getNombre() { return nombre; }
+    public String getTipo() { return tipo; }
+    public String getLaboratorio() { return laboratorio; }
+    public String getUnidadMedida() { return unidadMedida; }
+    public String getPresentacion() { return presentacion; }
+    public int getUnidadesPorPaquete() { return unidadesPorPaquete; }
+    public String getCodigoBarras() { return codigoBarras; }
+    public BigDecimal getPrecioVenta() { return precioVenta; }
+    public String getCondicionVenta() { return condicionVenta; }
+    public boolean isEsGenerico() { return esGenerico; }
+    public boolean isEsGenericoEsencial() { return esGenericoEsencial; }
+    public String getGrupoTerapeutico() { return grupoTerapeutico; }
+    public String getCodigoDigemid() { return codigoDigemid; }
+    public String getPrincipioActivo() { return principioActivo; }
+    public String getConcentracion() { return concentracion; }
+    public boolean isRequiereLote() { return requiereLote; }
+    public boolean isRequiereVencimiento() { return requiereVencimiento; }
+    public String getEstado() { return estado; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+}
+```
+
+- [ ] **Step 3: Crear los repositorios JPA**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CategoriaJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface CategoriaJpaRepository extends JpaRepository<CategoriaJpaEntity, Long> {
+    Optional<CategoriaJpaEntity> findByUuidPublico(UUID uuidPublico);
+    boolean existsByTenantIdAndNombre(Long tenantId, String nombre);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductoJpaRepository extends JpaRepository<ProductoJpaEntity, Long> {
+    Optional<ProductoJpaEntity> findByUuidPublico(UUID uuidPublico);
+    boolean existsByTenantIdAndCodigoBarras(Long tenantId, String codigoBarras);
+}
+```
+
+- [ ] **Step 4: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/
+git commit -m "feat(catalogo): agregar entidades y repositorios JPA de Categoria y Producto"
+```
+
+---
