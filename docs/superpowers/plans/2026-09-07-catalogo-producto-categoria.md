@@ -979,3 +979,493 @@ git commit -m "feat(catalogo): agregar agregado de dominio Producto"
 ```
 
 ---
+
+## Fase 3 — Application: DTOs, puertos y casos de uso de Categoría
+
+### Task 6: DTOs de aplicación (`command`, `query`, `result`) para Categoría y Producto
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearCategoriaCommand.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarCategoriaCommand.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearProductoCommand.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarProductoCommand.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarCategoriasQuery.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ConsultarProductoQuery.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarProductosQuery.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/CategoriaResult.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ProductoResult.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/PaginaResult.java`
+
+**Interfaces:**
+- Consumes: `Command<R>`, `Query<R>` (shared-application).
+- Produces: todos los records listados abajo. Usados por Task 7 (puertos), Task 8-9 (handlers), Task 14 (API mapper).
+
+Son records puros sin lógica — no requieren test dedicado, se validan indirectamente vía los handlers (Task 8-9).
+
+- [ ] **Step 1: Crear los DTOs de `command`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearCategoriaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record CrearCategoriaCommand(UUID tenantId, String nombre, String descripcion)
+        implements Command<CategoriaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarCategoriaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record ActualizarCategoriaCommand(UUID tenantId, UUID categoriaId, String nombre, String descripcion)
+        implements Command<CategoriaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearProductoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record CrearProductoCommand(
+        UUID tenantId,
+        UUID categoriaId,
+        String nombre,
+        String tipo,
+        String laboratorio,
+        String unidadMedida,
+        String presentacion,
+        Integer unidadesPorPaquete,
+        String codigoBarras,
+        BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        String grupoTerapeutico,
+        String codigoDigemid,
+        String principioActivo,
+        String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento) implements Command<ProductoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarProductoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record ActualizarProductoCommand(
+        UUID tenantId,
+        UUID productoId,
+        UUID categoriaId,
+        String nombre,
+        String tipo,
+        String laboratorio,
+        String unidadMedida,
+        String presentacion,
+        Integer unidadesPorPaquete,
+        String codigoBarras,
+        BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        String grupoTerapeutico,
+        String codigoDigemid,
+        String principioActivo,
+        String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento) implements Command<ProductoResult> {
+}
+```
+
+- [ ] **Step 2: Crear los DTOs de `query`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarCategoriasQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.List;
+import java.util.UUID;
+
+public record ListarCategoriasQuery(UUID tenantId, String estado) implements Query<List<CategoriaResult>> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ConsultarProductoQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.UUID;
+
+public record ConsultarProductoQuery(UUID tenantId, UUID productoId) implements Query<ProductoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarProductosQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.UUID;
+
+public record ListarProductosQuery(
+        UUID tenantId,
+        String texto,
+        UUID categoriaId,
+        String tipo,
+        String estado,
+        int page,
+        int size) implements Query<PaginaResult<ProductoResult>> {
+}
+```
+
+- [ ] **Step 3: Crear los DTOs de `result`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/CategoriaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record CategoriaResult(
+        UUID id,
+        UUID tenantId,
+        String nombre,
+        String descripcion,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ProductoResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+public record ProductoResult(
+        UUID id,
+        UUID tenantId,
+        UUID categoriaId,
+        String nombre,
+        String tipo,
+        String laboratorio,
+        String unidadMedida,
+        String presentacion,
+        int unidadesPorPaquete,
+        String codigoBarras,
+        BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        String grupoTerapeutico,
+        String codigoDigemid,
+        String principioActivo,
+        String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/PaginaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.List;
+
+public record PaginaResult<T>(List<T> items, int page, int size, long totalElements) {
+
+    public PaginaResult {
+        items = List.copyOf(items);
+    }
+}
+```
+
+- [ ] **Step 4: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/
+git commit -m "feat(catalogo): agregar DTOs de aplicacion command/query/result"
+```
+
+---
+
+### Task 7: Puertos `application/port/{in,out}` para Categoría y Producto
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CrearCategoriaUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ActualizarCategoriaUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarCategoriasUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CrearProductoUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ActualizarProductoUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ConsultarProductoUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarProductosUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CatalogoControlUseCase.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoWritePort.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`
+
+**Interfaces:**
+- Consumes: DTOs de Task 6, `Categoria`/`Producto` (Task 4-5), `Result`, `Unit` (shared-kernel), `ApplicationError` (shared-application).
+- Produces: todas las interfaces listadas — contratos que Task 8-9 (handlers) implementan e invocan, y que Task 10-11 (adapters JPA/JDBC) implementan.
+
+No requiere test dedicado (interfaces puras) — se validan indirectamente vía Task 8-9 con fakes.
+
+- [ ] **Step 1: Crear los puertos `port/in`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CrearCategoriaUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface CrearCategoriaUseCase {
+    Result<CategoriaResult, ApplicationError> execute(CrearCategoriaCommand command);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ActualizarCategoriaUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ActualizarCategoriaUseCase {
+    Result<CategoriaResult, ApplicationError> execute(ActualizarCategoriaCommand command);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarCategoriasUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+
+@FunctionalInterface
+public interface ListarCategoriasUseCase {
+    Result<List<CategoriaResult>, ApplicationError> execute(ListarCategoriasQuery query);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CrearProductoUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface CrearProductoUseCase {
+    Result<ProductoResult, ApplicationError> execute(CrearProductoCommand command);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ActualizarProductoUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ActualizarProductoUseCase {
+    Result<ProductoResult, ApplicationError> execute(ActualizarProductoCommand command);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ConsultarProductoUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ConsultarProductoUseCase {
+    Result<ProductoResult, ApplicationError> execute(ConsultarProductoQuery query);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarProductosUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ListarProductosUseCase {
+    Result<PaginaResult<ProductoResult>, ApplicationError> execute(ListarProductosQuery query);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/CatalogoControlUseCase.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import com.softprimesolutions.shared.kernel.result.Unit;
+import java.util.UUID;
+
+public interface CatalogoControlUseCase {
+    Result<Unit, ApplicationError> changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status);
+
+    Result<Unit, ApplicationError> changeProductoStatus(UUID tenantId, UUID productoId, String status);
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoWritePort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoWritePort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import java.time.Instant;
+import java.util.UUID;
+
+public interface CatalogoWritePort {
+
+    SaveCategoriaOutcome save(Categoria categoria);
+
+    SaveProductoOutcome save(Producto producto);
+
+    boolean categoriaExists(UUID tenantId, UUID categoriaId);
+
+    boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt);
+
+    boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt);
+
+    enum SaveCategoriaOutcome {
+        CREATED,
+        UPDATED,
+        TENANT_NOT_FOUND,
+        DUPLICATE_NAME,
+        NOT_FOUND
+    }
+
+    enum SaveProductoOutcome {
+        CREATED,
+        UPDATED,
+        TENANT_NOT_FOUND,
+        CATEGORIA_NOT_FOUND,
+        DUPLICATE_BARCODE,
+        NOT_FOUND
+    }
+}
+```
+
+- [ ] **Step 3: Crear `CatalogoReadPort`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.port.out;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface CatalogoReadPort {
+
+    List<CategoriaResult> findCategorias(UUID tenantId, String estado);
+
+    Optional<ProductoResult> findProducto(UUID tenantId, UUID productoId);
+
+    PaginaResult<ProductoResult> findProductos(
+            UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int page, int size);
+}
+```
+
+- [ ] **Step 4: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/
+git commit -m "feat(catalogo): agregar puertos de entrada y salida de aplicacion"
+```
+
+---
