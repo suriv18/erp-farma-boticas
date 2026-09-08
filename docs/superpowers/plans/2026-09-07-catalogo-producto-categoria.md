@@ -4136,3 +4136,258 @@ git commit -m "feat(catalogo): agregar DTOs HTTP y CatalogoApiMapper"
 ```
 
 ---
+
+### Task 15: Controllers REST (`CategoriaController`, `ProductoController`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoControllerSupport.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CategoriaController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/ProductoController.java`
+
+**Interfaces:**
+- Consumes: puertos `in` (Task 7), `CatalogoApiMapper` (Task 14), `ApplicationErrorHttpMapper` (shared-web).
+- Produces: los tres endpoints REST descritos en el spec. Usados por Task 17 (test de integración).
+
+No hay test unitario dedicado para controllers (MockMvc con contexto Spring completo se prueba en Task 17); estas clases no tienen lógica propia más allá de delegar a los puertos `in`.
+
+- [ ] **Step 1: Crear `CatalogoControllerSupport`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoControllerSupport.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.web.error.ApplicationErrorHttpMapper;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+
+final class CatalogoControllerSupport {
+
+    private CatalogoControllerSupport() {
+    }
+
+    static ResponseEntity<ProblemDetail> problem(ApplicationError error) {
+        var problem = ApplicationErrorHttpMapper.toProblemDetail(error);
+        return ResponseEntity.status(problem.getStatus()).body(problem);
+    }
+}
+```
+
+- [ ] **Step 2: Crear `CategoriaController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CategoriaController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.ActualizarCategoriaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CrearCategoriaRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasUseCase;
+import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/categorias")
+public class CategoriaController {
+
+    private final CrearCategoriaUseCase createCategoria;
+    private final ActualizarCategoriaUseCase updateCategoria;
+    private final ListarCategoriasUseCase listCategorias;
+    private final CatalogoControlUseCase control;
+
+    public CategoriaController(
+            CrearCategoriaUseCase createCategoria,
+            ActualizarCategoriaUseCase updateCategoria,
+            ListarCategoriasUseCase listCategorias,
+            CatalogoControlUseCase control) {
+        this.createCategoria = createCategoria;
+        this.updateCategoria = updateCategoria;
+        this.listCategorias = listCategorias;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody CrearCategoriaRequest request) {
+        return createCategoria.execute(CatalogoApiMapper.toCommand(request)).fold(
+                result -> ResponseEntity.created(URI.create("/api/v1/catalogo/categorias/" + result.id()))
+                        .body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{categoriaId}")
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID categoriaId, @Valid @RequestBody ActualizarCategoriaRequest request) {
+        return updateCategoria.execute(CatalogoApiMapper.toCommand(categoriaId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{categoriaId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID categoriaId, @Valid @RequestBody CambiarEstadoRequest request) {
+        return control.changeCategoriaStatus(request.tenantId(), categoriaId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(),
+                CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.categorias.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam UUID tenantId, @RequestParam(required = false) String estado) {
+        return listCategorias.execute(new ListarCategoriasQuery(tenantId, estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 3: Crear `ProductoController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/ProductoController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.ActualizarProductoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CrearProductoRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarProductosUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.net.URI;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/productos")
+public class ProductoController {
+
+    private final CrearProductoUseCase createProducto;
+    private final ActualizarProductoUseCase updateProducto;
+    private final ConsultarProductoUseCase getProducto;
+    private final ListarProductosUseCase listProductos;
+    private final CatalogoControlUseCase control;
+
+    public ProductoController(
+            CrearProductoUseCase createProducto,
+            ActualizarProductoUseCase updateProducto,
+            ConsultarProductoUseCase getProducto,
+            ListarProductosUseCase listProductos,
+            CatalogoControlUseCase control) {
+        this.createProducto = createProducto;
+        this.updateProducto = updateProducto;
+        this.getProducto = getProducto;
+        this.listProductos = listProductos;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.productos.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody CrearProductoRequest request) {
+        return createProducto.execute(CatalogoApiMapper.toCommand(request)).fold(
+                result -> ResponseEntity.created(URI.create("/api/v1/catalogo/productos/" + result.id()))
+                        .body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{productoId}")
+    @PreAuthorize("hasAuthority('catalogo.productos.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID productoId, @Valid @RequestBody ActualizarProductoRequest request) {
+        return updateProducto.execute(CatalogoApiMapper.toCommand(productoId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{productoId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.productos.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID productoId, @Valid @RequestBody CambiarEstadoRequest request) {
+        return control.changeProductoStatus(request.tenantId(), productoId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(),
+                CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{productoId}")
+    @PreAuthorize("hasAuthority('catalogo.productos.consultar')")
+    public ResponseEntity<?> get(@PathVariable UUID productoId, @RequestParam UUID tenantId) {
+        return getProducto.execute(new ConsultarProductoQuery(tenantId, productoId)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.productos.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) UUID categoriaId,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String estado,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return listProductos.execute(new ListarProductosQuery(tenantId, q, categoriaId, tipo, estado, page, size))
+                .fold(
+                        result -> ResponseEntity.ok(CatalogoApiMapper.toProductoPage(result)),
+                        CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 4: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/
+git commit -m "feat(catalogo): agregar CategoriaController y ProductoController"
+```
+
+---
