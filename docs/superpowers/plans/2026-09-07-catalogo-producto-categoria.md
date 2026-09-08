@@ -3504,3 +3504,328 @@ git commit -m "feat(catalogo): agregar CatalogoJpaWriteAdapter y su mapper"
 ```
 
 ---
+
+### Task 13: Read side — `CatalogoJdbcReadRepository`, `CatalogoReadMapper`, `CatalogoJdbcReadAdapter`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/projection/CategoriaProjection.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/projection/ProductoProjection.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/repository/CatalogoJdbcReadRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/mapper/CatalogoReadMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/adapter/CatalogoJdbcReadAdapter.java`
+
+**Interfaces:**
+- Consumes: `CatalogoReadPort` (Task 7), `CategoriaResult`, `ProductoResult`, `PaginaResult` (Task 6).
+- Produces: `CatalogoJdbcReadAdapter implements CatalogoReadPort`, registrado como `@Repository`. Usado por Task 16 (wiring), verificado por Task 17.
+
+No hay test unitario dedicado (requiere BD real); se valida vía el test de integración de Task 17.
+
+- [ ] **Step 1: Crear las projections**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/projection/CategoriaProjection.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.projection;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record CategoriaProjection(
+        UUID id,
+        UUID tenantId,
+        String nombre,
+        String descripcion,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/projection/ProductoProjection.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.projection;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+public record ProductoProjection(
+        UUID id,
+        UUID tenantId,
+        UUID categoriaId,
+        String nombre,
+        String tipo,
+        String laboratorio,
+        String unidadMedida,
+        String presentacion,
+        int unidadesPorPaquete,
+        String codigoBarras,
+        BigDecimal precioVenta,
+        String condicionVenta,
+        boolean esGenerico,
+        boolean esGenericoEsencial,
+        String grupoTerapeutico,
+        String codigoDigemid,
+        String principioActivo,
+        String concentracion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        String estado,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoJdbcReadRepository`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/repository/CatalogoJdbcReadRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.projection.CategoriaProjection;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.projection.ProductoProjection;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class CatalogoJdbcReadRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public CatalogoJdbcReadRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    public List<CategoriaProjection> findCategorias(UUID tenantId, String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid, c.nombre, c.descripcion,
+                               c.estado, c.created_at, c.updated_at
+                          FROM sch_catalogo.categoria c
+                          JOIN sch_farmacia.tenant t ON t.id = c.tenant_id
+                         WHERE t.uuid_publico = :tenantId
+                           AND (:estado = '' OR c.estado = :estado)
+                         ORDER BY c.nombre, c.id
+                        """)
+                .param("tenantId", tenantId)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new CategoriaProjection(
+                        rs.getObject("uuid_publico", UUID.class),
+                        rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("nombre"),
+                        rs.getString("descripcion"),
+                        rs.getString("estado"),
+                        toInstant(rs.getObject("created_at", OffsetDateTime.class)),
+                        toInstant(rs.getObject("updated_at", OffsetDateTime.class))))
+                .list();
+    }
+
+    public Optional<ProductoProjection> findProducto(UUID tenantId, UUID productoId) {
+        return jdbcClient.sql(PRODUCTO_SELECT + """
+                         WHERE t.uuid_publico = :tenantId AND p.uuid_publico = :productoId
+                        """)
+                .param("tenantId", tenantId)
+                .param("productoId", productoId)
+                .query(this::mapProducto)
+                .optional();
+    }
+
+    public List<ProductoProjection> findProductos(
+            UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int offset, int limit) {
+        var filter = normalizeSearch(texto);
+        return jdbcClient.sql(PRODUCTO_SELECT + PRODUCTO_FILTER
+                        + " ORDER BY p.nombre, p.id LIMIT :limit OFFSET :offset")
+                .param("tenantId", tenantId)
+                .param("search", filter)
+                .param("pattern", '%' + filter + '%')
+                .param("categoriaId", categoriaId)
+                .param("tipo", tipo == null ? "" : tipo)
+                .param("estado", estado == null ? "" : estado)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query(this::mapProducto)
+                .list();
+    }
+
+    public long countProductos(UUID tenantId, String texto, UUID categoriaId, String tipo, String estado) {
+        var filter = normalizeSearch(texto);
+        return jdbcClient.sql("SELECT COUNT(*) " + PRODUCTO_FROM + PRODUCTO_FILTER)
+                .param("tenantId", tenantId)
+                .param("search", filter)
+                .param("pattern", '%' + filter + '%')
+                .param("categoriaId", categoriaId)
+                .param("tipo", tipo == null ? "" : tipo)
+                .param("estado", estado == null ? "" : estado)
+                .query(Long.class)
+                .single();
+    }
+
+    private ProductoProjection mapProducto(java.sql.ResultSet rs, int rowNumber) throws java.sql.SQLException {
+        return new ProductoProjection(
+                rs.getObject("uuid_publico", UUID.class),
+                rs.getObject("tenant_uuid", UUID.class),
+                rs.getObject("categoria_uuid", UUID.class),
+                rs.getString("nombre"),
+                rs.getString("tipo"),
+                rs.getString("laboratorio"),
+                rs.getString("unidad_medida"),
+                rs.getString("presentacion"),
+                rs.getInt("unidades_por_paquete"),
+                rs.getString("codigo_barras"),
+                rs.getBigDecimal("precio_venta"),
+                rs.getString("condicion_venta"),
+                rs.getBoolean("es_generico"),
+                rs.getBoolean("es_generico_esencial"),
+                rs.getString("grupo_terapeutico"),
+                rs.getString("codigo_digemid"),
+                rs.getString("principio_activo"),
+                rs.getString("concentracion"),
+                rs.getBoolean("requiere_lote"),
+                rs.getBoolean("requiere_vencimiento"),
+                rs.getString("estado"),
+                toInstant(rs.getObject("created_at", OffsetDateTime.class)),
+                toInstant(rs.getObject("updated_at", OffsetDateTime.class)));
+    }
+
+    private static final String PRODUCTO_FROM = """
+            FROM sch_catalogo.producto p
+            JOIN sch_farmacia.tenant t ON t.id = p.tenant_id
+            JOIN sch_catalogo.categoria c ON c.id = p.categoria_id
+            """;
+
+    private static final String PRODUCTO_SELECT = "SELECT p.uuid_publico, t.uuid_publico AS tenant_uuid, "
+            + "c.uuid_publico AS categoria_uuid, p.nombre, p.tipo, p.laboratorio, p.unidad_medida, "
+            + "p.presentacion, p.unidades_por_paquete, p.codigo_barras, p.precio_venta, p.condicion_venta, "
+            + "p.es_generico, p.es_generico_esencial, p.grupo_terapeutico, p.codigo_digemid, "
+            + "p.principio_activo, p.concentracion, p.requiere_lote, p.requiere_vencimiento, p.estado, "
+            + "p.created_at, p.updated_at " + PRODUCTO_FROM;
+
+    private static final String PRODUCTO_FILTER = """
+             WHERE t.uuid_publico = :tenantId
+               AND (:search = '' OR LOWER(p.nombre) LIKE :pattern OR LOWER(COALESCE(p.codigo_barras, '')) LIKE :pattern)
+               AND (:categoriaId IS NULL OR c.uuid_publico = :categoriaId)
+               AND (:tipo = '' OR p.tipo = :tipo)
+               AND (:estado = '' OR p.estado = :estado)
+            """;
+
+    private static String normalizeSearch(String search) {
+        return search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static java.time.Instant toInstant(OffsetDateTime value) {
+        return value == null ? null : value.toInstant();
+    }
+}
+```
+
+- [ ] **Step 3: Crear `CatalogoReadMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/mapper/CatalogoReadMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.mapper;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.projection.CategoriaProjection;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.projection.ProductoProjection;
+
+public final class CatalogoReadMapper {
+
+    private CatalogoReadMapper() {
+    }
+
+    public static CategoriaResult toResult(CategoriaProjection projection) {
+        return new CategoriaResult(
+                projection.id(), projection.tenantId(), projection.nombre(), projection.descripcion(),
+                projection.estado(), projection.createdAt(), projection.updatedAt());
+    }
+
+    public static ProductoResult toResult(ProductoProjection projection) {
+        return new ProductoResult(
+                projection.id(), projection.tenantId(), projection.categoriaId(), projection.nombre(),
+                projection.tipo(), projection.laboratorio(), projection.unidadMedida(), projection.presentacion(),
+                projection.unidadesPorPaquete(), projection.codigoBarras(), projection.precioVenta(),
+                projection.condicionVenta(), projection.esGenerico(), projection.esGenericoEsencial(),
+                projection.grupoTerapeutico(), projection.codigoDigemid(), projection.principioActivo(),
+                projection.concentracion(), projection.requiereLote(), projection.requiereVencimiento(),
+                projection.estado(), projection.createdAt(), projection.updatedAt());
+    }
+}
+```
+
+- [ ] **Step 4: Crear `CatalogoJdbcReadAdapter`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/adapter/CatalogoJdbcReadAdapter.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.adapter;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.mapper.CatalogoReadMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.repository.CatalogoJdbcReadRepository;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
+
+    private final CatalogoJdbcReadRepository repository;
+
+    public CatalogoJdbcReadAdapter(CatalogoJdbcReadRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoriaResult> findCategorias(UUID tenantId, String estado) {
+        return repository.findCategorias(tenantId, estado).stream().map(CatalogoReadMapper::toResult).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ProductoResult> findProducto(UUID tenantId, UUID productoId) {
+        return repository.findProducto(tenantId, productoId).map(CatalogoReadMapper::toResult);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResult<ProductoResult> findProductos(
+            UUID tenantId, String texto, UUID categoriaId, String tipo, String estado, int page, int size) {
+        var items = repository.findProductos(tenantId, texto, categoriaId, tipo, estado, page * size, size)
+                .stream().map(CatalogoReadMapper::toResult).toList();
+        return new PaginaResult<>(items, page, size, repository.countProductos(tenantId, texto, categoriaId, tipo, estado));
+    }
+}
+```
+
+- [ ] **Step 5: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/
+git commit -m "feat(catalogo): agregar read side JDBC de Categoria y Producto"
+```
+
+---
