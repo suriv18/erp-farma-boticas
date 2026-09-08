@@ -5,7 +5,7 @@ import { act } from 'react';
 import { apiClient } from '../../../app/api';
 import { useAuthSession } from './useAuthSession';
 import { AuthSessionProvider } from './AuthSessionProvider';
-import { clearRefreshToken, readRefreshToken, saveRefreshToken } from './session-storage';
+import { readRefreshToken, saveRefreshToken } from './session-storage';
 
 const server = setupServer();
 beforeAll(() => server.listen());
@@ -33,15 +33,18 @@ function Probe() {
   return (
     <div>
       <span data-testid="authenticated">{String(session.authenticated)}</span>
-      <button onClick={() => session.authenticate({
-        tenantId: '11111111-1111-1111-1111-111111111111',
-        email: 'admin@boticas.pe',
-        password: 'Boticas2026!',
-        remember: false
-      })}>
+      <button onClick={() => {
+        void session.authenticate({
+          email: 'admin@boticas.pe',
+          password: 'Boticas2026!',
+          remember: false
+        });
+      }}>
         login
       </button>
-      <button onClick={() => session.signOut()}>logout</button>
+      <button onClick={() => {
+        void session.signOut();
+      }}>logout</button>
     </div>
   );
 }
@@ -56,7 +59,7 @@ describe('AuthSessionProvider', () => {
       </AuthSessionProvider>
     );
 
-    await act(async () => {
+    act(() => {
       screen.getByRole('button', { name: 'login' }).click();
     });
 
@@ -105,12 +108,12 @@ describe('AuthSessionProvider', () => {
       </AuthSessionProvider>
     );
 
-    await act(async () => {
+    act(() => {
       screen.getByRole('button', { name: 'login' }).click();
     });
     await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
 
-    await act(async () => {
+    act(() => {
       screen.getByRole('button', { name: 'logout' }).click();
     });
 

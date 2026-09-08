@@ -22,7 +22,7 @@ const sampleResponse = {
 };
 
 describe('auth.api', () => {
-  it('login envia tenantId, login, password y channel WEB, y devuelve el token', async () => {
+  it('login envia login, password y channel WEB, y devuelve el token', async () => {
     let receivedBody: unknown;
     server.use(
       http.post('http://localhost/api/v1/auth/login', async ({ request }) => {
@@ -33,13 +33,11 @@ describe('auth.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await login(client, {
-      tenantId: '11111111-1111-1111-1111-111111111111',
       login: 'admin@boticas.pe',
       password: 'Boticas2026!'
     });
 
     expect(receivedBody).toEqual({
-      tenantId: '11111111-1111-1111-1111-111111111111',
       login: 'admin@boticas.pe',
       password: 'Boticas2026!',
       channel: 'WEB'

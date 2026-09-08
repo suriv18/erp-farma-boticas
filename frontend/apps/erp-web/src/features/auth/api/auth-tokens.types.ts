@@ -11,7 +11,6 @@ export type AuthTokenResponse = {
 };
 
 export type LoginRequest = {
-  tenantId: string;
   login: string;
   password: string;
 };

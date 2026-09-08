@@ -16,9 +16,10 @@ import { loginSchema, type LoginCredentials } from '../schemas/login.schema';
 
 type LoginFormProps = {
   onAuthenticate: (credentials: LoginCredentials) => Promise<void>;
+  submitError?: string | null;
 };
 
-export function LoginForm({ onAuthenticate }: LoginFormProps) {
+export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   const {
@@ -41,6 +42,12 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
         void submitLogin(event);
       }}
     >
+      {submitError ? (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-medium text-rose-700">
+          {submitError}
+        </p>
+      ) : null}
+
       <div>
         <label htmlFor="email" className="text-sm font-semibold text-slate-700">
           Correo corporativo

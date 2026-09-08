@@ -53,7 +53,6 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
   const authenticate = useCallback(async (credentials: LoginCredentials) => {
     const response = await loginRequest(apiClient, {
-      tenantId: credentials.tenantId,
       login: credentials.email,
       password: credentials.password
     });
