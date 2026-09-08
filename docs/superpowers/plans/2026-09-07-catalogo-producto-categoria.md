@@ -3202,3 +3202,305 @@ git commit -m "feat(catalogo): agregar entidades y repositorios JPA de Categoria
 ```
 
 ---
+
+### Task 12: `CatalogoWriteMapper` y `CatalogoJpaWriteAdapter` (implementa `CatalogoWritePort` completo)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoWriteMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoJpaWriteAdapter.java`
+
+**Interfaces:**
+- Consumes: `Categoria`, `Producto` (Task 4-5), `CategoriaJpaEntity`, `ProductoJpaEntity`, `CategoriaJpaRepository`, `ProductoJpaRepository` (Task 11), `CatalogoWritePort` (Task 7).
+- Produces: `CatalogoJpaWriteAdapter implements CatalogoWritePort`, registrado como `@Repository`. Usado por Task 16 (wiring de Spring), verificado por Task 17 (test de integración).
+
+No hay test unitario dedicado para el adapter (requiere BD real); se valida vía el test de integración de Task 17. El mapper tampoco requiere test dedicado (mapeo directo sin lógica).
+
+- [ ] **Step 1: Crear `CatalogoWriteMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoWriteMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
+
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.EstadoCategoria;
+import com.softprimesolutions.catalogo.domain.model.EstadoProducto;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import com.softprimesolutions.catalogo.domain.model.TipoProducto;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoJpaEntity;
+import java.util.UUID;
+
+public final class CatalogoWriteMapper {
+
+    private CatalogoWriteMapper() {
+    }
+
+    public static CategoriaJpaEntity toEntity(Categoria categoria, Long tenantId) {
+        return new CategoriaJpaEntity(
+                categoria.id().value(), tenantId, categoria.nombre(), categoria.descripcion(),
+                categoria.estado().name(), categoria.createdAt(), categoria.updatedAt());
+    }
+
+    public static Categoria toDomain(CategoriaJpaEntity entity, UUID tenantUuid) {
+        return Categoria.restore(
+                new CategoriaId(entity.getUuidPublico()), new TenantId(tenantUuid),
+                entity.getNombre(), entity.getDescripcion(), EstadoCategoria.valueOf(entity.getEstado()),
+                entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+
+    public static ProductoJpaEntity toEntity(Producto producto, Long tenantId, Long categoriaId) {
+        return new ProductoJpaEntity(
+                producto.id().value(), tenantId, categoriaId, producto.nombre(), producto.tipo().name(),
+                producto.laboratorio(), producto.unidadMedida(), producto.presentacion(),
+                producto.unidadesPorPaquete(), producto.codigoBarras(), producto.precioVenta(),
+                producto.condicionVenta() == null ? null : producto.condicionVenta().name(),
+                producto.esGenerico(), producto.esGenericoEsencial(), producto.grupoTerapeutico(),
+                producto.codigoDigemid(), producto.principioActivo(), producto.concentracion(),
+                producto.requiereLote(), producto.requiereVencimiento(), producto.estado().name(),
+                producto.createdAt(), producto.updatedAt());
+    }
+
+    public static Producto toDomain(ProductoJpaEntity entity, UUID tenantUuid, UUID categoriaUuid) {
+        return Producto.restore(
+                new ProductoId(entity.getUuidPublico()), new TenantId(tenantUuid),
+                new CategoriaId(categoriaUuid), entity.getNombre(), TipoProducto.valueOf(entity.getTipo()),
+                entity.getLaboratorio(), entity.getUnidadMedida(), entity.getPresentacion(),
+                entity.getUnidadesPorPaquete(), entity.getCodigoBarras(), entity.getPrecioVenta(),
+                entity.getCondicionVenta() == null ? null : CondicionVenta.valueOf(entity.getCondicionVenta()),
+                entity.isEsGenerico(), entity.isEsGenericoEsencial(), entity.getGrupoTerapeutico(),
+                entity.getCodigoDigemid(), entity.getPrincipioActivo(), entity.getConcentracion(),
+                entity.isRequiereLote(), entity.isRequiereVencimiento(), EstadoProducto.valueOf(entity.getEstado()),
+                entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoJpaWriteAdapter`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoJpaWriteAdapter.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoWritePort;
+import com.softprimesolutions.catalogo.domain.model.Categoria;
+import com.softprimesolutions.catalogo.domain.model.Producto;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoWriteMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CategoriaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ProductoJpaRepository;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoJpaWriteAdapter implements CatalogoWritePort {
+
+    private final CategoriaJpaRepository categoriaRepository;
+    private final ProductoJpaRepository productoRepository;
+    private final JdbcClient jdbcClient;
+
+    public CatalogoJpaWriteAdapter(
+            CategoriaJpaRepository categoriaRepository,
+            ProductoJpaRepository productoRepository,
+            JdbcClient jdbcClient) {
+        this.categoriaRepository = categoriaRepository;
+        this.productoRepository = productoRepository;
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional
+    public SaveCategoriaOutcome save(Categoria categoria) {
+        var tenantId = findTenantId(categoria.tenantId().value());
+        if (tenantId.isEmpty()) return SaveCategoriaOutcome.TENANT_NOT_FOUND;
+
+        var existing = categoriaRepository.findByUuidPublico(categoria.id().value());
+        if (existing.isEmpty()) {
+            if (categoriaRepository.existsByTenantIdAndNombre(tenantId.get(), categoria.nombre())) {
+                return SaveCategoriaOutcome.DUPLICATE_NAME;
+            }
+            try {
+                categoriaRepository.saveAndFlush(CatalogoWriteMapper.toEntity(categoria, tenantId.get()));
+                return SaveCategoriaOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveCategoriaOutcome.DUPLICATE_NAME;
+            }
+        }
+
+        var entity = existing.get();
+        if (!entity.getNombre().equals(categoria.nombre())
+                && categoriaRepository.existsByTenantIdAndNombre(tenantId.get(), categoria.nombre())) {
+            return SaveCategoriaOutcome.DUPLICATE_NAME;
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.categoria
+                           SET nombre = :nombre, descripcion = :descripcion, updated_at = :updatedAt
+                         WHERE uuid_publico = :categoriaId
+                        """)
+                .param("nombre", categoria.nombre())
+                .param("descripcion", categoria.descripcion())
+                .param("updatedAt", categoria.updatedAt())
+                .param("categoriaId", categoria.id().value())
+                .update();
+        return SaveCategoriaOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveProductoOutcome save(Producto producto) {
+        var tenantId = findTenantId(producto.tenantId().value());
+        if (tenantId.isEmpty()) return SaveProductoOutcome.TENANT_NOT_FOUND;
+
+        var categoriaInternalId = findCategoriaInternalId(producto.categoriaId().value());
+        if (categoriaInternalId.isEmpty()) return SaveProductoOutcome.CATEGORIA_NOT_FOUND;
+
+        var existing = productoRepository.findByUuidPublico(producto.id().value());
+        if (existing.isEmpty()) {
+            if (producto.codigoBarras() != null
+                    && productoRepository.existsByTenantIdAndCodigoBarras(tenantId.get(), producto.codigoBarras())) {
+                return SaveProductoOutcome.DUPLICATE_BARCODE;
+            }
+            try {
+                productoRepository.saveAndFlush(
+                        CatalogoWriteMapper.toEntity(producto, tenantId.get(), categoriaInternalId.get()));
+                return SaveProductoOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveProductoOutcome.DUPLICATE_BARCODE;
+            }
+        }
+
+        var entity = existing.get();
+        var barcodeChanged = producto.codigoBarras() != null && !producto.codigoBarras().equals(entity.getCodigoBarras());
+        if (barcodeChanged
+                && productoRepository.existsByTenantIdAndCodigoBarras(tenantId.get(), producto.codigoBarras())) {
+            return SaveProductoOutcome.DUPLICATE_BARCODE;
+        }
+        try {
+            jdbcClient.sql("""
+                            UPDATE sch_catalogo.producto
+                               SET categoria_id = :categoriaId, nombre = :nombre, tipo = :tipo,
+                                   laboratorio = :laboratorio, unidad_medida = :unidadMedida,
+                                   presentacion = :presentacion, unidades_por_paquete = :unidadesPorPaquete,
+                                   codigo_barras = :codigoBarras, precio_venta = :precioVenta,
+                                   condicion_venta = :condicionVenta, es_generico = :esGenerico,
+                                   es_generico_esencial = :esGenericoEsencial,
+                                   grupo_terapeutico = :grupoTerapeutico, codigo_digemid = :codigoDigemid,
+                                   principio_activo = :principioActivo, concentracion = :concentracion,
+                                   requiere_lote = :requiereLote, requiere_vencimiento = :requiereVencimiento,
+                                   updated_at = :updatedAt
+                             WHERE uuid_publico = :productoId
+                            """)
+                    .param("categoriaId", categoriaInternalId.get())
+                    .param("nombre", producto.nombre())
+                    .param("tipo", producto.tipo().name())
+                    .param("laboratorio", producto.laboratorio())
+                    .param("unidadMedida", producto.unidadMedida())
+                    .param("presentacion", producto.presentacion())
+                    .param("unidadesPorPaquete", producto.unidadesPorPaquete())
+                    .param("codigoBarras", producto.codigoBarras())
+                    .param("precioVenta", producto.precioVenta())
+                    .param("condicionVenta", producto.condicionVenta() == null ? null : producto.condicionVenta().name())
+                    .param("esGenerico", producto.esGenerico())
+                    .param("esGenericoEsencial", producto.esGenericoEsencial())
+                    .param("grupoTerapeutico", producto.grupoTerapeutico())
+                    .param("codigoDigemid", producto.codigoDigemid())
+                    .param("principioActivo", producto.principioActivo())
+                    .param("concentracion", producto.concentracion())
+                    .param("requiereLote", producto.requiereLote())
+                    .param("requiereVencimiento", producto.requiereVencimiento())
+                    .param("updatedAt", producto.updatedAt())
+                    .param("productoId", producto.id().value())
+                    .update();
+            return SaveProductoOutcome.UPDATED;
+        } catch (DataIntegrityViolationException exception) {
+            return SaveProductoOutcome.DUPLICATE_BARCODE;
+        }
+    }
+
+    @Override
+    public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_catalogo.categoria
+                         WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
+                        """)
+                .param("tenantId", tenantInternalId.get())
+                .param("categoriaId", categoriaId)
+                .query(Long.class).single() > 0;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        UPDATE sch_catalogo.categoria
+                           SET estado = :status, updated_at = :changedAt
+                         WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
+                        """)
+                .param("status", status)
+                .param("changedAt", changedAt)
+                .param("tenantId", tenantInternalId.get())
+                .param("categoriaId", categoriaId)
+                .update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeProductoStatus(UUID tenantId, UUID productoId, String status, Instant changedAt) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        UPDATE sch_catalogo.producto
+                           SET estado = :status, updated_at = :changedAt
+                         WHERE tenant_id = :tenantId AND uuid_publico = :productoId
+                        """)
+                .param("status", status)
+                .param("changedAt", changedAt)
+                .param("tenantId", tenantInternalId.get())
+                .param("productoId", productoId)
+                .update() == 1;
+    }
+
+    private Optional<Long> findTenantId(UUID tenantUuid) {
+        if (tenantUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantUuid")
+                .param("tenantUuid", tenantUuid)
+                .query(Long.class)
+                .optional();
+    }
+
+    private Optional<Long> findCategoriaInternalId(UUID categoriaUuid) {
+        if (categoriaUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.categoria WHERE uuid_publico = :categoriaUuid")
+                .param("categoriaUuid", categoriaUuid)
+                .query(Long.class)
+                .optional();
+    }
+}
+```
+
+- [ ] **Step 3: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL. Nota: este paso no ejecuta el adapter contra BD real (eso ocurre en Task 17); solo confirma que el código compila con las firmas correctas del puerto.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/
+git commit -m "feat(catalogo): agregar CatalogoJpaWriteAdapter y su mapper"
+```
+
+---
