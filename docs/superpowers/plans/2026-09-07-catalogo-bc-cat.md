@@ -1161,3 +1161,602 @@ git commit -m "feat(catalogo): agregar los 5 catalogos de soporte regulatorio"
 ```
 
 ---
+
+### Task 4: Agregado `PrincipioActivo`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoPrincipioActivo.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivo.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivoTest.java`
+
+**Interfaces:**
+- Consumes: `PrincipioActivoId` (Task 2).
+- Produces: `PrincipioActivo.create(PrincipioActivoId id, String codigoFuente, String denominacion, String nombreNormalizado, String fuente): Result<PrincipioActivo, ErrorDetail>`, `restore(PrincipioActivoId id, String codigoFuente, String denominacion, String nombreNormalizado, String fuente, EstadoPrincipioActivo estado): PrincipioActivo`, getters `id()`, `codigoFuente()`, `denominacion()`, `nombreNormalizado()`, `fuente()`, `estado()`. Usado por Task 13 (handlers), Task 19 (mapper JPA).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivoTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class PrincipioActivoTest {
+
+    @Test
+    void createsAndNormalizesAValidPrincipioActivo() {
+        var result = PrincipioActivo.create(
+                new PrincipioActivoId(UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589")),
+                "  PA-001  ", "  Paracetamol  ", "  paracetamol  ", "DIGEMID");
+
+        assertTrue(result.isSuccess());
+        var principio = result.getOrElse(error -> null);
+        assertEquals("Paracetamol", principio.denominacion());
+        assertEquals(EstadoPrincipioActivo.ACTIVO, principio.estado());
+    }
+
+    @Test
+    void rejectsAMissingId() {
+        var result = PrincipioActivo.create(null, null, "Paracetamol", null, null);
+        assertTrue(result.isFailure());
+    }
+
+    @Test
+    void rejectsADenominationThatIsTooShort() {
+        var result = PrincipioActivo.create(
+                new PrincipioActivoId(UUID.randomUUID()), null, "P", null, null);
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRINCIPIO_ACTIVO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.PrincipioActivoTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Crear `EstadoPrincipioActivo`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoPrincipioActivo.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum EstadoPrincipioActivo {
+    ACTIVO,
+    INACTIVO
+}
+```
+
+- [ ] **Step 4: Crear `PrincipioActivo`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivo.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.shared.kernel.domain.AggregateRoot;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+
+/** Sustancia farmacológicamente activa, referenciada por uno o más productos regulados. */
+public final class PrincipioActivo extends AggregateRoot {
+
+    private static final int CODIGO_FUENTE_MAX_LENGTH = 80;
+    private static final int DENOMINACION_MIN_LENGTH = 2;
+    private static final int DENOMINACION_MAX_LENGTH = 300;
+    private static final int NOMBRE_NORMALIZADO_MAX_LENGTH = 300;
+    private static final int FUENTE_MAX_LENGTH = 300;
+
+    private final PrincipioActivoId id;
+    private final String codigoFuente;
+    private final String denominacion;
+    private final String nombreNormalizado;
+    private final String fuente;
+    private final EstadoPrincipioActivo estado;
+
+    private PrincipioActivo(
+            PrincipioActivoId id, String codigoFuente, String denominacion, String nombreNormalizado,
+            String fuente, EstadoPrincipioActivo estado) {
+        this.id = id;
+        this.codigoFuente = codigoFuente;
+        this.denominacion = denominacion;
+        this.nombreNormalizado = nombreNormalizado;
+        this.fuente = fuente;
+        this.estado = estado;
+    }
+
+    public static Result<PrincipioActivo, ErrorDetail> create(
+            PrincipioActivoId id, String codigoFuente, String denominacion, String nombreNormalizado,
+            String fuente) {
+        if (id == null) return invalid("id", "La identidad del principio activo es obligatoria.");
+
+        var normalizedCodigoFuente = normalizeNullable(codigoFuente);
+        if (!withinLength(normalizedCodigoFuente, CODIGO_FUENTE_MAX_LENGTH)) {
+            return invalid("codigoFuente", "El código fuente no debe exceder 80 caracteres.");
+        }
+
+        var normalizedDenominacion = normalizeSpaces(denominacion);
+        if (normalizedDenominacion == null || normalizedDenominacion.length() < DENOMINACION_MIN_LENGTH
+                || normalizedDenominacion.length() > DENOMINACION_MAX_LENGTH) {
+            return invalid("denominacion", "La denominación debe tener entre 2 y 300 caracteres.");
+        }
+
+        var normalizedNombreNormalizado = normalizeNullable(nombreNormalizado);
+        if (!withinLength(normalizedNombreNormalizado, NOMBRE_NORMALIZADO_MAX_LENGTH)) {
+            return invalid("nombreNormalizado", "El nombre normalizado no debe exceder 300 caracteres.");
+        }
+
+        var normalizedFuente = normalizeNullable(fuente);
+        if (!withinLength(normalizedFuente, FUENTE_MAX_LENGTH)) {
+            return invalid("fuente", "La fuente no debe exceder 300 caracteres.");
+        }
+
+        return Result.success(new PrincipioActivo(
+                id, normalizedCodigoFuente, normalizedDenominacion, normalizedNombreNormalizado,
+                normalizedFuente, EstadoPrincipioActivo.ACTIVO));
+    }
+
+    public static PrincipioActivo restore(
+            PrincipioActivoId id, String codigoFuente, String denominacion, String nombreNormalizado,
+            String fuente, EstadoPrincipioActivo estado) {
+        return new PrincipioActivo(id, codigoFuente, denominacion, nombreNormalizado, fuente, estado);
+    }
+
+    private static Result<PrincipioActivo, ErrorDetail> invalid(String field, String message) {
+        return Result.failure(new ErrorDetail("CAT_PRINCIPIO_ACTIVO_INVALIDO", message, Map.of("field", field)));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String normalizeSpaces(String value) {
+        var normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", " ");
+    }
+
+    private static String normalizeNullable(String value) {
+        var normalized = normalizeSpaces(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
+    }
+
+    private static boolean withinLength(String value, int maximum) {
+        return value == null || value.length() <= maximum;
+    }
+
+    public PrincipioActivoId id() { return id; }
+    public String codigoFuente() { return codigoFuente; }
+    public String denominacion() { return denominacion; }
+    public String nombreNormalizado() { return nombreNormalizado; }
+    public String fuente() { return fuente; }
+    public EstadoPrincipioActivo estado() { return estado; }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.PrincipioActivoTest"`
+Expected: PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoPrincipioActivo.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivo.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/PrincipioActivoTest.java
+git commit -m "feat(catalogo): agregar agregado de dominio PrincipioActivo"
+```
+
+---
+
+### Task 5: Agregado `Marca`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoMarca.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Marca.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/MarcaTest.java`
+
+**Interfaces:**
+- Consumes: `MarcaId`, `TenantId` (Task 2).
+- Produces: `Marca.create(MarcaId id, TenantId tenantId, String codigo, String nombre, String descripcion): Result<Marca, ErrorDetail>`, `restore(MarcaId id, TenantId tenantId, String codigo, String nombre, String descripcion, EstadoMarca estado): Marca`, getters `id()`, `tenantId()`, `codigo()`, `nombre()`, `descripcion()`, `estado()`. Usado por Task 14 (handlers), Task 20 (mapper JPA).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/MarcaTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class MarcaTest {
+
+    @Test
+    void createsAndNormalizesAValidMarca() {
+        var result = Marca.create(
+                new MarcaId(UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589")),
+                new TenantId(UUID.fromString("a92adf67-70e7-4cc1-bb05-ff074df7fdf5")),
+                "  bayer  ", "  Bayer  ", null);
+
+        assertTrue(result.isSuccess());
+        var marca = result.getOrElse(error -> null);
+        assertEquals("Bayer", marca.nombre());
+        assertEquals(EstadoMarca.ACTIVO, marca.estado());
+    }
+
+    @Test
+    void requiresIdTenantAndCodigo() {
+        var missingTenant = Marca.create(
+                new MarcaId(UUID.randomUUID()), null, "BAYER", "Bayer", null);
+        assertTrue(missingTenant.isFailure());
+        assertEquals("CAT_MARCA_INVALIDA", missingTenant.fold(value -> null, error -> error.code()));
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.MarcaTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Crear `EstadoMarca`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoMarca.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum EstadoMarca {
+    ACTIVO,
+    INACTIVO
+}
+```
+
+- [ ] **Step 4: Crear `Marca`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Marca.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.kernel.domain.AggregateRoot;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+
+/** Marca comercial de un producto, propia de un tenant. */
+public final class Marca extends AggregateRoot {
+
+    private static final int CODIGO_MIN_LENGTH = 2;
+    private static final int CODIGO_MAX_LENGTH = 50;
+    private static final int NOMBRE_MIN_LENGTH = 2;
+    private static final int NOMBRE_MAX_LENGTH = 180;
+    private static final int DESCRIPCION_MAX_LENGTH = 500;
+
+    private final MarcaId id;
+    private final TenantId tenantId;
+    private final String codigo;
+    private final String nombre;
+    private final String descripcion;
+    private final EstadoMarca estado;
+
+    private Marca(
+            MarcaId id, TenantId tenantId, String codigo, String nombre, String descripcion,
+            EstadoMarca estado) {
+        this.id = id;
+        this.tenantId = tenantId;
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.estado = estado;
+    }
+
+    public static Result<Marca, ErrorDetail> create(
+            MarcaId id, TenantId tenantId, String codigo, String nombre, String descripcion) {
+        if (id == null) return invalid("id", "La identidad de la marca es obligatoria.");
+        if (tenantId == null) return invalid("tenantId", "El tenant es obligatorio.");
+
+        var normalizedCodigo = normalizeSpaces(codigo);
+        if (normalizedCodigo == null || normalizedCodigo.length() < CODIGO_MIN_LENGTH
+                || normalizedCodigo.length() > CODIGO_MAX_LENGTH) {
+            return invalid("codigo", "El código debe tener entre 2 y 50 caracteres.");
+        }
+
+        var normalizedNombre = normalizeSpaces(nombre);
+        if (normalizedNombre == null || normalizedNombre.length() < NOMBRE_MIN_LENGTH
+                || normalizedNombre.length() > NOMBRE_MAX_LENGTH) {
+            return invalid("nombre", "El nombre debe tener entre 2 y 180 caracteres.");
+        }
+
+        var normalizedDescripcion = normalizeNullable(descripcion);
+        if (!withinLength(normalizedDescripcion, DESCRIPCION_MAX_LENGTH)) {
+            return invalid("descripcion", "La descripción no debe exceder 500 caracteres.");
+        }
+
+        return Result.success(new Marca(
+                id, tenantId, normalizedCodigo, normalizedNombre, normalizedDescripcion, EstadoMarca.ACTIVO));
+    }
+
+    public static Marca restore(
+            MarcaId id, TenantId tenantId, String codigo, String nombre, String descripcion,
+            EstadoMarca estado) {
+        return new Marca(id, tenantId, codigo, nombre, descripcion, estado);
+    }
+
+    private static Result<Marca, ErrorDetail> invalid(String field, String message) {
+        return Result.failure(new ErrorDetail("CAT_MARCA_INVALIDA", message, Map.of("field", field)));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String normalizeSpaces(String value) {
+        var normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", " ");
+    }
+
+    private static String normalizeNullable(String value) {
+        var normalized = normalizeSpaces(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
+    }
+
+    private static boolean withinLength(String value, int maximum) {
+        return value == null || value.length() <= maximum;
+    }
+
+    public MarcaId id() { return id; }
+    public TenantId tenantId() { return tenantId; }
+    public String codigo() { return codigo; }
+    public String nombre() { return nombre; }
+    public String descripcion() { return descripcion; }
+    public EstadoMarca estado() { return estado; }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.MarcaTest"`
+Expected: PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoMarca.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Marca.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/MarcaTest.java
+git commit -m "feat(catalogo): agregar agregado de dominio Marca"
+```
+
+---
+
+### Task 6: Agregado `CategoriaProducto`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoriaProducto.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CategoriaProducto.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaProductoTest.java`
+
+**Interfaces:**
+- Consumes: `CategoriaProductoId`, `TenantId` (Task 2).
+- Produces: `CategoriaProducto.create(CategoriaProductoId id, TenantId tenantId, CategoriaProductoId categoriaPadreId, String codigo, String nombre, String descripcion, int nivel, int orden): Result<CategoriaProducto, ErrorDetail>`, `restore(CategoriaProductoId id, TenantId tenantId, CategoriaProductoId categoriaPadreId, String codigo, String nombre, String descripcion, int nivel, int orden, EstadoCategoriaProducto estado): CategoriaProducto`, getters `id()`, `tenantId()`, `categoriaPadreId()`, `codigo()`, `nombre()`, `descripcion()`, `nivel()`, `orden()`, `estado()`. Usado por Task 14 (handlers), Task 20 (mapper JPA).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaProductoTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CategoriaProductoTest {
+
+    @Test
+    void createsARootCategoriaSuccessfully() {
+        var result = CategoriaProducto.create(
+                new CategoriaProductoId(UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589")),
+                new TenantId(UUID.fromString("a92adf67-70e7-4cc1-bb05-ff074df7fdf5")),
+                null, "  analgesicos  ", "  Analgésicos  ", null, 1, 0);
+
+        assertTrue(result.isSuccess());
+        var categoria = result.getOrElse(error -> null);
+        assertEquals("Analgésicos", categoria.nombre());
+        assertEquals(1, categoria.nivel());
+    }
+
+    @Test
+    void createsAChildCategoriaWithAParent() {
+        var padreId = new CategoriaProductoId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        var result = CategoriaProducto.create(
+                new CategoriaProductoId(UUID.randomUUID()),
+                new TenantId(UUID.randomUUID()),
+                padreId, "antiinflamatorios", "Antiinflamatorios", null, 2, 1);
+
+        assertTrue(result.isSuccess());
+        assertEquals(padreId, result.getOrElse(error -> null).categoriaPadreId());
+    }
+
+    @Test
+    void rejectsANivelBelowOne() {
+        var result = CategoriaProducto.create(
+                new CategoriaProductoId(UUID.randomUUID()), new TenantId(UUID.randomUUID()),
+                null, "analgesicos", "Analgésicos", null, 0, 0);
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_PRODUCTO_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.CategoriaProductoTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Crear `EstadoCategoriaProducto`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoriaProducto.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum EstadoCategoriaProducto {
+    ACTIVO,
+    INACTIVO
+}
+```
+
+- [ ] **Step 4: Crear `CategoriaProducto`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CategoriaProducto.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.kernel.domain.AggregateRoot;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+
+/** Categoría jerárquica de producto, propia de un tenant. */
+public final class CategoriaProducto extends AggregateRoot {
+
+    private static final int CODIGO_MIN_LENGTH = 2;
+    private static final int CODIGO_MAX_LENGTH = 50;
+    private static final int NOMBRE_MIN_LENGTH = 2;
+    private static final int NOMBRE_MAX_LENGTH = 180;
+    private static final int DESCRIPCION_MAX_LENGTH = 500;
+
+    private final CategoriaProductoId id;
+    private final TenantId tenantId;
+    private final CategoriaProductoId categoriaPadreId;
+    private final String codigo;
+    private final String nombre;
+    private final String descripcion;
+    private final int nivel;
+    private final int orden;
+    private final EstadoCategoriaProducto estado;
+
+    private CategoriaProducto(
+            CategoriaProductoId id, TenantId tenantId, CategoriaProductoId categoriaPadreId, String codigo,
+            String nombre, String descripcion, int nivel, int orden, EstadoCategoriaProducto estado) {
+        this.id = id;
+        this.tenantId = tenantId;
+        this.categoriaPadreId = categoriaPadreId;
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.nivel = nivel;
+        this.orden = orden;
+        this.estado = estado;
+    }
+
+    public static Result<CategoriaProducto, ErrorDetail> create(
+            CategoriaProductoId id, TenantId tenantId, CategoriaProductoId categoriaPadreId, String codigo,
+            String nombre, String descripcion, int nivel, int orden) {
+        if (id == null) return invalid("id", "La identidad de la categoría es obligatoria.");
+        if (tenantId == null) return invalid("tenantId", "El tenant es obligatorio.");
+
+        var normalizedCodigo = normalizeSpaces(codigo);
+        if (normalizedCodigo == null || normalizedCodigo.length() < CODIGO_MIN_LENGTH
+                || normalizedCodigo.length() > CODIGO_MAX_LENGTH) {
+            return invalid("codigo", "El código debe tener entre 2 y 50 caracteres.");
+        }
+
+        var normalizedNombre = normalizeSpaces(nombre);
+        if (normalizedNombre == null || normalizedNombre.length() < NOMBRE_MIN_LENGTH
+                || normalizedNombre.length() > NOMBRE_MAX_LENGTH) {
+            return invalid("nombre", "El nombre debe tener entre 2 y 180 caracteres.");
+        }
+
+        var normalizedDescripcion = normalizeNullable(descripcion);
+        if (!withinLength(normalizedDescripcion, DESCRIPCION_MAX_LENGTH)) {
+            return invalid("descripcion", "La descripción no debe exceder 500 caracteres.");
+        }
+
+        if (nivel < 1) return invalid("nivel", "El nivel debe ser mayor o igual a 1.");
+        if (orden < 0) return invalid("orden", "El orden debe ser mayor o igual a 0.");
+
+        return Result.success(new CategoriaProducto(
+                id, tenantId, categoriaPadreId, normalizedCodigo, normalizedNombre, normalizedDescripcion,
+                nivel, orden, EstadoCategoriaProducto.ACTIVO));
+    }
+
+    public static CategoriaProducto restore(
+            CategoriaProductoId id, TenantId tenantId, CategoriaProductoId categoriaPadreId, String codigo,
+            String nombre, String descripcion, int nivel, int orden, EstadoCategoriaProducto estado) {
+        return new CategoriaProducto(
+                id, tenantId, categoriaPadreId, codigo, nombre, descripcion, nivel, orden, estado);
+    }
+
+    private static Result<CategoriaProducto, ErrorDetail> invalid(String field, String message) {
+        return Result.failure(new ErrorDetail("CAT_CATEGORIA_PRODUCTO_INVALIDA", message, Map.of("field", field)));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String normalizeSpaces(String value) {
+        var normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", " ");
+    }
+
+    private static String normalizeNullable(String value) {
+        var normalized = normalizeSpaces(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
+    }
+
+    private static boolean withinLength(String value, int maximum) {
+        return value == null || value.length() <= maximum;
+    }
+
+    public CategoriaProductoId id() { return id; }
+    public TenantId tenantId() { return tenantId; }
+    public CategoriaProductoId categoriaPadreId() { return categoriaPadreId; }
+    public String codigo() { return codigo; }
+    public String nombre() { return nombre; }
+    public String descripcion() { return descripcion; }
+    public int nivel() { return nivel; }
+    public int orden() { return orden; }
+    public EstadoCategoriaProducto estado() { return estado; }
+}
+```
+
+- [ ] **Step 5: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.CategoriaProductoTest"`
+Expected: PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoriaProducto.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CategoriaProducto.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaProductoTest.java
+git commit -m "feat(catalogo): agregar agregado de dominio CategoriaProducto"
+```
+
+---
