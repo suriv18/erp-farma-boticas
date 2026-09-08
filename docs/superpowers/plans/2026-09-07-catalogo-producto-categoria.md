@@ -3223,17 +3223,9 @@ Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/cata
 package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
 
 import com.softprimesolutions.catalogo.domain.model.Categoria;
-import com.softprimesolutions.catalogo.domain.model.CondicionVenta;
-import com.softprimesolutions.catalogo.domain.model.EstadoCategoria;
-import com.softprimesolutions.catalogo.domain.model.EstadoProducto;
 import com.softprimesolutions.catalogo.domain.model.Producto;
-import com.softprimesolutions.catalogo.domain.model.TipoProducto;
-import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
-import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
-import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoJpaEntity;
-import java.util.UUID;
 
 public final class CatalogoWriteMapper {
 
@@ -3244,13 +3236,6 @@ public final class CatalogoWriteMapper {
         return new CategoriaJpaEntity(
                 categoria.id().value(), tenantId, categoria.nombre(), categoria.descripcion(),
                 categoria.estado().name(), categoria.createdAt(), categoria.updatedAt());
-    }
-
-    public static Categoria toDomain(CategoriaJpaEntity entity, UUID tenantUuid) {
-        return Categoria.restore(
-                new CategoriaId(entity.getUuidPublico()), new TenantId(tenantUuid),
-                entity.getNombre(), entity.getDescripcion(), EstadoCategoria.valueOf(entity.getEstado()),
-                entity.getCreatedAt(), entity.getUpdatedAt());
     }
 
     public static ProductoJpaEntity toEntity(Producto producto, Long tenantId, Long categoriaId) {
@@ -3264,21 +3249,10 @@ public final class CatalogoWriteMapper {
                 producto.requiereLote(), producto.requiereVencimiento(), producto.estado().name(),
                 producto.createdAt(), producto.updatedAt());
     }
-
-    public static Producto toDomain(ProductoJpaEntity entity, UUID tenantUuid, UUID categoriaUuid) {
-        return Producto.restore(
-                new ProductoId(entity.getUuidPublico()), new TenantId(tenantUuid),
-                new CategoriaId(categoriaUuid), entity.getNombre(), TipoProducto.valueOf(entity.getTipo()),
-                entity.getLaboratorio(), entity.getUnidadMedida(), entity.getPresentacion(),
-                entity.getUnidadesPorPaquete(), entity.getCodigoBarras(), entity.getPrecioVenta(),
-                entity.getCondicionVenta() == null ? null : CondicionVenta.valueOf(entity.getCondicionVenta()),
-                entity.isEsGenerico(), entity.isEsGenericoEsencial(), entity.getGrupoTerapeutico(),
-                entity.getCodigoDigemid(), entity.getPrincipioActivo(), entity.getConcentracion(),
-                entity.isRequiereLote(), entity.isRequiereVencimiento(), EstadoProducto.valueOf(entity.getEstado()),
-                entity.getCreatedAt(), entity.getUpdatedAt());
-    }
 }
 ```
+
+Nota: a diferencia de `IamWriteMapper` (que también expone `toDomain` porque `IamWritePort.findRole` reconstruye el agregado para aplicar `replacePermissions()` antes de volver a guardarlo), `CatalogoWritePort` no reconstruye agregados para actualizar — `save(Categoria/Producto)` recibe siempre el agregado ya validado por el handler, y el cambio de estado (`changeCategoriaStatus`/`changeProductoStatus`) es un `UPDATE` directo sin pasar por el dominio. Por eso `CatalogoWriteMapper` solo necesita `toEntity`, no `toDomain`.
 
 - [ ] **Step 2: Crear `CatalogoJpaWriteAdapter`**
 
@@ -4516,3 +4490,254 @@ git commit -m "feat(catalogo): agregar CatalogoModuleConfiguration con wiring de
 ```
 
 ---
+
+## Fase 6 — Verificación end-to-end
+
+### Task 17: Test de integración HTTP end-to-end + verificación completa del proyecto
+
+**Files:**
+- Create: `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/api/CatalogoApiIntegrationTest.java`
+
+**Interfaces:**
+- Consumes: toda la pila del módulo `catalogo` (Task 1-16) contra Postgres real vía Testcontainers.
+- Produces: nada nuevo — es la verificación final de que todas las piezas encajan.
+
+- [ ] **Step 1: Confirmar las anotaciones de clase exactas copiando `IamApiIntegrationTest`**
+
+Run: `grep -n "@Transactional\|@RecordApplicationEvents\|@ActiveProfiles\|@Import\|@AutoConfigureMockMvc\|@SpringBootTest" service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/api/IamApiIntegrationTest.java`
+Expected: confirma `@Transactional`, `@ActiveProfiles("test")`, `@Import(PostgresTestContainerConfiguration.class)`, `@AutoConfigureMockMvc`, `@SpringBootTest` (sin `@RecordApplicationEvents`, ya que este test no usa eventos de dominio).
+
+- [ ] **Step 2: Escribir el test de integración que falla**
+
+Crear `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/api/CatalogoApiIntegrationTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.api;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.jayway.jsonpath.JsonPath;
+import com.softprimesolutions.testsupport.PostgresTestContainerConfiguration;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+@Transactional
+@ActiveProfiles("test")
+@Import(PostgresTestContainerConfiguration.class)
+@AutoConfigureMockMvc
+@SpringBootTest
+class CatalogoApiIntegrationTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("9f6c1f2a-1a2b-4c3d-8e9f-0a1b2c3d4e5f");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcClient jdbcClient;
+
+    @BeforeEach
+    void prepareTenant() {
+        resetCanonicalFixtures();
+        jdbcClient.sql("""
+                        INSERT INTO sch_farmacia.tenant (uuid_publico, codigo, nombre, created_by)
+                        VALUES (:tenantId, 'CAT-TEST', 'Tenant de prueba catalogo', 'test')
+                        """)
+                .param("tenantId", TENANT_ID)
+                .update();
+    }
+
+    @Test
+    void managesCategoriesAndProductsEndToEnd() throws Exception {
+        var categoriaResponse = mockMvc.perform(post("/api/v1/catalogo/categorias")
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantId":"%s","nombre":"Analgésicos","descripcion":"Medicamentos para el dolor"}
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estado").value("ACTIVA"))
+                .andReturn().getResponse().getContentAsString();
+        String categoriaId = JsonPath.read(categoriaResponse, "$.id");
+
+        var productoResponse = mockMvc.perform(post("/api/v1/catalogo/productos")
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "tenantId":"%s",
+                                  "categoriaId":"%s",
+                                  "nombre":"Paracetamol 500mg",
+                                  "tipo":"MEDICAMENTO",
+                                  "laboratorio":"Laboratorio X",
+                                  "unidadMedida":"Tableta",
+                                  "presentacion":"Caja x 10",
+                                  "unidadesPorPaquete":10,
+                                  "precioVenta":5.00,
+                                  "condicionVenta":"SIN_RECETA",
+                                  "esGenerico":true,
+                                  "esGenericoEsencial":true,
+                                  "principioActivo":"Paracetamol",
+                                  "concentracion":"500mg",
+                                  "requiereLote":true,
+                                  "requiereVencimiento":true
+                                }
+                                """.formatted(TENANT_ID, categoriaId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estado").value("ACTIVO"))
+                .andReturn().getResponse().getContentAsString();
+        String productoId = JsonPath.read(productoResponse, "$.id");
+
+        mockMvc.perform(post("/api/v1/catalogo/productos")
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "tenantId":"%s",
+                                  "categoriaId":"%s",
+                                  "nombre":"Paracetamol 500mg (sin datos regulatorios)",
+                                  "tipo":"MEDICAMENTO",
+                                  "unidadMedida":"Tableta",
+                                  "precioVenta":5.00
+                                }
+                                """.formatted(TENANT_ID, categoriaId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAT_PRODUCTO_INVALIDO"));
+
+        mockMvc.perform(get("/api/v1/catalogo/productos")
+                        .with(admin())
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("q", "paracetamol"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].nombre").value("Paracetamol 500mg"));
+
+        mockMvc.perform(put("/api/v1/catalogo/productos/{productoId}", productoId)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "tenantId":"%s",
+                                  "categoriaId":"%s",
+                                  "nombre":"Paracetamol 500mg Forte",
+                                  "tipo":"MEDICAMENTO",
+                                  "unidadMedida":"Tableta",
+                                  "precioVenta":6.50,
+                                  "condicionVenta":"SIN_RECETA",
+                                  "principioActivo":"Paracetamol"
+                                }
+                                """.formatted(TENANT_ID, categoriaId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Paracetamol 500mg Forte"));
+
+        mockMvc.perform(patch("/api/v1/catalogo/productos/{productoId}/estado", productoId)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantId":"%s","status":"INACTIVO"}
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/catalogo/productos/{productoId}", productoId)
+                        .with(admin())
+                        .param("tenantId", TENANT_ID.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("INACTIVO"));
+
+        mockMvc.perform(patch("/api/v1/catalogo/categorias/{categoriaId}/estado", categoriaId)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantId":"%s","status":"INACTIVA"}
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/catalogo/categorias")
+                        .with(admin())
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("estado", "INACTIVA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nombre").value("Analgésicos"));
+    }
+
+    @Test
+    void deniesCatalogAdministrationWithoutTheRequiredPermission() throws Exception {
+        mockMvc.perform(get("/api/v1/catalogo/productos")
+                        .with(SecurityMockMvcRequestPostProcessors.user("viewer"))
+                        .param("tenantId", TENANT_ID.toString()))
+                .andExpect(status().isForbidden());
+    }
+
+    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor admin() {
+        return SecurityMockMvcRequestPostProcessors.user("catalogo-admin").authorities(
+                new SimpleGrantedAuthority("catalogo.categorias.gestionar"),
+                new SimpleGrantedAuthority("catalogo.categorias.consultar"),
+                new SimpleGrantedAuthority("catalogo.productos.gestionar"),
+                new SimpleGrantedAuthority("catalogo.productos.consultar"));
+    }
+
+    private void resetCanonicalFixtures() {
+        jdbcClient.sql("DELETE FROM sch_catalogo.producto").update();
+        jdbcClient.sql("DELETE FROM sch_catalogo.categoria").update();
+        jdbcClient.sql("DELETE FROM sch_farmacia.tenant WHERE codigo = 'CAT-TEST'").update();
+    }
+}
+```
+
+- [ ] **Step 3: Ejecutar y verificar que falla o pasa por el motivo correcto**
+
+Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.catalogo.api.CatalogoApiIntegrationTest"`
+Expected: si todas las tareas anteriores (1-16) se completaron correctamente, este test debería pasar en el primer intento (todas sus piezas ya están implementadas y probadas individualmente). Si falla, leer el mensaje de error con cuidado:
+- Error de compilación en un archivo no mencionado en ninguna Task anterior → detenerse y reportar BLOCKED, indica un consumidor no identificado en el plan.
+- Fallo HTTP inesperado (403, 404, 500) → revisar que el permiso/autoridad usado en `admin()` coincida exactamente con los strings sembrados en la migración `V022` (Task 1) y los strings usados en `@PreAuthorize` de los controllers (Task 15).
+- Fallo de constraint de BD → revisar que el `CatalogoJpaWriteAdapter` (Task 12) use los nombres de columna exactos de la migración (Task 1).
+
+- [ ] **Step 4: Corregir cualquier discrepancia encontrada y volver a ejecutar hasta que pase**
+
+Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.catalogo.api.CatalogoApiIntegrationTest"`
+Expected: PASS — ambos tests (`managesCategoriesAndProductsEndToEnd`, `deniesCatalogAdministrationWithoutTheRequiredPermission`).
+
+- [ ] **Step 5: Ejecutar la verificación completa del proyecto**
+
+Run: `cd service-botica && .\gradlew.bat check --warning-mode all`
+Expected: BUILD SUCCESSFUL — incluye `architectureTest` (ArchUnit) y Spring Modulith `ApplicationModules.verify()`, que confirman que `catalogo` respeta las reglas de dependencia entre módulos (solo expone tipos vía su paquete `api`, y su `allowedDependencies` en `package-info.java` sigue siendo válido aunque en este slice no se haya usado la dependencia declarada hacia `organizacion::api`).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/
+git commit -m "feat(catalogo): agregar test de integracion HTTP end-to-end"
+```
+
+---
+
+## Notas finales
+
+- El módulo `catalogo` queda completo en backend: dominio, aplicación, persistencia real y API REST, con las mismas convenciones arquitectónicas que `security`.
+- Quedan pendientes, cada uno como spec/plan separado: frontend de Catálogo (portar la vista del prototipo `app-botica/src/views/Catalog.tsx` a Tailwind + `ui-web`), y el módulo Inventario completo (que consumirá `Producto` vía esta misma API).
+- Si en algún punto del recorrido A→Q un implementador encuentra un archivo con error de compilación no mencionado en ninguna Task de este plan, debe detenerse y reportar BLOCKED en vez de expandir el alcance por su cuenta — el mismo criterio de escalación usado en el plan de Identidad/Membership.
+
