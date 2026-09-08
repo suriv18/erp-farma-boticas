@@ -6702,3 +6702,373 @@ git commit -m "feat(catalogo): agregar handlers de escritura de SKUComercial y c
 ```
 
 ---
+
+### Task 15: `CatalogoControlService` (activar/desactivar transversal de las 9 entidades)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java`
+
+**Interfaces:**
+- Consumes: `CatalogoControlUseCase` (Task 10), `CatalogoSoportePort`, `CatalogoComercialPort`, `ProductoReguladoPort` (Task 10), `ClockPort` (shared-application).
+- Produces: `CatalogoControlService implements CatalogoControlUseCase`. Usado por Task 23 (controllers).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CatalogoControlServiceTest {
+
+    private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
+
+    @Test
+    void changesCondicionVentaStatusSuccessfully() {
+        var soportePort = new FakeCatalogoSoportePort(true);
+        var service = new CatalogoControlService(
+                soportePort, new FakeCatalogoComercialPort(true), new FakeProductoReguladoPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeCondicionVentaStatus("SIN-RECETA", "inactivo");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_ESTADO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void changesCondicionVentaStatusWithAValidValue() {
+        var soportePort = new FakeCatalogoSoportePort(true);
+        var service = new CatalogoControlService(
+                soportePort, new FakeCatalogoComercialPort(true), new FakeProductoReguladoPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeCondicionVentaStatus("SIN-RECETA", "INACTIVO");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void reportsNotFoundWhenMarcaDoesNotExist() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(false),
+                new FakeProductoReguladoPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeMarcaStatus(TENANT_ID, UUID.randomUUID(), "ACTIVO");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_MARCA_NO_ENCONTRADA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void changesProductoReguladoStatusSuccessfully() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeProductoReguladoStatus(UUID.randomUUID(), "VIGENTE");
+
+        assertTrue(result.isSuccess());
+    }
+
+    private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
+        private final boolean found;
+
+        private FakeCatalogoSoportePort(boolean found) { this.found = found; }
+
+        @Override
+        public SaveOutcome save(CondicionVenta condicionVenta) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(FormaFarmaceutica formaFarmaceutica) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(ViaAdministracion viaAdministracion) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(UnidadMedida unidadMedida) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(ClasificacionControlada clasificacionControlada) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean formaFarmaceuticaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean viaAdministracionExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean unidadMedidaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean clasificacionControladaExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean principioActivoExists(UUID principioActivoId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) { return found; }
+    }
+
+    private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
+        private final boolean found;
+
+        private FakeCatalogoComercialPort(boolean found) { this.found = found; }
+
+        @Override
+        public SaveMarcaOutcome save(Marca marca) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveCategoriaOutcome save(CategoriaProducto categoria) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveSkuOutcome save(SKUComercial sku) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean marcaExists(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) { return found; }
+
+        @Override
+        public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) { return found; }
+    }
+
+    private static final class FakeProductoReguladoPort implements ProductoReguladoPort {
+        private final boolean found;
+
+        private FakeProductoReguladoPort(boolean found) { this.found = found; }
+
+        @Override
+        public SaveOutcome save(ProductoRegulado productoRegulado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<ProductoRegulado> findById(UUID productoReguladoId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) { return found; }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CatalogoControlServiceTest"`
+Expected: FAIL — `CatalogoControlService` no existe todavía.
+
+- [ ] **Step 3: Crear `CatalogoControlService`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.command;
+
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.application.port.ClockPort;
+import com.softprimesolutions.shared.kernel.result.Result;
+import com.softprimesolutions.shared.kernel.result.Unit;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+public final class CatalogoControlService implements CatalogoControlUseCase {
+
+    private static final Set<String> SOPORTE_STATUSES = Set.of("ACTIVO", "INACTIVO");
+    private static final Set<String> COMERCIAL_STATUSES = Set.of("ACTIVO", "INACTIVO");
+    private static final Set<String> SKU_STATUSES = Set.of("ACTIVO", "INACTIVO", "BLOQUEADO", "DESCONTINUADO");
+    private static final Set<String> PRODUCTO_REGULADO_STATUSES =
+            Set.of("VIGENTE", "VENCIDO", "SUSPENDIDO", "CANCELADO", "POR_VALIDAR");
+
+    private final CatalogoSoportePort soportePort;
+    private final CatalogoComercialPort comercialPort;
+    private final ProductoReguladoPort productoReguladoPort;
+    private final ClockPort clock;
+
+    public CatalogoControlService(
+            CatalogoSoportePort soportePort, CatalogoComercialPort comercialPort,
+            ProductoReguladoPort productoReguladoPort, ClockPort clock) {
+        this.soportePort = Objects.requireNonNull(soportePort, "soportePort es obligatorio");
+        this.comercialPort = Objects.requireNonNull(comercialPort, "comercialPort es obligatorio");
+        this.productoReguladoPort = Objects.requireNonNull(productoReguladoPort, "productoReguladoPort es obligatorio");
+        this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeCondicionVentaStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeCondicionVentaStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_CONDICION_VENTA_NO_ENCONTRADA", "La condición de venta indicada no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeFormaFarmaceuticaStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeFormaFarmaceuticaStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", "La forma farmacéutica indicada no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeViaAdministracionStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeViaAdministracionStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", "La vía de administración indicada no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeUnidadMedidaStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeUnidadMedidaStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_UNIDAD_MEDIDA_NO_ENCONTRADA", "La unidad de medida indicada no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeClasificacionControladaStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeClasificacionControladaStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_CLASIFICACION_CONTROLADA_NO_ENCONTRADA", "La clasificación controlada indicada no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changePrincipioActivoStatus(principioActivoId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", "El principio activo indicado no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeMarcaStatus(UUID tenantId, UUID marcaId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!COMERCIAL_STATUSES.contains(normalized)) return invalidStatus(COMERCIAL_STATUSES);
+        return comercialPort.changeMarcaStatus(tenantId, marcaId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_MARCA_NO_ENCONTRADA", "La marca no existe en el tenant indicado.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeCategoriaProductoStatus(UUID tenantId, UUID categoriaId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!COMERCIAL_STATUSES.contains(normalized)) return invalidStatus(COMERCIAL_STATUSES);
+        return comercialPort.changeCategoriaStatus(tenantId, categoriaId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_CATEGORIA_PRODUCTO_NO_ENCONTRADA", "La categoría no existe en el tenant indicado.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeProductoReguladoStatus(UUID productoReguladoId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!PRODUCTO_REGULADO_STATUSES.contains(normalized)) return invalidStatus(PRODUCTO_REGULADO_STATUSES);
+        return productoReguladoPort.changeStatus(productoReguladoId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeSkuStatus(UUID tenantId, UUID skuId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SKU_STATUSES.contains(normalized)) return invalidStatus(SKU_STATUSES);
+        return comercialPort.changeSkuStatus(tenantId, skuId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_SKU_NO_ENCONTRADO", "El SKU no existe en el tenant indicado.");
+    }
+
+    private static String normalizeStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static Result<Unit, ApplicationError> invalidStatus(Set<String> allowed) {
+        return Result.failure(new StandardApplicationError(
+                "CAT_ESTADO_INVALIDO", "El estado indicado no es válido.",
+                ErrorCategory.VALIDATION, Map.of("allowed", allowed)));
+    }
+
+    private static Result<Unit, ApplicationError> notFound(String code, String message) {
+        return Result.failure(new StandardApplicationError(code, message, ErrorCategory.NOT_FOUND));
+    }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.command.CatalogoControlServiceTest"`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlService.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/command/CatalogoControlServiceTest.java
+git commit -m "feat(catalogo): agregar CatalogoControlService para cambio de estado transversal"
+```
+
+---
