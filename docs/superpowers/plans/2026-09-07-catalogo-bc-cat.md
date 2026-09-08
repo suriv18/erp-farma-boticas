@@ -7072,3 +7072,643 @@ git commit -m "feat(catalogo): agregar CatalogoControlService para cambio de est
 ```
 
 ---
+
+### Task 16: Handlers de lectura (las 12 queries)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/` — un handler por query (lista completa abajo).
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCondicionesVentaHandlerTest.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosReguladosHandlerTest.java`
+
+**Interfaces:**
+- Consumes: `CatalogoReadPort` (Task 10), DTOs de resultado (Task 9).
+- Produces: los 12 handlers listados, cada uno implementando su `UseCase` de consulta (Task 10). Usados por Task 23 (controllers).
+
+Este plan escribe TDD completo para 2 handlers representativos (uno de listado simple sin paginar, `ListarCondicionesVentaHandler`; uno con paginación y validación, `ListarProductosReguladosHandler`); los 10 restantes se crean directamente con su código completo (mecánicos, delegan al mismo `CatalogoReadPort` ya probado) y se verifican todos juntos al final.
+
+- [ ] **Step 1: Escribir el test que falla para `ListarCondicionesVentaHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCondicionesVentaHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ListarCondicionesVentaHandlerTest {
+
+    @Test
+    void returnsCondicionesVentaFromReadPort() {
+        var condicion = new CondicionVentaResult(
+                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null, "ACTIVO");
+        var readPort = new FakeCatalogoReadPort(List.of(condicion));
+        var handler = new ListarCondicionesVentaHandler(readPort);
+
+        var result = handler.execute(new ListarCondicionesVentaQuery(null));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).size());
+    }
+
+    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
+        private final List<CondicionVentaResult> condiciones;
+
+        private FakeCatalogoReadPort(List<CondicionVentaResult> condiciones) {
+            this.condiciones = condiciones;
+        }
+
+        @Override
+        public List<CondicionVentaResult> findCondicionesVenta(String estado) { return condiciones; }
+
+        @Override
+        public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<ViaAdministracionResult> findViasAdministracion(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<UnidadMedidaResult> findUnidadesMedida(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<MarcaResult> findMarcas(UUID tenantId, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public PaginaResult<ProductoReguladoResumen> findProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public PaginaResult<SkuResumen> findSkus(UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado, int page, int size) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarCondicionesVentaHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 3: Crear `ListarCondicionesVentaHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCondicionesVentaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarCondicionesVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarCondicionesVentaHandler implements ListarCondicionesVentaUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarCondicionesVentaHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<CondicionVentaResult>, ApplicationError> execute(ListarCondicionesVentaQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findCondicionesVenta(query.estado()));
+    }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarCondicionesVentaHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 5: Crear los 4 handlers de listado simple restantes de soporte + PrincipioActivo + Marca + CategoriaProducto (misma forma exacta que `ListarCondicionesVentaHandler`)**
+
+Cada uno sigue exactamente la forma de `ListarCondicionesVentaHandler`: constructor con `CatalogoReadPort readPort`, método `execute` que llama al método `findX` correspondiente del `readPort` con los campos de la query, envuelto en `Result.success(...)`.
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarFormasFarmaceuticasHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarFormasFarmaceuticasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarFormasFarmaceuticasUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarFormasFarmaceuticasHandler implements ListarFormasFarmaceuticasUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarFormasFarmaceuticasHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<FormaFarmaceuticaResult>, ApplicationError> execute(ListarFormasFarmaceuticasQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findFormasFarmaceuticas(query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarViasAdministracionHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarViasAdministracionQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarViasAdministracionUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarViasAdministracionHandler implements ListarViasAdministracionUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarViasAdministracionHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<ViaAdministracionResult>, ApplicationError> execute(ListarViasAdministracionQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findViasAdministracion(query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarUnidadesMedidaHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarUnidadesMedidaQuery;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarUnidadesMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarUnidadesMedidaHandler implements ListarUnidadesMedidaUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarUnidadesMedidaHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<UnidadMedidaResult>, ApplicationError> execute(ListarUnidadesMedidaQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findUnidadesMedida(query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarClasificacionesControladasHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarClasificacionesControladasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarClasificacionesControladasUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarClasificacionesControladasHandler implements ListarClasificacionesControladasUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarClasificacionesControladasHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<ClasificacionControladaResult>, ApplicationError> execute(
+            ListarClasificacionesControladasQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findClasificacionesControladas(query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarPrincipioActivoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarPrincipioActivoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarPrincipioActivoHandler implements ListarPrincipioActivoUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarPrincipioActivoHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<PrincipioActivoResult>, ApplicationError> execute(ListarPrincipioActivoQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findPrincipiosActivos(query.texto(), query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarMarcasHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarMarcasQuery;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarMarcasUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarMarcasHandler implements ListarMarcasUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarMarcasHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<MarcaResult>, ApplicationError> execute(ListarMarcasQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findMarcas(query.tenantId(), query.estado()));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarCategoriasProductoHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasProductoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.List;
+import java.util.Objects;
+
+public final class ListarCategoriasProductoHandler implements ListarCategoriasProductoUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarCategoriasProductoHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<List<CategoriaProductoResult>, ApplicationError> execute(ListarCategoriasProductoQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Result.success(readPort.findCategoriasProducto(
+                query.tenantId(), query.categoriaPadreId(), query.estado()));
+    }
+}
+```
+
+- [ ] **Step 6: Crear `ConsultarProductoReguladoHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarProductoReguladoHandler.java` (delega en `ProductoReguladoPort.findById`, no en `CatalogoReadPort`, porque el detalle completo con principios activos vive en el agregado de escritura — el `CatalogoReadPort.findProductosRegulados` solo devuelve resúmenes para listados):
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoReguladoQuery;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ConsultarProductoReguladoHandler implements ConsultarProductoReguladoUseCase {
+
+    private final ProductoReguladoPort productoReguladoPort;
+
+    public ConsultarProductoReguladoHandler(ProductoReguladoPort productoReguladoPort) {
+        this.productoReguladoPort = Objects.requireNonNull(productoReguladoPort, "productoReguladoPort es obligatorio");
+    }
+
+    @Override
+    public Result<ProductoReguladoResult, ApplicationError> execute(ConsultarProductoReguladoQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return productoReguladoPort.findById(query.productoReguladoId())
+                .map(CatalogoApplicationMapper::toResult)
+                .map(Result::<ProductoReguladoResult, ApplicationError>success)
+                .orElseGet(() -> Result.failure(new StandardApplicationError(
+                        "CAT_PRODUCTO_REGULADO_NO_ENCONTRADO", "El producto regulado indicado no existe.",
+                        ErrorCategory.NOT_FOUND)));
+    }
+}
+```
+
+- [ ] **Step 7: Escribir el test que falla para `ListarProductosReguladosHandler`**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosReguladosHandlerTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosReguladosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ListarProductosReguladosHandlerTest {
+
+    @Test
+    void returnsAPageOfProductosReguladosFromReadPort() {
+        var resumen = new ProductoReguladoResumen(UUID.randomUUID(), "Paracetamol 500mg", null, "VIGENTE");
+        var page = new PaginaResult<>(List.of(resumen), 0, 20, 1);
+        var readPort = new FakeCatalogoReadPort(page);
+        var handler = new ListarProductosReguladosHandler(readPort);
+
+        var result = handler.execute(new ListarProductosReguladosQuery(null, null, null, 0, 20));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getOrElse(error -> null).items().size());
+    }
+
+    @Test
+    void failsWithValidationErrorWhenPaginationIsInvalid() {
+        var readPort = new FakeCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarProductosReguladosHandler(readPort);
+
+        var result = handler.execute(new ListarProductosReguladosQuery(null, null, null, -1, 20));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
+        private final PaginaResult<ProductoReguladoResumen> page;
+
+        private FakeCatalogoReadPort(PaginaResult<ProductoReguladoResumen> page) {
+            this.page = page;
+        }
+
+        @Override
+        public List<CondicionVentaResult> findCondicionesVenta(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<ViaAdministracionResult> findViasAdministracion(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<UnidadMedidaResult> findUnidadesMedida(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<MarcaResult> findMarcas(UUID tenantId, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public PaginaResult<ProductoReguladoResumen> findProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size) { return this.page; }
+
+        @Override
+        public PaginaResult<SkuResumen> findSkus(UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado, int page, int size) { throw new UnsupportedOperationException(); }
+    }
+}
+```
+
+- [ ] **Step 8: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarProductosReguladosHandlerTest"`
+Expected: FAIL.
+
+- [ ] **Step 9: Crear `ListarProductosReguladosHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarProductosReguladosHandler.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosReguladosQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.port.in.ListarProductosReguladosUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+import java.util.Objects;
+
+public final class ListarProductosReguladosHandler implements ListarProductosReguladosUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarProductosReguladosHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<PaginaResult<ProductoReguladoResumen>, ApplicationError> execute(
+            ListarProductosReguladosQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        if (query.page() < 0 || query.size() < 1 || query.size() > 100) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PAGINACION_INVALIDA",
+                    "page debe ser mayor o igual a 0 y size debe estar entre 1 y 100.",
+                    ErrorCategory.VALIDATION,
+                    Map.of("page", query.page(), "size", query.size())));
+        }
+        return Result.success(readPort.findProductosRegulados(
+                query.texto(), query.condicionVentaCodigo(), query.estadoRegulatorio(), query.page(), query.size()));
+    }
+}
+```
+
+- [ ] **Step 10: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.application.usecase.query.ListarProductosReguladosHandlerTest"`
+Expected: PASS
+
+- [ ] **Step 11: Crear `ConsultarSkuHandler` y `ListarSkusHandler`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarSkuHandler.java` (misma forma que `ConsultarProductoReguladoHandler`, pero delega en `CatalogoComercialPort.findSkuById` porque el detalle completo del SKU con sus códigos de barra vive ahí, igual patrón que `ProductoRegulado`):
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarSkuQuery;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.mapper.CatalogoApplicationMapper;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Objects;
+
+public final class ConsultarSkuHandler implements ConsultarSkuUseCase {
+
+    private final CatalogoComercialPort comercialPort;
+
+    public ConsultarSkuHandler(CatalogoComercialPort comercialPort) {
+        this.comercialPort = Objects.requireNonNull(comercialPort, "comercialPort es obligatorio");
+    }
+
+    @Override
+    public Result<SkuResult, ApplicationError> execute(ConsultarSkuQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return comercialPort.findSkuById(query.tenantId(), query.skuId())
+                .map(CatalogoApplicationMapper::toResult)
+                .map(Result::<SkuResult, ApplicationError>success)
+                .orElseGet(() -> Result.failure(new StandardApplicationError(
+                        "CAT_SKU_NO_ENCONTRADO", "El SKU indicado no existe.", ErrorCategory.NOT_FOUND)));
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ListarSkusHandler.java` (misma forma que `ListarProductosReguladosHandler`):
+
+```java
+package com.softprimesolutions.catalogo.application.usecase.query;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarSkusQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.port.in.ListarSkusUseCase;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.util.Map;
+import java.util.Objects;
+
+public final class ListarSkusHandler implements ListarSkusUseCase {
+
+    private final CatalogoReadPort readPort;
+
+    public ListarSkusHandler(CatalogoReadPort readPort) {
+        this.readPort = Objects.requireNonNull(readPort, "readPort es obligatorio");
+    }
+
+    @Override
+    public Result<PaginaResult<SkuResumen>, ApplicationError> execute(ListarSkusQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        if (query.page() < 0 || query.size() < 1 || query.size() > 100) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PAGINACION_INVALIDA",
+                    "page debe ser mayor o igual a 0 y size debe estar entre 1 y 100.",
+                    ErrorCategory.VALIDATION,
+                    Map.of("page", query.page(), "size", query.size())));
+        }
+        return Result.success(readPort.findSkus(
+                query.tenantId(), query.texto(), query.categoriaId(), query.marcaId(), query.tipoSku(),
+                query.estado(), query.page(), query.size()));
+    }
+}
+```
+
+- [ ] **Step 12: Ejecutar todos los tests de la Fase 3 juntos**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test`
+Expected: BUILD SUCCESSFUL — todos los tests de dominio (Tasks 3-8) y aplicación (Tasks 11-16) pasan.
+
+- [ ] **Step 13: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/usecase/query/ service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/
+git commit -m "feat(catalogo): agregar handlers de lectura de las 9 entidades"
+```
+
+---
+
+## Continuación del plan
+
+La Fase 4 (Persistencia: entidades JPA, adapters de escritura JPA/JDBC, read side completo), Fase 5 (API REST: DTOs HTTP, controllers, wiring de Spring) y Fase 6 (test de integración end-to-end + verificación completa) continúan en un documento separado: `docs/superpowers/plans/2026-09-07-catalogo-bc-cat-persistencia-api.md`.
+
+Ese documento asume que las Tasks 1-16 de este plan ya están implementadas y comiteadas (dominio completo + toda la capa de aplicación con sus puertos), y continúa la numeración de tareas desde la Task 17.
+
