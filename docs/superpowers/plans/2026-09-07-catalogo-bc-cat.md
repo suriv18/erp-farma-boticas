@@ -2809,3 +2809,872 @@ git commit -m "feat(catalogo): agregar agregado de dominio SKUComercial"
 ```
 
 ---
+
+## Fase 3 — Application: DTOs, puertos y casos de uso
+
+A partir de aquí, dado el número de entidades (9), las tareas agrupan varias entidades afines en vez de una tarea por entidad — mismo rigor TDD y código completo, menos fragmentación.
+
+### Task 9: DTOs de aplicación (`command`, `query`, `result`) para las 9 entidades
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/` — un record por comando (ver lista abajo).
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/` — un record por query.
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/` — un record por resultado + `PaginaResult<T>` genérico.
+
+**Interfaces:**
+- Consumes: `Command<R>`, `Query<R>` (shared-application).
+- Produces: todos los records listados abajo. Son DTOs puros sin lógica — no requieren test dedicado, se validan indirectamente vía las Tasks 11-16 (handlers).
+
+- [ ] **Step 1: Crear los `result` (se necesitan primero porque los `command`/`query` los referencian como tipo de retorno)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/CondicionVentaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.time.LocalDate;
+
+public record CondicionVentaResult(
+        String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+        String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/FormaFarmaceuticaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+public record FormaFarmaceuticaResult(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ViaAdministracionResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+public record ViaAdministracionResult(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/UnidadMedidaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+public record UnidadMedidaResult(
+        String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ClasificacionControladaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+public record ClasificacionControladaResult(
+        String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+        boolean retieneReceta, Integer vigenciaRecetaDias, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/PrincipioActivoResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.UUID;
+
+public record PrincipioActivoResult(
+        UUID id, String codigoFuente, String denominacion, String nombreNormalizado, String fuente, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/MarcaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.UUID;
+
+public record MarcaResult(
+        UUID id, UUID tenantId, String codigo, String nombre, String descripcion, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/CategoriaProductoResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.UUID;
+
+public record CategoriaProductoResult(
+        UUID id, UUID tenantId, UUID categoriaPadreId, String codigo, String nombre, String descripcion,
+        int nivel, int orden, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/PrincipioActivoAsociadoResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record PrincipioActivoAsociadoResult(
+        UUID principioActivoId, String concentracionTexto, BigDecimal cantidad, String unidadMedidaCodigo,
+        boolean esPrincipal, short orden) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ProductoReguladoResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record ProductoReguladoResult(
+        UUID id,
+        String tipoProducto,
+        String rubroCodigo,
+        String tipoRegistro,
+        String numeroRegistro,
+        String denominacion,
+        String concentracionTexto,
+        String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        String tipoLiberacion,
+        String origenFabricacion,
+        String paisOrigen,
+        String subpartidaNacional,
+        String titularRegistro,
+        String fabricante,
+        String importador,
+        String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        String fuente,
+        String versionFuente,
+        List<PrincipioActivoAsociadoResult> principiosActivos,
+        String estadoRegulatorio,
+        Instant createdAt,
+        Instant updatedAt) {
+
+    public ProductoReguladoResult {
+        principiosActivos = List.copyOf(principiosActivos);
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/ProductoReguladoResumen.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.UUID;
+
+public record ProductoReguladoResumen(
+        UUID id, String denominacion, String condicionVentaCodigo, String estadoRegulatorio) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/CodigoBarraSkuResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.time.LocalDate;
+
+public record CodigoBarraSkuResult(
+        String codigoBarra, String tipoCodigo, boolean esPrincipal, LocalDate vigenteDesde,
+        LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/SkuResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+public record SkuResult(
+        UUID id,
+        UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        String tipoSku,
+        String codigoInterno,
+        String descripcionComercial,
+        String nombreCorto,
+        String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri,
+        List<CodigoBarraSkuResult> codigosBarra,
+        String estado,
+        String createdBy,
+        Instant createdAt,
+        String updatedBy,
+        Instant updatedAt) {
+
+    public SkuResult {
+        codigosBarra = List.copyOf(codigosBarra);
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/SkuResumen.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.UUID;
+
+public record SkuResumen(
+        UUID id, String codigoInterno, String descripcionComercial, String tipoSku, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/result/PaginaResult.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.result;
+
+import java.util.List;
+
+public record PaginaResult<T>(List<T> items, int page, int size, long totalElements) {
+
+    public PaginaResult {
+        items = List.copyOf(items);
+    }
+}
+```
+
+- [ ] **Step 2: Crear los `command` (5 catálogos de soporte + PrincipioActivo)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearCondicionVentaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.time.LocalDate;
+
+public record CrearCondicionVentaCommand(
+        String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+        String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta)
+        implements Command<CondicionVentaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarCondicionVentaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.time.LocalDate;
+
+public record ActualizarCondicionVentaCommand(
+        String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+        String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta)
+        implements Command<CondicionVentaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearFormaFarmaceuticaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record CrearFormaFarmaceuticaCommand(String codigo, String denominacion, String fuente)
+        implements Command<FormaFarmaceuticaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarFormaFarmaceuticaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record ActualizarFormaFarmaceuticaCommand(String codigo, String denominacion, String fuente)
+        implements Command<FormaFarmaceuticaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearViaAdministracionCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record CrearViaAdministracionCommand(String codigo, String denominacion, String fuente)
+        implements Command<ViaAdministracionResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarViaAdministracionCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record ActualizarViaAdministracionCommand(String codigo, String denominacion, String fuente)
+        implements Command<ViaAdministracionResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearUnidadMedidaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record CrearUnidadMedidaCommand(
+        String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente)
+        implements Command<UnidadMedidaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarUnidadMedidaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record ActualizarUnidadMedidaCommand(
+        String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente)
+        implements Command<UnidadMedidaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearClasificacionControladaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record CrearClasificacionControladaCommand(
+        String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+        boolean retieneReceta, Integer vigenciaRecetaDias) implements Command<ClasificacionControladaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarClasificacionControladaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record ActualizarClasificacionControladaCommand(
+        String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+        boolean retieneReceta, Integer vigenciaRecetaDias) implements Command<ClasificacionControladaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearPrincipioActivoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+
+public record CrearPrincipioActivoCommand(
+        String codigoFuente, String denominacion, String nombreNormalizado, String fuente)
+        implements Command<PrincipioActivoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarPrincipioActivoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record ActualizarPrincipioActivoCommand(
+        UUID principioActivoId, String codigoFuente, String denominacion, String nombreNormalizado, String fuente)
+        implements Command<PrincipioActivoResult> {
+}
+```
+
+- [ ] **Step 3: Crear los `command` de Marca y CategoriaProducto**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearMarcaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record CrearMarcaCommand(UUID tenantId, String codigo, String nombre, String descripcion)
+        implements Command<MarcaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarMarcaCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record ActualizarMarcaCommand(UUID tenantId, UUID marcaId, String codigo, String nombre, String descripcion)
+        implements Command<MarcaResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearCategoriaProductoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record CrearCategoriaProductoCommand(
+        UUID tenantId, UUID categoriaPadreId, String codigo, String nombre, String descripcion,
+        int nivel, int orden) implements Command<CategoriaProductoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarCategoriaProductoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record ActualizarCategoriaProductoCommand(
+        UUID tenantId, UUID categoriaId, UUID categoriaPadreId, String codigo, String nombre,
+        String descripcion, int nivel, int orden) implements Command<CategoriaProductoResult> {
+}
+```
+
+- [ ] **Step 4: Crear los `command`/`query` de ProductoRegulado**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearProductoReguladoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.time.LocalDate;
+
+public record CrearProductoReguladoCommand(
+        String tipoProducto,
+        String rubroCodigo,
+        String tipoRegistro,
+        String numeroRegistro,
+        String denominacion,
+        String concentracionTexto,
+        String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        String tipoLiberacion,
+        String origenFabricacion,
+        String paisOrigen,
+        String subpartidaNacional,
+        String titularRegistro,
+        String fabricante,
+        String importador,
+        String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        String fuente,
+        String versionFuente) implements Command<ProductoReguladoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarProductoReguladoCommand.java` (mismos campos que `CrearProductoReguladoCommand` + `productoReguladoId` al inicio):
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.time.LocalDate;
+import java.util.UUID;
+
+public record ActualizarProductoReguladoCommand(
+        UUID productoReguladoId,
+        String tipoProducto,
+        String rubroCodigo,
+        String tipoRegistro,
+        String numeroRegistro,
+        String denominacion,
+        String concentracionTexto,
+        String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        String tipoLiberacion,
+        String origenFabricacion,
+        String paisOrigen,
+        String subpartidaNacional,
+        String titularRegistro,
+        String fabricante,
+        String importador,
+        String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        String fuente,
+        String versionFuente) implements Command<ProductoReguladoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/AsociarPrincipioActivoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record AsociarPrincipioActivoCommand(
+        UUID productoReguladoId, UUID principioActivoId, String concentracionTexto, BigDecimal cantidad,
+        String unidadMedidaCodigo, boolean esPrincipal, short orden) implements Command<ProductoReguladoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/DesasociarPrincipioActivoCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record DesasociarPrincipioActivoCommand(UUID productoReguladoId, UUID principioActivoId)
+        implements Command<ProductoReguladoResult> {
+}
+```
+
+- [ ] **Step 5: Crear los `command` de SKUComercial**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/CrearSkuCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record CrearSkuCommand(
+        UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        String tipoSku,
+        String codigoInterno,
+        String descripcionComercial,
+        String nombreCorto,
+        String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri,
+        String createdBy) implements Command<SkuResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/ActualizarSkuCommand.java` (mismos campos + `skuId`, sin `createdBy`, con `updatedBy`):
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record ActualizarSkuCommand(
+        UUID tenantId,
+        UUID skuId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        String tipoSku,
+        String codigoInterno,
+        String descripcionComercial,
+        String nombreCorto,
+        String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri,
+        String updatedBy) implements Command<SkuResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/AgregarCodigoBarraCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.time.LocalDate;
+import java.util.UUID;
+
+public record AgregarCodigoBarraCommand(
+        UUID tenantId, UUID skuId, String codigoBarra, String tipoCodigo, LocalDate vigenteDesde,
+        LocalDate vigenteHasta) implements Command<SkuResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/EliminarCodigoBarraCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record EliminarCodigoBarraCommand(UUID tenantId, UUID skuId, String codigoBarra)
+        implements Command<SkuResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/command/MarcarCodigoBarraPrincipalCommand.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.command;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Command;
+import java.util.UUID;
+
+public record MarcarCodigoBarraPrincipalCommand(UUID tenantId, UUID skuId, String codigoBarra)
+        implements Command<SkuResult> {
+}
+```
+
+- [ ] **Step 6: Crear los `query`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarCondicionesVentaQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.List;
+
+public record ListarCondicionesVentaQuery(String estado) implements Query<List<CondicionVentaResult>> {
+}
+```
+
+Crear, siguiendo exactamente la misma forma (un campo `String estado`, retorno `List<XResult>`), los siguientes 4 queries:
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarFormasFarmaceuticasQuery.java` → `Query<List<FormaFarmaceuticaResult>>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarViasAdministracionQuery.java` → `Query<List<ViaAdministracionResult>>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarUnidadesMedidaQuery.java` → `Query<List<UnidadMedidaResult>>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarClasificacionesControladasQuery.java` → `Query<List<ClasificacionControladaResult>>`
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarPrincipioActivoQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.List;
+
+public record ListarPrincipioActivoQuery(String texto, String estado) implements Query<List<PrincipioActivoResult>> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarMarcasQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.List;
+import java.util.UUID;
+
+public record ListarMarcasQuery(UUID tenantId, String estado) implements Query<List<MarcaResult>> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarCategoriasProductoQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.List;
+import java.util.UUID;
+
+public record ListarCategoriasProductoQuery(UUID tenantId, UUID categoriaPadreId, String estado)
+        implements Query<List<CategoriaProductoResult>> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ConsultarProductoReguladoQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.UUID;
+
+public record ConsultarProductoReguladoQuery(UUID productoReguladoId) implements Query<ProductoReguladoResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarProductosReguladosQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.shared.application.cqrs.Query;
+
+public record ListarProductosReguladosQuery(
+        String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size)
+        implements Query<PaginaResult<ProductoReguladoResumen>> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ConsultarSkuQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.UUID;
+
+public record ConsultarSkuQuery(UUID tenantId, UUID skuId) implements Query<SkuResult> {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarSkusQuery.java`:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.shared.application.cqrs.Query;
+import java.util.UUID;
+
+public record ListarSkusQuery(
+        UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado,
+        int page, int size) implements Query<PaginaResult<SkuResumen>> {
+}
+```
+
+- [ ] **Step 7: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/
+git commit -m "feat(catalogo): agregar DTOs de aplicacion command/query/result"
+```
+
+---
