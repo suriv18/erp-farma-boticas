@@ -1,0 +1,981 @@
+# Módulo Catálogo: Producto + Categoría — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Implementar el módulo `catalogo` de `service-botica` con dos agregados (`Categoria`, `Producto`), CRUD completo, persistencia real (JPA escritura + JDBC lectura), migración Flyway, y API REST con autorización — sentando la base para que el módulo Inventario (trabajo futuro) pueda referenciar productos reales en vez de datos hardcodeados.
+
+**Architecture:** Clean Architecture + DDD + Ports & Adapters + CQRS dentro de `service-botica/modules/catalogo/`. `domain/` y `api/` (commands/queries) + `application/` (handlers) siguen el estilo CQRS-puro de `modules/organizacion`. `infrastructure/persistence/{read,write}` y `api/controller` siguen el estilo maduro de `modules/security`. Multi-tenant vía `tenantId` (UUID público de `sch_farmacia.tenant`) resuelto del claim `tid` del JWT en cada controller, igual que `LocalAuthController`/`LocalAuthJdbcAdapter`.
+
+**Tech Stack:** Java 25, Spring Boot 4.1, Spring Data JPA, Spring JDBC (`JdbcClient`), PostgreSQL 18 + Flyway, JUnit 5, MockMvc, Spring Modulith 2.1.
+
+## Global Constraints
+
+- Backend: `cd service-botica && .\gradlew.bat check --warning-mode all` debe pasar (build + tests + ArchUnit + Spring Modulith verify) antes de dar por terminado el trabajo.
+- El módulo `catalogo` ya existe como scaffold (`build.gradle`, `package-info.java` con `@ApplicationModule(id="catalogo", allowedDependencies={"organizacion::api"})`, `api/package-info.java` con `@NamedInterface("api")`), y ya está registrado en `settings.gradle` y referenciado en `bootstrap-app/build.gradle` — no crear estos archivos desde cero, solo verificarlos y añadir el resto.
+- Migraciones nuevas van en `service-botica/bootstrap-app/src/main/resources/db/migration/`, numeradas después de la última existente (verificar el número libre en la Task 1 — al momento de escribir este plan la última es V021).
+- El perfil de test de integración real (Testcontainers+Postgres) usa `@ActiveProfiles("test")` + `@Import(PostgresTestContainerConfiguration.class)` + `@SpringBootTest` (+ `@AutoConfigureMockMvc` para tests HTTP) — NO un perfil llamado "integration". Copiar exactamente las anotaciones de clase de `IamApiIntegrationTest.java`.
+- Los agregados de dominio son inmutables: factories estáticas devuelven `Result<T, ErrorDetail>`; transiciones de estado (`activate()`/`deactivate()`) devuelven una nueva instancia, nunca mutan la existente.
+- Los commands/queries llevan `tenantId: UUID` (el UUID público de `sch_farmacia.tenant`, viene del claim `tid` del JWT) explícito como campo — no existe un contexto de actor autenticado compartido entre módulos.
+- Sin comentarios explicativos en el código salvo invariantes no obvias; Result pattern para errores esperables; nombres en español para el dominio de negocio (Categoria, Producto, TipoProducto...), inglés para tipos técnicos ya establecidos por el framework.
+- No modificar `docs/cadena-farmacias-docs/database/migrations/*.sql` (registro histórico).
+
+---
+
+## Fase 1 — Migración de base de datos
+
+### Task 1: Migración Flyway que crea `sch_catalogo.categoria` y `sch_catalogo.producto`
+
+**Files:**
+- Create: `service-botica/bootstrap-app/src/main/resources/db/migration/V022__catalogo_producto_categoria.sql`
+- Test: `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/db/MigrationV022Test.java`
+
+**Interfaces:**
+- Produces: tablas `sch_catalogo.categoria`, `sch_catalogo.producto`; permisos `catalogo.categorias.gestionar`, `catalogo.categorias.consultar`, `catalogo.productos.gestionar`, `catalogo.productos.consultar` en `sch_seguridad.permiso`. Usadas por todas las tareas siguientes.
+
+- [ ] **Step 1: Verificar el número de migración siguiente disponible**
+
+Run: `ls service-botica/bootstrap-app/src/main/resources/db/migration/`
+Expected: la migración más alta hoy es `V021__separar_identidad_membership.sql`. Usar `V022` como siguiente número. Si al ejecutar este paso ya existe un `V022` (por trabajo posterior no reflejado en este plan), usar el siguiente número libre y ajustar el nombre de archivo en los pasos restantes de esta tarea.
+
+- [ ] **Step 2: Ver cómo `V018__seed_security_administration_permissions.sql` siembra permisos, para replicar el mismo patrón**
+
+Run: `cat service-botica/bootstrap-app/src/main/resources/db/migration/V018__seed_security_administration_permissions.sql`
+Anotar: el nombre exacto de la columna `modulo_id` en `sch_seguridad.permiso`, cómo se referencia `sch_seguridad.modulo_sistema`, y si module `SEGURIDAD` se inserta o ya existe. Este plan asume que hace falta insertar un módulo `CATALOGO` nuevo en `sch_seguridad.modulo_sistema` antes de poder insertar sus permisos (por la FK `modulo_id`).
+
+- [ ] **Step 3: Escribir el test de integración que falla — verifica que las tablas y permisos nuevos existen**
+
+Crear `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/db/MigrationV022Test.java`. Antes de escribir el cuerpo, copiar las anotaciones de clase exactas desde `service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/db/MigrationV021Test.java`:
+
+Run: `grep -n "@ActiveProfiles\|@SpringBootTest\|@Import\|@Transactional\|@RecordApplicationEvents" service-botica/bootstrap-app/src/test/java/com/softprimesolutions/security/db/MigrationV021Test.java`
+
+Luego crear el archivo:
+
+```java
+package com.softprimesolutions.catalogo.db;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import javax.sql.DataSource;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.ActiveProfiles;
+
+@SpringBootTest
+@ActiveProfiles("test")
+class MigrationV022Test {
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Test
+    void createsCategoriaAndProductoTablesWithExpectedConstraints() {
+        var jdbc = JdbcClient.create(dataSource);
+
+        var categoriaExists = jdbc.sql("""
+                        SELECT COUNT(*) FROM information_schema.tables
+                         WHERE table_schema = 'sch_catalogo' AND table_name = 'categoria'
+                        """)
+                .query(Long.class).single();
+        assertThat(categoriaExists).isEqualTo(1L);
+
+        var productoExists = jdbc.sql("""
+                        SELECT COUNT(*) FROM information_schema.tables
+                         WHERE table_schema = 'sch_catalogo' AND table_name = 'producto'
+                        """)
+                .query(Long.class).single();
+        assertThat(productoExists).isEqualTo(1L);
+
+        var categoriaUniqueNombre = jdbc.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE conname = 'uk_cat_categoria_tenant_nombre'
+                        """)
+                .query(Long.class).single();
+        assertThat(categoriaUniqueNombre).isEqualTo(1L);
+
+        var productoFkCategoria = jdbc.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE conname = 'fk_cat_producto_categoria'
+                        """)
+                .query(Long.class).single();
+        assertThat(productoFkCategoria).isEqualTo(1L);
+
+        var productoMedicamentoCheck = jdbc.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE conname = 'ck_cat_producto_medicamento_requiere_datos'
+                        """)
+                .query(Long.class).single();
+        assertThat(productoMedicamentoCheck).isEqualTo(1L);
+
+        var permisosNuevos = jdbc.sql("""
+                        SELECT COUNT(*) FROM sch_seguridad.permiso
+                         WHERE codigo IN ('catalogo.categorias.gestionar', 'catalogo.categorias.consultar',
+                                           'catalogo.productos.gestionar', 'catalogo.productos.consultar')
+                        """)
+                .query(Long.class).single();
+        assertThat(permisosNuevos).isEqualTo(4L);
+    }
+}
+```
+
+Ajustar las anotaciones de clase (`@SpringBootTest`, `@ActiveProfiles`, y cualquier `@Import`/`@Transactional` que el Step 2 haya revelado en `MigrationV021Test.java`) para que coincidan exactamente antes de continuar.
+
+- [ ] **Step 4: Ejecutar y verificar que el test falla**
+
+Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.catalogo.db.MigrationV022Test"`
+Expected: FAIL — las tablas `sch_catalogo.categoria`/`producto` no existen todavía.
+
+- [ ] **Step 5: Escribir la migración `V022__catalogo_producto_categoria.sql`**
+
+Crear `service-botica/bootstrap-app/src/main/resources/db/migration/V022__catalogo_producto_categoria.sql`:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS sch_catalogo;
+
+CREATE TABLE sch_catalogo.categoria (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY,
+    uuid_publico    UUID NOT NULL DEFAULT uuidv7(),
+    tenant_id       BIGINT NOT NULL REFERENCES sch_farmacia.tenant(id),
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     VARCHAR(500),
+    estado          VARCHAR(20) NOT NULL DEFAULT 'ACTIVA',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ,
+    CONSTRAINT pk_cat_categoria PRIMARY KEY (id),
+    CONSTRAINT uk_cat_categoria_uuid UNIQUE (uuid_publico),
+    CONSTRAINT uk_cat_categoria_tenant_nombre UNIQUE (tenant_id, nombre),
+    CONSTRAINT ck_cat_categoria_estado CHECK (estado IN ('ACTIVA','INACTIVA'))
+);
+
+CREATE TABLE sch_catalogo.producto (
+    id                      BIGINT GENERATED ALWAYS AS IDENTITY,
+    uuid_publico            UUID NOT NULL DEFAULT uuidv7(),
+    tenant_id               BIGINT NOT NULL REFERENCES sch_farmacia.tenant(id),
+    categoria_id            BIGINT NOT NULL,
+    nombre                  VARCHAR(200) NOT NULL,
+    tipo                    VARCHAR(30) NOT NULL,
+    laboratorio             VARCHAR(150),
+    unidad_medida           VARCHAR(30) NOT NULL,
+    presentacion            VARCHAR(150),
+    unidades_por_paquete    INTEGER NOT NULL DEFAULT 1,
+    codigo_barras           VARCHAR(40),
+    precio_venta            NUMERIC(12,2) NOT NULL,
+    condicion_venta         VARCHAR(20),
+    es_generico             BOOLEAN NOT NULL DEFAULT FALSE,
+    es_generico_esencial    BOOLEAN NOT NULL DEFAULT FALSE,
+    grupo_terapeutico       VARCHAR(150),
+    codigo_digemid          VARCHAR(40),
+    principio_activo        VARCHAR(200),
+    concentracion           VARCHAR(60),
+    requiere_lote           BOOLEAN NOT NULL DEFAULT FALSE,
+    requiere_vencimiento    BOOLEAN NOT NULL DEFAULT FALSE,
+    estado                  VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMPTZ,
+    CONSTRAINT pk_cat_producto PRIMARY KEY (id),
+    CONSTRAINT uk_cat_producto_uuid UNIQUE (uuid_publico),
+    CONSTRAINT fk_cat_producto_categoria FOREIGN KEY (categoria_id) REFERENCES sch_catalogo.categoria(id),
+    CONSTRAINT uk_cat_producto_tenant_codigo_barras UNIQUE (tenant_id, codigo_barras),
+    CONSTRAINT ck_cat_producto_tipo CHECK (tipo IN (
+        'MEDICAMENTO','DISPOSITIVO_MEDICO','PRODUCTO_SANITARIO','SUPLEMENTO_ALIMENTO','ARTICULO_NO_SANITARIO')),
+    CONSTRAINT ck_cat_producto_condicion_venta CHECK (
+        condicion_venta IS NULL OR condicion_venta IN ('SIN_RECETA','CON_RECETA','RECETA_RETENIDA')),
+    CONSTRAINT ck_cat_producto_estado CHECK (estado IN ('ACTIVO','INACTIVO')),
+    CONSTRAINT ck_cat_producto_precio_venta CHECK (precio_venta > 0),
+    CONSTRAINT ck_cat_producto_medicamento_requiere_datos CHECK (
+        tipo <> 'MEDICAMENTO' OR (principio_activo IS NOT NULL AND condicion_venta IS NOT NULL))
+);
+
+CREATE INDEX ix_cat_producto_tenant_categoria ON sch_catalogo.producto(tenant_id, categoria_id);
+CREATE INDEX ix_cat_producto_tenant_estado ON sch_catalogo.producto(tenant_id, estado);
+
+INSERT INTO sch_seguridad.modulo_sistema (codigo, nombre, orden)
+VALUES ('CATALOGO', 'Catálogo', 20)
+ON CONFLICT (codigo) DO NOTHING;
+
+INSERT INTO sch_seguridad.permiso (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
+SELECT id, 'catalogo.categorias.gestionar', 'CATEGORIA', 'GESTIONAR',
+       'Gestionar categorías', 'Crear, actualizar y cambiar el estado de categorías de catálogo.', FALSE, 'ACTIVO'
+  FROM sch_seguridad.modulo_sistema WHERE codigo = 'CATALOGO';
+
+INSERT INTO sch_seguridad.permiso (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
+SELECT id, 'catalogo.categorias.consultar', 'CATEGORIA', 'CONSULTAR',
+       'Consultar categorías', 'Listar categorías de catálogo.', FALSE, 'ACTIVO'
+  FROM sch_seguridad.modulo_sistema WHERE codigo = 'CATALOGO';
+
+INSERT INTO sch_seguridad.permiso (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
+SELECT id, 'catalogo.productos.gestionar', 'PRODUCTO', 'GESTIONAR',
+       'Gestionar productos', 'Crear, actualizar y cambiar el estado de productos de catálogo.', FALSE, 'ACTIVO'
+  FROM sch_seguridad.modulo_sistema WHERE codigo = 'CATALOGO';
+
+INSERT INTO sch_seguridad.permiso (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
+SELECT id, 'catalogo.productos.consultar', 'PRODUCTO', 'CONSULTAR',
+       'Consultar productos', 'Consultar y listar productos de catálogo.', FALSE, 'ACTIVO'
+  FROM sch_seguridad.modulo_sistema WHERE codigo = 'CATALOGO';
+```
+
+Antes de dar este paso por completo, revisar la salida real del Step 2: si el nombre de columnas de `sch_seguridad.permiso`/`modulo_sistema` difiere de lo asumido aquí (`modulo_id`, `codigo`, `recurso`, `accion`, `nombre`, `descripcion`, `es_critico`, `estado`), ajustar el SQL de arriba para que coincida exactamente con `V018`.
+
+- [ ] **Step 6: Ejecutar y verificar que el test pasa**
+
+Run: `cd service-botica && .\gradlew.bat :bootstrap-app:test --tests "com.softprimesolutions.catalogo.db.MigrationV022Test"`
+Expected: PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add service-botica/bootstrap-app/src/main/resources/db/migration/V022__catalogo_producto_categoria.sql service-botica/bootstrap-app/src/test/java/com/softprimesolutions/catalogo/db/MigrationV022Test.java
+git commit -m "feat(catalogo): migrar esquema sch_catalogo con categoria y producto"
+```
+
+---
+
+## Fase 2 — Dominio
+
+### Task 2: Value Objects e IDs (`TenantId`, `CategoriaId`, `ProductoId`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/TenantId.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/CategoriaId.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/ProductoId.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/valueobject/ValueObjectsTest.java`
+
+**Interfaces:**
+- Produces: `TenantId(UUID value)`, `CategoriaId(UUID value)`, `ProductoId(UUID value)` — records inmutables que rechazan `null`. Usados por Task 3 (agregados) y todas las tareas posteriores.
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/valueobject/ValueObjectsTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.valueobject;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ValueObjectsTest {
+
+    @Test
+    void wrapsAndExposesTheUnderlyingUuid() {
+        var uuid = UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589");
+
+        assertEquals(uuid, new TenantId(uuid).value());
+        assertEquals(uuid, new CategoriaId(uuid).value());
+        assertEquals(uuid, new ProductoId(uuid).value());
+    }
+
+    @Test
+    void rejectsANullUuid() {
+        assertThrows(NullPointerException.class, () -> new TenantId(null));
+        assertThrows(NullPointerException.class, () -> new CategoriaId(null));
+        assertThrows(NullPointerException.class, () -> new ProductoId(null));
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.valueobject.ValueObjectsTest"`
+Expected: FAIL — `TenantId`, `CategoriaId`, `ProductoId` no existen todavía (error de compilación).
+
+- [ ] **Step 3: Crear los tres Value Objects**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/TenantId.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.valueobject;
+
+import java.util.Objects;
+import java.util.UUID;
+
+/** Identificador público del tenant; la PK BIGINT permanece en persistencia. */
+public record TenantId(UUID value) {
+
+    public TenantId {
+        Objects.requireNonNull(value, "value es obligatorio");
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/CategoriaId.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.valueobject;
+
+import java.util.Objects;
+import java.util.UUID;
+
+public record CategoriaId(UUID value) {
+
+    public CategoriaId {
+        Objects.requireNonNull(value, "value es obligatorio");
+    }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/ProductoId.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.valueobject;
+
+import java.util.Objects;
+import java.util.UUID;
+
+public record ProductoId(UUID value) {
+
+    public ProductoId {
+        Objects.requireNonNull(value, "value es obligatorio");
+    }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.valueobject.ValueObjectsTest"`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/valueobject/ service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/valueobject/
+git commit -m "feat(catalogo): agregar value objects TenantId, CategoriaId, ProductoId"
+```
+
+---
+
+### Task 3: Enums de dominio (`EstadoCategoria`, `EstadoProducto`, `TipoProducto`, `CondicionVenta`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoria.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoProducto.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/TipoProducto.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CondicionVenta.java`
+
+**Interfaces:**
+- Produces: `EstadoCategoria{ACTIVA,INACTIVA}`, `EstadoProducto{ACTIVO,INACTIVO}`, `TipoProducto{MEDICAMENTO,DISPOSITIVO_MEDICO,PRODUCTO_SANITARIO,SUPLEMENTO_ALIMENTO,ARTICULO_NO_SANITARIO}`, `CondicionVenta{SIN_RECETA,CON_RECETA,RECETA_RETENIDA}`. Usados por Task 4 (agregados) y en adelante.
+
+No requiere test dedicado (enums puros sin lógica) — se validan indirectamente vía Task 4.
+
+- [ ] **Step 1: Crear los cuatro enums**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoria.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum EstadoCategoria {
+    ACTIVA,
+    INACTIVA
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoProducto.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum EstadoProducto {
+    ACTIVO,
+    INACTIVO
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/TipoProducto.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum TipoProducto {
+    MEDICAMENTO,
+    DISPOSITIVO_MEDICO,
+    PRODUCTO_SANITARIO,
+    SUPLEMENTO_ALIMENTO,
+    ARTICULO_NO_SANITARIO
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CondicionVenta.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+public enum CondicionVenta {
+    SIN_RECETA,
+    CON_RECETA,
+    RECETA_RETENIDA
+}
+```
+
+- [ ] **Step 2: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoCategoria.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/EstadoProducto.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/TipoProducto.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/CondicionVenta.java
+git commit -m "feat(catalogo): agregar enums de dominio EstadoCategoria, EstadoProducto, TipoProducto, CondicionVenta"
+```
+
+---
+
+### Task 4: Agregado `Categoria`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Categoria.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaTest.java`
+
+**Interfaces:**
+- Consumes: `CategoriaId`, `TenantId` (Task 2), `EstadoCategoria` (Task 3), `Result`, `ErrorDetail`, `AggregateRoot` (shared-kernel).
+- Produces: `Categoria.create(CategoriaId id, TenantId tenantId, String nombre, String descripcion, Instant createdAt): Result<Categoria, ErrorDetail>`, `Categoria.restore(CategoriaId, TenantId, String nombre, String descripcion, EstadoCategoria, Instant createdAt, Instant updatedAt): Categoria`, getters `id()`, `tenantId()`, `nombre()`, `descripcion()`, `estado()`, `createdAt()`, `updatedAt()`. Usado por Task 8 (`CrearCategoriaHandler`) y Task 10 (mapper JPA).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class CategoriaTest {
+
+    @Test
+    void createsAndNormalizesAValidCategoria() {
+        var result = Categoria.create(
+                new CategoriaId(UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589")),
+                new TenantId(UUID.fromString("a92adf67-70e7-4cc1-bb05-ff074df7fdf5")),
+                "  Analgésicos  ",
+                "  Medicamentos para el dolor  ",
+                Instant.parse("2026-09-07T10:00:00Z"));
+
+        assertTrue(result.isSuccess());
+        var categoria = result.getOrElse(error -> null);
+        assertEquals("Analgésicos", categoria.nombre());
+        assertEquals("Medicamentos para el dolor", categoria.descripcion());
+        assertEquals(EstadoCategoria.ACTIVA, categoria.estado());
+    }
+
+    @Test
+    void rejectsANameThatIsTooShort() {
+        var result = Categoria.create(
+                new CategoriaId(UUID.randomUUID()),
+                new TenantId(UUID.randomUUID()),
+                "A",
+                null,
+                Instant.parse("2026-09-07T10:00:00Z"));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_CATEGORIA_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void requiresIdTenantAndCreatedAt() {
+        var missingId = Categoria.create(
+                null, new TenantId(UUID.randomUUID()), "Analgésicos", null,
+                Instant.parse("2026-09-07T10:00:00Z"));
+        assertTrue(missingId.isFailure());
+
+        var missingTenant = Categoria.create(
+                new CategoriaId(UUID.randomUUID()), null, "Analgésicos", null,
+                Instant.parse("2026-09-07T10:00:00Z"));
+        assertTrue(missingTenant.isFailure());
+
+        var missingCreatedAt = Categoria.create(
+                new CategoriaId(UUID.randomUUID()), new TenantId(UUID.randomUUID()),
+                "Analgésicos", null, null);
+        assertTrue(missingCreatedAt.isFailure());
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.CategoriaTest"`
+Expected: FAIL — `Categoria` no existe todavía (error de compilación).
+
+- [ ] **Step 3: Crear `Categoria`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Categoria.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.kernel.domain.AggregateRoot;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.time.Instant;
+import java.util.Map;
+
+/** Agrupación temática de productos dentro del catálogo de un tenant. */
+public final class Categoria extends AggregateRoot {
+
+    private static final int NAME_MIN_LENGTH = 2;
+    private static final int NAME_MAX_LENGTH = 100;
+    private static final int DESCRIPTION_MAX_LENGTH = 500;
+
+    private final CategoriaId id;
+    private final TenantId tenantId;
+    private final String nombre;
+    private final String descripcion;
+    private final EstadoCategoria estado;
+    private final Instant createdAt;
+    private final Instant updatedAt;
+
+    private Categoria(
+            CategoriaId id,
+            TenantId tenantId,
+            String nombre,
+            String descripcion,
+            EstadoCategoria estado,
+            Instant createdAt,
+            Instant updatedAt) {
+        this.id = id;
+        this.tenantId = tenantId;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.estado = estado;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public static Result<Categoria, ErrorDetail> create(
+            CategoriaId id, TenantId tenantId, String nombre, String descripcion, Instant createdAt) {
+        if (id == null) return invalid("id", "La identidad de la categoría es obligatoria.");
+        if (tenantId == null) return invalid("tenantId", "El tenant es obligatorio.");
+        if (createdAt == null) return invalid("createdAt", "El instante de registro es obligatorio.");
+
+        var normalizedName = normalizeSpaces(nombre);
+        if (normalizedName == null || normalizedName.length() < NAME_MIN_LENGTH
+                || normalizedName.length() > NAME_MAX_LENGTH) {
+            return invalid("nombre", "El nombre debe tener entre 2 y 100 caracteres.");
+        }
+
+        var normalizedDescription = normalizeNullable(descripcion);
+        if (normalizedDescription != null && normalizedDescription.length() > DESCRIPTION_MAX_LENGTH) {
+            return invalid("descripcion", "La descripción no debe exceder 500 caracteres.");
+        }
+
+        return Result.success(new Categoria(
+                id, tenantId, normalizedName, normalizedDescription, EstadoCategoria.ACTIVA, createdAt, null));
+    }
+
+    public static Categoria restore(
+            CategoriaId id,
+            TenantId tenantId,
+            String nombre,
+            String descripcion,
+            EstadoCategoria estado,
+            Instant createdAt,
+            Instant updatedAt) {
+        return new Categoria(id, tenantId, nombre, descripcion, estado, createdAt, updatedAt);
+    }
+
+    private static Result<Categoria, ErrorDetail> invalid(String field, String message) {
+        return Result.failure(new ErrorDetail("CAT_CATEGORIA_INVALIDA", message, Map.of("field", field)));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String normalizeSpaces(String value) {
+        var normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", " ");
+    }
+
+    private static String normalizeNullable(String value) {
+        var normalized = normalizeSpaces(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
+    }
+
+    public CategoriaId id() { return id; }
+    public TenantId tenantId() { return tenantId; }
+    public String nombre() { return nombre; }
+    public String descripcion() { return descripcion; }
+    public EstadoCategoria estado() { return estado; }
+    public Instant createdAt() { return createdAt; }
+    public Instant updatedAt() { return updatedAt; }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.CategoriaTest"`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Categoria.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/CategoriaTest.java
+git commit -m "feat(catalogo): agregar agregado de dominio Categoria"
+```
+
+---
+
+### Task 5: Agregado `Producto`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Producto.java`
+- Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/ProductoTest.java`
+
+**Interfaces:**
+- Consumes: `ProductoId`, `TenantId`, `CategoriaId` (Task 2), `EstadoProducto`, `TipoProducto`, `CondicionVenta` (Task 3).
+- Produces: `Producto.create(ProductoId id, TenantId tenantId, CategoriaId categoriaId, String nombre, TipoProducto tipo, String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete, String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico, boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo, String concentracion, boolean requiereLote, boolean requiereVencimiento, Instant createdAt): Result<Producto, ErrorDetail>`, `Producto.restore(...)` (mismos campos + `EstadoProducto` + `updatedAt`), getters para todos los campos. Usado por Task 9 (`CrearProductoHandler`) y Task 11 (mapper JPA).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/ProductoTest.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class ProductoTest {
+
+    private static final ProductoId PRODUCTO_ID = new ProductoId(
+            UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"));
+    private static final TenantId TENANT_ID = new TenantId(
+            UUID.fromString("a92adf67-70e7-4cc1-bb05-ff074df7fdf5"));
+    private static final CategoriaId CATEGORIA_ID = new CategoriaId(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    private static final Instant CREATED_AT = Instant.parse("2026-09-07T10:00:00Z");
+
+    @Test
+    void createsANonMedicamentoProductWithoutRegulatoryFields() {
+        var result = Producto.create(
+                PRODUCTO_ID, TENANT_ID, CATEGORIA_ID, "  Alcohol en gel 250ml  ",
+                TipoProducto.PRODUCTO_SANITARIO, null, "Frasco", null, 1, null,
+                new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false, CREATED_AT);
+
+        assertTrue(result.isSuccess());
+        var producto = result.getOrElse(error -> null);
+        assertEquals("Alcohol en gel 250ml", producto.nombre());
+        assertEquals(EstadoProducto.ACTIVO, producto.estado());
+        assertEquals(new BigDecimal("12.50"), producto.precioVenta());
+    }
+
+    @Test
+    void requiresActiveIngredientAndSaleConditionForMedicamento() {
+        var result = Producto.create(
+                PRODUCTO_ID, TENANT_ID, CATEGORIA_ID, "Paracetamol 500mg",
+                TipoProducto.MEDICAMENTO, "Laboratorio X", "Tableta", "Caja x 10", 10, null,
+                new BigDecimal("5.00"), null, false, false, null, null, null, null,
+                false, false, CREATED_AT);
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void succeedsForMedicamentoWithActiveIngredientAndSaleCondition() {
+        var result = Producto.create(
+                PRODUCTO_ID, TENANT_ID, CATEGORIA_ID, "Paracetamol 500mg",
+                TipoProducto.MEDICAMENTO, "Laboratorio X", "Tableta", "Caja x 10", 10, null,
+                new BigDecimal("5.00"), CondicionVenta.SIN_RECETA, true, true, "Analgésicos",
+                "DIG-001", "Paracetamol", "500mg", true, true, CREATED_AT);
+
+        assertTrue(result.isSuccess());
+        var producto = result.getOrElse(error -> null);
+        assertEquals(CondicionVenta.SIN_RECETA, producto.condicionVenta());
+        assertEquals("Paracetamol", producto.principioActivo());
+        assertTrue(producto.requiereLote());
+        assertTrue(producto.requiereVencimiento());
+    }
+
+    @Test
+    void rejectsANonPositiveSalePrice() {
+        var result = Producto.create(
+                PRODUCTO_ID, TENANT_ID, CATEGORIA_ID, "Alcohol en gel",
+                TipoProducto.PRODUCTO_SANITARIO, null, "Frasco", null, 1, null,
+                BigDecimal.ZERO, null, false, false, null, null, null, null,
+                false, false, CREATED_AT);
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PRODUCTO_INVALIDO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void requiresIdTenantCategoriaAndCreatedAt() {
+        var missingCategoria = Producto.create(
+                PRODUCTO_ID, TENANT_ID, null, "Alcohol en gel",
+                TipoProducto.PRODUCTO_SANITARIO, null, "Frasco", null, 1, null,
+                new BigDecimal("12.50"), null, false, false, null, null, null, null,
+                false, false, CREATED_AT);
+        assertTrue(missingCategoria.isFailure());
+    }
+}
+```
+
+- [ ] **Step 2: Ejecutar y verificar que falla**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.ProductoTest"`
+Expected: FAIL — `Producto` no existe todavía (error de compilación).
+
+- [ ] **Step 3: Crear `Producto`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Producto.java`:
+
+```java
+package com.softprimesolutions.catalogo.domain.model;
+
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.kernel.domain.AggregateRoot;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Map;
+
+/** Ficha maestra de un artículo comercializable por el tenant (sin stock ni ubicación). */
+public final class Producto extends AggregateRoot {
+
+    private static final int NAME_MIN_LENGTH = 2;
+    private static final int NAME_MAX_LENGTH = 200;
+    private static final int LABORATORY_MAX_LENGTH = 150;
+    private static final int UNIT_MAX_LENGTH = 30;
+    private static final int PRESENTATION_MAX_LENGTH = 150;
+    private static final int BARCODE_MAX_LENGTH = 40;
+    private static final int THERAPEUTIC_GROUP_MAX_LENGTH = 150;
+    private static final int DIGEMID_CODE_MAX_LENGTH = 40;
+    private static final int ACTIVE_INGREDIENT_MAX_LENGTH = 200;
+    private static final int CONCENTRATION_MAX_LENGTH = 60;
+
+    private final ProductoId id;
+    private final TenantId tenantId;
+    private final CategoriaId categoriaId;
+    private final String nombre;
+    private final TipoProducto tipo;
+    private final String laboratorio;
+    private final String unidadMedida;
+    private final String presentacion;
+    private final int unidadesPorPaquete;
+    private final String codigoBarras;
+    private final BigDecimal precioVenta;
+    private final CondicionVenta condicionVenta;
+    private final boolean esGenerico;
+    private final boolean esGenericoEsencial;
+    private final String grupoTerapeutico;
+    private final String codigoDigemid;
+    private final String principioActivo;
+    private final String concentracion;
+    private final boolean requiereLote;
+    private final boolean requiereVencimiento;
+    private final EstadoProducto estado;
+    private final Instant createdAt;
+    private final Instant updatedAt;
+
+    private Producto(
+            ProductoId id, TenantId tenantId, CategoriaId categoriaId, String nombre, TipoProducto tipo,
+            String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete,
+            String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico,
+            boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo,
+            String concentracion, boolean requiereLote, boolean requiereVencimiento, EstadoProducto estado,
+            Instant createdAt, Instant updatedAt) {
+        this.id = id;
+        this.tenantId = tenantId;
+        this.categoriaId = categoriaId;
+        this.nombre = nombre;
+        this.tipo = tipo;
+        this.laboratorio = laboratorio;
+        this.unidadMedida = unidadMedida;
+        this.presentacion = presentacion;
+        this.unidadesPorPaquete = unidadesPorPaquete;
+        this.codigoBarras = codigoBarras;
+        this.precioVenta = precioVenta;
+        this.condicionVenta = condicionVenta;
+        this.esGenerico = esGenerico;
+        this.esGenericoEsencial = esGenericoEsencial;
+        this.grupoTerapeutico = grupoTerapeutico;
+        this.codigoDigemid = codigoDigemid;
+        this.principioActivo = principioActivo;
+        this.concentracion = concentracion;
+        this.requiereLote = requiereLote;
+        this.requiereVencimiento = requiereVencimiento;
+        this.estado = estado;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public static Result<Producto, ErrorDetail> create(
+            ProductoId id, TenantId tenantId, CategoriaId categoriaId, String nombre, TipoProducto tipo,
+            String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete,
+            String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico,
+            boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo,
+            String concentracion, boolean requiereLote, boolean requiereVencimiento, Instant createdAt) {
+        if (id == null) return invalid("id", "La identidad del producto es obligatoria.");
+        if (tenantId == null) return invalid("tenantId", "El tenant es obligatorio.");
+        if (categoriaId == null) return invalid("categoriaId", "La categoría es obligatoria.");
+        if (tipo == null) return invalid("tipo", "El tipo de producto es obligatorio.");
+        if (createdAt == null) return invalid("createdAt", "El instante de registro es obligatorio.");
+
+        var normalizedName = normalizeSpaces(nombre);
+        if (normalizedName == null || normalizedName.length() < NAME_MIN_LENGTH
+                || normalizedName.length() > NAME_MAX_LENGTH) {
+            return invalid("nombre", "El nombre debe tener entre 2 y 200 caracteres.");
+        }
+
+        var normalizedLaboratory = normalizeNullable(laboratorio);
+        if (!withinLength(normalizedLaboratory, LABORATORY_MAX_LENGTH)) {
+            return invalid("laboratorio", "El laboratorio no debe exceder 150 caracteres.");
+        }
+
+        var normalizedUnit = normalizeSpaces(unidadMedida);
+        if (normalizedUnit == null || normalizedUnit.isEmpty() || normalizedUnit.length() > UNIT_MAX_LENGTH) {
+            return invalid("unidadMedida", "La unidad de medida es obligatoria y no debe exceder 30 caracteres.");
+        }
+
+        var normalizedPresentation = normalizeNullable(presentacion);
+        if (!withinLength(normalizedPresentation, PRESENTATION_MAX_LENGTH)) {
+            return invalid("presentacion", "La presentación no debe exceder 150 caracteres.");
+        }
+
+        if (unidadesPorPaquete < 1) {
+            return invalid("unidadesPorPaquete", "Las unidades por paquete deben ser al menos 1.");
+        }
+
+        var normalizedBarcode = normalizeNullable(codigoBarras);
+        if (!withinLength(normalizedBarcode, BARCODE_MAX_LENGTH)) {
+            return invalid("codigoBarras", "El código de barras no debe exceder 40 caracteres.");
+        }
+
+        if (precioVenta == null || precioVenta.signum() <= 0) {
+            return invalid("precioVenta", "El precio de venta debe ser mayor que cero.");
+        }
+
+        var normalizedTherapeuticGroup = normalizeNullable(grupoTerapeutico);
+        if (!withinLength(normalizedTherapeuticGroup, THERAPEUTIC_GROUP_MAX_LENGTH)) {
+            return invalid("grupoTerapeutico", "El grupo terapéutico no debe exceder 150 caracteres.");
+        }
+
+        var normalizedDigemidCode = normalizeNullable(codigoDigemid);
+        if (!withinLength(normalizedDigemidCode, DIGEMID_CODE_MAX_LENGTH)) {
+            return invalid("codigoDigemid", "El código DIGEMID no debe exceder 40 caracteres.");
+        }
+
+        var normalizedActiveIngredient = normalizeNullable(principioActivo);
+        if (!withinLength(normalizedActiveIngredient, ACTIVE_INGREDIENT_MAX_LENGTH)) {
+            return invalid("principioActivo", "El principio activo no debe exceder 200 caracteres.");
+        }
+
+        var normalizedConcentration = normalizeNullable(concentracion);
+        if (!withinLength(normalizedConcentration, CONCENTRATION_MAX_LENGTH)) {
+            return invalid("concentracion", "La concentración no debe exceder 60 caracteres.");
+        }
+
+        if (tipo == TipoProducto.MEDICAMENTO
+                && (normalizedActiveIngredient == null || condicionVenta == null)) {
+            return invalid("tipo",
+                    "Un medicamento requiere principio activo y condición de venta.");
+        }
+
+        return Result.success(new Producto(
+                id, tenantId, categoriaId, normalizedName, tipo, normalizedLaboratory, normalizedUnit,
+                normalizedPresentation, unidadesPorPaquete, normalizedBarcode, precioVenta, condicionVenta,
+                esGenerico, esGenericoEsencial, normalizedTherapeuticGroup, normalizedDigemidCode,
+                normalizedActiveIngredient, normalizedConcentration, requiereLote, requiereVencimiento,
+                EstadoProducto.ACTIVO, createdAt, null));
+    }
+
+    public static Producto restore(
+            ProductoId id, TenantId tenantId, CategoriaId categoriaId, String nombre, TipoProducto tipo,
+            String laboratorio, String unidadMedida, String presentacion, int unidadesPorPaquete,
+            String codigoBarras, BigDecimal precioVenta, CondicionVenta condicionVenta, boolean esGenerico,
+            boolean esGenericoEsencial, String grupoTerapeutico, String codigoDigemid, String principioActivo,
+            String concentracion, boolean requiereLote, boolean requiereVencimiento, EstadoProducto estado,
+            Instant createdAt, Instant updatedAt) {
+        return new Producto(
+                id, tenantId, categoriaId, nombre, tipo, laboratorio, unidadMedida, presentacion,
+                unidadesPorPaquete, codigoBarras, precioVenta, condicionVenta, esGenerico, esGenericoEsencial,
+                grupoTerapeutico, codigoDigemid, principioActivo, concentracion, requiereLote,
+                requiereVencimiento, estado, createdAt, updatedAt);
+    }
+
+    private static Result<Producto, ErrorDetail> invalid(String field, String message) {
+        return Result.failure(new ErrorDetail("CAT_PRODUCTO_INVALIDO", message, Map.of("field", field)));
+    }
+
+    private static boolean withinLength(String value, int maximum) {
+        return value == null || value.length() <= maximum;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String normalizeSpaces(String value) {
+        var normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", " ");
+    }
+
+    private static String normalizeNullable(String value) {
+        var normalized = normalizeSpaces(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
+    }
+
+    public ProductoId id() { return id; }
+    public TenantId tenantId() { return tenantId; }
+    public CategoriaId categoriaId() { return categoriaId; }
+    public String nombre() { return nombre; }
+    public TipoProducto tipo() { return tipo; }
+    public String laboratorio() { return laboratorio; }
+    public String unidadMedida() { return unidadMedida; }
+    public String presentacion() { return presentacion; }
+    public int unidadesPorPaquete() { return unidadesPorPaquete; }
+    public String codigoBarras() { return codigoBarras; }
+    public BigDecimal precioVenta() { return precioVenta; }
+    public CondicionVenta condicionVenta() { return condicionVenta; }
+    public boolean esGenerico() { return esGenerico; }
+    public boolean esGenericoEsencial() { return esGenericoEsencial; }
+    public String grupoTerapeutico() { return grupoTerapeutico; }
+    public String codigoDigemid() { return codigoDigemid; }
+    public String principioActivo() { return principioActivo; }
+    public String concentracion() { return concentracion; }
+    public boolean requiereLote() { return requiereLote; }
+    public boolean requiereVencimiento() { return requiereVencimiento; }
+    public EstadoProducto estado() { return estado; }
+    public Instant createdAt() { return createdAt; }
+    public Instant updatedAt() { return updatedAt; }
+}
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasa**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:test --tests "com.softprimesolutions.catalogo.domain.model.ProductoTest"`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/domain/model/Producto.java service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/domain/model/ProductoTest.java
+git commit -m "feat(catalogo): agregar agregado de dominio Producto"
+```
+
+---
