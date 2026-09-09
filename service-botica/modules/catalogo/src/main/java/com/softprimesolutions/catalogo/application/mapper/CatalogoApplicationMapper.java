@@ -5,12 +5,15 @@ import com.softprimesolutions.catalogo.application.dto.result.ClasificacionContr
 import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
 import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
 import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoAsociadoResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
@@ -73,5 +76,25 @@ public final class CatalogoApplicationMapper {
                 categoria.categoriaPadreId() == null ? null : categoria.categoriaPadreId().value(),
                 categoria.codigo(), categoria.nombre(), categoria.descripcion(), categoria.nivel(),
                 categoria.orden(), categoria.estado().name());
+    }
+
+    public static ProductoReguladoResult toResult(ProductoRegulado producto) {
+        return new ProductoReguladoResult(
+                producto.id().value(), producto.tipoProducto(), producto.rubroCodigo(), producto.tipoRegistro(),
+                producto.numeroRegistro(), producto.denominacion(), producto.concentracionTexto(),
+                producto.presentacionRegulatoria(), producto.formaFarmaceuticaCodigo(),
+                producto.viaAdministracionCodigo(), producto.unidadMedidaCodigo(), producto.condicionVentaCodigo(),
+                producto.clasificacionAtc(), producto.clasificacionControladaCodigo(), producto.tipoLiberacion(),
+                producto.origenFabricacion(), producto.paisOrigen(), producto.subpartidaNacional(),
+                producto.titularRegistro(), producto.fabricante(), producto.importador(),
+                producto.establecimientoExpendio(), producto.vigenteDesde(), producto.vigenteHasta(),
+                producto.fuente(), producto.versionFuente(),
+                producto.principiosActivos().stream()
+                        .map(asociado -> new PrincipioActivoAsociadoResult(
+                                asociado.principioActivoId().value(), asociado.concentracionTexto(),
+                                asociado.cantidad(), asociado.unidadMedidaCodigo(), asociado.esPrincipal(),
+                                asociado.orden()))
+                        .toList(),
+                producto.estado().name(), producto.createdAt(), producto.updatedAt());
     }
 }
