@@ -2,18 +2,21 @@ package com.softprimesolutions.catalogo.application.mapper;
 
 import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CodigoBarraSkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
 import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
 import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoAsociadoResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
@@ -96,5 +99,24 @@ public final class CatalogoApplicationMapper {
                                 asociado.orden()))
                         .toList(),
                 producto.estado().name(), producto.createdAt(), producto.updatedAt());
+    }
+
+    public static SkuResult toResult(SKUComercial sku) {
+        return new SkuResult(
+                sku.id().value(), sku.tenantId().value(),
+                sku.productoReguladoId() == null ? null : sku.productoReguladoId().value(),
+                sku.categoriaId() == null ? null : sku.categoriaId().value(),
+                sku.marcaId() == null ? null : sku.marcaId().value(),
+                sku.tipoSku().name(), sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(),
+                sku.presentacionComercial(), sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(),
+                sku.pesoGramos(), sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(),
+                sku.factorFraccion(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
+                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(),
+                sku.codigosBarra().stream()
+                        .map(codigo -> new CodigoBarraSkuResult(
+                                codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),
+                                codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name()))
+                        .toList(),
+                sku.estado().name(), sku.createdBy(), sku.createdAt(), sku.updatedBy(), sku.updatedAt());
     }
 }

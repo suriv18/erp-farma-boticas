@@ -3,56 +3,68 @@ package com.softprimesolutions.catalogo.application.usecase.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class CrearMarcaHandlerTest {
+class CrearSkuHandlerTest {
 
     private static final UUID TENANT_ID = UUID.fromString("172e0f26-a765-46f3-841c-4a11407ccf5b");
 
     @Test
-    void createsAMarcaSuccessfully() {
+    void createsANoRegulatedSkuSuccessfully() {
         var writePort = new FakeCatalogoComercialPort();
-        var handler = new CrearMarcaHandler(writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"));
+        var handler = new CrearSkuHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
 
-        var result = handler.execute(new CrearMarcaCommand(TENANT_ID, "BAYER", "Bayer", null));
+        var result = handler.execute(new CrearSkuCommand(
+                TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
+                null, null, null, null, null, null, null, false, null, true, true, true,
+                BigDecimal.ZERO, null, null, "test"));
 
         assertTrue(result.isSuccess());
-        assertEquals("Bayer", result.getOrElse(error -> null).nombre());
+        assertEquals("Alcohol en gel", result.getOrElse(error -> null).descripcionComercial());
     }
 
     @Test
-    void failsWithConflictWhenCodigoAlreadyExists() {
+    void failsWithConflictWhenCodigoInternoAlreadyExists() {
         var writePort = new FakeCatalogoComercialPort();
-        writePort.marcaOutcome = CatalogoComercialPort.SaveMarcaOutcome.DUPLICATE_CODIGO;
-        var handler = new CrearMarcaHandler(writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"));
+        writePort.skuOutcome = CatalogoComercialPort.SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
+        var handler = new CrearSkuHandler(
+                writePort, () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
 
-        var result = handler.execute(new CrearMarcaCommand(TENANT_ID, "BAYER", "Bayer", null));
+        var result = handler.execute(new CrearSkuCommand(
+                TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
+                null, null, null, null, null, null, null, false, null, true, true, true,
+                BigDecimal.ZERO, null, null, "test"));
 
         assertTrue(result.isFailure());
-        assertEquals("CAT_MARCA_DUPLICADA", result.fold(value -> null, error -> error.code()));
+        assertEquals("CAT_SKU_CODIGO_INTERNO_DUPLICADO", result.fold(value -> null, error -> error.code()));
     }
 
     private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
-        private SaveMarcaOutcome marcaOutcome = SaveMarcaOutcome.CREATED;
+        private SaveSkuOutcome skuOutcome = SaveSkuOutcome.CREATED;
 
         @Override
-        public SaveMarcaOutcome save(Marca marca) { return marcaOutcome; }
+        public SaveMarcaOutcome save(Marca marca) { throw new UnsupportedOperationException(); }
 
         @Override
         public SaveCategoriaOutcome save(CategoriaProducto categoria) { throw new UnsupportedOperationException(); }
 
         @Override
-        public SaveSkuOutcome save(SKUComercial sku) { throw new UnsupportedOperationException(); }
+        public SaveSkuOutcome save(SKUComercial sku) { return skuOutcome; }
 
         @Override
-        public java.util.Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
+        public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }

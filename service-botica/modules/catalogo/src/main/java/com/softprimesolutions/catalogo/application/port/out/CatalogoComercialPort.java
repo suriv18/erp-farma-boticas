@@ -4,6 +4,7 @@ import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CatalogoComercialPort {
@@ -13,6 +14,8 @@ public interface CatalogoComercialPort {
     SaveCategoriaOutcome save(CategoriaProducto categoria);
 
     SaveSkuOutcome save(SKUComercial sku);
+
+    Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId);
 
     boolean categoriaExists(UUID tenantId, UUID categoriaId);
 
