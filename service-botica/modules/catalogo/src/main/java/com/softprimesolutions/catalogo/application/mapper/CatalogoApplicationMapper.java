@@ -1,11 +1,15 @@
 package com.softprimesolutions.catalogo.application.mapper;
 
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
 import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
 import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
@@ -55,5 +59,19 @@ public final class CatalogoApplicationMapper {
         return new PrincipioActivoResult(
                 principioActivo.id().value(), principioActivo.codigoFuente(), principioActivo.denominacion(),
                 principioActivo.nombreNormalizado(), principioActivo.fuente(), principioActivo.estado().name());
+    }
+
+    public static MarcaResult toResult(Marca marca) {
+        return new MarcaResult(
+                marca.id().value(), marca.tenantId().value(), marca.codigo(), marca.nombre(),
+                marca.descripcion(), marca.estado().name());
+    }
+
+    public static CategoriaProductoResult toResult(CategoriaProducto categoria) {
+        return new CategoriaProductoResult(
+                categoria.id().value(), categoria.tenantId().value(),
+                categoria.categoriaPadreId() == null ? null : categoria.categoriaPadreId().value(),
+                categoria.codigo(), categoria.nombre(), categoria.descripcion(), categoria.nivel(),
+                categoria.orden(), categoria.estado().name());
     }
 }
