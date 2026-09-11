@@ -1,3 +1,5 @@
+> **SUPERSEDIDO:** ver nota en `docs/superpowers/specs/2026-09-07-catalogo-producto-categoria-design.md`. La Task 1 de este plan (migración `sch_catalogo`) fue implementada y luego revertida en el commit `d4bc97b` de la rama `developer` porque duplicaba `V003__catalogo_farmaceutico.sql`. El plan real se escribe en un documento nuevo.
+
 # Módulo Catálogo: Producto + Categoría — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

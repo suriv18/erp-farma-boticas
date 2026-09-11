@@ -1,3 +1,5 @@
+> **SUPERSEDIDO:** este diseño creaba un esquema `sch_catalogo` nuevo, duplicando el dominio ya definido en `docs/cadena-farmacias-docs/database/migrations/V003__catalogo_farmaceutico.sql` (`sch_farmacia.categoria_producto`/`producto_regulado`/`sku_comercial`/etc.), que ya se ejecuta como Flyway real. El módulo Catálogo real se diseña en un documento nuevo mapeando JPA contra esas tablas existentes. Se conserva este archivo solo como registro histórico de la primera iteración de diseño.
+
 # Módulo Catálogo: Producto + Categoría — Design
 
 ## Contexto y motivación
