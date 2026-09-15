@@ -74,12 +74,16 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
             return SaveMarcaOutcome.DUPLICATE_CODIGO;
         }
         jdbcClient.sql("""
-                        UPDATE sch_catalogo.marca SET codigo = :codigo, nombre = :nombre, descripcion = :descripcion
+                        UPDATE sch_catalogo.marca
+                           SET codigo = :codigo, nombre = :nombre, descripcion = :descripcion,
+                               updated_by = :updatedBy, updated_at = :updatedAt
                          WHERE uuid_publico = :marcaId
                         """)
                 .param("codigo", marca.codigo())
                 .param("nombre", marca.nombre())
                 .param("descripcion", marca.descripcion())
+                .param("updatedBy", "SYSTEM")
+                .param("updatedAt", Instant.now())
                 .param("marcaId", marca.id().value())
                 .update();
         return SaveMarcaOutcome.UPDATED;
@@ -120,7 +124,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
         jdbcClient.sql("""
                         UPDATE sch_catalogo.categoria_producto
                            SET categoria_padre_id = :categoriaPadreId, codigo = :codigo, nombre = :nombre,
-                               descripcion = :descripcion, nivel = :nivel, orden = :orden
+                               descripcion = :descripcion, nivel = :nivel, orden = :orden,
+                               updated_by = :updatedBy, updated_at = :updatedAt
                          WHERE uuid_publico = :categoriaId
                         """)
                 .param("categoriaPadreId", categoriaPadreInternalId)
@@ -129,6 +134,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 .param("descripcion", categoria.descripcion())
                 .param("nivel", categoria.nivel())
                 .param("orden", categoria.orden())
+                .param("updatedBy", "SYSTEM")
+                .param("updatedAt", Instant.now())
                 .param("categoriaId", categoria.id().value())
                 .update();
         return SaveCategoriaOutcome.UPDATED;
@@ -236,7 +243,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
             }
             codigoBarraRepository.save(new SkuCodigoBarraJpaEntity(
                     tenantId.get(), skuInternalId, codigo.tipoCodigo(), codigo.codigoBarra(),
-                    codigo.esPrincipal(), codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name()));
+                    codigo.esPrincipal(), codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name(),
+                    "SYSTEM", Instant.now()));
         }
         return existing.isEmpty() ? SaveSkuOutcome.CREATED : SaveSkuOutcome.UPDATED;
     }

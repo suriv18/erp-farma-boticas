@@ -6,8 +6,11 @@ import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaProductoJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.MarcaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuComercialJpaEntity;
+import java.time.Instant;
 
 public final class CatalogoComercialWriteMapper {
+
+    private static final String SYSTEM_ACTOR = "SYSTEM";
 
     private CatalogoComercialWriteMapper() {
     }
@@ -15,14 +18,15 @@ public final class CatalogoComercialWriteMapper {
     public static MarcaJpaEntity toEntity(Marca marca, Long tenantId) {
         return new MarcaJpaEntity(
                 marca.id().value(), tenantId, marca.codigo(), marca.nombre(), marca.descripcion(),
-                marca.estado().name());
+                marca.estado().name(), SYSTEM_ACTOR, Instant.now());
     }
 
     public static CategoriaProductoJpaEntity toEntity(
             CategoriaProducto categoria, Long tenantId, Long categoriaPadreId) {
         return new CategoriaProductoJpaEntity(
                 categoria.id().value(), tenantId, categoriaPadreId, categoria.codigo(), categoria.nombre(),
-                categoria.descripcion(), categoria.nivel(), categoria.orden(), categoria.estado().name());
+                categoria.descripcion(), categoria.nivel(), categoria.orden(), categoria.estado().name(),
+                SYSTEM_ACTOR, Instant.now());
     }
 
     public static SkuComercialJpaEntity toEntity(

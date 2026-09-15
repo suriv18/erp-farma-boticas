@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -40,12 +41,24 @@ public class SkuCodigoBarraJpaEntity {
     @Column(nullable = false, length = 20)
     private String estado;
 
+    @Column(name = "created_by", nullable = false, length = 15)
+    private String createdBy;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_by", length = 15)
+    private String updatedBy;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
     protected SkuCodigoBarraJpaEntity() {
     }
 
     public SkuCodigoBarraJpaEntity(
             Long tenantId, Long skuId, String tipoCodigo, String codigoBarra, boolean esPrincipal,
-            LocalDate vigenteDesde, LocalDate vigenteHasta, String estado) {
+            LocalDate vigenteDesde, LocalDate vigenteHasta, String estado, String createdBy, Instant createdAt) {
         this.tenantId = tenantId;
         this.skuId = skuId;
         this.tipoCodigo = tipoCodigo;
@@ -54,6 +67,8 @@ public class SkuCodigoBarraJpaEntity {
         this.vigenteDesde = vigenteDesde;
         this.vigenteHasta = vigenteHasta;
         this.estado = estado;
+        this.createdBy = createdBy;
+        this.createdAt = createdAt;
     }
 
     public Long getId() { return id; }
@@ -65,4 +80,8 @@ public class SkuCodigoBarraJpaEntity {
     public LocalDate getVigenteDesde() { return vigenteDesde; }
     public LocalDate getVigenteHasta() { return vigenteHasta; }
     public String getEstado() { return estado; }
+    public String getCreatedBy() { return createdBy; }
+    public Instant getCreatedAt() { return createdAt; }
+    public String getUpdatedBy() { return updatedBy; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
