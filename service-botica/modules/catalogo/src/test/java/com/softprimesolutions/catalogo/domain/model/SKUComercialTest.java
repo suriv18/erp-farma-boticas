@@ -25,7 +25,7 @@ class SKUComercialTest {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-001",
                 "Alcohol en gel 250ml", null, null, null, null, null, null, null, null, null,
-                false, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
+                false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isSuccess());
         var sku = result.getOrElse(error -> null);
@@ -38,7 +38,7 @@ class SKUComercialTest {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.REGULADO, "SKU-002",
                 "Paracetamol 500mg", null, null, null, null, null, null, null, null, null,
-                false, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
+                false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isFailure());
         assertEquals("CAT_SKU_INVALIDO", result.fold(value -> null, error -> error.code()));
@@ -50,7 +50,7 @@ class SKUComercialTest {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, productoReguladoId, null, null, TipoSku.REGULADO, "SKU-003",
                 "Paracetamol 500mg", null, null, null, null, null, null, null, null, null,
-                false, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
+                false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isSuccess());
     }
@@ -60,7 +60,8 @@ class SKUComercialTest {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-004",
                 "Producto fraccionable", null, null, null, null, null, null, null, null, null,
-                false, new BigDecimal("0.5"), true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
+                false, new BigDecimal("0.5"), null, true, true, true, BigDecimal.ZERO, null, null, "test",
+                CREATED_AT);
 
         assertTrue(result.isFailure());
         assertEquals("CAT_SKU_INVALIDO", result.fold(value -> null, error -> error.code()));
@@ -71,7 +72,8 @@ class SKUComercialTest {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-005",
                 "Producto con stock", null, null, null, null, null, null, null, null, null,
-                false, null, true, true, true, new BigDecimal("10"), new BigDecimal("5"), null, "test", CREATED_AT);
+                false, null, null, true, true, true, new BigDecimal("10"), new BigDecimal("5"), null, "test",
+                CREATED_AT);
 
         assertTrue(result.isFailure());
         assertEquals("CAT_SKU_INVALIDO", result.fold(value -> null, error -> error.code()));
@@ -82,7 +84,7 @@ class SKUComercialTest {
         var sku = SKUComercial.create(
                         SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-006",
                         "Alcohol en gel", null, null, null, null, null, null, null, null, null,
-                        false, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT)
+                        false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT)
                 .getOrElse(error -> null);
 
         var codigoUno = new CodigoBarraSku("7501234567890", "EAN13", true, null, null, EstadoCatalogoSoporte.ACTIVO);

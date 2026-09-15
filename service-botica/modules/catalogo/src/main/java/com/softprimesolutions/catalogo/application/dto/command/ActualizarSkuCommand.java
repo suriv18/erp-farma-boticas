@@ -25,6 +25,7 @@ public record ActualizarSkuCommand(
         BigDecimal largoCm,
         boolean permiteVentaFraccion,
         BigDecimal factorFraccion,
+        String unidadFraccionCodigo,
         boolean requiereLote,
         boolean requiereVencimiento,
         boolean afectoIgv,

@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
-@Table(name = "categoria_producto", schema = "sch_farmacia")
+@Table(name = "categoria_producto", schema = "sch_catalogo")
 public class CategoriaProductoJpaEntity {
 
     @Id

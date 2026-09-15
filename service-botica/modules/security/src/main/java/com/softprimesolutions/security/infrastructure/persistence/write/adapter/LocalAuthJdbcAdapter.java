@@ -96,7 +96,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                updated_at = :at
                          WHERE c.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("maximumAttempts", maximumAttempts)
@@ -113,7 +113,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                            SET intentos_fallidos = 0, bloqueado_hasta = NULL, updated_at = :at
                          WHERE c.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("at", toOffsetDateTime(at))
@@ -121,7 +121,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
         jdbc.sql("""
                         UPDATE sch_seguridad.membership m SET ultimo_login_at = :at, updated_at = :at
                          WHERE m.uuid_publico = :userId AND m.tenant_id = (
-                               SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId)
+                               SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantId)
                         """)
                 .param("at", toOffsetDateTime(at))
                 .param("tenantId", tenantId).param("userId", userId).update();
@@ -139,7 +139,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                :ipAddress, :userAgent, :deviceId, :loginAt, :loginAt,
                                :expiresAt, 'ACTIVA'
                           FROM sch_seguridad.membership m
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND m.estado = 'ACTIVO'
                         """)
@@ -161,7 +161,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         SELECT t.uuid_publico AS tenant_uuid, m.uuid_publico AS user_uuid,
                                r.sesion_uuid, r.familia_uuid, r.expira_at, r.usado_at, r.revocado_at
                           FROM sch_seguridad.token_refresh r
-                          JOIN sch_farmacia.tenant t ON t.id = r.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = r.tenant_id
                           JOIN sch_seguridad.membership m ON m.id = r.membership_id AND m.tenant_id = r.tenant_id
                          WHERE r.token_hash = :tokenHash
                         """)
@@ -195,7 +195,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                          WHERE s.uuid_sesion = :sessionId AND s.estado = 'ACTIVA'
                            AND s.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("at", toOffsetDateTime(at)).param("reason", reason).param("sessionId", sessionId)
@@ -239,7 +239,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
         var target = jdbc.sql("""
                         SELECT t.uuid_publico AS tenant_uuid, m.uuid_publico AS user_uuid
                           FROM sch_seguridad.token_recuperacion_password p
-                          JOIN sch_farmacia.tenant t ON t.id = p.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = p.tenant_id
                           JOIN sch_seguridad.membership m ON m.id = p.membership_id AND m.tenant_id = p.tenant_id
                          WHERE p.token_hash = :tokenHash AND p.consumido_at IS NULL
                            AND p.revocado_at IS NULL AND p.expira_at > :at
@@ -272,7 +272,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         SELECT COUNT(*)
                           FROM sch_seguridad.sesion_usuario s
                           JOIN sch_seguridad.membership m ON m.id = s.membership_id AND m.tenant_id = s.tenant_id
-                          JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = s.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND s.uuid_sesion = :sessionId AND s.estado = 'ACTIVA'
                            AND m.estado = 'ACTIVO' AND m.mfa_requerido = FALSE
@@ -292,7 +292,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
     public boolean isTrustedDevice(UUID tenantId, UUID deviceId) {
         return jdbc.sql("""
                         SELECT COUNT(*) FROM sch_seguridad.dispositivo_tienda d
-                          JOIN sch_farmacia.tenant t ON t.id = d.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = d.tenant_id
                          WHERE t.uuid_publico = :tenantId AND d.uuid_publico = :deviceId
                            AND d.estado = 'CONFIABLE'
                         """)
@@ -309,7 +309,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                           JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol_permiso rp ON rp.rol_id = r.id AND rp.tenant_id = r.tenant_id
                           JOIN sch_seguridad.permiso p ON p.id = rp.permiso_id
-                          JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = a.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND m.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
                            AND a.estado = 'ACTIVO' AND rp.estado = 'ACTIVO' AND p.estado = 'ACTIVO'
@@ -329,7 +329,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                              token_hash, expira_at, created_at)
                         SELECT :id, t.id, m.id, :sessionId, :familyId, :tokenHash, :expiresAt, :createdAt
                           FROM sch_seguridad.membership m
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                         """)
                 .param("id", value.id()).param("sessionId", value.sessionId())
@@ -348,7 +348,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                                password_changed_at = :at, updated_at = :at
                          WHERE c.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("passwordHash", newPasswordHash).param("at", toOffsetDateTime(at))
@@ -365,7 +365,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                            SET estado = 'REVOCADA', revocado_at = :at, motivo_revocacion = :reason
                          WHERE s.estado = 'ACTIVA' AND s.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("at", toOffsetDateTime(at)).param("reason", reason)
@@ -374,7 +374,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         UPDATE sch_seguridad.token_refresh r SET revocado_at = :at
                          WHERE r.revocado_at IS NULL AND r.membership_id = (
                                SELECT m.id FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId)
                         """)
                 .param("at", toOffsetDateTime(at))
@@ -387,7 +387,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                         UPDATE sch_seguridad.membership m
                            SET requiere_cambio_credencial = :requireChange, updated_at = :at
                          WHERE m.uuid_publico = :userId AND m.tenant_id = (
-                               SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId)
+                               SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantId)
                         """)
                 .param("requireChange", requireChange).param("at", toOffsetDateTime(at))
                 .param("tenantId", tenantId).param("userId", userId).update();
@@ -396,14 +396,14 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
     private Optional<Long> findMembershipInternalId(UUID tenantId, UUID userId) {
         return jdbc.sql("""
                         SELECT m.id FROM sch_seguridad.membership m
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                         """).param("tenantId", tenantId).param("userId", userId)
                 .query(Long.class).optional();
     }
 
     private Optional<Long> findTenantInternalId(UUID tenantId) {
-        return jdbc.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId")
+        return jdbc.sql("SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantId")
                 .param("tenantId", tenantId).query(Long.class).optional();
     }
 
@@ -417,7 +417,7 @@ public class LocalAuthJdbcAdapter implements LocalAuthStorePort {
                        m.mfa_requerido
                   FROM sch_seguridad.identidad i
                   JOIN sch_seguridad.membership m ON m.identidad_id = i.id
-                  JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                  JOIN sch_admin.tenant t ON t.id = m.tenant_id
                   JOIN sch_seguridad.credencial_local c ON c.membership_id = m.id
                 """;
     }

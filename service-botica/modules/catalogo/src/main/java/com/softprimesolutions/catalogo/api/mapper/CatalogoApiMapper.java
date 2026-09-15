@@ -269,8 +269,9 @@ public final class CatalogoApiMapper {
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
-                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
-                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), createdBy);
+                request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(),
+                request.imagenUri(), createdBy);
     }
 
     public static ActualizarSkuCommand toUpdateCommand(UUID skuId, SkuRequest request, String updatedBy) {
@@ -280,8 +281,9 @@ public final class CatalogoApiMapper {
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
-                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
-                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), updatedBy);
+                request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(),
+                request.imagenUri(), updatedBy);
     }
 
     public static AgregarCodigoBarraCommand toCommand(UUID tenantId, UUID skuId, AgregarCodigoBarraRequest request) {
@@ -297,8 +299,8 @@ public final class CatalogoApiMapper {
                 result.nombreCorto(), result.presentacionComercial(), result.unidadVentaCodigo(),
                 result.contenido(), result.unidadContenidoCodigo(), result.pesoGramos(), result.altoCm(),
                 result.anchoCm(), result.largoCm(), result.permiteVentaFraccion(), result.factorFraccion(),
-                result.requiereLote(), result.requiereVencimiento(), result.afectoIgv(),
-                result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
+                result.unidadFraccionCodigo(), result.requiereLote(), result.requiereVencimiento(),
+                result.afectoIgv(), result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
                 result.codigosBarra().stream()
                         .map(codigo -> new CodigoBarraSkuResponse(
                                 codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),

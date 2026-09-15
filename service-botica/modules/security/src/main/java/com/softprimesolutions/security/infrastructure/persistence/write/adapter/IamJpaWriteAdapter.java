@@ -227,14 +227,14 @@ public class IamJpaWriteAdapter implements IamWritePort {
 
     private Optional<Long> findTenantId(UUID tenantUuid) {
         if (tenantUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantUuid")
+        return jdbcClient.sql("SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantUuid")
                 .param("tenantUuid", tenantUuid)
                 .query(Long.class)
                 .optional();
     }
 
     private Optional<UUID> findTenantUuid(Long tenantId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.tenant WHERE id = :tenantId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_admin.tenant WHERE id = :tenantId")
                 .param("tenantId", tenantId)
                 .query(UUID.class)
                 .optional();
@@ -263,8 +263,8 @@ public class IamJpaWriteAdapter implements IamWritePort {
             case GLOBAL -> findTenantId(tenantUuid).map(ignored -> new ResolvedScope(null, null, null, null));
             case EMPRESA -> jdbcClient.sql("""
                             SELECT e.id
-                              FROM sch_farmacia.empresa_operadora e
-                              JOIN sch_farmacia.tenant t ON t.id = e.tenant_id
+                              FROM sch_organizacion.empresa_operadora e
+                              JOIN sch_admin.tenant t ON t.id = e.tenant_id
                              WHERE t.uuid_publico = :tenantUuid AND e.uuid_publico = :companyUuid
                             """)
                     .param("tenantUuid", tenantUuid)
@@ -274,9 +274,9 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .map(companyId -> new ResolvedScope(companyId, null, null, null));
             case ESTABLECIMIENTO -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id
-                              FROM sch_farmacia.establecimiento_farmaceutico s
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = s.empresa_id AND e.tenant_id = s.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+                              FROM sch_organizacion.establecimiento_farmaceutico s
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = s.empresa_id AND e.tenant_id = s.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = s.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid
@@ -289,11 +289,11 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .optional();
             case ALMACEN -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id, a.id AS warehouse_id
-                              FROM sch_farmacia.almacen a
-                              JOIN sch_farmacia.establecimiento_farmaceutico s
+                              FROM sch_organizacion.almacen a
+                              JOIN sch_organizacion.establecimiento_farmaceutico s
                                 ON s.id = a.establecimiento_id AND s.empresa_id = a.empresa_id AND s.tenant_id = a.tenant_id
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = a.empresa_id AND e.tenant_id = a.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = a.empresa_id AND e.tenant_id = a.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = a.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid
@@ -309,11 +309,11 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .optional();
             case TERMINAL -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id, p.id AS terminal_id
-                              FROM sch_farmacia.terminal_pos p
-                              JOIN sch_farmacia.establecimiento_farmaceutico s
+                              FROM sch_organizacion.terminal_pos p
+                              JOIN sch_organizacion.establecimiento_farmaceutico s
                                 ON s.id = p.establecimiento_id AND s.empresa_id = p.empresa_id AND s.tenant_id = p.tenant_id
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = p.empresa_id AND e.tenant_id = p.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = p.tenant_id
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = p.empresa_id AND e.tenant_id = p.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = p.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid

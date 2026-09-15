@@ -28,10 +28,12 @@ CROSS JOIN (VALUES
     ('seguridad.dispositivos.consultar', 'DISPOSITIVO', 'CONSULTAR', 'Consultar dispositivos',
      'Permite consultar dispositivos registrados para operacion en tienda.', TRUE),
     ('seguridad.dispositivos.gestionar', 'DISPOSITIVO', 'GESTIONAR', 'Gestionar dispositivos',
-     'Permite registrar y cambiar la confianza de dispositivos de tienda.', TRUE)
+     'Permite registrar y cambiar la confianza de dispositivos de tienda.', TRUE),
+    ('seguridad.credenciales.gestionar', 'CREDENCIAL_LOCAL', 'GESTIONAR', 'Gestionar credenciales locales',
+     'Permite crear o reemplazar la credencial local de un usuario.', TRUE)
 ) AS seed(codigo, recurso, accion, nombre, descripcion, es_critico)
 WHERE m.codigo = 'SEGURIDAD'
-ON CONFLICT (codigo) DO UPDATE SET
+ON CONFLICT (codigo) WHERE es_activo = '1' DO UPDATE SET
     modulo_id = EXCLUDED.modulo_id,
     recurso = EXCLUDED.recurso,
     accion = EXCLUDED.accion,

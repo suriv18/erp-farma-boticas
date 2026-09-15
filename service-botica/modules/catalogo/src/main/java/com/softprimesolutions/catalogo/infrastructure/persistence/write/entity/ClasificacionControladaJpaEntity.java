@@ -6,7 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "clasificacion_controlada", schema = "sch_farmacia")
+@Table(name = "clasificacion_controlada", schema = "sch_catalogo")
 public class ClasificacionControladaJpaEntity {
 
     @Id

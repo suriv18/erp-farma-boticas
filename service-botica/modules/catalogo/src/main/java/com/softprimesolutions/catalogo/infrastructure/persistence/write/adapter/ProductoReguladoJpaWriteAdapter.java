@@ -69,7 +69,7 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
             productoInternalId = saved.getId();
         } else {
             jdbcClient.sql("""
-                            UPDATE sch_farmacia.producto_regulado
+                            UPDATE sch_catalogo.producto_regulado
                                SET tipo_producto = :tipoProducto, rubro_codigo = :rubroCodigo,
                                    tipo_registro = :tipoRegistro, numero_registro = :numeroRegistro,
                                    denominacion = :denominacion, concentracion_texto = :concentracionTexto,
@@ -168,7 +168,7 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
     @Transactional
     public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) {
         return jdbcClient.sql("""
-                        UPDATE sch_farmacia.producto_regulado SET estado_regulatorio = :status, updated_at = :changedAt
+                        UPDATE sch_catalogo.producto_regulado SET estado_regulatorio = :status, updated_at = :changedAt
                          WHERE uuid_publico = :productoReguladoId
                         """)
                 .param("status", status).param("changedAt", changedAt).param("productoReguladoId", productoReguladoId)
@@ -176,17 +176,17 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
     }
 
     private boolean existsInSupportTable(String tableName, String codigo) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia." + tableName + " WHERE codigo = :codigo")
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_catalogo." + tableName + " WHERE codigo = :codigo")
                 .param("codigo", codigo).query(Long.class).single() > 0;
     }
 
     private Optional<Long> findPrincipioActivoInternalId(UUID principioActivoUuid) {
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.principio_activo WHERE uuid_publico = :principioActivoUuid")
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.principio_activo WHERE uuid_publico = :principioActivoUuid")
                 .param("principioActivoUuid", principioActivoUuid).query(Long.class).optional();
     }
 
     private UUID findPrincipioActivoUuid(Long internalId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.principio_activo WHERE id = :internalId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.principio_activo WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
     }
 }

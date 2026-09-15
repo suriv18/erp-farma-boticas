@@ -41,8 +41,8 @@ class LocalAuthLoginWithoutTenantIdTest {
     void prepareCanonicalSchemaDependencies() {
         resetCanonicalFixtures();
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.tenant (uuid_publico, codigo, nombre, created_by)
-                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'test')
+                        INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
+                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'tenant-de-prueba', 'test')
                         """)
                 .param("tenantId", TENANT_ID)
                 .update();
@@ -110,11 +110,11 @@ class LocalAuthLoginWithoutTenantIdTest {
         jdbcClient.sql("DELETE FROM sch_seguridad.rol").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.membership").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.identidad").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.terminal_pos").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.almacen").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.establecimiento_farmaceutico").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.empresa_operadora").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.terminal_pos").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.almacen").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.establecimiento_farmaceutico").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.empresa_operadora").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.modulo_sistema").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.tenant").update();
+        jdbcClient.sql("DELETE FROM sch_admin.tenant").update();
     }
 }

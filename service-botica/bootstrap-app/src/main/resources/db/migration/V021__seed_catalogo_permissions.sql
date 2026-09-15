@@ -29,7 +29,7 @@ CROSS JOIN (VALUES
      'Permite crear, editar, cambiar el estado y administrar codigos de barra de SKU comerciales.', TRUE)
 ) AS seed(codigo, recurso, accion, nombre, descripcion, es_critico)
 WHERE m.codigo = 'CATALOGO'
-ON CONFLICT (codigo) DO UPDATE SET
+ON CONFLICT (codigo) WHERE es_activo = '1' DO UPDATE SET
     modulo_id = EXCLUDED.modulo_id,
     recurso = EXCLUDED.recurso,
     accion = EXCLUDED.accion,

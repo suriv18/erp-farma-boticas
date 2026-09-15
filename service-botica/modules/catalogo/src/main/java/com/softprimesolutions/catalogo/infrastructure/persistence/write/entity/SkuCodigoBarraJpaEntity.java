@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "sku_codigo_barra", schema = "sch_farmacia")
+@Table(name = "sku_codigo_barra", schema = "sch_catalogo")
 public class SkuCodigoBarraJpaEntity {
 
     @Id

@@ -61,9 +61,9 @@ public final class ActualizarSkuHandler implements ActualizarSkuUseCase {
                 command.presentacionComercial(), command.unidadVentaCodigo(), command.contenido(),
                 command.unidadContenidoCodigo(), command.pesoGramos(), command.altoCm(), command.anchoCm(),
                 command.largoCm(), command.permiteVentaFraccion(), command.factorFraccion(),
-                command.requiereLote(), command.requiereVencimiento(), command.afectoIgv(),
-                command.stockMinimoDefault(), command.stockMaximoDefault(), command.imagenUri(),
-                existing.get().createdBy(), existing.get().createdAt());
+                command.unidadFraccionCodigo(), command.requiereLote(), command.requiereVencimiento(),
+                command.afectoIgv(), command.stockMinimoDefault(), command.stockMaximoDefault(),
+                command.imagenUri(), existing.get().createdBy(), existing.get().createdAt());
         return sku.fold(this::persist, this::validationFailure);
     }
 

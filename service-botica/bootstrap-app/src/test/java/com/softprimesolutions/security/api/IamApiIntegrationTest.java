@@ -55,8 +55,8 @@ class IamApiIntegrationTest {
     void prepareCanonicalSchemaDependencies() {
         resetCanonicalFixtures();
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.tenant (uuid_publico, codigo, nombre, created_by)
-                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'test')
+                        INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
+                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'tenant-de-prueba', 'test')
                         """)
                 .param("tenantId", TENANT_ID)
                 .update();
@@ -85,7 +85,7 @@ class IamApiIntegrationTest {
                             (uuid_publico, tenant_id, identidad_id, nombre_mostrar, requiere_cambio_credencial,
                              mfa_requerido, estado, created_at)
                         SELECT :userId, t.id, i.id, 'Operador control', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.identidad i
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
                          WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
                         """).param("userId", userId).param("tenantId", TENANT_ID)
                 .param("identidadId", controlIdentidadId).update();
@@ -93,7 +93,7 @@ class IamApiIntegrationTest {
                         INSERT INTO sch_seguridad.rol
                             (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
                         SELECT :roleId, id, 'CONTROL', 'Control', 'GLOBAL', FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.permiso
@@ -105,7 +105,7 @@ class IamApiIntegrationTest {
                         INSERT INTO sch_seguridad.rol_permiso
                             (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
                         SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
-                          FROM sch_farmacia.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
+                          FROM sch_admin.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
                          WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
                            AND p.codigo = 'seguridad.control.probar'
                         """).param("tenantId", TENANT_ID).param("roleId", roleId).update();
@@ -115,7 +115,7 @@ class IamApiIntegrationTest {
                              vigente_desde, estado, created_by, created_at)
                         SELECT :assignmentId, t.id, m.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP,
                                'ACTIVO', 'test', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.membership m, sch_seguridad.rol r
+                          FROM sch_admin.tenant t, sch_seguridad.membership m, sch_seguridad.rol r
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND r.uuid_publico = :roleId
                         """).param("assignmentId", assignmentId).param("tenantId", TENANT_ID)
@@ -124,7 +124,7 @@ class IamApiIntegrationTest {
                         INSERT INTO sch_seguridad.sesion_usuario
                             (uuid_sesion, tenant_id, membership_id, provider, canal, login_at, estado)
                         SELECT :sessionId, t.id, m.id, 'oidc', 'WEB', CURRENT_TIMESTAMP, 'ACTIVA'
-                          FROM sch_farmacia.tenant t, sch_seguridad.membership m
+                          FROM sch_admin.tenant t, sch_seguridad.membership m
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                         """).param("sessionId", sessionId).param("tenantId", TENANT_ID)
                 .param("userId", userId).update();
@@ -218,7 +218,7 @@ class IamApiIntegrationTest {
                             (uuid_publico, tenant_id, identidad_id, nombre_mostrar,
                              requiere_cambio_credencial, mfa_requerido, estado, created_at)
                         SELECT :userId, t.id, i.id, 'Administrador local', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.identidad i
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
                          WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
                         """).param("userId", userId).param("tenantId", TENANT_ID)
                 .param("identidadId", identidadId).update();
@@ -412,7 +412,7 @@ class IamApiIntegrationTest {
                             (uuid_publico, tenant_id, identidad_id, nombre_mostrar,
                              requiere_cambio_credencial, mfa_requerido, estado, created_at)
                         SELECT :userId, t.id, i.id, 'Cajero de tienda', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.identidad i
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
                          WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
                         """).param("userId", userId).param("tenantId", TENANT_ID)
                 .param("identidadId", cajeroIdentidadId).update();
@@ -420,13 +420,13 @@ class IamApiIntegrationTest {
                         INSERT INTO sch_seguridad.rol
                             (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
                         SELECT :roleId, id, 'TIENDA', 'Tienda', 'ESTABLECIMIENTO', FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.rol_permiso
                             (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
                         SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
-                          FROM sch_farmacia.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
+                          FROM sch_admin.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
                          WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
                            AND p.codigo = 'seguridad.sesiones.consultar'
                         """).param("tenantId", TENANT_ID).param("roleId", roleId).update();
@@ -436,8 +436,8 @@ class IamApiIntegrationTest {
                              empresa_id, establecimiento_id, vigente_desde, estado, created_by, created_at)
                         SELECT :assignmentId, t.id, m.id, r.id, 'ESTABLECIMIENTO', e.id, est.id,
                                CURRENT_TIMESTAMP, 'ACTIVO', 'test', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.membership m, sch_seguridad.rol r,
-                               sch_farmacia.empresa_operadora e, sch_farmacia.establecimiento_farmaceutico est
+                          FROM sch_admin.tenant t, sch_seguridad.membership m, sch_seguridad.rol r,
+                               sch_organizacion.empresa_operadora e, sch_organizacion.establecimiento_farmaceutico est
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND r.uuid_publico = :roleId AND e.uuid_publico = :companyId
                            AND est.uuid_publico = :establishmentId
@@ -527,28 +527,28 @@ class IamApiIntegrationTest {
         jdbcClient.sql("DELETE FROM sch_seguridad.rol").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.membership").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.identidad").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.terminal_pos").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.almacen").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.establecimiento_farmaceutico").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.empresa_operadora").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.terminal_pos").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.almacen").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.establecimiento_farmaceutico").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.empresa_operadora").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.modulo_sistema").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.tenant").update();
+        jdbcClient.sql("DELETE FROM sch_admin.tenant").update();
     }
 
     private void seedOrganizationScope() {
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.empresa_operadora
+                        INSERT INTO sch_organizacion.empresa_operadora
                             (uuid_publico, tenant_id, ruc, razon_social, created_by)
                         SELECT :companyId, id, '20123456789', 'Empresa de prueba', 'test'
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("companyId", COMPANY_ID).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.establecimiento_farmaceutico
+                        INSERT INTO sch_organizacion.establecimiento_farmaceutico
                             (uuid_publico, tenant_id, empresa_id, codigo, nombre,
                              tipo_establecimiento, created_by)
                         SELECT :establishmentId, t.id, e.id, 'EST-TEST', 'Establecimiento de prueba',
                                'FARMACIA', 'test'
-                          FROM sch_farmacia.tenant t, sch_farmacia.empresa_operadora e
+                          FROM sch_admin.tenant t, sch_organizacion.empresa_operadora e
                          WHERE t.uuid_publico = :tenantId AND e.uuid_publico = :companyId
                         """).param("establishmentId", ESTABLISHMENT_ID).param("tenantId", TENANT_ID)
                 .param("companyId", COMPANY_ID).update();

@@ -27,7 +27,7 @@ class AgregarCodigoBarraHandlerTest {
         var existing = SKUComercial.create(
                         new SkuId(SKU_ID), new TenantId(TENANT_ID), null, null, null, TipoSku.NO_REGULADO,
                         "SKU-001", "Alcohol en gel", null, null, null, null, null, null, null, null, null,
-                        false, null, true, true, true, BigDecimal.ZERO, null, null, "test",
+                        false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test",
                         Instant.parse("2026-09-07T10:00:00Z"))
                 .getOrElse(error -> null);
         var writePort = new FakeCatalogoComercialPort(existing);

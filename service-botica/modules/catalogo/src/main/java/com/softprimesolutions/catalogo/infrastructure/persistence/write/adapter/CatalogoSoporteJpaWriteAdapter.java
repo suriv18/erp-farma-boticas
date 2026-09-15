@@ -62,7 +62,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             }
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.condicion_venta
+                        UPDATE sch_catalogo.condicion_venta
                            SET denominacion = :denominacion, requiere_receta = :requiereReceta,
                                requiere_retencion = :requiereRetencion, fuente = :fuente,
                                version_fuente = :versionFuente, vigente_desde = :vigenteDesde,
@@ -94,7 +94,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             }
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.forma_farmaceutica SET denominacion = :denominacion, fuente = :fuente
+                        UPDATE sch_catalogo.forma_farmaceutica SET denominacion = :denominacion, fuente = :fuente
                          WHERE codigo = :codigo
                         """)
                 .param("denominacion", formaFarmaceutica.denominacion())
@@ -117,7 +117,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             }
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.via_administracion SET denominacion = :denominacion, fuente = :fuente
+                        UPDATE sch_catalogo.via_administracion SET denominacion = :denominacion, fuente = :fuente
                          WHERE codigo = :codigo
                         """)
                 .param("denominacion", viaAdministracion.denominacion())
@@ -140,7 +140,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             }
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.unidad_medida
+                        UPDATE sch_catalogo.unidad_medida
                            SET denominacion = :denominacion, simbolo = :simbolo,
                                permite_decimal = :permiteDecimal, fuente = :fuente
                          WHERE codigo = :codigo
@@ -168,7 +168,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             }
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.clasificacion_controlada
+                        UPDATE sch_catalogo.clasificacion_controlada
                            SET denominacion = :denominacion, norma_fuente = :normaFuente,
                                requiere_receta_especial = :requiereRecetaEspecial,
                                retiene_receta = :retieneReceta, vigencia_receta_dias = :vigenciaRecetaDias
@@ -193,7 +193,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             return SavePrincipioActivoOutcome.CREATED;
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.principio_activo
+                        UPDATE sch_catalogo.principio_activo
                            SET codigo_fuente = :codigoFuente, denominacion = :denominacion,
                                nombre_normalizado = :nombreNormalizado, fuente = :fuente
                          WHERE uuid_publico = :principioActivoId
@@ -240,42 +240,42 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     @Override
     @Transactional
     public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.condicion_venta SET estado = :status WHERE codigo = :codigo")
+        return jdbcClient.sql("UPDATE sch_catalogo.condicion_venta SET estado = :status WHERE codigo = :codigo")
                 .param("status", status).param("codigo", codigo).update() == 1;
     }
 
     @Override
     @Transactional
     public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.forma_farmaceutica SET estado = :status WHERE codigo = :codigo")
+        return jdbcClient.sql("UPDATE sch_catalogo.forma_farmaceutica SET estado = :status WHERE codigo = :codigo")
                 .param("status", status).param("codigo", codigo).update() == 1;
     }
 
     @Override
     @Transactional
     public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.via_administracion SET estado = :status WHERE codigo = :codigo")
+        return jdbcClient.sql("UPDATE sch_catalogo.via_administracion SET estado = :status WHERE codigo = :codigo")
                 .param("status", status).param("codigo", codigo).update() == 1;
     }
 
     @Override
     @Transactional
     public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.unidad_medida SET estado = :status WHERE codigo = :codigo")
+        return jdbcClient.sql("UPDATE sch_catalogo.unidad_medida SET estado = :status WHERE codigo = :codigo")
                 .param("status", status).param("codigo", codigo).update() == 1;
     }
 
     @Override
     @Transactional
     public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.clasificacion_controlada SET estado = :status WHERE codigo = :codigo")
+        return jdbcClient.sql("UPDATE sch_catalogo.clasificacion_controlada SET estado = :status WHERE codigo = :codigo")
                 .param("status", status).param("codigo", codigo).update() == 1;
     }
 
     @Override
     @Transactional
     public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
-        return jdbcClient.sql("UPDATE sch_farmacia.principio_activo SET estado = :status WHERE uuid_publico = :principioActivoId")
+        return jdbcClient.sql("UPDATE sch_catalogo.principio_activo SET estado = :status WHERE uuid_publico = :principioActivoId")
                 .param("status", status).param("principioActivoId", principioActivoId).update() == 1;
     }
 }

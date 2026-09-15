@@ -32,8 +32,8 @@ public final class CatalogoComercialWriteMapper {
                 sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(), sku.presentacionComercial(),
                 sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(), sku.pesoGramos(),
                 sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(), sku.factorFraccion(),
-                sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(), sku.stockMinimoDefault(),
-                sku.stockMaximoDefault(), sku.imagenUri(), sku.estado().name(), sku.createdBy(),
-                sku.createdAt(), sku.updatedBy(), sku.updatedAt());
+                sku.unidadFraccionCodigo(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
+                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(), sku.estado().name(),
+                sku.createdBy(), sku.createdAt(), sku.updatedBy(), sku.updatedAt());
     }
 }

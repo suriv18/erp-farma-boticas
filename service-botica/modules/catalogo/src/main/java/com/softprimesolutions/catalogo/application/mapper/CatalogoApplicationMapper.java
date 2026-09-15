@@ -110,8 +110,8 @@ public final class CatalogoApplicationMapper {
                 sku.tipoSku().name(), sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(),
                 sku.presentacionComercial(), sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(),
                 sku.pesoGramos(), sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(),
-                sku.factorFraccion(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
-                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(),
+                sku.factorFraccion(), sku.unidadFraccionCodigo(), sku.requiereLote(), sku.requiereVencimiento(),
+                sku.afectoIgv(), sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(),
                 sku.codigosBarra().stream()
                         .map(codigo -> new CodigoBarraSkuResult(
                                 codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),

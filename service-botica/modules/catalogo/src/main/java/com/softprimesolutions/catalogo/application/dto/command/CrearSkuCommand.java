@@ -24,6 +24,7 @@ public record CrearSkuCommand(
         BigDecimal largoCm,
         boolean permiteVentaFraccion,
         BigDecimal factorFraccion,
+        String unidadFraccionCodigo,
         boolean requiereLote,
         boolean requiereVencimiento,
         boolean afectoIgv,

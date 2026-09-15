@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "sku_comercial", schema = "sch_farmacia")
+@Table(name = "sku_comercial", schema = "sch_catalogo")
 public class SkuComercialJpaEntity {
 
     @Id
@@ -74,6 +74,9 @@ public class SkuComercialJpaEntity {
     @Column(name = "factor_fraccion")
     private BigDecimal factorFraccion;
 
+    @Column(name = "unidad_fraccion_codigo", length = 30)
+    private String unidadFraccionCodigo;
+
     @Column(name = "requiere_lote", nullable = false)
     private boolean requiereLote;
 
@@ -115,8 +118,8 @@ public class SkuComercialJpaEntity {
             String tipoSku, String codigoInterno, String descripcionComercial, String nombreCorto,
             String presentacionComercial, String unidadVentaCodigo, BigDecimal contenido,
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
-            BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, boolean requiereLote,
-            boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
+            BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
+            boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
             BigDecimal stockMaximoDefault, String imagenUri, String estadoComercial, String createdBy,
             Instant createdAt, String updatedBy, Instant updatedAt) {
         this.uuidPublico = uuidPublico;
@@ -138,6 +141,7 @@ public class SkuComercialJpaEntity {
         this.largoCm = largoCm;
         this.permiteVentaFraccion = permiteVentaFraccion;
         this.factorFraccion = factorFraccion;
+        this.unidadFraccionCodigo = unidadFraccionCodigo;
         this.requiereLote = requiereLote;
         this.requiereVencimiento = requiereVencimiento;
         this.afectoIgv = afectoIgv;
@@ -171,6 +175,7 @@ public class SkuComercialJpaEntity {
     public BigDecimal getLargoCm() { return largoCm; }
     public boolean isPermiteVentaFraccion() { return permiteVentaFraccion; }
     public BigDecimal getFactorFraccion() { return factorFraccion; }
+    public String getUnidadFraccionCodigo() { return unidadFraccionCodigo; }
     public boolean isRequiereLote() { return requiereLote; }
     public boolean isRequiereVencimiento() { return requiereVencimiento; }
     public boolean isAfectoIgv() { return afectoIgv; }

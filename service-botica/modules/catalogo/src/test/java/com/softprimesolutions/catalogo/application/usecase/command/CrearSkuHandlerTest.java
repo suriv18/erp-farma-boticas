@@ -27,7 +27,7 @@ class CrearSkuHandlerTest {
 
         var result = handler.execute(new CrearSkuCommand(
                 TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
-                null, null, null, null, null, null, null, false, null, true, true, true,
+                null, null, null, null, null, null, null, false, null, null, true, true, true,
                 BigDecimal.ZERO, null, null, "test"));
 
         assertTrue(result.isSuccess());
@@ -44,7 +44,7 @@ class CrearSkuHandlerTest {
 
         var result = handler.execute(new CrearSkuCommand(
                 TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
-                null, null, null, null, null, null, null, false, null, true, true, true,
+                null, null, null, null, null, null, null, false, null, null, true, true, true,
                 BigDecimal.ZERO, null, null, "test"));
 
         assertTrue(result.isFailure());

@@ -17,7 +17,7 @@ public class IamJdbcReadRepository {
     private static final String USER_FILTER = """
             FROM sch_seguridad.membership m
             JOIN sch_seguridad.identidad i ON i.id = m.identidad_id
-            JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+            JOIN sch_admin.tenant t ON t.id = m.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = ''
                 OR LOWER(COALESCE(m.nombre_mostrar, '')) LIKE :pattern
@@ -27,7 +27,7 @@ public class IamJdbcReadRepository {
             """;
     private static final String ROLE_FILTER = """
             FROM sch_seguridad.rol r
-            JOIN sch_farmacia.tenant t ON t.id = r.tenant_id
+            JOIN sch_admin.tenant t ON t.id = r.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = '' OR LOWER(r.codigo) LIKE :pattern OR LOWER(r.nombre) LIKE :pattern)
             """;

@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.Objects;
 
 @Entity
-@Table(name = "producto_principio_activo", schema = "sch_farmacia")
+@Table(name = "producto_principio_activo", schema = "sch_catalogo")
 @IdClass(ProductoPrincipioActivoJpaEntity.Key.class)
 public class ProductoPrincipioActivoJpaEntity {
 

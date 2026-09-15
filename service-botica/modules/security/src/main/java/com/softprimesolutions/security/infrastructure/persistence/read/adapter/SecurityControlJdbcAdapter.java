@@ -31,7 +31,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
         return jdbc.sql("""
                         UPDATE sch_seguridad.membership m
                            SET estado = :status, updated_at = :changedAt
-                          FROM sch_farmacia.tenant t
+                          FROM sch_admin.tenant t
                          WHERE t.id = m.tenant_id
                            AND t.uuid_publico = :tenantId
                            AND m.uuid_publico = :userId
@@ -46,7 +46,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
         return jdbc.sql("""
                         UPDATE sch_seguridad.rol r
                            SET estado = :status, updated_at = :changedAt
-                          FROM sch_farmacia.tenant t
+                          FROM sch_admin.tenant t
                          WHERE t.id = r.tenant_id
                            AND t.uuid_publico = :tenantId
                            AND r.uuid_publico = :roleId
@@ -63,7 +63,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                                i.ultimo_login_at, i.created_at
                           FROM sch_seguridad.identidad_externa i
                           JOIN sch_seguridad.membership m ON m.identidad_id = i.identidad_id
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                       ORDER BY i.created_at, i.id
                         """)
@@ -84,7 +84,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                                 (identidad_id, provider, subject, issuer, email_claim, created_at)
                             SELECT m.identidad_id, :provider, :subject, :issuer, :emailClaim, :createdAt
                               FROM sch_seguridad.membership m
-                              JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = m.tenant_id
                              WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                             """)
                     .param("provider", data.provider()).param("subject", data.subject())
@@ -107,7 +107,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                          WHERE i.provider = :provider AND i.subject = :subject
                            AND EXISTS (
                                SELECT 1 FROM sch_seguridad.membership m
-                               JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                               JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE m.identidad_id = i.identidad_id AND m.uuid_publico = :userId
                                   AND t.uuid_publico = :tenantId
                            )
@@ -132,11 +132,11 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                           FROM sch_seguridad.usuario_rol_ambito a
                           JOIN sch_seguridad.membership m ON m.id = a.membership_id AND m.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
-                          JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
-                     LEFT JOIN sch_farmacia.empresa_operadora e ON e.id = a.empresa_id
-                     LEFT JOIN sch_farmacia.establecimiento_farmaceutico s ON s.id = a.establecimiento_id
-                     LEFT JOIN sch_farmacia.almacen w ON w.id = a.almacen_id
-                     LEFT JOIN sch_farmacia.terminal_pos p ON p.id = a.terminal_id
+                          JOIN sch_admin.tenant t ON t.id = a.tenant_id
+                     LEFT JOIN sch_organizacion.empresa_operadora e ON e.id = a.empresa_id
+                     LEFT JOIN sch_organizacion.establecimiento_farmaceutico s ON s.id = a.establecimiento_id
+                     LEFT JOIN sch_organizacion.almacen w ON w.id = a.almacen_id
+                     LEFT JOIN sch_organizacion.terminal_pos p ON p.id = a.terminal_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                       ORDER BY a.created_at DESC, a.id DESC
                         """)
@@ -154,7 +154,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                            AND EXISTS (
                                SELECT 1
                                  FROM sch_seguridad.membership m
-                                 JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                                 JOIN sch_admin.tenant t ON t.id = m.tenant_id
                                 WHERE m.id = a.membership_id AND m.tenant_id = a.tenant_id
                                   AND t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            )
@@ -173,7 +173,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                           JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
                           JOIN sch_seguridad.rol_permiso rp ON rp.rol_id = r.id AND rp.tenant_id = r.tenant_id
                           JOIN sch_seguridad.permiso p ON p.id = rp.permiso_id
-                          JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = a.tenant_id
                          WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND m.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
                            AND a.estado = 'ACTIVO' AND rp.estado = 'ACTIVO' AND p.estado = 'ACTIVO'
@@ -208,7 +208,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                        s.logout_at, s.revocado_at, s.motivo_revocacion, s.estado
                   FROM sch_seguridad.sesion_usuario s
                   JOIN sch_seguridad.membership m ON m.id = s.membership_id AND m.tenant_id = s.tenant_id
-                  JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+                  JOIN sch_admin.tenant t ON t.id = s.tenant_id
                  WHERE t.uuid_publico = :tenantId
                 """ + (userId == null ? "" : " AND m.uuid_publico = :userId")
                 + " ORDER BY s.login_at DESC, s.id DESC";
@@ -223,7 +223,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
         var query = jdbc.sql("""
                         UPDATE sch_seguridad.sesion_usuario s
                            SET estado = 'REVOCADA', revocado_at = :revokedAt, motivo_revocacion = :reason
-                          FROM sch_farmacia.tenant t
+                          FROM sch_admin.tenant t
                          WHERE t.id = s.tenant_id AND t.uuid_publico = :tenantId
                            AND s.uuid_sesion = :sessionId AND s.estado = 'ACTIVA'
                         """)
@@ -241,10 +241,10 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                                d.device_fingerprint_hash, d.certificado_thumbprint, d.version_agente,
                                d.estado, d.registrado_at, d.ultimo_contacto_at
                           FROM sch_seguridad.dispositivo_tienda d
-                          JOIN sch_farmacia.tenant t ON t.id = d.tenant_id
-                          JOIN sch_farmacia.empresa_operadora e ON e.id = d.empresa_id
-                          JOIN sch_farmacia.establecimiento_farmaceutico s ON s.id = d.establecimiento_id
-                     LEFT JOIN sch_farmacia.terminal_pos p ON p.id = d.terminal_id
+                          JOIN sch_admin.tenant t ON t.id = d.tenant_id
+                          JOIN sch_organizacion.empresa_operadora e ON e.id = d.empresa_id
+                          JOIN sch_organizacion.establecimiento_farmaceutico s ON s.id = d.establecimiento_id
+                     LEFT JOIN sch_organizacion.terminal_pos p ON p.id = d.terminal_id
                          WHERE t.uuid_publico = :tenantId
                       ORDER BY d.registrado_at DESC, d.id DESC
                         """)
@@ -255,7 +255,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
     @Transactional
     public boolean createDevice(RegisterDeviceData data, UUID deviceId, Instant registeredAt) {
         var terminalJoin = data.terminalId() == null
-                ? "" : " JOIN sch_farmacia.terminal_pos p ON p.tenant_id = t.id AND p.empresa_id = e.id"
+                ? "" : " JOIN sch_organizacion.terminal_pos p ON p.tenant_id = t.id AND p.empresa_id = e.id"
                         + " AND p.establecimiento_id = s.id AND p.uuid_publico = :terminalId";
         var terminalValue = data.terminalId() == null ? "NULL" : "p.id";
         var query = jdbc.sql("""
@@ -264,10 +264,10 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
                              device_fingerprint_hash, certificado_thumbprint, version_agente, estado, registrado_at)
                         SELECT :deviceId, t.id, e.id, s.id, %s,
                                :fingerprint, :thumbprint, :agentVersion, 'PENDIENTE', :registeredAt
-                          FROM sch_farmacia.tenant t
-                          JOIN sch_farmacia.empresa_operadora e
+                          FROM sch_admin.tenant t
+                          JOIN sch_organizacion.empresa_operadora e
                             ON e.tenant_id = t.id AND e.uuid_publico = :companyId
-                          JOIN sch_farmacia.establecimiento_farmaceutico s
+                          JOIN sch_organizacion.establecimiento_farmaceutico s
                             ON s.tenant_id = t.id AND s.empresa_id = e.id AND s.uuid_publico = :establishmentId
                           %s
                          WHERE t.uuid_publico = :tenantId
@@ -287,7 +287,7 @@ public class SecurityControlJdbcAdapter implements SecurityControlPort {
     public boolean updateDeviceStatus(UUID tenantId, UUID deviceId, String status) {
         return jdbc.sql("""
                         UPDATE sch_seguridad.dispositivo_tienda d SET estado = :status
-                          FROM sch_farmacia.tenant t
+                          FROM sch_admin.tenant t
                          WHERE t.id = d.tenant_id AND t.uuid_publico = :tenantId
                            AND d.uuid_publico = :deviceId
                         """)

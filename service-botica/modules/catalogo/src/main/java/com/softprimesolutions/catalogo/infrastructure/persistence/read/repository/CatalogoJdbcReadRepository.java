@@ -30,7 +30,7 @@ public class CatalogoJdbcReadRepository {
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, requiere_receta, requiere_retencion, fuente,
                                version_fuente, vigente_desde, vigente_hasta, estado
-                          FROM sch_farmacia.condicion_venta
+                          FROM sch_catalogo.condicion_venta
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -46,7 +46,7 @@ public class CatalogoJdbcReadRepository {
     public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
-                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.forma_farmaceutica
+                        SELECT codigo, denominacion, fuente, estado FROM sch_catalogo.forma_farmaceutica
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -60,7 +60,7 @@ public class CatalogoJdbcReadRepository {
     public List<ViaAdministracionResult> findViasAdministracion(String estado) {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
-                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.via_administracion
+                        SELECT codigo, denominacion, fuente, estado FROM sch_catalogo.via_administracion
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -75,7 +75,7 @@ public class CatalogoJdbcReadRepository {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, simbolo, permite_decimal, fuente, estado
-                          FROM sch_farmacia.unidad_medida
+                          FROM sch_catalogo.unidad_medida
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -91,7 +91,7 @@ public class CatalogoJdbcReadRepository {
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, norma_fuente, requiere_receta_especial, retiene_receta,
                                vigencia_receta_dias, estado
-                          FROM sch_farmacia.clasificacion_controlada
+                          FROM sch_catalogo.clasificacion_controlada
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -108,7 +108,7 @@ public class CatalogoJdbcReadRepository {
         var statusFilter = normalizeStatus(estado);
         return jdbcClient.sql("""
                         SELECT uuid_publico, codigo_fuente, denominacion, nombre_normalizado, fuente, estado
-                          FROM sch_farmacia.principio_activo
+                          FROM sch_catalogo.principio_activo
                          WHERE (:texto = '' OR LOWER(denominacion) LIKE :pattern)
                            AND (:estado = '' OR estado = :estado)
                          ORDER BY denominacion
@@ -128,8 +128,8 @@ public class CatalogoJdbcReadRepository {
         return jdbcClient.sql("""
                         SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid, m.codigo, m.nombre,
                                m.descripcion, m.estado
-                          FROM sch_farmacia.marca m
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                          FROM sch_catalogo.marca m
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
                          WHERE t.uuid_publico = :tenantId AND (:estado = '' OR m.estado = :estado)
                          ORDER BY m.nombre
                         """)
@@ -148,9 +148,9 @@ public class CatalogoJdbcReadRepository {
                         SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid,
                                padre.uuid_publico AS categoria_padre_uuid, c.codigo, c.nombre, c.descripcion,
                                c.nivel, c.orden, c.estado
-                          FROM sch_farmacia.categoria_producto c
-                          JOIN sch_farmacia.tenant t ON t.id = c.tenant_id
-                          LEFT JOIN sch_farmacia.categoria_producto padre ON padre.id = c.categoria_padre_id
+                          FROM sch_catalogo.categoria_producto c
+                          JOIN sch_admin.tenant t ON t.id = c.tenant_id
+                          LEFT JOIN sch_catalogo.categoria_producto padre ON padre.id = c.categoria_padre_id
                          WHERE t.uuid_publico = :tenantId
                            AND (:categoriaPadreId IS NULL OR padre.uuid_publico = :categoriaPadreId)
                            AND (:estado = '' OR c.estado = :estado)
@@ -178,7 +178,7 @@ public class CatalogoJdbcReadRepository {
         var textFilter = normalizeSearch(texto);
         return jdbcClient.sql("""
                         SELECT uuid_publico, denominacion, condicion_venta_codigo, estado_regulatorio
-                          FROM sch_farmacia.producto_regulado
+                          FROM sch_catalogo.producto_regulado
                         """ + PRODUCTO_REGULADO_FILTER + " ORDER BY denominacion LIMIT :limit OFFSET :offset")
                 .param("texto", textFilter)
                 .param("pattern", '%' + textFilter + '%')
@@ -194,7 +194,7 @@ public class CatalogoJdbcReadRepository {
 
     public long countProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio) {
         var textFilter = normalizeSearch(texto);
-        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia.producto_regulado" + PRODUCTO_REGULADO_FILTER)
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_catalogo.producto_regulado" + PRODUCTO_REGULADO_FILTER)
                 .param("texto", textFilter)
                 .param("pattern", '%' + textFilter + '%')
                 .param("condicionVentaCodigo", condicionVentaCodigo == null ? "" : condicionVentaCodigo)
@@ -203,8 +203,8 @@ public class CatalogoJdbcReadRepository {
     }
 
     private static final String SKU_FROM = """
-            FROM sch_farmacia.sku_comercial s
-            JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+            FROM sch_catalogo.sku_comercial s
+            JOIN sch_admin.tenant t ON t.id = s.tenant_id
             """;
 
     private static final String SKU_FILTER = """
@@ -212,9 +212,9 @@ public class CatalogoJdbcReadRepository {
                AND (:texto = '' OR LOWER(s.descripcion_comercial) LIKE :pattern
                     OR LOWER(s.codigo_interno) LIKE :pattern)
                AND (:categoriaId IS NULL OR s.categoria_id = (
-                       SELECT id FROM sch_farmacia.categoria_producto WHERE uuid_publico = :categoriaId))
+                       SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = :categoriaId))
                AND (:marcaId IS NULL OR s.marca_id = (
-                       SELECT id FROM sch_farmacia.marca WHERE uuid_publico = :marcaId))
+                       SELECT id FROM sch_catalogo.marca WHERE uuid_publico = :marcaId))
                AND (:tipoSku = '' OR s.tipo_sku = :tipoSku)
                AND (:estado = '' OR s.estado_comercial = :estado)
             """;
