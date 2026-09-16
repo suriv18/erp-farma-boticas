@@ -49,5 +49,5 @@ public interface CatalogoSoportePort {
 
     enum SaveOutcome { CREATED, UPDATED, DUPLICATE_CODIGO, NOT_FOUND }
 
-    enum SavePrincipioActivoOutcome { CREATED, UPDATED, NOT_FOUND }
+    enum SavePrincipioActivoOutcome { CREATED, UPDATED, NOT_FOUND, DUPLICATE_DENOMINACION }
 }

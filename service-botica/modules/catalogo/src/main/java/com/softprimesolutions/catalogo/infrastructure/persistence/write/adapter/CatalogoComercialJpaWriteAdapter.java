@@ -19,7 +19,10 @@ import com.softprimesolutions.catalogo.infrastructure.persistence.write.reposito
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.MarcaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuCodigoBarraJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuComercialJpaRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,18 +38,21 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     private final SkuComercialJpaRepository skuRepository;
     private final SkuCodigoBarraJpaRepository codigoBarraRepository;
     private final JdbcClient jdbcClient;
+    private final EntityManager entityManager;
 
     public CatalogoComercialJpaWriteAdapter(
             MarcaJpaRepository marcaRepository,
             CategoriaProductoJpaRepository categoriaRepository,
             SkuComercialJpaRepository skuRepository,
             SkuCodigoBarraJpaRepository codigoBarraRepository,
-            JdbcClient jdbcClient) {
+            JdbcClient jdbcClient,
+            EntityManager entityManager) {
         this.marcaRepository = marcaRepository;
         this.categoriaRepository = categoriaRepository;
         this.skuRepository = skuRepository;
         this.codigoBarraRepository = codigoBarraRepository;
         this.jdbcClient = jdbcClient;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -83,7 +89,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 .param("nombre", marca.nombre())
                 .param("descripcion", marca.descripcion())
                 .param("updatedBy", "SYSTEM")
-                .param("updatedAt", Instant.now())
+                .param("updatedAt", toOffsetDateTime(Instant.now()))
                 .param("marcaId", marca.id().value())
                 .update();
         return SaveMarcaOutcome.UPDATED;
@@ -135,7 +141,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 .param("nivel", categoria.nivel())
                 .param("orden", categoria.orden())
                 .param("updatedBy", "SYSTEM")
-                .param("updatedAt", Instant.now())
+                .param("updatedAt", toOffsetDateTime(Instant.now()))
                 .param("categoriaId", categoria.id().value())
                 .update();
         return SaveCategoriaOutcome.UPDATED;
@@ -230,7 +236,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                     .param("stockMaximoDefault", sku.stockMaximoDefault())
                     .param("imagenUri", sku.imagenUri())
                     .param("updatedBy", sku.updatedBy())
-                    .param("updatedAt", sku.updatedAt())
+                    .param("updatedAt", toOffsetDateTime(sku.updatedAt()))
                     .param("skuId", sku.id().value())
                     .update();
             skuInternalId = entity.getId();
@@ -321,12 +327,14 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
+        var updated = jdbcClient.sql("""
                         UPDATE sch_catalogo.marca SET estado = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("marcaId", marcaId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     @Override
@@ -334,12 +342,14 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
+        var updated = jdbcClient.sql("""
                         UPDATE sch_catalogo.categoria_producto SET estado = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("categoriaId", categoriaId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     @Override
@@ -347,12 +357,14 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
+        var updated = jdbcClient.sql("""
                         UPDATE sch_catalogo.sku_comercial SET estado_comercial = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :skuId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("skuId", skuId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     private Optional<Long> findTenantId(UUID tenantUuid) {
@@ -392,5 +404,9 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     private UUID findMarcaUuid(Long internalId) {
         return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.marca WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 }

@@ -189,8 +189,12 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
         var existing = principioActivoRepository.findByUuidPublico(principioActivo.id().value());
         if (existing.isEmpty()) {
-            principioActivoRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(principioActivo));
-            return SavePrincipioActivoOutcome.CREATED;
+            try {
+                principioActivoRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(principioActivo));
+                return SavePrincipioActivoOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SavePrincipioActivoOutcome.DUPLICATE_DENOMINACION;
+            }
         }
         jdbcClient.sql("""
                         UPDATE sch_catalogo.principio_activo

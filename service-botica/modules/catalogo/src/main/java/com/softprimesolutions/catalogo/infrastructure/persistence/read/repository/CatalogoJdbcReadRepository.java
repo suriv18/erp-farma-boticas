@@ -152,7 +152,7 @@ public class CatalogoJdbcReadRepository {
                           JOIN sch_admin.tenant t ON t.id = c.tenant_id
                           LEFT JOIN sch_catalogo.categoria_producto padre ON padre.id = c.categoria_padre_id
                          WHERE t.uuid_publico = :tenantId
-                           AND (:categoriaPadreId IS NULL OR padre.uuid_publico = :categoriaPadreId)
+                           AND (CAST(:categoriaPadreId AS UUID) IS NULL OR padre.uuid_publico = CAST(:categoriaPadreId AS UUID))
                            AND (:estado = '' OR c.estado = :estado)
                          ORDER BY c.nivel, c.orden, c.nombre
                         """)
@@ -211,10 +211,10 @@ public class CatalogoJdbcReadRepository {
              WHERE t.uuid_publico = :tenantId
                AND (:texto = '' OR LOWER(s.descripcion_comercial) LIKE :pattern
                     OR LOWER(s.codigo_interno) LIKE :pattern)
-               AND (:categoriaId IS NULL OR s.categoria_id = (
-                       SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = :categoriaId))
-               AND (:marcaId IS NULL OR s.marca_id = (
-                       SELECT id FROM sch_catalogo.marca WHERE uuid_publico = :marcaId))
+               AND (CAST(:categoriaId AS UUID) IS NULL OR s.categoria_id = (
+                       SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = CAST(:categoriaId AS UUID)))
+               AND (CAST(:marcaId AS UUID) IS NULL OR s.marca_id = (
+                       SELECT id FROM sch_catalogo.marca WHERE uuid_publico = CAST(:marcaId AS UUID)))
                AND (:tipoSku = '' OR s.tipo_sku = :tipoSku)
                AND (:estado = '' OR s.estado_comercial = :estado)
             """;

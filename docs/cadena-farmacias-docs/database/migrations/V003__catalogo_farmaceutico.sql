@@ -293,7 +293,7 @@ CREATE TABLE sch_catalogo.sku_comercial (
         (permite_venta_fraccion = TRUE AND factor_fraccion > 0 AND unidad_fraccion_codigo IS NOT NULL)
     ),
     CONSTRAINT ck_sku_stock_default CHECK (stock_minimo_default >= 0 AND (stock_maximo_default IS NULL OR stock_maximo_default >= stock_minimo_default)),
-    CONSTRAINT ck_sku_estado CHECK (estado_comercial IN ('ACTIVO', 'SUSPENDIDO', 'DESCONTINUADO')),
+    CONSTRAINT ck_sku_estado CHECK (estado_comercial IN ('ACTIVO', 'INACTIVO', 'BLOQUEADO', 'DESCONTINUADO')),
     CONSTRAINT ck_sku_es_activo CHECK (es_activo IN ('0', '1'))
 );
 
