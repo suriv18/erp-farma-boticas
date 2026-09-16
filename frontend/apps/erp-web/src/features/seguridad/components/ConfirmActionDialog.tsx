@@ -33,7 +33,7 @@ export function ConfirmActionDialog({
         </Button>
         <Button
           type="button"
-          variant={tone === 'danger' ? 'primary' : 'primary'}
+          variant="primary"
           className={tone === 'danger' ? 'bg-rose-700 hover:bg-rose-800 focus-visible:outline-rose-700' : undefined}
           onClick={onConfirm}
           disabled={isPending}
