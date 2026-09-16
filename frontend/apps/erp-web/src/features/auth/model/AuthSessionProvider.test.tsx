@@ -33,6 +33,8 @@ function Probe() {
   return (
     <div>
       <span data-testid="authenticated">{String(session.authenticated)}</span>
+      <span data-testid="tenantId">{session.tenantId}</span>
+      <span data-testid="userId">{session.userId}</span>
       <button onClick={() => {
         void session.authenticate({
           email: 'admin@boticas.pe',
@@ -65,6 +67,38 @@ describe('AuthSessionProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
     expect(readRefreshToken()).toBe('refresh-1');
+  });
+
+  it('expone tenantId y userId tras autenticar', async () => {
+    server.use(
+      http.post('http://localhost/api/v1/auth/login', () =>
+        HttpResponse.json({
+          accessToken: 'access-1',
+          refreshToken: 'refresh-1',
+          tokenType: 'Bearer',
+          accessExpiresAt: '2026-09-05T10:10:00Z',
+          refreshExpiresAt: '2026-09-12T10:00:00Z',
+          tenantId: 'tenant-abc',
+          userId: 'user-xyz',
+          sessionId: 'session-1',
+          passwordChangeRequired: false
+        })
+      )
+    );
+
+    render(
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>
+    );
+
+    act(() => {
+      screen.getByRole('button', { name: 'login' }).click();
+    });
+
+    await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
+    expect(screen.getByTestId('tenantId')).toHaveTextContent('tenant-abc');
+    expect(screen.getByTestId('userId')).toHaveTextContent('user-xyz');
   });
 
   it('restaura la sesion al montar si hay un refresh token guardado', async () => {

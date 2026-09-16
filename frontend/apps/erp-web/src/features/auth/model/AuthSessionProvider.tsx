@@ -7,6 +7,8 @@ import { clearRefreshToken, readRefreshToken, saveRefreshToken } from './session
 
 export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const pendingRefresh = useRef<Promise<string | null> | null>(null);
 
   const doRefresh = useCallback(async (): Promise<string | null> => {
@@ -16,11 +18,15 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     try {
       const response = await refreshRequest(refreshApiClient, storedRefreshToken);
       setAccessToken(response.accessToken);
+      setTenantId(response.tenantId);
+      setUserId(response.userId);
       saveRefreshToken(response.refreshToken);
       return response.accessToken;
     } catch {
       clearRefreshToken();
       setAccessToken(null);
+      setTenantId(null);
+      setUserId(null);
       return null;
     }
   }, []);
@@ -57,6 +63,8 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       password: credentials.password
     });
     setAccessToken(response.accessToken);
+    setTenantId(response.tenantId);
+    setUserId(response.userId);
     saveRefreshToken(response.refreshToken);
   }, []);
 
@@ -67,6 +75,8 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       // Logout es best-effort: la sesion local se limpia igual aunque falle la llamada remota.
     }
     setAccessToken(null);
+    setTenantId(null);
+    setUserId(null);
     clearRefreshToken();
   }, []);
 
@@ -74,10 +84,12 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     () => ({
       authenticated: accessToken !== null,
       accessToken,
+      tenantId,
+      userId,
       authenticate,
       signOut
     }),
-    [accessToken, authenticate, signOut]
+    [accessToken, tenantId, userId, authenticate, signOut]
   );
 
   return <AuthSessionContext value={session}>{children}</AuthSessionContext>;
