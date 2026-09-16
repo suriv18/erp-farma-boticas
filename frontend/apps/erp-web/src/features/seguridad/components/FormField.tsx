@@ -3,7 +3,7 @@ import type { PropsWithChildren, ReactNode } from 'react';
 export type FormFieldProps = PropsWithChildren<{
   label: string;
   htmlFor: string;
-  error?: string;
+  error?: string | undefined;
   hint?: ReactNode;
 }>;
 

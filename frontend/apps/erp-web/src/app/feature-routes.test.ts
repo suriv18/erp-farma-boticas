@@ -15,6 +15,9 @@ describe('featureRoutes', () => {
       'caja',
       'clientes',
       'seguridad',
+      'seguridad/permisos',
+      'seguridad/roles',
+      'seguridad/roles/:roleId',
       'organizacion'
     ]);
     expect(new Set(paths).size).toBe(paths.length);
