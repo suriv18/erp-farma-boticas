@@ -7,7 +7,9 @@ import type {
   AsignacionRolCreada,
   AsignarRolPayload,
   CrearUsuarioPayload,
-  Usuario
+  IdentidadExterna,
+  Usuario,
+  VincularIdentidadPayload
 } from './usuarios.types';
 
 export type FetchUsuariosParams = {
@@ -95,4 +97,44 @@ export function revocarAsignacionRol(
   return client.delete<void>(
     `/usuarios/${userId}/asignaciones-rol/${assignmentId}?tenantId=${encodeURIComponent(tenantId)}`
   );
+}
+
+export function fetchIdentidadesExternas(
+  client: ApiClient,
+  userId: string,
+  tenantId: string
+): Promise<IdentidadExterna[]> {
+  return client.get<IdentidadExterna[]>(
+    `/usuarios/${userId}/identidades-externas?tenantId=${encodeURIComponent(tenantId)}`
+  );
+}
+
+export function identidadesExternasQuery(userId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: ['seguridad', 'usuarios', userId, 'identidades-externas', tenantId],
+    queryFn: () => fetchIdentidadesExternas(apiClient, userId, tenantId)
+  });
+}
+
+export function vincularIdentidadExterna(
+  client: ApiClient,
+  userId: string,
+  tenantId: string,
+  payload: VincularIdentidadPayload
+): Promise<IdentidadExterna> {
+  return client.post<IdentidadExterna, VincularIdentidadPayload>(
+    `/usuarios/${userId}/identidades-externas?tenantId=${encodeURIComponent(tenantId)}`,
+    payload
+  );
+}
+
+export function desvincularIdentidadExterna(
+  client: ApiClient,
+  userId: string,
+  tenantId: string,
+  provider: string,
+  subject: string
+): Promise<void> {
+  const query = new URLSearchParams({ tenantId, provider, subject });
+  return client.delete<void>(`/usuarios/${userId}/identidades-externas?${query.toString()}`);
 }

@@ -75,3 +75,19 @@ export type AsignarRolPayload = {
   validFrom?: string | undefined;
   validUntil?: string | undefined;
 };
+
+export type IdentidadExterna = {
+  provider: string;
+  subject: string;
+  issuer: string | null;
+  emailClaim: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+};
+
+export type VincularIdentidadPayload = {
+  provider: string;
+  subject: string;
+  issuer?: string | undefined;
+  emailClaim?: string | undefined;
+};
