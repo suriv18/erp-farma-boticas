@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -30,6 +31,7 @@ export function AsignarRolDialog({
     formState: { errors },
     handleSubmit,
     register,
+    setValue,
     watch
   } = useForm<AsignacionRolFormValues>({
     defaultValues: { roleId: '', scopeType: 'ESTABLECIMIENTO' },
@@ -45,6 +47,24 @@ export function AsignarRolDialog({
   const selectedCompany = companies.find((company) => company.id === companyId);
   const establishments = selectedCompany?.establishments ?? [];
   const selectedEstablishment = establishments.find((establishment) => establishment.id === establishmentId);
+
+  useEffect(() => {
+    setValue('companyId', '');
+    setValue('establishmentId', '');
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [scopeType, setValue]);
+
+  useEffect(() => {
+    setValue('establishmentId', '');
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [companyId, setValue]);
+
+  useEffect(() => {
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [establishmentId, setValue]);
 
   if (!open) return null;
 

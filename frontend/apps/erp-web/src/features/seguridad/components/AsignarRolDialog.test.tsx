@@ -112,4 +112,21 @@ describe('AsignarRolDialog', () => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ roleId: 'rol-1', scopeType: 'GLOBAL' }))
     );
   });
+
+  it('resetea empresa y establecimiento seleccionados al cambiar el tipo de ambito', async () => {
+    const { user } = renderDialog();
+
+    await screen.findByText('Administrador local');
+    await user.selectOptions(screen.getByLabelText('Tipo de ámbito'), 'ESTABLECIMIENTO');
+    await user.selectOptions(await screen.findByLabelText('Empresa'), 'company-1');
+    await user.selectOptions(await screen.findByLabelText('Establecimiento'), 'est-1');
+
+    expect(screen.getByLabelText('Establecimiento')).toHaveValue('est-1');
+
+    await user.selectOptions(screen.getByLabelText('Tipo de ámbito'), 'GLOBAL');
+    await user.selectOptions(screen.getByLabelText('Tipo de ámbito'), 'ESTABLECIMIENTO');
+
+    expect(await screen.findByLabelText('Empresa')).toHaveValue('');
+    expect(screen.getByLabelText('Establecimiento')).toHaveValue('');
+  });
 });
