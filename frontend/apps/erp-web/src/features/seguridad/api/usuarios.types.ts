@@ -47,6 +47,23 @@ export type AsignacionRol = {
   createdAt: string;
 };
 
+export type AsignacionRolCreada = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  roleId: string;
+  scopeType: string;
+  companyId: string | null;
+  establishmentId: string | null;
+  warehouseId: string | null;
+  terminalId: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+};
+
 export type AsignarRolPayload = {
   tenantId: string;
   roleId: string;

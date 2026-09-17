@@ -121,21 +121,36 @@ describe('usuarios.api', () => {
       })
     );
 
-    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const queryClient = new QueryClient();
     const result = await queryClient.fetchQuery(usuarioAsignacionesQuery('user-1', 'tenant-1'));
 
     expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
     expect(result).toEqual([sampleAsignacion]);
-    void client;
   });
+
+  const sampleAsignacionCreada = {
+    id: 'assign-1',
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    roleId: 'rol-1',
+    scopeType: 'ESTABLECIMIENTO',
+    companyId: null,
+    establishmentId: 'est-1',
+    warehouseId: null,
+    terminalId: null,
+    validFrom: null,
+    validUntil: null,
+    status: 'ACTIVO',
+    createdBy: 'admin-1',
+    createdAt: '2026-09-01T00:00:00Z'
+  };
 
   it('asignarRolUsuario envia POST con el payload de asignacion', async () => {
     let receivedBody: unknown;
     server.use(
       http.post('http://localhost/api/v1/usuarios/user-1/role-assignments', async ({ request }) => {
         receivedBody = await request.json();
-        return HttpResponse.json(sampleAsignacion, { status: 201 });
+        return HttpResponse.json(sampleAsignacionCreada, { status: 201 });
       })
     );
 
@@ -153,7 +168,7 @@ describe('usuarios.api', () => {
       scopeType: 'ESTABLECIMIENTO',
       establishmentId: 'est-1'
     });
-    expect(result).toEqual(sampleAsignacion);
+    expect(result).toEqual(sampleAsignacionCreada);
   });
 
   it('revocarAsignacionRol envia DELETE con tenantId como query param', async () => {

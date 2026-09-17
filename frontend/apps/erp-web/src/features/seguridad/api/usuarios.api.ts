@@ -2,7 +2,13 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './roles.types';
-import type { AsignacionRol, AsignarRolPayload, CrearUsuarioPayload, Usuario } from './usuarios.types';
+import type {
+  AsignacionRol,
+  AsignacionRolCreada,
+  AsignarRolPayload,
+  CrearUsuarioPayload,
+  Usuario
+} from './usuarios.types';
 
 export type FetchUsuariosParams = {
   tenantId: string;
@@ -73,8 +79,11 @@ export function asignarRolUsuario(
   client: ApiClient,
   userId: string,
   payload: AsignarRolPayload
-): Promise<AsignacionRol> {
-  return client.post<AsignacionRol, AsignarRolPayload>(`/usuarios/${userId}/role-assignments`, payload);
+): Promise<AsignacionRolCreada> {
+  return client.post<AsignacionRolCreada, AsignarRolPayload>(
+    `/usuarios/${userId}/role-assignments`,
+    payload
+  );
 }
 
 export function revocarAsignacionRol(
