@@ -16,6 +16,20 @@ export const securityRoutes = [
     }
   },
   {
+    path: 'seguridad/usuarios',
+    lazy: async () => {
+      const { UsersPage } = await import('./pages/UsersPage');
+      return { Component: UsersPage };
+    }
+  },
+  {
+    path: 'seguridad/usuarios/:userId',
+    lazy: async () => {
+      const { UserDetailPage } = await import('./pages/UserDetailPage');
+      return { Component: UserDetailPage };
+    }
+  },
+  {
     path: 'seguridad/roles',
     lazy: async () => {
       const { RolesPage } = await import('./pages/RolesPage');

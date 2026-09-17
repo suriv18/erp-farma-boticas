@@ -16,6 +16,8 @@ describe('featureRoutes', () => {
       'clientes',
       'seguridad',
       'seguridad/permisos',
+      'seguridad/usuarios',
+      'seguridad/usuarios/:userId',
       'seguridad/roles',
       'seguridad/roles/:roleId',
       'organizacion'
