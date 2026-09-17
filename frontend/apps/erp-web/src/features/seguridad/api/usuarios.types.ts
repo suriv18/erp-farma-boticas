@@ -91,3 +91,9 @@ export type VincularIdentidadPayload = {
   issuer?: string | undefined;
   emailClaim?: string | undefined;
 };
+
+export type ProvisionarCredencialPayload = {
+  tenantId: string;
+  password: string;
+  requireChange?: boolean | undefined;
+};

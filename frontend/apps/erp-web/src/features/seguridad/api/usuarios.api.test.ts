@@ -8,6 +8,7 @@ import {
   desvincularIdentidadExterna,
   fetchUsuarios,
   identidadesExternasQuery,
+  provisionarCredencialLocal,
   revocarAsignacionRol,
   usuarioAsignacionesQuery,
   vincularIdentidadExterna
@@ -258,5 +259,28 @@ describe('usuarios.api', () => {
     expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
     expect(receivedUrl?.searchParams.get('provider')).toBe('GOOGLE');
     expect(receivedUrl?.searchParams.get('subject')).toBe('google-oauth2|123');
+  });
+
+  it('provisionarCredencialLocal envia POST con tenantId, password y requireChange', async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post('http://localhost/api/v1/usuarios/user-1/credencial-local', async ({ request }) => {
+        receivedBody = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    await provisionarCredencialLocal(client, 'user-1', {
+      tenantId: 'tenant-1',
+      password: 'Sup3r$eguro123',
+      requireChange: true
+    });
+
+    expect(receivedBody).toEqual({
+      tenantId: 'tenant-1',
+      password: 'Sup3r$eguro123',
+      requireChange: true
+    });
   });
 });

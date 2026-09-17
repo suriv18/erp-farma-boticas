@@ -8,6 +8,7 @@ import type {
   AsignarRolPayload,
   CrearUsuarioPayload,
   IdentidadExterna,
+  ProvisionarCredencialPayload,
   Usuario,
   VincularIdentidadPayload
 } from './usuarios.types';
@@ -137,4 +138,12 @@ export function desvincularIdentidadExterna(
 ): Promise<void> {
   const query = new URLSearchParams({ tenantId, provider, subject });
   return client.delete<void>(`/usuarios/${userId}/identidades-externas?${query.toString()}`);
+}
+
+export function provisionarCredencialLocal(
+  client: ApiClient,
+  userId: string,
+  payload: ProvisionarCredencialPayload
+): Promise<void> {
+  return client.post<void, ProvisionarCredencialPayload>(`/usuarios/${userId}/credencial-local`, payload);
 }
