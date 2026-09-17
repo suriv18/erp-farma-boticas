@@ -7,14 +7,14 @@ import { FormField } from './FormField';
 export type CredencialLocalFormProps = {
   onSubmit: (values: { password: string; requireChange: boolean }) => void;
   isSubmitting?: boolean;
+  errorMessage?: string | undefined;
 };
 
-export function CredencialLocalForm({ onSubmit, isSubmitting = false }: CredencialLocalFormProps) {
+export function CredencialLocalForm({ onSubmit, isSubmitting = false, errorMessage }: CredencialLocalFormProps) {
   const {
     formState: { errors },
     handleSubmit,
-    register,
-    reset
+    register
   } = useForm<CredencialLocalFormValues>({
     defaultValues: { password: '', confirmPassword: '', requireChange: true },
     mode: 'onTouched',
@@ -23,7 +23,6 @@ export function CredencialLocalForm({ onSubmit, isSubmitting = false }: Credenci
 
   function submit(values: CredencialLocalFormValues) {
     onSubmit({ password: values.password, requireChange: values.requireChange });
-    reset();
   }
 
   return (
@@ -64,6 +63,12 @@ export function CredencialLocalForm({ onSubmit, isSubmitting = false }: Credenci
         />
         Exigir cambio de contraseña en el próximo inicio de sesión
       </label>
+
+      {errorMessage ? (
+        <p role="alert" className="text-sm font-medium text-rose-700">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <Button type="submit" disabled={isSubmitting}>
         Fijar contraseña

@@ -41,4 +41,13 @@ describe('CredencialLocalForm', () => {
 
     expect(onSubmit).toHaveBeenCalledWith({ password: 'Sup3r$eguro123', requireChange: true });
   });
+
+  it('muestra el mensaje de error cuando se pasa errorMessage', () => {
+    const onSubmit = vi.fn();
+    render(
+      <CredencialLocalForm onSubmit={onSubmit} errorMessage="Contraseña rechazada por el servidor." />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Contraseña rechazada por el servidor.');
+  });
 });

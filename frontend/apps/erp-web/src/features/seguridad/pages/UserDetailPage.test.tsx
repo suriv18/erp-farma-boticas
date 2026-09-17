@@ -236,4 +236,43 @@ describe('UserDetailPage', () => {
 
     expect(await screen.findByText('No se pudo cargar la información.')).toBeInTheDocument();
   });
+
+  it('muestra "Usuario no encontrado" cuando la lista de usuarios carga pero no incluye el id solicitado', async () => {
+    server.use(
+      http.get('*/api/v1/usuarios', () =>
+        HttpResponse.json({ items: [], page: 0, size: 20, totalElements: 0 })
+      ),
+      http.get('*/api/v1/usuarios/user-1/asignaciones-rol', () => HttpResponse.json([])),
+      http.get('*/api/v1/usuarios/user-1/identidades-externas', () => HttpResponse.json([])),
+      http.get('*/api/v1/roles', () => HttpResponse.json({ items: [], page: 0, size: 100, totalElements: 0 })),
+      http.get('*/api/v1/estructura-corporativa', () =>
+        HttpResponse.json({ asOf: '2026-09-01T00:00:00Z', companies: [] })
+      )
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Usuario no encontrado.')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando usuario…')).not.toBeInTheDocument();
+  });
+
+  it('muestra el error del backend al fallar la provision de credencial y no limpia el formulario', async () => {
+    mockBaseHandlers();
+    server.use(
+      http.post('*/api/v1/usuarios/user-1/credencial-local', () =>
+        HttpResponse.json({ title: 'Contraseña inválida', status: 400 }, { status: 400 })
+      )
+    );
+
+    const { user } = renderPage();
+
+    await screen.findByText('Ada Lovelace');
+    await user.type(screen.getByLabelText('Contraseña'), 'Sup3r$eguro123');
+    await user.type(screen.getByLabelText('Confirmar contraseña'), 'Sup3r$eguro123');
+    await user.click(screen.getByRole('button', { name: 'Fijar contraseña' }));
+
+    expect(await screen.findByText('Contraseña inválida')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contraseña')).toHaveValue('Sup3r$eguro123');
+    expect(screen.getByLabelText('Confirmar contraseña')).toHaveValue('Sup3r$eguro123');
+  });
 });

@@ -35,6 +35,7 @@ export function UserDetailPage() {
   const [revokeAssignmentId, setRevokeAssignmentId] = useState<string | null>(null);
   const [linkIdentityOpen, setLinkIdentityOpen] = useState(false);
   const [unlinkIdentity, setUnlinkIdentity] = useState<IdentidadExterna | null>(null);
+  const [credentialFormKey, setCredentialFormKey] = useState(0);
 
   const usuariosResult = useQuery({
     ...usuariosQuery({ tenantId: tenantId ?? '', size: 100 }),
@@ -116,12 +117,18 @@ export function UserDetailPage() {
         tenantId: tenantId ?? '',
         password: values.password,
         requireChange: values.requireChange
-      })
+      }),
+    onSuccess: () => {
+      setCredentialFormKey((key) => key + 1);
+    }
   });
 
   if (!usuario) {
     if (usuariosResult.isError || asignacionesResult.isError || identidadesResult.isError) {
       return <p className="text-sm text-rose-700">No se pudo cargar la información.</p>;
+    }
+    if (usuariosResult.isSuccess) {
+      return <p className="text-sm text-rose-700">Usuario no encontrado.</p>;
     }
     return <p className="text-sm text-slate-500">Cargando usuario…</p>;
   }
@@ -213,12 +220,19 @@ export function UserDetailPage() {
         <p className="mt-1 text-sm text-slate-500">Fija una contraseña inicial para el acceso local del usuario.</p>
         <div className="mt-4">
           <CredencialLocalForm
+            key={credentialFormKey}
             onSubmit={(values) => provisionCredentialMutation.mutate(values)}
             isSubmitting={provisionCredentialMutation.isPending}
+            errorMessage={provisionCredentialMutation.isError ? provisionCredentialMutation.error.message : undefined}
           />
         </div>
       </Card>
 
+      {confirmStatusOpen && toggleStatusMutation.isError ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
+          {toggleStatusMutation.error.message}
+        </p>
+      ) : null}
       <ConfirmActionDialog
         open={confirmStatusOpen}
         title={usuario.status === 'ACTIVO' ? 'Desactivar usuario' : 'Activar usuario'}
@@ -231,17 +245,33 @@ export function UserDetailPage() {
         tone={usuario.status === 'ACTIVO' ? 'danger' : 'default'}
         isPending={toggleStatusMutation.isPending}
         onConfirm={() => toggleStatusMutation.mutate(usuario.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')}
-        onCancel={() => setConfirmStatusOpen(false)}
+        onCancel={() => {
+          setConfirmStatusOpen(false);
+          toggleStatusMutation.reset();
+        }}
       />
 
+      {assignRoleOpen && assignRoleMutation.isError ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
+          {assignRoleMutation.error.message}
+        </p>
+      ) : null}
       <AsignarRolDialog
         open={assignRoleOpen}
         tenantId={tenantId ?? ''}
         isSubmitting={assignRoleMutation.isPending}
         onSubmit={(values) => assignRoleMutation.mutate(values)}
-        onCancel={() => setAssignRoleOpen(false)}
+        onCancel={() => {
+          setAssignRoleOpen(false);
+          assignRoleMutation.reset();
+        }}
       />
 
+      {revokeAssignmentId !== null && revokeAssignmentMutation.isError ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
+          {revokeAssignmentMutation.error.message}
+        </p>
+      ) : null}
       <ConfirmActionDialog
         open={revokeAssignmentId !== null}
         title="Revocar asignación de rol"
@@ -250,18 +280,34 @@ export function UserDetailPage() {
         tone="danger"
         isPending={revokeAssignmentMutation.isPending}
         onConfirm={() => revokeAssignmentMutation.mutate(revokeAssignmentId ?? '')}
-        onCancel={() => setRevokeAssignmentId(null)}
+        onCancel={() => {
+          setRevokeAssignmentId(null);
+          revokeAssignmentMutation.reset();
+        }}
       />
 
       <Modal open={linkIdentityOpen} onClose={() => setLinkIdentityOpen(false)} title="Vincular identidad externa">
+        {linkIdentityMutation.isError ? (
+          <p role="alert" className="mb-4 text-sm font-medium text-rose-700">
+            {linkIdentityMutation.error.message}
+          </p>
+        ) : null}
         <IdentidadExternaForm
           submitLabel="Vincular"
           isSubmitting={linkIdentityMutation.isPending}
           onSubmit={(payload) => linkIdentityMutation.mutate(payload)}
-          onCancel={() => setLinkIdentityOpen(false)}
+          onCancel={() => {
+            setLinkIdentityOpen(false);
+            linkIdentityMutation.reset();
+          }}
         />
       </Modal>
 
+      {unlinkIdentity !== null && unlinkIdentityMutation.isError ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
+          {unlinkIdentityMutation.error.message}
+        </p>
+      ) : null}
       <ConfirmActionDialog
         open={unlinkIdentity !== null}
         title="Desvincular identidad externa"
@@ -272,7 +318,10 @@ export function UserDetailPage() {
         onConfirm={() => {
           if (unlinkIdentity) unlinkIdentityMutation.mutate(unlinkIdentity);
         }}
-        onCancel={() => setUnlinkIdentity(null)}
+        onCancel={() => {
+          setUnlinkIdentity(null);
+          unlinkIdentityMutation.reset();
+        }}
       />
     </div>
   );
