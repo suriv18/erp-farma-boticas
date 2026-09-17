@@ -1233,8 +1233,8 @@ describe('CredencialLocalForm', () => {
     const user = userEvent.setup();
     render(<CredencialLocalForm onSubmit={onSubmit} />);
 
-    await user.type(screen.getByLabelText('Contraseña'), 'simple123');
-    await user.type(screen.getByLabelText('Confirmar contraseña'), 'simple123');
+    await user.type(screen.getByLabelText('Contraseña'), 'contrasena123');
+    await user.type(screen.getByLabelText('Confirmar contraseña'), 'contrasena123');
     await user.click(screen.getByRole('button', { name: 'Fijar contraseña' }));
 
     expect(await screen.findByText('Debe incluir mayúscula, minúscula, número y símbolo.')).toBeInTheDocument();
@@ -1950,3 +1950,4 @@ git commit -m "feat(seguridad): pantalla de detalle de usuario con roles, identi
 - **Placeholders:** ninguno — cada step tiene código completo y ejecutable.
 - **Consistencia de tipos:** `AsignacionRolFormValues` (Task 4) se mapea explícitamente a `AsignarRolPayload` (Task 1) dentro de `UserDetailPage` (Task 7, `assignRoleMutation`), no se asume que son el mismo shape. `VincularIdentidadPayload` (Task 1) es producido directamente por `IdentidadExternaForm` (Task 5) sin tipo intermedio. `{ password, requireChange }` de `CredencialLocalForm` (Task 6) se mapea a `ProvisionarCredencialPayload` (Task 3) agregando `tenantId` en `UserDetailPage`.
 - **Fuera de alcance confirmado:** no se agrega lógica de permisos/403 en la UI porque ninguna pantalla existente del módulo lo hace; no se edita una asignación existente (solo alta/revocación, como expone el backend); Playwright queda para la spec original, no se toca aquí.
+- **Corrección post-implementación (Task 6):** el test "rechaza una contraseña que no cumple la política de complejidad" usaba `'simple123'` (9 caracteres), que ya falla por `.min(12)` antes de llegar al regex de complejidad — el mensaje de error mostrado habría sido el de longitud, no el esperado. Corregido a `'contrasena123'` (13 caracteres, solo minúsculas y dígitos: cumple longitud mínima pero no complejidad), que ejercita el caso realmente previsto por el test.
