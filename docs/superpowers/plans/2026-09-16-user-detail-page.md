@@ -735,6 +735,7 @@ Expected: FAIL — `./AsignarRolDialog` no existe.
 
 ```tsx
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Button } from '@boticas/ui-web';
@@ -766,6 +767,7 @@ export function AsignarRolDialog({
     formState: { errors },
     handleSubmit,
     register,
+    setValue,
     watch
   } = useForm<AsignacionRolFormValues>({
     defaultValues: { roleId: '', scopeType: 'ESTABLECIMIENTO' },
@@ -781,6 +783,24 @@ export function AsignarRolDialog({
   const selectedCompany = companies.find((company) => company.id === companyId);
   const establishments = selectedCompany?.establishments ?? [];
   const selectedEstablishment = establishments.find((establishment) => establishment.id === establishmentId);
+
+  useEffect(() => {
+    setValue('companyId', '');
+    setValue('establishmentId', '');
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [scopeType, setValue]);
+
+  useEffect(() => {
+    setValue('establishmentId', '');
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [companyId, setValue]);
+
+  useEffect(() => {
+    setValue('warehouseId', '');
+    setValue('terminalId', '');
+  }, [establishmentId, setValue]);
 
   if (!open) return null;
 
@@ -927,6 +947,8 @@ export function AsignarRolDialog({
 ```
 
 Nota: la variable `register_` evita colisión con la función `register` de `react-hook-form` dentro del `.map`.
+
+**Corrección post-revisión:** se agregaron tres `useEffect` que limpian `companyId`/`establishmentId`/`warehouseId`/`terminalId` en cascada cuando cambia `scopeType`, `companyId` o `establishmentId` respectivamente (usando `setValue` de `react-hook-form`). Sin esto, cambiar de empresa/establecimiento/ámbito después de haber seleccionado uno dejaba el valor anterior registrado en el formulario, permitiendo enviar un `establishmentId`/`warehouseId`/`terminalId` obsoleto e inconsistente con la empresa/ámbito actualmente mostrado — un bug de integridad de datos en un endpoint sensible de RBAC (asignación de rol con ámbito).
 
 - [ ] **Step 6: Ejecutar el test y verificar que pasa**
 
