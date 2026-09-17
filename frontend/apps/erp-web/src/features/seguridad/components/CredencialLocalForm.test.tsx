@@ -9,8 +9,8 @@ describe('CredencialLocalForm', () => {
     const user = userEvent.setup();
     render(<CredencialLocalForm onSubmit={onSubmit} />);
 
-    await user.type(screen.getByLabelText('Contraseña'), 'simple123');
-    await user.type(screen.getByLabelText('Confirmar contraseña'), 'simple123');
+    await user.type(screen.getByLabelText('Contraseña'), 'contrasena123');
+    await user.type(screen.getByLabelText('Confirmar contraseña'), 'contrasena123');
     await user.click(screen.getByRole('button', { name: 'Fijar contraseña' }));
 
     expect(await screen.findByText('Debe incluir mayúscula, minúscula, número y símbolo.')).toBeInTheDocument();
