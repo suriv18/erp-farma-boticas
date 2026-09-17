@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -143,6 +143,25 @@ describe('UserDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar revocación' }));
 
     await waitFor(() => expect(screen.getByText('Sin roles asignados.')).toBeInTheDocument());
+  });
+
+  it('muestra el error dentro del dialogo al fallar la revocacion de una asignacion', async () => {
+    mockBaseHandlers();
+    server.use(
+      http.delete('*/api/v1/usuarios/user-1/asignaciones-rol/assign-1', () =>
+        HttpResponse.json({ title: 'No se pudo revocar la asignación.', status: 500 }, { status: 500 })
+      )
+    );
+
+    const { user } = renderPage();
+
+    expect(await screen.findByText('Administrador local')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Revocar' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar revocación' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('No se pudo revocar la asignación.');
+    expect(screen.getByText('Administrador local')).toBeInTheDocument();
   });
 
   it('vincula una identidad externa nueva', async () => {

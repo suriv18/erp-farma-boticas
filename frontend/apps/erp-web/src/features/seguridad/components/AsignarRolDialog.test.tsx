@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
@@ -49,7 +49,7 @@ const sampleStructure = {
   ]
 };
 
-function renderDialog(onSubmit = vi.fn(), onCancel = vi.fn()) {
+function renderDialog(onSubmit = vi.fn(), onCancel = vi.fn(), errorMessage?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return {
     onSubmit,
@@ -57,7 +57,13 @@ function renderDialog(onSubmit = vi.fn(), onCancel = vi.fn()) {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AsignarRolDialog open tenantId="tenant-1" onSubmit={onSubmit} onCancel={onCancel} />
+        <AsignarRolDialog
+          open
+          tenantId="tenant-1"
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          errorMessage={errorMessage}
+        />
       </QueryClientProvider>
     )
   };
@@ -128,5 +134,20 @@ describe('AsignarRolDialog', () => {
 
     expect(await screen.findByLabelText('Empresa')).toHaveValue('');
     expect(screen.getByLabelText('Establecimiento')).toHaveValue('');
+  });
+
+  it('muestra el mensaje de error dentro del dialogo cuando errorMessage esta presente', async () => {
+    renderDialog(vi.fn(), vi.fn(), 'No se pudo asignar el rol.');
+
+    await screen.findByText('Administrador local');
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('No se pudo asignar el rol.');
+  });
+
+  it('no renderiza ningun mensaje de error cuando errorMessage no esta presente', async () => {
+    renderDialog();
+
+    await screen.findByText('Administrador local');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

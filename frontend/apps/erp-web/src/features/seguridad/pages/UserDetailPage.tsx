@@ -228,11 +228,6 @@ export function UserDetailPage() {
         </div>
       </Card>
 
-      {confirmStatusOpen && toggleStatusMutation.isError ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
-          {toggleStatusMutation.error.message}
-        </p>
-      ) : null}
       <ConfirmActionDialog
         open={confirmStatusOpen}
         title={usuario.status === 'ACTIVO' ? 'Desactivar usuario' : 'Activar usuario'}
@@ -244,6 +239,7 @@ export function UserDetailPage() {
         confirmLabel={usuario.status === 'ACTIVO' ? 'Desactivar' : 'Activar'}
         tone={usuario.status === 'ACTIVO' ? 'danger' : 'default'}
         isPending={toggleStatusMutation.isPending}
+        errorMessage={toggleStatusMutation.isError ? toggleStatusMutation.error.message : undefined}
         onConfirm={() => toggleStatusMutation.mutate(usuario.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')}
         onCancel={() => {
           setConfirmStatusOpen(false);
@@ -251,15 +247,11 @@ export function UserDetailPage() {
         }}
       />
 
-      {assignRoleOpen && assignRoleMutation.isError ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
-          {assignRoleMutation.error.message}
-        </p>
-      ) : null}
       <AsignarRolDialog
         open={assignRoleOpen}
         tenantId={tenantId ?? ''}
         isSubmitting={assignRoleMutation.isPending}
+        errorMessage={assignRoleMutation.isError ? assignRoleMutation.error.message : undefined}
         onSubmit={(values) => assignRoleMutation.mutate(values)}
         onCancel={() => {
           setAssignRoleOpen(false);
@@ -267,11 +259,6 @@ export function UserDetailPage() {
         }}
       />
 
-      {revokeAssignmentId !== null && revokeAssignmentMutation.isError ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
-          {revokeAssignmentMutation.error.message}
-        </p>
-      ) : null}
       <ConfirmActionDialog
         open={revokeAssignmentId !== null}
         title="Revocar asignación de rol"
@@ -279,6 +266,7 @@ export function UserDetailPage() {
         confirmLabel="Confirmar revocación"
         tone="danger"
         isPending={revokeAssignmentMutation.isPending}
+        errorMessage={revokeAssignmentMutation.isError ? revokeAssignmentMutation.error.message : undefined}
         onConfirm={() => revokeAssignmentMutation.mutate(revokeAssignmentId ?? '')}
         onCancel={() => {
           setRevokeAssignmentId(null);
@@ -286,7 +274,14 @@ export function UserDetailPage() {
         }}
       />
 
-      <Modal open={linkIdentityOpen} onClose={() => setLinkIdentityOpen(false)} title="Vincular identidad externa">
+      <Modal
+        open={linkIdentityOpen}
+        onClose={() => {
+          setLinkIdentityOpen(false);
+          linkIdentityMutation.reset();
+        }}
+        title="Vincular identidad externa"
+      >
         {linkIdentityMutation.isError ? (
           <p role="alert" className="mb-4 text-sm font-medium text-rose-700">
             {linkIdentityMutation.error.message}
@@ -303,11 +298,6 @@ export function UserDetailPage() {
         />
       </Modal>
 
-      {unlinkIdentity !== null && unlinkIdentityMutation.isError ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
-          {unlinkIdentityMutation.error.message}
-        </p>
-      ) : null}
       <ConfirmActionDialog
         open={unlinkIdentity !== null}
         title="Desvincular identidad externa"
@@ -315,6 +305,7 @@ export function UserDetailPage() {
         confirmLabel="Desvincular"
         tone="danger"
         isPending={unlinkIdentityMutation.isPending}
+        errorMessage={unlinkIdentityMutation.isError ? unlinkIdentityMutation.error.message : undefined}
         onConfirm={() => {
           if (unlinkIdentity) unlinkIdentityMutation.mutate(unlinkIdentity);
         }}

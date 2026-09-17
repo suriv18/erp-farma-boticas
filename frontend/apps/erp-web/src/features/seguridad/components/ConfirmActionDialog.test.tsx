@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
@@ -64,5 +64,35 @@ describe('ConfirmActionDialog', () => {
       />
     );
     expect(screen.getByRole('button', { name: 'Revocar' })).toBeDisabled();
+  });
+
+  it('muestra el mensaje de error dentro del dialogo cuando errorMessage esta presente', () => {
+    render(
+      <ConfirmActionDialog
+        open
+        title="Revocar sesión"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Revocar"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+        errorMessage="No se pudo revocar la sesión."
+      />
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('No se pudo revocar la sesión.');
+  });
+
+  it('no renderiza ningun mensaje de error cuando errorMessage no esta presente', () => {
+    render(
+      <ConfirmActionDialog
+        open
+        title="Revocar sesión"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Revocar"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

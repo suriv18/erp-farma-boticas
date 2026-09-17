@@ -15,6 +15,7 @@ export type AsignarRolDialogProps = {
   onSubmit: (values: AsignacionRolFormValues) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  errorMessage?: string | undefined;
 };
 
 export function AsignarRolDialog({
@@ -22,7 +23,8 @@ export function AsignarRolDialog({
   tenantId,
   onSubmit,
   onCancel,
-  isSubmitting = false
+  isSubmitting = false,
+  errorMessage
 }: AsignarRolDialogProps) {
   const rolesResult = useQuery({ ...rolesQuery({ tenantId, size: 100 }), enabled: open });
   const structureResult = useQuery({ ...corporateStructureQuery, enabled: open });
@@ -77,6 +79,11 @@ export function AsignarRolDialog({
           void handleSubmit((values) => onSubmit(values))(event);
         }}
       >
+        {errorMessage ? (
+          <p role="alert" className="text-sm font-medium text-rose-700">
+            {errorMessage}
+          </p>
+        ) : null}
         <FormField label="Rol" htmlFor="asignacion-role" error={errors.roleId?.message}>
           <select
             id="asignacion-role"
