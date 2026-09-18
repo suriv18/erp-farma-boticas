@@ -2,18 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildr
 import { apiClient, refreshApiClient } from '../../../app/api';
 import { login as loginRequest, logout as logoutRequest, refresh as refreshRequest } from '../api/auth.api';
 import type { LoginCredentials } from '../schemas/login.schema';
-import { AuthSessionContext, type AuthSession } from './auth-session.context';
+import { AuthSessionContext, type AuthSession, type AuthSessionStatus } from './auth-session.context';
 import { clearRefreshToken, readRefreshToken, saveRefreshToken } from './session-storage';
 
 export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [status, setStatus] = useState<AuthSessionStatus>(() => (readRefreshToken() ? 'loading' : 'unauthenticated'));
   const pendingRefresh = useRef<Promise<string | null> | null>(null);
 
   const doRefresh = useCallback(async (): Promise<string | null> => {
     const storedRefreshToken = readRefreshToken();
-    if (!storedRefreshToken) return null;
+    if (!storedRefreshToken) {
+      setStatus('unauthenticated');
+      return null;
+    }
 
     try {
       const response = await refreshRequest(refreshApiClient, storedRefreshToken);
@@ -21,12 +25,14 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       setTenantId(response.tenantId);
       setUserId(response.userId);
       saveRefreshToken(response.refreshToken);
+      setStatus('authenticated');
       return response.accessToken;
     } catch {
       clearRefreshToken();
       setAccessToken(null);
       setTenantId(null);
       setUserId(null);
+      setStatus('unauthenticated');
       return null;
     }
   }, []);
@@ -66,6 +72,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     setTenantId(response.tenantId);
     setUserId(response.userId);
     saveRefreshToken(response.refreshToken);
+    setStatus('authenticated');
   }, []);
 
   const signOut = useCallback(async () => {
@@ -78,18 +85,20 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     setTenantId(null);
     setUserId(null);
     clearRefreshToken();
+    setStatus('unauthenticated');
   }, []);
 
   const session = useMemo<AuthSession>(
     () => ({
-      authenticated: accessToken !== null,
+      status,
+      authenticated: status === 'authenticated',
       accessToken,
       tenantId,
       userId,
       authenticate,
       signOut
     }),
-    [accessToken, tenantId, userId, authenticate, signOut]
+    [status, accessToken, tenantId, userId, authenticate, signOut]
   );
 
   return <AuthSessionContext value={session}>{children}</AuthSessionContext>;

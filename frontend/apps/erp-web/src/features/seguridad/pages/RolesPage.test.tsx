@@ -8,6 +8,7 @@ import { server } from '../../../test/mocks/server';
 import { RolesPage } from './RolesPage';
 
 const authenticatedSession = {
+  status: 'authenticated' as const,
   authenticated: true,
   accessToken: 'token',
   tenantId: 'tenant-1',

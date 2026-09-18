@@ -9,6 +9,7 @@ import { server } from '../../../test/mocks/server';
 import { UsersPage } from './UsersPage';
 
 const authenticatedSession = {
+  status: 'authenticated' as const,
   authenticated: true,
   accessToken: 'token',
   tenantId: 'tenant-1',
