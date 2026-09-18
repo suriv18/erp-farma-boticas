@@ -55,8 +55,8 @@ class IamApiIntegrationTest {
     void prepareCanonicalSchemaDependencies() {
         resetCanonicalFixtures();
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.tenant (uuid_publico, codigo, nombre, created_by)
-                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'test')
+                        INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
+                        VALUES (:tenantId, 'TEST', 'Tenant de prueba', 'tenant-de-prueba', 'test')
                         """)
                 .param("tenantId", TENANT_ID)
                 .update();
@@ -74,18 +74,26 @@ class IamApiIntegrationTest {
         var assignmentId = UUID.randomUUID();
         var sessionId = UUID.randomUUID();
 
+        var controlIdentidadId = UUID.randomUUID();
         jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.usuario
-                            (uuid_publico, tenant_id, nombre_mostrar, requiere_cambio_credencial,
+                        INSERT INTO sch_seguridad.identidad
+                            (uuid_publico, email, nombres, created_at)
+                        VALUES (:identidadId, 'operador.control@example.test', 'Operador control', CURRENT_TIMESTAMP)
+                        """).param("identidadId", controlIdentidadId).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.membership
+                            (uuid_publico, tenant_id, identidad_id, nombre_mostrar, requiere_cambio_credencial,
                              mfa_requerido, estado, created_at)
-                        SELECT :userId, id, 'Operador control', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
-                        """).param("userId", userId).param("tenantId", TENANT_ID).update();
+                        SELECT :userId, t.id, i.id, 'Operador control', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
+                         WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
+                        """).param("userId", userId).param("tenantId", TENANT_ID)
+                .param("identidadId", controlIdentidadId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.rol
                             (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
                         SELECT :roleId, id, 'CONTROL', 'Control', 'GLOBAL', FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.permiso
@@ -97,27 +105,27 @@ class IamApiIntegrationTest {
                         INSERT INTO sch_seguridad.rol_permiso
                             (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
                         SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
-                          FROM sch_farmacia.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
+                          FROM sch_admin.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
                          WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
                            AND p.codigo = 'seguridad.control.probar'
                         """).param("tenantId", TENANT_ID).param("roleId", roleId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.usuario_rol_ambito
-                            (uuid_publico, tenant_id, usuario_id, rol_id, tipo_ambito,
+                            (uuid_publico, tenant_id, membership_id, rol_id, tipo_ambito,
                              vigente_desde, estado, created_by, created_at)
-                        SELECT :assignmentId, t.id, u.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP,
+                        SELECT :assignmentId, t.id, m.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP,
                                'ACTIVO', 'test', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.usuario u, sch_seguridad.rol r
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                          FROM sch_admin.tenant t, sch_seguridad.membership m, sch_seguridad.rol r
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND r.uuid_publico = :roleId
                         """).param("assignmentId", assignmentId).param("tenantId", TENANT_ID)
                 .param("userId", userId).param("roleId", roleId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.sesion_usuario
-                            (uuid_sesion, tenant_id, usuario_id, provider, canal, login_at, estado)
-                        SELECT :sessionId, t.id, u.id, 'oidc', 'WEB', CURRENT_TIMESTAMP, 'ACTIVA'
-                          FROM sch_farmacia.tenant t, sch_seguridad.usuario u
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                            (uuid_sesion, tenant_id, membership_id, provider, canal, login_at, estado)
+                        SELECT :sessionId, t.id, m.id, 'oidc', 'WEB', CURRENT_TIMESTAMP, 'ACTIVA'
+                          FROM sch_admin.tenant t, sch_seguridad.membership m
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                         """).param("sessionId", sessionId).param("tenantId", TENANT_ID)
                 .param("userId", userId).update();
 
@@ -198,14 +206,22 @@ class IamApiIntegrationTest {
     @Test
     void authenticatesLocallyWithJwtRefreshPasswordRecoveryAndLogout() throws Exception {
         var userId = UUID.randomUUID();
+        var identidadId = UUID.randomUUID();
         jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.usuario
-                            (uuid_publico, tenant_id, username, email, nombre_mostrar,
+                        INSERT INTO sch_seguridad.identidad
+                            (uuid_publico, email, username, nombres, created_at)
+                        VALUES (:identidadId, 'local.admin@example.test', 'local.admin',
+                                'Administrador local', CURRENT_TIMESTAMP)
+                        """).param("identidadId", identidadId).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.membership
+                            (uuid_publico, tenant_id, identidad_id, nombre_mostrar,
                              requiere_cambio_credencial, mfa_requerido, estado, created_at)
-                        SELECT :userId, id, 'local.admin', 'local.admin@example.test', 'Administrador local',
-                               FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
-                        """).param("userId", userId).param("tenantId", TENANT_ID).update();
+                        SELECT :userId, t.id, i.id, 'Administrador local', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
+                         WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
+                        """).param("userId", userId).param("tenantId", TENANT_ID)
+                .param("identidadId", identidadId).update();
 
         mockMvc.perform(post("/api/v1/usuarios/{userId}/credencial-local", userId)
                         .with(admin()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -213,9 +229,9 @@ class IamApiIntegrationTest {
                                 """.formatted(TENANT_ID)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"tenantId":"%s","login":"local.admin","password":"InitialPass!2026","channel":"POS"}
-                        """.formatted(TENANT_ID)))
+        mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"login":"local.admin","password":"InitialPass!2026","channel":"POS"}
+                        """))
                 .andExpect(status().isUnauthorized());
 
         var login = login("InitialPass!2026");
@@ -247,13 +263,13 @@ class IamApiIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"tenantId":"%s","login":"local.admin@example.test"}
-                                """.formatted(TENANT_ID)))
+                                {"login":"local.admin@example.test"}
+                                """))
                 .andExpect(status().isAccepted());
         mockMvc.perform(post("/api/v1/auth/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"tenantId":"%s","login":"cuenta.inexistente@example.test"}
-                                """.formatted(TENANT_ID)))
+                                {"login":"cuenta.inexistente@example.test"}
+                                """))
                 .andExpect(status().isAccepted());
         var resetEvent = applicationEvents.stream(PasswordResetRequested.class).reduce((first, last) -> last)
                 .orElseThrow();
@@ -330,9 +346,6 @@ class IamApiIntegrationTest {
                         .content("""
                                 {
                                   "tenantId":"%s",
-                                  "identityProvider":"oidc",
-                                  "identityIssuer":"https://id.example.test/tenant",
-                                  "identitySubject":"subject-123",
                                   "email":"admin@example.test",
                                   "displayName":"Ada Lovelace"
                                 }
@@ -387,37 +400,45 @@ class IamApiIntegrationTest {
                                TRUE, 'ACTIVO'
                           FROM sch_seguridad.modulo_sistema WHERE codigo = 'SEGURIDAD'
                         """).update();
+        var cajeroIdentidadId = UUID.randomUUID();
         jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.usuario
-                            (uuid_publico, tenant_id, username, email, nombre_mostrar,
+                        INSERT INTO sch_seguridad.identidad
+                            (uuid_publico, email, username, nombres, created_at)
+                        VALUES (:identidadId, 'tienda.cajero@example.test', 'tienda.cajero',
+                                'Cajero de tienda', CURRENT_TIMESTAMP)
+                        """).param("identidadId", cajeroIdentidadId).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.membership
+                            (uuid_publico, tenant_id, identidad_id, nombre_mostrar,
                              requiere_cambio_credencial, mfa_requerido, estado, created_at)
-                        SELECT :userId, id, 'tienda.cajero', 'tienda.cajero@example.test', 'Cajero de tienda',
-                               FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
-                        """).param("userId", userId).param("tenantId", TENANT_ID).update();
+                        SELECT :userId, t.id, i.id, 'Cajero de tienda', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
+                         WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
+                        """).param("userId", userId).param("tenantId", TENANT_ID)
+                .param("identidadId", cajeroIdentidadId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.rol
                             (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
                         SELECT :roleId, id, 'TIENDA', 'Tienda', 'ESTABLECIMIENTO', FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.rol_permiso
                             (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
                         SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
-                          FROM sch_farmacia.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
+                          FROM sch_admin.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
                          WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
                            AND p.codigo = 'seguridad.sesiones.consultar'
                         """).param("tenantId", TENANT_ID).param("roleId", roleId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.usuario_rol_ambito
-                            (uuid_publico, tenant_id, usuario_id, rol_id, tipo_ambito,
+                            (uuid_publico, tenant_id, membership_id, rol_id, tipo_ambito,
                              empresa_id, establecimiento_id, vigente_desde, estado, created_by, created_at)
-                        SELECT :assignmentId, t.id, u.id, r.id, 'ESTABLECIMIENTO', e.id, est.id,
+                        SELECT :assignmentId, t.id, m.id, r.id, 'ESTABLECIMIENTO', e.id, est.id,
                                CURRENT_TIMESTAMP, 'ACTIVO', 'test', CURRENT_TIMESTAMP
-                          FROM sch_farmacia.tenant t, sch_seguridad.usuario u, sch_seguridad.rol r,
-                               sch_farmacia.empresa_operadora e, sch_farmacia.establecimiento_farmaceutico est
-                         WHERE t.uuid_publico = :tenantId AND u.uuid_publico = :userId
+                          FROM sch_admin.tenant t, sch_seguridad.membership m, sch_seguridad.rol r,
+                               sch_organizacion.empresa_operadora e, sch_organizacion.establecimiento_farmaceutico est
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
                            AND r.uuid_publico = :roleId AND e.uuid_publico = :companyId
                            AND est.uuid_publico = :establishmentId
                         """).param("assignmentId", UUID.randomUUID()).param("tenantId", TENANT_ID)
@@ -431,8 +452,8 @@ class IamApiIntegrationTest {
                 .andExpect(status().isNoContent());
 
         var login = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"tenantId":"%s","login":"tienda.cajero","password":"TiendaPass!2026","channel":"WEB"}
-                        """.formatted(TENANT_ID)))
+                        {"login":"tienda.cajero","password":"TiendaPass!2026","channel":"WEB"}
+                        """))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         String accessToken = JsonPath.read(login, "$.accessToken");
@@ -458,7 +479,7 @@ class IamApiIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"identityIssuer":"","identitySubject":"","email":"bad","displayName":""}
+                                {"email":"bad","displayName":""}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
@@ -504,29 +525,30 @@ class IamApiIntegrationTest {
         jdbcClient.sql("DELETE FROM sch_seguridad.dispositivo_tienda").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.permiso").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.rol").update();
-        jdbcClient.sql("DELETE FROM sch_seguridad.usuario").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.terminal_pos").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.almacen").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.establecimiento_farmaceutico").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.empresa_operadora").update();
+        jdbcClient.sql("DELETE FROM sch_seguridad.membership").update();
+        jdbcClient.sql("DELETE FROM sch_seguridad.identidad").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.terminal_pos").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.almacen").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.establecimiento_farmaceutico").update();
+        jdbcClient.sql("DELETE FROM sch_organizacion.empresa_operadora").update();
         jdbcClient.sql("DELETE FROM sch_seguridad.modulo_sistema").update();
-        jdbcClient.sql("DELETE FROM sch_farmacia.tenant").update();
+        jdbcClient.sql("DELETE FROM sch_admin.tenant").update();
     }
 
     private void seedOrganizationScope() {
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.empresa_operadora
+                        INSERT INTO sch_organizacion.empresa_operadora
                             (uuid_publico, tenant_id, ruc, razon_social, created_by)
                         SELECT :companyId, id, '20123456789', 'Empresa de prueba', 'test'
-                          FROM sch_farmacia.tenant WHERE uuid_publico = :tenantId
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("companyId", COMPANY_ID).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""
-                        INSERT INTO sch_farmacia.establecimiento_farmaceutico
+                        INSERT INTO sch_organizacion.establecimiento_farmaceutico
                             (uuid_publico, tenant_id, empresa_id, codigo, nombre,
                              tipo_establecimiento, created_by)
                         SELECT :establishmentId, t.id, e.id, 'EST-TEST', 'Establecimiento de prueba',
                                'FARMACIA', 'test'
-                          FROM sch_farmacia.tenant t, sch_farmacia.empresa_operadora e
+                          FROM sch_admin.tenant t, sch_organizacion.empresa_operadora e
                          WHERE t.uuid_publico = :tenantId AND e.uuid_publico = :companyId
                         """).param("establishmentId", ESTABLISHMENT_ID).param("tenantId", TENANT_ID)
                 .param("companyId", COMPANY_ID).update();
@@ -535,8 +557,8 @@ class IamApiIntegrationTest {
     private String login(String password) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"tenantId":"%s","login":"local.admin","password":"%s","channel":"WEB"}
-                                """.formatted(TENANT_ID, password)))
+                                {"login":"local.admin","password":"%s","channel":"WEB"}
+                                """.formatted(password)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
@@ -546,8 +568,8 @@ class IamApiIntegrationTest {
     private void loginExpecting(String password, int expectedStatus) throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"tenantId":"%s","login":"local.admin","password":"%s","channel":"WEB"}
-                                """.formatted(TENANT_ID, password)))
+                                {"login":"local.admin","password":"%s","channel":"WEB"}
+                                """.formatted(password)))
                 .andExpect(status().is(expectedStatus));
     }
 }

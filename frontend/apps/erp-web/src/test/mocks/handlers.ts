@@ -1,6 +1,23 @@
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
+  http.post('*/api/v1/auth/login', async ({ request }) => {
+    const body = (await request.json()) as { login?: string; password?: string };
+    if (body.password !== 'Boticas2026!') {
+      return HttpResponse.json({ title: 'Credenciales incorrectas o cuenta bloqueada.' }, { status: 401 });
+    }
+    return HttpResponse.json({
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      tokenType: 'Bearer',
+      accessExpiresAt: '2026-08-31T12:10:00-05:00',
+      refreshExpiresAt: '2026-09-07T12:00:00-05:00',
+      tenantId: '11111111-1111-1111-1111-111111111111',
+      userId: '22222222-2222-2222-2222-222222222222',
+      sessionId: '33333333-3333-3333-3333-333333333333',
+      passwordChangeRequired: false
+    });
+  }),
   http.get('*/api/v1/dashboard/summary', () =>
     HttpResponse.json({
       salesToday: 8420.5,

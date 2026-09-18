@@ -1,4 +1,6 @@
+import { ApiError } from '@boticas/api-client';
 import { Boxes, Building2, Check, Pill, ShieldCheck, Store, Warehouse } from 'lucide-react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { LoginForm } from '../components/LoginForm';
 import { useAuthSession } from '../model/useAuthSession';
@@ -10,13 +12,23 @@ const operationalBenefits = [
   'Permisos por empresa y sucursal'
 ];
 
+const GENERIC_LOGIN_ERROR = 'Credenciales incorrectas o cuenta bloqueada.';
+
 export function LoginPage() {
   const { authenticate } = useAuthSession();
   const location = useLocation();
   const navigate = useNavigate();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleAuthentication(credentials: LoginCredentials) {
-    await authenticate(credentials);
+    setSubmitError(null);
+
+    try {
+      await authenticate(credentials);
+    } catch (error) {
+      setSubmitError(error instanceof ApiError ? GENERIC_LOGIN_ERROR : 'No se pudo iniciar sesión. Intenta nuevamente.');
+      return;
+    }
 
     const locationState = location.state as { from?: unknown } | null;
     const destination =
@@ -128,7 +140,7 @@ export function LoginPage() {
             Utiliza las credenciales asignadas por el administrador de tu organización.
           </p>
 
-          <LoginForm onAuthenticate={handleAuthentication} />
+          <LoginForm onAuthenticate={handleAuthentication} submitError={submitError} />
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-slate-200/70 pt-5 text-[11px] text-slate-400 sm:flex-row">

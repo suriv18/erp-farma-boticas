@@ -23,7 +23,7 @@ public class AsignacionRolJpaEntity {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "usuario_id", nullable = false)
+    @Column(name = "membership_id", nullable = false)
     private Long usuarioId;
 
     @Column(name = "rol_id", nullable = false)

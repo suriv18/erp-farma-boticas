@@ -23,11 +23,11 @@ public interface LocalAuthUseCase {
     Result<Unit, ApplicationError> provisionCredential(ProvisionCredentialCommand command);
 
     record LoginCommand(
-            UUID tenantId, String login, String password, String channel,
+            String login, String password, String channel,
             String ipAddress, String userAgent, UUID deviceId) {
     }
 
-    record PasswordResetRequest(UUID tenantId, String login) {
+    record PasswordResetRequest(String login) {
     }
 
     record ResetPasswordCommand(String resetToken, String newPassword) {

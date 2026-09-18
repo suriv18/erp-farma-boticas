@@ -6,10 +6,6 @@ import java.util.UUID;
 
 public record CrearUsuarioCommand(
         UUID tenantId,
-        String identityProvider,
-        String identitySubject,
-        String identityIssuer,
-        String emailClaim,
         String documentType,
         String documentNumber,
         String firstNames,

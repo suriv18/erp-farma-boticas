@@ -1,16 +1,12 @@
 package com.softprimesolutions.security.api.dto.request;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record CrearUsuarioRequest(
-        @jakarta.validation.constraints.NotNull UUID tenantId,
-        @NotBlank @Size(max = 100) String identityProvider,
-        @NotBlank @Size(max = 300) String identitySubject,
-        @Size(max = 500) String identityIssuer,
-        @Email @Size(max = 254) String emailClaim,
+        @NotNull UUID tenantId,
         @Size(max = 20) String documentType,
         @Size(max = 30) String documentNumber,
         @Size(max = 150) String firstNames,

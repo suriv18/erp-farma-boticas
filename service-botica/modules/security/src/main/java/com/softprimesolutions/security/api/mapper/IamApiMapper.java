@@ -28,10 +28,9 @@ public final class IamApiMapper {
 
     public static CrearUsuarioCommand toCommand(CrearUsuarioRequest request) {
         return new CrearUsuarioCommand(
-                request.tenantId(), request.identityProvider(), request.identitySubject(),
-                request.identityIssuer(), request.emailClaim(), request.documentType(), request.documentNumber(),
-                request.firstNames(), request.lastNames(), request.username(), request.email(), request.phone(),
-                request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
+                request.tenantId(), request.documentType(), request.documentNumber(),
+                request.firstNames(), request.lastNames(), request.username(), request.email(),
+                request.phone(), request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
                 Boolean.TRUE.equals(request.mfaRequired()));
     }
 
@@ -56,11 +55,10 @@ public final class IamApiMapper {
 
     public static UsuarioResponse toResponse(UsuarioResult result) {
         return new UsuarioResponse(
-                result.id(), result.tenantId(), result.identityProvider(), result.identityIssuer(),
-                result.identitySubject(), result.emailClaim(), result.documentType(), result.documentNumber(),
-                result.firstNames(), result.lastNames(), result.username(), result.email(), result.displayName(),
-                result.phone(), result.credentialChangeRequired(), result.mfaRequired(), result.status(),
-                result.createdAt(), result.updatedAt());
+                result.id(), result.tenantId(), result.documentType(), result.documentNumber(),
+                result.firstNames(), result.lastNames(), result.username(), result.email(),
+                result.displayName(), result.phone(), result.credentialChangeRequired(),
+                result.mfaRequired(), result.status(), result.createdAt(), result.updatedAt());
     }
 
     public static RolResponse toResponse(RolResult result) {

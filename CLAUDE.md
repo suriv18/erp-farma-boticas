@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Fuente única de verdad
 
-Este es un monorepo para un ERP de cadena de farmacias en Perú. El punto de entrada canónico de negocio/arquitectura es `docs/cadena-farmacias-docs/docs/00-gobierno/01-fuente-unica-verdad.md` (referenciado como `GOV-FAR-001`) — ese documento define la precedencia entre requisitos, ADR, código existente y artefactos legados. `docs/arquitectura/`, `docs/sprint/`, `docs/decisiones-adr/` y `docs/db/` son antecedentes/borradores legados, conservados solo para trazabilidad — no confiar en ellos como estado actual sin contrastarlos contra `docs/cadena-farmacias-docs/`.
+Este es un monorepo para un ERP de cadena de farmacias en Perú. No existe un documento único de gobierno (no hay `docs/00-gobierno/` ni `GOV-FAR-001` en el repo pese a referencias previas a ese nombre); la fuente de verdad de negocio/arquitectura está distribuida entre estos documentos de `docs/cadena-farmacias-docs/`:
+- `README.md` — punto de entrada: estado de fase actual, secuencia de trabajo de 15 pasos y la regla de evidencia (`NORM/MKT/FUNC/DOM/STD/TEC/POR_VALIDAR`) que clasifica el origen de cualquier capacidad/regla/dato — nunca presentar una decisión `TEC` o `MKT` como obligación `NORM`.
+- `docs/02-procesos/13-matriz-proceso-regla-fuente.md` — precedencia de reglas de negocio por proceso.
+- `docs/06-datos/08-consolidacion-v1-v2-campos.md` y `database/README.md` — precedencia entre el DDL legado (V1/V2) y el modelo físico actual (`database/cadena_farmacias_postgresql18.sql` + `database/migrations/V001-V017`, validado solo estáticamente, aún no ejecutado contra PostgreSQL real).
+- `docs/05-arquitectura/adr/` — los ADR (11 a la fecha).
+
+`docs/arquitectura/`, `docs/sprint/`, `docs/decisiones-adr/` y `docs/db/` (fuera de `cadena-farmacias-docs/`) son antecedentes/borradores legados, conservados solo para trazabilidad — no confiar en ellos como estado actual sin contrastarlos contra `docs/cadena-farmacias-docs/`.
 
 **Estado real del proyecto (no asumir más de lo implementado):**
 - `service-botica/`: monolito modular Java/Spring que compila y verifica 17 módulos explícitos, pero la mayoría son scaffolds. El módulo `security` (IAM: login, JWT, RBAC, sesiones, dispositivos) es el más maduro y funcional del backend. `organizacion` tiene un primer slice parcial (agregado, command/handler, puerto). Los demás módulos de negocio (ventas, inventario, compras, etc.) aún no tienen controladores, adapters de persistencia ni migraciones propias.

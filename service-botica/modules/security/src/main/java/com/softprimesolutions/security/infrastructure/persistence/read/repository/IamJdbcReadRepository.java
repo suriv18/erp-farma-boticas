@@ -15,21 +15,19 @@ import org.springframework.stereotype.Repository;
 public class IamJdbcReadRepository {
 
     private static final String USER_FILTER = """
-            FROM sch_seguridad.usuario u
-            JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-            LEFT JOIN sch_seguridad.identidad_externa ie
-              ON ie.usuario_id = u.id
-             AND ie.id = (SELECT MIN(ie2.id) FROM sch_seguridad.identidad_externa ie2 WHERE ie2.usuario_id = u.id)
+            FROM sch_seguridad.membership m
+            JOIN sch_seguridad.identidad i ON i.id = m.identidad_id
+            JOIN sch_admin.tenant t ON t.id = m.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = ''
-                OR LOWER(COALESCE(u.nombre_mostrar, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.email::text, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.username::text, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.numero_documento, '')) LIKE :pattern)
+                OR LOWER(COALESCE(m.nombre_mostrar, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.email::text, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.username::text, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.numero_documento, '')) LIKE :pattern)
             """;
     private static final String ROLE_FILTER = """
             FROM sch_seguridad.rol r
-            JOIN sch_farmacia.tenant t ON t.id = r.tenant_id
+            JOIN sch_admin.tenant t ON t.id = r.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = '' OR LOWER(r.codigo) LIKE :pattern OR LOWER(r.nombre) LIKE :pattern)
             """;
@@ -43,13 +41,12 @@ public class IamJdbcReadRepository {
     public List<UsuarioProjection> findUsers(UUID tenantId, String search, int offset, int limit) {
         var filter = normalizeSearch(search);
         return jdbcClient.sql("""
-                        SELECT u.uuid_publico, t.uuid_publico AS tenant_uuid,
-                               ie.provider, ie.issuer, ie.subject, ie.email_claim,
-                               u.tipo_documento, u.numero_documento, u.nombres, u.apellidos,
-                               u.username, u.email, u.nombre_mostrar, u.telefono,
-                               u.requiere_cambio_credencial, u.mfa_requerido,
-                               u.estado, u.created_at, u.updated_at
-                        """ + USER_FILTER + " ORDER BY u.nombre_mostrar, u.id LIMIT :limit OFFSET :offset")
+                        SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               i.tipo_documento, i.numero_documento, i.nombres, i.apellidos,
+                               i.username, i.email, m.nombre_mostrar, i.telefono,
+                               m.requiere_cambio_credencial, m.mfa_requerido,
+                               m.estado, m.created_at, m.updated_at
+                        """ + USER_FILTER + " ORDER BY m.nombre_mostrar, m.id LIMIT :limit OFFSET :offset")
                 .param("tenantId", tenantId)
                 .param("search", filter)
                 .param("pattern", '%' + filter + '%')
@@ -58,10 +55,6 @@ public class IamJdbcReadRepository {
                 .query((rs, rowNumber) -> new UsuarioProjection(
                         rs.getObject("uuid_publico", UUID.class),
                         rs.getObject("tenant_uuid", UUID.class),
-                        rs.getString("provider"),
-                        rs.getString("issuer"),
-                        rs.getString("subject"),
-                        rs.getString("email_claim"),
                         rs.getString("tipo_documento"),
                         rs.getString("numero_documento"),
                         rs.getString("nombres"),
