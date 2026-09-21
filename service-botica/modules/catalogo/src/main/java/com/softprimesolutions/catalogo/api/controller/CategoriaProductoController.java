@@ -3,12 +3,16 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
 import com.softprimesolutions.catalogo.api.dto.request.CategoriaProductoRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarCategoriaProductoQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasProductoQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaProductoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarCategoriaProductoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasProductoUseCase;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,16 +34,19 @@ public class CategoriaProductoController {
 
     private final CrearCategoriaProductoUseCase createCategoria;
     private final ActualizarCategoriaProductoUseCase updateCategoria;
+    private final ConsultarCategoriaProductoUseCase getCategoria;
     private final ListarCategoriasProductoUseCase listCategorias;
     private final CatalogoControlUseCase control;
 
     public CategoriaProductoController(
             CrearCategoriaProductoUseCase createCategoria,
             ActualizarCategoriaProductoUseCase updateCategoria,
+            ConsultarCategoriaProductoUseCase getCategoria,
             ListarCategoriasProductoUseCase listCategorias,
             CatalogoControlUseCase control) {
         this.createCategoria = createCategoria;
         this.updateCategoria = updateCategoria;
+        this.getCategoria = getCategoria;
         this.listCategorias = listCategorias;
         this.control = control;
     }
@@ -69,13 +76,26 @@ public class CategoriaProductoController {
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
     }
 
+    @GetMapping("/{categoriaId}")
+    @PreAuthorize("hasAuthority('catalogo.categorias.consultar')")
+    public ResponseEntity<?> get(@PathVariable UUID categoriaId, @RequestParam UUID tenantId) {
+        return getCategoria.execute(new ConsultarCategoriaProductoQuery(tenantId, categoriaId)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('catalogo.categorias.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId, @RequestParam(required = false) UUID categoriaPadreId,
-            @RequestParam(required = false) String estado) {
-        return listCategorias.execute(new ListarCategoriasProductoQuery(tenantId, categoriaPadreId, estado)).fold(
-                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
-                CatalogoControllerSupport::problem);
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) UUID categoriaPadreId,
+            @RequestParam(required = false) String estado,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return listCategorias.execute(
+                        new ListarCategoriasProductoQuery(tenantId, q, categoriaPadreId, estado, page, size))
+                .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toCategoriaPage(result)),
+                        CatalogoControllerSupport::problem);
     }
 }

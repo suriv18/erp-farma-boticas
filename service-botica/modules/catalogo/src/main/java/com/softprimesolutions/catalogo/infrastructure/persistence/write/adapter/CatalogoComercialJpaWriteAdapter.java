@@ -3,6 +3,7 @@ package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter
 import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.CodigoBarraSku;
+import com.softprimesolutions.catalogo.domain.model.EstadoCategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.EstadoComercialSku;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
@@ -297,6 +298,28 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 entity.get().getCreatedBy(), entity.get().getCreatedAt(), entity.get().getUpdatedBy(),
                 entity.get().getUpdatedAt());
         return Optional.of(sku);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return Optional.empty();
+        var entity = categoriaRepository.findByUuidPublico(categoriaId);
+        if (entity.isEmpty() || !entity.get().getTenantId().equals(tenantInternalId.get())) {
+            return Optional.empty();
+        }
+
+        var categoriaPadreId = entity.get().getCategoriaPadreId() == null ? null
+                : findCategoriaUuid(entity.get().getCategoriaPadreId());
+
+        var categoria = CategoriaProducto.restore(
+                new CategoriaProductoId(entity.get().getUuidPublico()), new TenantId(tenantId),
+                categoriaPadreId == null ? null : new CategoriaProductoId(categoriaPadreId),
+                entity.get().getCodigo(), entity.get().getNombre(), entity.get().getDescripcion(),
+                entity.get().getNivel(), entity.get().getOrden(),
+                EstadoCategoriaProducto.valueOf(entity.get().getEstado()));
+        return Optional.of(categoria);
     }
 
     @Override

@@ -13,6 +13,7 @@ import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdminist
 import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUseCase;
 import com.softprimesolutions.catalogo.application.port.in.AsociarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarCategoriaProductoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
@@ -68,6 +69,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.CrearViaAdmin
 import com.softprimesolutions.catalogo.application.usecase.command.DesasociarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.EliminarCodigoBarraHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.MarcarCodigoBarraPrincipalHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarCategoriaProductoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoReguladoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarSkuHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasProductoHandler;
@@ -246,6 +248,11 @@ public class CatalogoModuleConfiguration {
     @Bean
     ActualizarCategoriaProductoUseCase actualizarCategoriaProductoUseCase(CatalogoComercialPort comercialPort) {
         return new ActualizarCategoriaProductoHandler(comercialPort);
+    }
+
+    @Bean
+    ConsultarCategoriaProductoUseCase consultarCategoriaProductoUseCase(CatalogoComercialPort comercialPort) {
+        return new ConsultarCategoriaProductoHandler(comercialPort);
     }
 
     @Bean

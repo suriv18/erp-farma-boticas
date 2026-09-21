@@ -72,6 +72,9 @@ class AgregarCodigoBarraHandlerTest {
         public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { return Optional.ofNullable(existing); }
 
         @Override
+        public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
+
+        @Override
         public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
 
         @Override

@@ -17,6 +17,8 @@ public interface CatalogoComercialPort {
 
     Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId);
 
+    Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId);
+
     boolean categoriaExists(UUID tenantId, UUID categoriaId);
 
     boolean marcaExists(UUID tenantId, UUID marcaId);
