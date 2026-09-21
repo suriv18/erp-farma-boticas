@@ -55,6 +55,9 @@ class CrearMarcaHandlerTest {
         public java.util.Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
 
         @Override
+        public java.util.Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
         public java.util.Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
 
         @Override

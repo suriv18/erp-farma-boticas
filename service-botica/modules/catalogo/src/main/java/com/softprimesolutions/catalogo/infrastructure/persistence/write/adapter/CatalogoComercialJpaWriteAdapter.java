@@ -5,6 +5,7 @@ import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.CodigoBarraSku;
 import com.softprimesolutions.catalogo.domain.model.EstadoCategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.EstadoComercialSku;
+import com.softprimesolutions.catalogo.domain.model.EstadoMarca;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.TipoSku;
@@ -298,6 +299,23 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 entity.get().getCreatedBy(), entity.get().getCreatedAt(), entity.get().getUpdatedBy(),
                 entity.get().getUpdatedAt());
         return Optional.of(sku);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return Optional.empty();
+        var entity = marcaRepository.findByUuidPublico(marcaId);
+        if (entity.isEmpty() || !entity.get().getTenantId().equals(tenantInternalId.get())) {
+            return Optional.empty();
+        }
+
+        var marca = Marca.restore(
+                new MarcaId(entity.get().getUuidPublico()), new TenantId(tenantId), entity.get().getCodigo(),
+                entity.get().getNombre(), entity.get().getDescripcion(),
+                EstadoMarca.valueOf(entity.get().getEstado()));
+        return Optional.of(marca);
     }
 
     @Override
