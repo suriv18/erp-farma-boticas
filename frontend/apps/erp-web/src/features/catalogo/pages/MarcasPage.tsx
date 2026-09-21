@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal } from '@boticas/ui-web';
+import { Button, DataTable, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { actualizarMarca, cambiarEstadoMarca, crearMarca, marcasQuery } from '../api/marcas.api';
 import type { Marca } from '../api/marcas.types';
 import type { MarcaFormValues } from '../schemas/marca.schema';
-import { DataTable } from '../components/DataTable';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { MarcaForm } from '../components/MarcaForm';
 import { Pagination } from '../components/Pagination';

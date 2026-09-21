@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router';
-import { Button, Card, Modal } from '@boticas/ui-web';
+import { Button, Card, DataTable, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import {
@@ -19,7 +19,6 @@ import type { AsignacionRol, IdentidadExterna, VincularIdentidadPayload } from '
 import { AsignarRolDialog } from '../components/AsignarRolDialog';
 import { ConfirmActionDialog } from '../components/ConfirmActionDialog';
 import { CredencialLocalForm } from '../components/CredencialLocalForm';
-import { DataTable } from '../components/DataTable';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { IdentidadExternaForm } from '../components/IdentidadExternaForm';
 import type { AsignacionRolFormValues } from '../schemas/asignacion-rol.schema';

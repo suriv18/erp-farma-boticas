@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal } from '@boticas/ui-web';
+import { Button, DataTable, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { actualizarCategoria, cambiarEstadoCategoria, categoriasQuery, crearCategoria } from '../api/categorias.api';
 import type { CategoriaProducto } from '../api/categorias.types';
 import type { CategoriaFormValues } from '../schemas/categoria.schema';
 import { CategoriaForm } from '../components/CategoriaForm';
-import { DataTable } from '../components/DataTable';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { Pagination } from '../components/Pagination';
 
