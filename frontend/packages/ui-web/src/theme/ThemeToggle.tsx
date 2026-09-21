@@ -21,7 +21,11 @@ export function ThemeToggle({ className, ref, ...props }: ThemeToggleProps) {
       )}
       {...props}
     >
-      {isDark ? <Sun className="size-4.5" aria-hidden="true" /> : <Moon className="size-4.5" aria-hidden="true" />}
+      {isDark ? (
+        <Sun className="size-4.5" aria-hidden="true" />
+      ) : (
+        <Moon className="size-4.5" aria-hidden="true" />
+      )}
     </button>
   );
 }

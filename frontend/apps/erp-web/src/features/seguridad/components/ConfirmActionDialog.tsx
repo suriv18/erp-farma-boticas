@@ -29,7 +29,7 @@ export function ConfirmActionDialog({
     <Modal open={open} onClose={onCancel} title={title}>
       <p className="text-sm text-neutral-600 dark:text-neutral-300">{description}</p>
       {errorMessage ? (
-        <p role="alert" className="mt-3 text-sm font-medium text-danger-700 dark:text-danger-400">
+        <p role="alert" className="text-danger-700 dark:text-danger-400 mt-3 text-sm font-medium">
           {errorMessage}
         </p>
       ) : null}

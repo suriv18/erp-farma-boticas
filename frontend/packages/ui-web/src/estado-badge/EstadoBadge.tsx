@@ -1,7 +1,14 @@
 import { Badge } from '../badge/Badge';
 
 const SUCCESS_STATUSES = new Set(['ACTIVO', 'ACTIVE', 'CONFIABLE', 'TRUSTED']);
-const DANGER_STATUSES = new Set(['INACTIVO', 'INACTIVE', 'REVOCADO', 'REVOKED', 'BLOQUEADO', 'BLOCKED']);
+const DANGER_STATUSES = new Set([
+  'INACTIVO',
+  'INACTIVE',
+  'REVOCADO',
+  'REVOKED',
+  'BLOQUEADO',
+  'BLOCKED'
+]);
 const WARNING_STATUSES = new Set(['PENDIENTE', 'PENDING', 'SUSPENDIDO', 'SUSPENDED']);
 
 function toneFor(status: string): 'success' | 'danger' | 'warning' | 'neutral' {

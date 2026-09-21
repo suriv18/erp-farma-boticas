@@ -38,7 +38,7 @@ export function OrganizationPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <div>
-        <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+        <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
           Foundation / Core maestro
         </p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -50,7 +50,7 @@ export function OrganizationPage() {
       </div>
 
       {isError ? (
-        <Card className="mt-7 border-danger-200 bg-danger-50 p-4 text-sm text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300">
+        <Card className="border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300 mt-7 p-4 text-sm">
           No fue posible obtener la estructura corporativa. Verifica la conexión y tu ámbito de
           acceso.
         </Card>
@@ -73,7 +73,7 @@ export function OrganizationPage() {
                 {isPending ? '—' : value}
               </p>
             </div>
-            <div className="grid size-11 place-items-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+            <div className="bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 grid size-11 place-items-center rounded-xl">
               <Icon className="size-5" aria-hidden="true" />
             </div>
           </Card>
@@ -106,7 +106,7 @@ export function OrganizationPage() {
                   <article key={establishment.id} className="p-5 sm:p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-xs font-bold tracking-wide text-primary-700 uppercase dark:text-primary-400">
+                        <p className="text-primary-700 dark:text-primary-400 text-xs font-bold tracking-wide uppercase">
                           {establishment.code}
                         </p>
                         <h3 className="mt-1 font-semibold text-neutral-900 dark:text-neutral-50">

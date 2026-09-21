@@ -39,7 +39,7 @@ export function RolesPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
             Seguridad / Roles
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -60,7 +60,7 @@ export function RolesPage() {
               cell: (row) => (
                 <Link
                   to={`/seguridad/roles/${row.id}`}
-                  className="font-semibold text-primary-700 hover:underline dark:text-primary-400"
+                  className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
                 >
                   {row.code}
                 </Link>

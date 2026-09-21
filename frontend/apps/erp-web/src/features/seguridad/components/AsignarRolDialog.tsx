@@ -5,7 +5,11 @@ import { useForm } from 'react-hook-form';
 import { Button, Modal } from '@boticas/ui-web';
 import { rolesQuery } from '../api/roles.api';
 import { corporateStructureQuery } from '../../organizacion';
-import { asignacionRolSchema, SCOPE_TYPES, type AsignacionRolFormValues } from '../schemas/asignacion-rol.schema';
+import {
+  asignacionRolSchema,
+  SCOPE_TYPES,
+  type AsignacionRolFormValues
+} from '../schemas/asignacion-rol.schema';
 import { FormField } from './FormField';
 
 export type AsignarRolDialogProps = {
@@ -47,7 +51,9 @@ export function AsignarRolDialog({
   const companies = structureResult.data?.companies ?? [];
   const selectedCompany = companies.find((company) => company.id === companyId);
   const establishments = selectedCompany?.establishments ?? [];
-  const selectedEstablishment = establishments.find((establishment) => establishment.id === establishmentId);
+  const selectedEstablishment = establishments.find(
+    (establishment) => establishment.id === establishmentId
+  );
 
   useEffect(() => {
     setValue('companyId', '');
@@ -79,14 +85,14 @@ export function AsignarRolDialog({
         }}
       >
         {errorMessage ? (
-          <p role="alert" className="text-sm font-medium text-danger-700 dark:text-danger-400">
+          <p role="alert" className="text-danger-700 dark:text-danger-400 text-sm font-medium">
             {errorMessage}
           </p>
         ) : null}
         <FormField label="Rol" htmlFor="asignacion-role" error={errors.roleId?.message}>
           <select
             id="asignacion-role"
-            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             {...register('roleId')}
           >
             <option value="">Selecciona un rol</option>
@@ -98,10 +104,14 @@ export function AsignarRolDialog({
           </select>
         </FormField>
 
-        <FormField label="Tipo de ámbito" htmlFor="asignacion-scope" error={errors.scopeType?.message}>
+        <FormField
+          label="Tipo de ámbito"
+          htmlFor="asignacion-scope"
+          error={errors.scopeType?.message}
+        >
           <select
             id="asignacion-scope"
-            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             {...register('scopeType')}
           >
             {SCOPE_TYPES.map((type) => (
@@ -116,7 +126,7 @@ export function AsignarRolDialog({
           <FormField label="Empresa" htmlFor="asignacion-company" error={errors.companyId?.message}>
             <select
               id="asignacion-company"
-              className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+              className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               {...register('companyId')}
             >
               <option value="">Selecciona una empresa</option>
@@ -137,7 +147,7 @@ export function AsignarRolDialog({
           >
             <select
               id="asignacion-establishment"
-              className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+              className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               {...register('establishmentId')}
             >
               <option value="">Selecciona un establecimiento</option>
@@ -151,10 +161,14 @@ export function AsignarRolDialog({
         ) : null}
 
         {scopeType === 'ALMACEN' ? (
-          <FormField label="Almacén" htmlFor="asignacion-warehouse" error={errors.warehouseId?.message}>
+          <FormField
+            label="Almacén"
+            htmlFor="asignacion-warehouse"
+            error={errors.warehouseId?.message}
+          >
             <select
               id="asignacion-warehouse"
-              className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+              className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               {...register('warehouseId')}
             >
               <option value="">Selecciona un almacén</option>
@@ -168,10 +182,14 @@ export function AsignarRolDialog({
         ) : null}
 
         {scopeType === 'TERMINAL' ? (
-          <FormField label="Terminal" htmlFor="asignacion-terminal" error={errors.terminalId?.message}>
+          <FormField
+            label="Terminal"
+            htmlFor="asignacion-terminal"
+            error={errors.terminalId?.message}
+          >
             <select
               id="asignacion-terminal"
-              className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+              className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               {...register('terminalId')}
             >
               <option value="">Selecciona un terminal</option>
@@ -188,7 +206,7 @@ export function AsignarRolDialog({
           <input
             id="asignacion-valid-from"
             type="datetime-local"
-            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             {...register('validFrom')}
           />
         </FormField>
@@ -197,7 +215,7 @@ export function AsignarRolDialog({
           <input
             id="asignacion-valid-until"
             type="datetime-local"
-            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             {...register('validUntil')}
           />
         </FormField>

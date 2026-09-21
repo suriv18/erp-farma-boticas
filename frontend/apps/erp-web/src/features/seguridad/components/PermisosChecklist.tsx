@@ -44,7 +44,7 @@ export function PermisosChecklist({ permisos, selectedCodes, onChange }: Permiso
                   aria-label={permiso.name}
                   checked={selectedCodes.has(permiso.code)}
                   onChange={() => toggle(permiso.code)}
-                  className="size-4 rounded border-neutral-300 text-primary-700 focus:ring-primary-600 dark:border-neutral-600"
+                  className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
                 />
                 {permiso.name}
               </label>

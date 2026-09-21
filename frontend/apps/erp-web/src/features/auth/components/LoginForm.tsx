@@ -43,13 +43,19 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
       }}
     >
       {submitError ? (
-        <p role="alert" className="rounded-xl border border-danger-200 bg-danger-50 px-3.5 py-3 text-xs font-medium text-danger-700 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300">
+        <p
+          role="alert"
+          className="border-danger-200 bg-danger-50 text-danger-700 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300 rounded-xl border px-3.5 py-3 text-xs font-medium"
+        >
           {submitError}
         </p>
       ) : null}
 
       <div>
-        <label htmlFor="email" className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+        <label
+          htmlFor="email"
+          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+        >
           Correo corporativo
         </label>
         <div className="relative mt-2">
@@ -65,12 +71,16 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
             placeholder="nombre@boticas.pe"
             aria-describedby={errors.email ? 'email-error' : undefined}
             aria-invalid={Boolean(errors.email)}
-            className="h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('email')}
           />
         </div>
         {errors.email ? (
-          <p id="email-error" role="alert" className="mt-1.5 text-xs font-medium text-danger-600 dark:text-danger-400">
+          <p
+            id="email-error"
+            role="alert"
+            className="text-danger-600 dark:text-danger-400 mt-1.5 text-xs font-medium"
+          >
             {errors.email.message}
           </p>
         ) : null}
@@ -78,12 +88,15 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
 
       <div>
         <div className="flex items-center justify-between gap-4">
-          <label htmlFor="password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+          <label
+            htmlFor="password"
+            className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+          >
             Contraseña
           </label>
           <button
             type="button"
-            className="text-xs font-semibold text-primary-700 transition hover:text-primary-900 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:text-primary-400 dark:hover:text-primary-200"
+            className="text-primary-700 hover:text-primary-900 focus-visible:outline-primary-600 dark:text-primary-400 dark:hover:text-primary-200 text-xs font-semibold transition focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => setRecoveryVisible((visible) => !visible)}
             aria-expanded={recoveryVisible}
             aria-controls="recovery-help"
@@ -103,20 +116,24 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
             placeholder="Ingresa tu contraseña"
             aria-describedby={errors.password ? 'password-error' : undefined}
             aria-invalid={Boolean(errors.password)}
-            className="h-12 w-full rounded-xl border border-neutral-200 bg-white pr-12 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600 dark:focus:ring-primary-900/40"
+            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-12 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('password')}
           />
           <button
             type="button"
             onClick={() => setPasswordVisible((visible) => !visible)}
-            className="absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            className="focus-visible:outline-primary-600 absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-1 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
             aria-label={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           >
             {passwordVisible ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
           </button>
         </div>
         {errors.password ? (
-          <p id="password-error" role="alert" className="mt-1.5 text-xs font-medium text-danger-600 dark:text-danger-400">
+          <p
+            id="password-error"
+            role="alert"
+            className="text-danger-600 dark:text-danger-400 mt-1.5 text-xs font-medium"
+          >
             {errors.password.message}
           </p>
         ) : null}
@@ -126,9 +143,12 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
         <div
           id="recovery-help"
           role="status"
-          className="flex gap-3 rounded-xl border border-secondary-100 bg-secondary-50 p-3.5 text-xs leading-5 text-secondary-900 dark:border-secondary-800 dark:bg-secondary-900/30 dark:text-secondary-200"
+          className="border-secondary-100 bg-secondary-50 text-secondary-900 dark:border-secondary-800 dark:bg-secondary-900/30 dark:text-secondary-200 flex gap-3 rounded-xl border p-3.5 text-xs leading-5"
         >
-          <CircleHelp className="mt-0.5 size-4 shrink-0 text-secondary-600 dark:text-secondary-400" aria-hidden="true" />
+          <CircleHelp
+            className="text-secondary-600 dark:text-secondary-400 mt-0.5 size-4 shrink-0"
+            aria-hidden="true"
+          />
           Solicita el restablecimiento al administrador de tu organización. El enlace se enviará
           únicamente a tu correo corporativo.
         </div>
@@ -137,7 +157,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
       <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
         <input
           type="checkbox"
-          className="size-4 rounded border-neutral-300 text-primary-700 focus:ring-primary-600 dark:border-neutral-600"
+          className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
           {...register('remember')}
         />
         Recordar mi correo en este equipo
@@ -155,7 +175,10 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
       </Button>
 
       <div className="flex items-start gap-2.5 rounded-xl bg-neutral-50 px-3.5 py-3 text-xs leading-5 text-neutral-500 dark:bg-neutral-800/50 dark:text-neutral-400">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+        <ShieldCheck
+          className="text-primary-700 dark:text-primary-400 mt-0.5 size-4 shrink-0"
+          aria-hidden="true"
+        />
         <span>
           Acceso protegido y auditado. Nunca compartas tus credenciales ni las almacenes en equipos
           públicos.
@@ -163,7 +186,10 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-        <CheckCircle2 className="size-3.5 text-success-600 dark:text-success-400" aria-hidden="true" />
+        <CheckCircle2
+          className="text-success-600 dark:text-success-400 size-3.5"
+          aria-hidden="true"
+        />
         Plataforma operativa · soporte interno habilitado
       </p>
     </form>

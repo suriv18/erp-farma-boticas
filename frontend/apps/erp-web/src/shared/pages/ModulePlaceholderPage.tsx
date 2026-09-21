@@ -11,13 +11,13 @@ export function ModulePlaceholderPage({
 }) {
   return (
     <div className="mx-auto max-w-7xl">
-      <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">Módulo ERP</p>
+      <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">Módulo ERP</p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
         {title}
       </h1>
       <Card className="mt-7 grid min-h-80 place-items-center p-8 text-center">
         <div className="max-w-md">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+          <div className="bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 mx-auto grid size-14 place-items-center rounded-2xl">
             <Construction className="size-6" />
           </div>
           <h2 className="mt-5 text-xl font-bold text-neutral-900 dark:text-neutral-50">

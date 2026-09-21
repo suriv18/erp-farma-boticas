@@ -42,7 +42,7 @@ export function UsersPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
             Seguridad / Usuarios
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -68,7 +68,7 @@ export function UsersPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Nombre, correo o documento"
-          className="mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
         />
       </div>
 
@@ -80,7 +80,7 @@ export function UsersPage() {
               cell: (row) => (
                 <Link
                   to={`/seguridad/usuarios/${row.id}`}
-                  className="font-semibold text-primary-700 hover:underline dark:text-primary-400"
+                  className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
                 >
                   {row.displayName ?? row.email ?? row.username ?? row.id}
                 </Link>

@@ -19,7 +19,7 @@ export class AppErrorBoundary extends Component<PropsWithChildren, ErrorBoundary
       return (
         <main className="grid min-h-screen place-items-center bg-neutral-50 p-6 dark:bg-neutral-950">
           <Card className="max-w-lg p-8 text-center">
-            <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
               ERP Boticas
             </p>
             <h1 className="mt-2 text-2xl font-bold text-neutral-950 dark:text-white">

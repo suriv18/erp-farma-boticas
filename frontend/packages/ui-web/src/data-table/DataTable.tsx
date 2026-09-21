@@ -57,7 +57,7 @@ export function DataTable<T>({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-4 py-6 text-center text-danger-700 dark:text-danger-400"
+                className="text-danger-700 dark:text-danger-400 px-4 py-6 text-center"
               >
                 {errorMessage}
               </td>

@@ -10,7 +10,7 @@ export function PermissionsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <div>
-        <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+        <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
           Seguridad / Permisos
         </p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -34,7 +34,7 @@ export function PermissionsPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Código, nombre o módulo"
-          className="mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
+          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
         />
       </div>
 

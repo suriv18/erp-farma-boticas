@@ -34,7 +34,8 @@ export function RoleDetailPage() {
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: (status: string) => cambiarEstadoRol(apiClient, roleId ?? '', tenantId ?? '', status),
+    mutationFn: (status: string) =>
+      cambiarEstadoRol(apiClient, roleId ?? '', tenantId ?? '', status),
     onSuccess: () => {
       setConfirmDeactivateOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'roles'] });
@@ -49,7 +50,7 @@ export function RoleDetailPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
             Seguridad / Roles
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -96,7 +97,9 @@ export function RoleDetailPage() {
         confirmLabel={rol.status === 'ACTIVO' ? 'Desactivar' : 'Activar'}
         tone={rol.status === 'ACTIVO' ? 'danger' : 'default'}
         isPending={toggleStatusMutation.isPending}
-        onConfirm={() => toggleStatusMutation.mutate(rol.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')}
+        onConfirm={() =>
+          toggleStatusMutation.mutate(rol.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')
+        }
         onCancel={() => setConfirmDeactivateOpen(false)}
       />
     </div>

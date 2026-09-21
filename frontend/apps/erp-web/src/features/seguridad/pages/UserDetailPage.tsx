@@ -15,7 +15,11 @@ import {
   usuariosQuery,
   vincularIdentidadExterna
 } from '../api/usuarios.api';
-import type { AsignacionRol, IdentidadExterna, VincularIdentidadPayload } from '../api/usuarios.types';
+import type {
+  AsignacionRol,
+  IdentidadExterna,
+  VincularIdentidadPayload
+} from '../api/usuarios.types';
 import { AsignarRolDialog } from '../components/AsignarRolDialog';
 import { ConfirmActionDialog } from '../components/ConfirmActionDialog';
 import { CredencialLocalForm } from '../components/CredencialLocalForm';
@@ -51,12 +55,17 @@ export function UserDetailPage() {
   });
 
   const invalidateAsignaciones = () =>
-    queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios', userId, 'asignaciones-rol'] });
+    queryClient.invalidateQueries({
+      queryKey: ['seguridad', 'usuarios', userId, 'asignaciones-rol']
+    });
   const invalidateIdentidades = () =>
-    queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios', userId, 'identidades-externas'] });
+    queryClient.invalidateQueries({
+      queryKey: ['seguridad', 'usuarios', userId, 'identidades-externas']
+    });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: (status: string) => cambiarEstadoUsuario(apiClient, userId ?? '', tenantId ?? '', status),
+    mutationFn: (status: string) =>
+      cambiarEstadoUsuario(apiClient, userId ?? '', tenantId ?? '', status),
     onSuccess: () => {
       setConfirmStatusOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios'] });
@@ -83,7 +92,8 @@ export function UserDetailPage() {
   });
 
   const revokeAssignmentMutation = useMutation({
-    mutationFn: (assignmentId: string) => revocarAsignacionRol(apiClient, userId ?? '', assignmentId, tenantId ?? ''),
+    mutationFn: (assignmentId: string) =>
+      revocarAsignacionRol(apiClient, userId ?? '', assignmentId, tenantId ?? ''),
     onSuccess: () => {
       setRevokeAssignmentId(null);
       void invalidateAsignaciones();
@@ -101,7 +111,13 @@ export function UserDetailPage() {
 
   const unlinkIdentityMutation = useMutation({
     mutationFn: (identity: IdentidadExterna) =>
-      desvincularIdentidadExterna(apiClient, userId ?? '', tenantId ?? '', identity.provider, identity.subject),
+      desvincularIdentidadExterna(
+        apiClient,
+        userId ?? '',
+        tenantId ?? '',
+        identity.provider,
+        identity.subject
+      ),
     onSuccess: () => {
       setUnlinkIdentity(null);
       void invalidateIdentidades();
@@ -123,15 +139,13 @@ export function UserDetailPage() {
   if (!usuario) {
     if (usuariosResult.isError || asignacionesResult.isError || identidadesResult.isError) {
       return (
-        <p className="text-sm text-danger-700 dark:text-danger-400">
+        <p className="text-danger-700 dark:text-danger-400 text-sm">
           No se pudo cargar la información.
         </p>
       );
     }
     if (usuariosResult.isSuccess) {
-      return (
-        <p className="text-sm text-danger-700 dark:text-danger-400">Usuario no encontrado.</p>
-      );
+      return <p className="text-danger-700 dark:text-danger-400 text-sm">Usuario no encontrado.</p>;
     }
     return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando usuario…</p>;
   }
@@ -140,7 +154,7 @@ export function UserDetailPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
             Seguridad / Usuarios
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -173,7 +187,11 @@ export function UserDetailPage() {
               {
                 header: '',
                 cell: (row) => (
-                  <Button size="sm" variant="secondary" onClick={() => setRevokeAssignmentId(row.id)}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setRevokeAssignmentId(row.id)}
+                  >
                     Revocar
                   </Button>
                 )
@@ -222,13 +240,19 @@ export function UserDetailPage() {
 
       <Card className="mt-6 p-5">
         <h2 className="font-bold text-neutral-950 dark:text-white">Credencial local</h2>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Fija una contraseña inicial para el acceso local del usuario.</p>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Fija una contraseña inicial para el acceso local del usuario.
+        </p>
         <div className="mt-4">
           <CredencialLocalForm
             key={credentialFormKey}
             onSubmit={(values) => provisionCredentialMutation.mutate(values)}
             isSubmitting={provisionCredentialMutation.isPending}
-            errorMessage={provisionCredentialMutation.isError ? provisionCredentialMutation.error.message : undefined}
+            errorMessage={
+              provisionCredentialMutation.isError
+                ? provisionCredentialMutation.error.message
+                : undefined
+            }
           />
         </div>
       </Card>
@@ -245,7 +269,9 @@ export function UserDetailPage() {
         tone={usuario.status === 'ACTIVO' ? 'danger' : 'default'}
         isPending={toggleStatusMutation.isPending}
         errorMessage={toggleStatusMutation.isError ? toggleStatusMutation.error.message : undefined}
-        onConfirm={() => toggleStatusMutation.mutate(usuario.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')}
+        onConfirm={() =>
+          toggleStatusMutation.mutate(usuario.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')
+        }
         onCancel={() => {
           setConfirmStatusOpen(false);
           toggleStatusMutation.reset();
@@ -271,7 +297,9 @@ export function UserDetailPage() {
         confirmLabel="Confirmar revocación"
         tone="danger"
         isPending={revokeAssignmentMutation.isPending}
-        errorMessage={revokeAssignmentMutation.isError ? revokeAssignmentMutation.error.message : undefined}
+        errorMessage={
+          revokeAssignmentMutation.isError ? revokeAssignmentMutation.error.message : undefined
+        }
         onConfirm={() => revokeAssignmentMutation.mutate(revokeAssignmentId ?? '')}
         onCancel={() => {
           setRevokeAssignmentId(null);
@@ -288,7 +316,7 @@ export function UserDetailPage() {
         title="Vincular identidad externa"
       >
         {linkIdentityMutation.isError ? (
-          <p role="alert" className="mb-4 text-sm font-medium text-danger-700 dark:text-danger-400">
+          <p role="alert" className="text-danger-700 dark:text-danger-400 mb-4 text-sm font-medium">
             {linkIdentityMutation.error.message}
           </p>
         ) : null}
@@ -310,7 +338,9 @@ export function UserDetailPage() {
         confirmLabel="Desvincular"
         tone="danger"
         isPending={unlinkIdentityMutation.isPending}
-        errorMessage={unlinkIdentityMutation.isError ? unlinkIdentityMutation.error.message : undefined}
+        errorMessage={
+          unlinkIdentityMutation.isError ? unlinkIdentityMutation.error.message : undefined
+        }
         onConfirm={() => {
           if (unlinkIdentity) unlinkIdentityMutation.mutate(unlinkIdentity);
         }}

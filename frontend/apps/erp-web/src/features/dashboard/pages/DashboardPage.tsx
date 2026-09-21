@@ -65,7 +65,7 @@ export function DashboardPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
             Domingo, 9 de agosto
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -82,7 +82,7 @@ export function DashboardPage() {
       </div>
 
       {isError ? (
-        <Card className="mt-7 border-danger-200 bg-danger-50 p-4 text-sm text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300">
+        <Card className="border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300 mt-7 p-4 text-sm">
           No fue posible obtener el resumen. Verifica la conexión con la API.
         </Card>
       ) : null}
@@ -182,38 +182,38 @@ export function DashboardPage() {
                 Prioridades operativas
               </p>
             </div>
-            <PackageCheck className="size-5 text-primary-700 dark:text-primary-400" />
+            <PackageCheck className="text-primary-700 dark:text-primary-400 size-5" />
           </div>
           <div className="mt-5 space-y-3">
-            <div className="flex gap-3 rounded-xl bg-warning-50 p-4 dark:bg-warning-900/30">
-              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-700 dark:text-warning-400" />
+            <div className="bg-warning-50 dark:bg-warning-900/30 flex gap-3 rounded-xl p-4">
+              <AlertTriangle className="text-warning-700 dark:text-warning-400 mt-0.5 size-5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-warning-950 dark:text-warning-100">
+                <p className="text-warning-950 dark:text-warning-100 text-sm font-semibold">
                   Reposición de inventario
                 </p>
-                <p className="mt-1 text-xs leading-5 text-warning-800 dark:text-warning-300">
+                <p className="text-warning-800 dark:text-warning-300 mt-1 text-xs leading-5">
                   12 productos alcanzaron su stock mínimo.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl bg-secondary-50 p-4 dark:bg-secondary-900/30">
-              <ReceiptText className="mt-0.5 size-5 shrink-0 text-secondary-700 dark:text-secondary-400" />
+            <div className="bg-secondary-50 dark:bg-secondary-900/30 flex gap-3 rounded-xl p-4">
+              <ReceiptText className="text-secondary-700 dark:text-secondary-400 mt-0.5 size-5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-secondary-950 dark:text-secondary-100">
+                <p className="text-secondary-950 dark:text-secondary-100 text-sm font-semibold">
                   Comprobantes pendientes
                 </p>
-                <p className="mt-1 text-xs leading-5 text-secondary-800 dark:text-secondary-300">
+                <p className="text-secondary-800 dark:text-secondary-300 mt-1 text-xs leading-5">
                   3 documentos esperan confirmación.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl bg-success-50 p-4 dark:bg-success-900/30">
-              <Users className="mt-0.5 size-5 shrink-0 text-success-700 dark:text-success-400" />
+            <div className="bg-success-50 dark:bg-success-900/30 flex gap-3 rounded-xl p-4">
+              <Users className="text-success-700 dark:text-success-400 mt-0.5 size-5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-success-950 dark:text-success-100">
+                <p className="text-success-950 dark:text-success-100 text-sm font-semibold">
                   Clientes activos
                 </p>
-                <p className="mt-1 text-xs leading-5 text-success-800 dark:text-success-300">
+                <p className="text-success-800 dark:text-success-300 mt-1 text-xs leading-5">
                   {data?.activeCustomers ?? 0} clientes compraron este mes.
                 </p>
               </div>
