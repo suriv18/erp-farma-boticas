@@ -95,6 +95,11 @@ class ConsultarCondicionVentaHandlerTest {
         }
 
         @Override
+        public Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) {
             throw new UnsupportedOperationException();
         }

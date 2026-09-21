@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarFormaFarmaceuticaQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarFormasFarmaceuticasQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarFormaFarmaceuticaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarFormaFarmaceuticaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearFormaFarmaceuticaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarFormasFarmaceuticasUseCase;
 import jakarta.validation.Valid;
@@ -29,16 +31,19 @@ public class FormaFarmaceuticaController {
 
     private final CrearFormaFarmaceuticaUseCase crearFormaFarmaceutica;
     private final ActualizarFormaFarmaceuticaUseCase actualizarFormaFarmaceutica;
+    private final ConsultarFormaFarmaceuticaUseCase consultarFormaFarmaceutica;
     private final ListarFormasFarmaceuticasUseCase listarFormasFarmaceuticas;
     private final CatalogoControlUseCase control;
 
     public FormaFarmaceuticaController(
             CrearFormaFarmaceuticaUseCase crearFormaFarmaceutica,
             ActualizarFormaFarmaceuticaUseCase actualizarFormaFarmaceutica,
+            ConsultarFormaFarmaceuticaUseCase consultarFormaFarmaceutica,
             ListarFormasFarmaceuticasUseCase listarFormasFarmaceuticas,
             CatalogoControlUseCase control) {
         this.crearFormaFarmaceutica = crearFormaFarmaceutica;
         this.actualizarFormaFarmaceutica = actualizarFormaFarmaceutica;
+        this.consultarFormaFarmaceutica = consultarFormaFarmaceutica;
         this.listarFormasFarmaceuticas = listarFormasFarmaceuticas;
         this.control = control;
     }
@@ -66,6 +71,14 @@ public class FormaFarmaceuticaController {
             @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changeFormaFarmaceuticaStatus(codigo, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> get(@PathVariable String codigo) {
+        return consultarFormaFarmaceutica.execute(new ConsultarFormaFarmaceuticaQuery(codigo)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping

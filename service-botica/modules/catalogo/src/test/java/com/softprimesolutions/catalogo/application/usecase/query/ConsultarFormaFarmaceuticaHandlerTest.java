@@ -1,54 +1,66 @@
-package com.softprimesolutions.catalogo.application.usecase.command;
+package com.softprimesolutions.catalogo.application.usecase.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarFormaFarmaceuticaQuery;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class CrearCondicionVentaHandlerTest {
+class ConsultarFormaFarmaceuticaHandlerTest {
 
     @Test
-    void createsACondicionVentaSuccessfully() {
-        var writePort = new FakeCatalogoSoportePort();
-        var handler = new CrearCondicionVentaHandler(writePort);
+    void returnsFormaFarmaceuticaResultWhenFound() {
+        var formaFarmaceutica = FormaFarmaceutica.restore("TABLETA", "Tableta", "DIGEMID", EstadoCatalogoSoporte.ACTIVO);
+        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(formaFarmaceutica));
+        var handler = new ConsultarFormaFarmaceuticaHandler(port);
 
-        var result = handler.execute(new CrearCondicionVentaCommand(
-                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null));
+        var result = handler.execute(new ConsultarFormaFarmaceuticaQuery("TABLETA"));
 
         assertTrue(result.isSuccess());
-        assertEquals("SIN-RECETA", result.getOrElse(error -> null).codigo());
+        result.fold(
+                success -> {
+                    assertEquals("TABLETA", success.codigo());
+                    assertEquals("Tableta", success.denominacion());
+                    return null;
+                },
+                failure -> null);
     }
 
     @Test
-    void failsWithConflictWhenCodigoAlreadyExists() {
-        var writePort = new FakeCatalogoSoportePort();
-        writePort.outcome = CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO;
-        var handler = new CrearCondicionVentaHandler(writePort);
+    void returnsNotFoundWhenMissing() {
+        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.empty());
+        var handler = new ConsultarFormaFarmaceuticaHandler(port);
 
-        var result = handler.execute(new CrearCondicionVentaCommand(
-                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null));
+        var result = handler.execute(new ConsultarFormaFarmaceuticaQuery("NO_EXISTE"));
 
         assertTrue(result.isFailure());
-        assertEquals("CAT_CONDICION_VENTA_DUPLICADA", result.fold(value -> null, error -> error.code()));
+        result.fold(
+                success -> null,
+                failure -> {
+                    assertEquals("CAT_FORMA_FARMACEUTICA_NO_ENCONTRADA", failure.code());
+                    assertEquals(ErrorCategory.NOT_FOUND, failure.category());
+                    return null;
+                });
     }
 
-    private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
-        private SaveOutcome outcome = SaveOutcome.CREATED;
+    private record StubCatalogoSoportePort(Optional<FormaFarmaceutica> formaFarmaceutica)
+            implements CatalogoSoportePort {
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) {
-            return outcome;
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -83,7 +95,7 @@ class CrearCondicionVentaHandlerTest {
 
         @Override
         public Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo) {
-            throw new UnsupportedOperationException();
+            return formaFarmaceutica;
         }
 
         @Override
