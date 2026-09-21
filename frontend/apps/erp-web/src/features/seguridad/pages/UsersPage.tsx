@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button, DataTable, Modal } from '@boticas/ui-web';
+import { Button, DataTable, EstadoBadge, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearUsuario, usuariosQuery } from '../api/usuarios.api';
 import type { Usuario } from '../api/usuarios.types';
 import type { UsuarioFormValues } from '../schemas/usuario.schema';
-import { EstadoBadge } from '../components/EstadoBadge';
 import { UsuarioForm } from '../components/UsuarioForm';
 
 export function UsersPage() {

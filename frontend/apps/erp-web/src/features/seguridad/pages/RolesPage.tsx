@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button, DataTable, Modal } from '@boticas/ui-web';
+import { Button, DataTable, EstadoBadge, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearRol, rolesQuery } from '../api/roles.api';
 import type { Rol } from '../api/roles.types';
 import type { RolFormValues } from '../schemas/rol.schema';
-import { EstadoBadge } from '../components/EstadoBadge';
 import { RolForm } from '../components/RolForm';
 
 export function RolesPage() {

@@ -1,4 +1,4 @@
-import { Badge } from '@boticas/ui-web';
+import { Badge } from '../badge/Badge';
 
 const SUCCESS_STATUSES = new Set(['ACTIVO', 'ACTIVE', 'CONFIABLE', 'TRUSTED']);
 const DANGER_STATUSES = new Set(['INACTIVO', 'INACTIVE', 'REVOCADO', 'REVOKED', 'BLOQUEADO', 'BLOCKED']);

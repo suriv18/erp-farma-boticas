@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable } from '@boticas/ui-web';
+import { DataTable, EstadoBadge } from '@boticas/ui-web';
 import { permisosQuery } from '../api/permisos.api';
-import { EstadoBadge } from '../components/EstadoBadge';
 
 export function PermissionsPage() {
   const [search, setSearch] = useState('');

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router';
-import { Button, Card } from '@boticas/ui-web';
+import { Button, Card, EstadoBadge } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { cambiarEstadoRol, reemplazarPermisosRol, rolesQuery } from '../api/roles.api';
 import { permisosQuery } from '../api/permisos.api';
 import { ConfirmActionDialog } from '../components/ConfirmActionDialog';
-import { EstadoBadge } from '../components/EstadoBadge';
 import { PermisosChecklist } from '../components/PermisosChecklist';
 
 export function RoleDetailPage() {

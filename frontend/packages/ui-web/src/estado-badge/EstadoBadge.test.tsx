@@ -6,27 +6,27 @@ describe('EstadoBadge', () => {
     render(<EstadoBadge status="ACTIVO" />);
     const badge = screen.getByText('ACTIVO');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveClass('bg-emerald-50', 'text-emerald-700');
+    expect(badge).toHaveClass('bg-success-50', 'text-success-700');
   });
 
   it('muestra tono danger para estados bloqueados o revocados', () => {
     render(<EstadoBadge status="BLOQUEADO" />);
     const badge = screen.getByText('BLOQUEADO');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveClass('bg-rose-50', 'text-rose-700');
+    expect(badge).toHaveClass('bg-danger-50', 'text-danger-700');
   });
 
   it('muestra tono warning para estados pendientes', () => {
     render(<EstadoBadge status="PENDIENTE" />);
     const badge = screen.getByText('PENDIENTE');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveClass('bg-amber-50', 'text-amber-800');
+    expect(badge).toHaveClass('bg-warning-50', 'text-warning-800');
   });
 
   it('muestra tono neutral para estados no reconocidos', () => {
     render(<EstadoBadge status="DESCONOCIDO" />);
     const badge = screen.getByText('DESCONOCIDO');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveClass('bg-slate-100', 'text-slate-700');
+    expect(badge).toHaveClass('bg-neutral-100', 'text-neutral-700');
   });
 });
