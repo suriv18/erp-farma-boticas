@@ -9,6 +9,7 @@ import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoAsociadoResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
@@ -16,6 +17,7 @@ import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.model.RubroComercial;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
@@ -79,6 +81,12 @@ public final class CatalogoApplicationMapper {
                 categoria.categoriaPadreId() == null ? null : categoria.categoriaPadreId().value(),
                 categoria.codigo(), categoria.nombre(), categoria.descripcion(), categoria.nivel(),
                 categoria.orden(), categoria.estado().name());
+    }
+
+    public static RubroComercialResult toResult(RubroComercial rubro) {
+        return new RubroComercialResult(
+                rubro.id().value(), rubro.tenantId().value(), rubro.codigo(), rubro.nombre(),
+                rubro.descripcion(), rubro.esFarmaceutico(), rubro.orden(), rubro.estado().name());
     }
 
     public static ProductoReguladoResult toResult(ProductoRegulado producto) {
