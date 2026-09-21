@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarUnidadMedidaQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarUnidadesMedidaQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarUnidadesMedidaUseCase;
 import jakarta.validation.Valid;
@@ -29,16 +31,19 @@ public class UnidadMedidaController {
 
     private final CrearUnidadMedidaUseCase crearUnidadMedida;
     private final ActualizarUnidadMedidaUseCase actualizarUnidadMedida;
+    private final ConsultarUnidadMedidaUseCase consultarUnidadMedida;
     private final ListarUnidadesMedidaUseCase listarUnidadesMedida;
     private final CatalogoControlUseCase control;
 
     public UnidadMedidaController(
             CrearUnidadMedidaUseCase crearUnidadMedida,
             ActualizarUnidadMedidaUseCase actualizarUnidadMedida,
+            ConsultarUnidadMedidaUseCase consultarUnidadMedida,
             ListarUnidadesMedidaUseCase listarUnidadesMedida,
             CatalogoControlUseCase control) {
         this.crearUnidadMedida = crearUnidadMedida;
         this.actualizarUnidadMedida = actualizarUnidadMedida;
+        this.consultarUnidadMedida = consultarUnidadMedida;
         this.listarUnidadesMedida = listarUnidadesMedida;
         this.control = control;
     }
@@ -65,6 +70,14 @@ public class UnidadMedidaController {
             @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changeUnidadMedidaStatus(codigo, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> get(@PathVariable String codigo) {
+        return consultarUnidadMedida.execute(new ConsultarUnidadMedidaQuery(codigo)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping

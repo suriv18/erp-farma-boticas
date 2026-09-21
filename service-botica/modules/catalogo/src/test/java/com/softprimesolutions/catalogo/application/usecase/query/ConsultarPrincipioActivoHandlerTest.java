@@ -108,6 +108,11 @@ class ConsultarPrincipioActivoHandlerTest {
         }
 
         @Override
+        public Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) {
             return principioActivo;
         }

@@ -30,6 +30,8 @@ public interface CatalogoSoportePort {
 
     Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo);
 
+    Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo);
+
     Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
     boolean condicionVentaExists(String codigo);

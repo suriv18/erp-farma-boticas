@@ -3,7 +3,7 @@ package com.softprimesolutions.catalogo.application.usecase.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.query.ConsultarViaAdministracionQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarUnidadMedidaQuery;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
@@ -18,22 +18,22 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class ConsultarViaAdministracionHandlerTest {
+class ConsultarUnidadMedidaHandlerTest {
 
     @Test
-    void returnsViaAdministracionResultWhenFound() {
-        var viaAdministracion = ViaAdministracion.restore(
-                "ORAL", "Via oral", "DIGEMID", EstadoCatalogoSoporte.ACTIVO);
-        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(viaAdministracion));
-        var handler = new ConsultarViaAdministracionHandler(port);
+    void returnsUnidadMedidaResultWhenFound() {
+        var unidadMedida = UnidadMedida.restore(
+                "MG", "Miligramo", "mg", true, "DIGEMID", EstadoCatalogoSoporte.ACTIVO);
+        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(unidadMedida));
+        var handler = new ConsultarUnidadMedidaHandler(port);
 
-        var result = handler.execute(new ConsultarViaAdministracionQuery("ORAL"));
+        var result = handler.execute(new ConsultarUnidadMedidaQuery("MG"));
 
         assertTrue(result.isSuccess());
         result.fold(
                 success -> {
-                    assertEquals("ORAL", success.codigo());
-                    assertEquals("Via oral", success.denominacion());
+                    assertEquals("MG", success.codigo());
+                    assertEquals("mg", success.simbolo());
                     return null;
                 },
                 failure -> null);
@@ -42,22 +42,21 @@ class ConsultarViaAdministracionHandlerTest {
     @Test
     void returnsNotFoundWhenMissing() {
         CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.empty());
-        var handler = new ConsultarViaAdministracionHandler(port);
+        var handler = new ConsultarUnidadMedidaHandler(port);
 
-        var result = handler.execute(new ConsultarViaAdministracionQuery("NO_EXISTE"));
+        var result = handler.execute(new ConsultarUnidadMedidaQuery("NO_EXISTE"));
 
         assertTrue(result.isFailure());
         result.fold(
                 success -> null,
                 failure -> {
-                    assertEquals("CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", failure.code());
+                    assertEquals("CAT_UNIDAD_MEDIDA_NO_ENCONTRADA", failure.code());
                     assertEquals(ErrorCategory.NOT_FOUND, failure.category());
                     return null;
                 });
     }
 
-    private record StubCatalogoSoportePort(Optional<ViaAdministracion> viaAdministracion)
-            implements CatalogoSoportePort {
+    private record StubCatalogoSoportePort(Optional<UnidadMedida> unidadMedida) implements CatalogoSoportePort {
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) {
@@ -101,12 +100,12 @@ class ConsultarViaAdministracionHandlerTest {
 
         @Override
         public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) {
-            return viaAdministracion;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo) {
-            throw new UnsupportedOperationException();
+            return unidadMedida;
         }
 
         @Override
