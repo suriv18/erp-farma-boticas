@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
+import { Button, FormField } from '@boticas/ui-web';
 import { categoriaSchema, type CategoriaFormValues } from '../schemas/categoria.schema';
-import { FormField } from './FormField';
 
 export type CategoriaFormProps = {
   defaultValues?: CategoriaFormValues;

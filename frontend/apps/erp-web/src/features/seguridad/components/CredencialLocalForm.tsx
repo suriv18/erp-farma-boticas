@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
+import { Button, FormField } from '@boticas/ui-web';
 import {
   credencialLocalSchema,
   type CredencialLocalFormValues
 } from '../schemas/credencial-local.schema';
-import { FormField } from './FormField';
 
 export type CredencialLocalFormProps = {
   onSubmit: (values: { password: string; requireChange: boolean }) => void;

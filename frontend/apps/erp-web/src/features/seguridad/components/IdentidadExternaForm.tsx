@@ -1,13 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
+import { Button, FormField } from '@boticas/ui-web';
 import type { VincularIdentidadPayload } from '../api/usuarios.types';
 import {
   identidadExternaSchema,
   KNOWN_PROVIDERS,
   type IdentidadExternaFormValues
 } from '../schemas/identidad-externa.schema';
-import { FormField } from './FormField';
 
 export type IdentidadExternaFormProps = {
   onSubmit: (payload: VincularIdentidadPayload) => void;

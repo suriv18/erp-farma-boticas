@@ -4,6 +4,7 @@ export { Card } from './card/Card';
 export { cn } from './lib/cn';
 export { DataTable, type DataTableColumn, type DataTableProps } from './data-table/DataTable';
 export { EstadoBadge } from './estado-badge/EstadoBadge';
+export { FormField, type FormFieldProps } from './form-field/FormField';
 export { Modal, type ModalProps } from './modal/Modal';
 export { ThemeToggle, type ThemeToggleProps } from './theme/ThemeToggle';
 export { useTheme, type Theme } from './theme/useTheme';

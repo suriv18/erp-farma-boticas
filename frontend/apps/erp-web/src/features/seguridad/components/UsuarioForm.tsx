@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
+import { Button, FormField } from '@boticas/ui-web';
 import { usuarioSchema, type UsuarioFormValues } from '../schemas/usuario.schema';
-import { FormField } from './FormField';
 
 export type UsuarioFormProps = {
   defaultValues?: UsuarioFormValues;

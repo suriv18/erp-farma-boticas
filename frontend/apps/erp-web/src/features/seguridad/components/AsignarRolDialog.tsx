@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Button, Modal } from '@boticas/ui-web';
+import { Button, FormField, Modal } from '@boticas/ui-web';
 import { rolesQuery } from '../api/roles.api';
 import { corporateStructureQuery } from '../../organizacion';
 import {
@@ -10,7 +10,6 @@ import {
   SCOPE_TYPES,
   type AsignacionRolFormValues
 } from '../schemas/asignacion-rol.schema';
-import { FormField } from './FormField';
 
 export type AsignarRolDialogProps = {
   open: boolean;
