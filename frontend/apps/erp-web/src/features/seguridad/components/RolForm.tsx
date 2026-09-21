@@ -35,7 +35,7 @@ export function RolForm({ defaultValues, onSubmit, submitLabel, isSubmitting = f
       <FormField label="Código" htmlFor="rol-code" error={errors.code?.message}>
         <input
           id="rol-code"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('code')}
         />
       </FormField>
@@ -43,7 +43,7 @@ export function RolForm({ defaultValues, onSubmit, submitLabel, isSubmitting = f
       <FormField label="Nombre" htmlFor="rol-name" error={errors.name?.message}>
         <input
           id="rol-name"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('name')}
         />
       </FormField>
@@ -52,7 +52,7 @@ export function RolForm({ defaultValues, onSubmit, submitLabel, isSubmitting = f
         <textarea
           id="rol-description"
           rows={2}
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('description')}
         />
       </FormField>
@@ -60,7 +60,7 @@ export function RolForm({ defaultValues, onSubmit, submitLabel, isSubmitting = f
       <FormField label="Tipo de rol" htmlFor="rol-type" error={errors.roleType?.message}>
         <select
           id="rol-type"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('roleType')}
         >
           {ROLE_TYPES.map((type) => (
@@ -71,10 +71,10 @@ export function RolForm({ defaultValues, onSubmit, submitLabel, isSubmitting = f
         </select>
       </FormField>
 
-      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
         <input
           type="checkbox"
-          className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+          className="size-4 rounded border-neutral-300 text-primary-700 focus:ring-primary-600 dark:border-neutral-600"
           {...register('systemRole')}
         />
         Rol de sistema (no editable por usuarios finales)

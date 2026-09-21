@@ -42,7 +42,7 @@ export function UsuarioForm({ defaultValues, onSubmit, submitLabel, isSubmitting
       <FormField label="Nombre visible" htmlFor="usuario-display-name" error={errors.displayName?.message}>
         <input
           id="usuario-display-name"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('displayName')}
         />
       </FormField>
@@ -51,14 +51,14 @@ export function UsuarioForm({ defaultValues, onSubmit, submitLabel, isSubmitting
         <FormField label="Nombres" htmlFor="usuario-first-names" error={errors.firstNames?.message}>
           <input
             id="usuario-first-names"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
             {...register('firstNames')}
           />
         </FormField>
         <FormField label="Apellidos" htmlFor="usuario-last-names" error={errors.lastNames?.message}>
           <input
             id="usuario-last-names"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
             {...register('lastNames')}
           />
         </FormField>
@@ -68,7 +68,7 @@ export function UsuarioForm({ defaultValues, onSubmit, submitLabel, isSubmitting
         <input
           id="usuario-email"
           type="email"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('email')}
         />
       </FormField>
@@ -76,7 +76,7 @@ export function UsuarioForm({ defaultValues, onSubmit, submitLabel, isSubmitting
       <FormField label="Usuario" htmlFor="usuario-username" error={errors.username?.message}>
         <input
           id="usuario-username"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('username')}
         />
       </FormField>
@@ -84,15 +84,15 @@ export function UsuarioForm({ defaultValues, onSubmit, submitLabel, isSubmitting
       <FormField label="Teléfono" htmlFor="usuario-phone" error={errors.phone?.message}>
         <input
           id="usuario-phone"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('phone')}
         />
       </FormField>
 
-      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
         <input
           type="checkbox"
-          className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+          className="size-4 rounded border-neutral-300 text-primary-700 focus:ring-primary-600 dark:border-neutral-600"
           {...register('mfaRequired')}
         />
         Requiere autenticación multifactor

@@ -55,7 +55,7 @@ export function IdentidadExternaForm({
       <FormField label="Proveedor" htmlFor="identidad-provider" error={errors.providerOption?.message}>
         <select
           id="identidad-provider"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('providerOption')}
         >
           {KNOWN_PROVIDERS.map((provider) => (
@@ -71,7 +71,7 @@ export function IdentidadExternaForm({
         <FormField label="Nombre del proveedor" htmlFor="identidad-provider-custom" error={errors.providerCustom?.message}>
           <input
             id="identidad-provider-custom"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
             {...register('providerCustom')}
           />
         </FormField>
@@ -80,7 +80,7 @@ export function IdentidadExternaForm({
       <FormField label="Identificador (subject)" htmlFor="identidad-subject" error={errors.subject?.message}>
         <input
           id="identidad-subject"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('subject')}
         />
       </FormField>
@@ -88,7 +88,7 @@ export function IdentidadExternaForm({
       <FormField label="Emisor (opcional)" htmlFor="identidad-issuer" error={errors.issuer?.message}>
         <input
           id="identidad-issuer"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('issuer')}
         />
       </FormField>
@@ -97,7 +97,7 @@ export function IdentidadExternaForm({
         <input
           id="identidad-email"
           type="email"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
           {...register('emailClaim')}
         />
       </FormField>

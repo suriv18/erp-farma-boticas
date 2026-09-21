@@ -27,19 +27,24 @@ export function PermisosChecklist({ permisos, selectedCodes, onChange }: Permiso
   }
 
   return (
-    <div className="max-h-80 space-y-5 overflow-y-auto rounded-xl border border-slate-200 p-4">
+    <div className="max-h-80 space-y-5 overflow-y-auto rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
       {[...groups.entries()].map(([moduleName, modulePermisos]) => (
         <div key={moduleName}>
-          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">{moduleName}</p>
+          <p className="text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+            {moduleName}
+          </p>
           <div className="mt-2 space-y-2">
             {modulePermisos.map((permiso) => (
-              <label key={permiso.code} className="flex items-center gap-2.5 text-sm text-slate-700">
+              <label
+                key={permiso.code}
+                className="flex items-center gap-2.5 text-sm text-neutral-700 dark:text-neutral-200"
+              >
                 <input
                   type="checkbox"
                   aria-label={permiso.name}
                   checked={selectedCodes.has(permiso.code)}
                   onChange={() => toggle(permiso.code)}
-                  className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                  className="size-4 rounded border-neutral-300 text-primary-700 focus:ring-primary-600 dark:border-neutral-600"
                 />
                 {permiso.name}
               </label>

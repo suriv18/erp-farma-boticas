@@ -27,9 +27,9 @@ export function ConfirmActionDialog({
 
   return (
     <Modal open={open} onClose={onCancel} title={title}>
-      <p className="text-sm text-slate-600">{description}</p>
+      <p className="text-sm text-neutral-600 dark:text-neutral-300">{description}</p>
       {errorMessage ? (
-        <p role="alert" className="mt-3 text-sm font-medium text-rose-700">
+        <p role="alert" className="mt-3 text-sm font-medium text-danger-700 dark:text-danger-400">
           {errorMessage}
         </p>
       ) : null}
@@ -40,7 +40,11 @@ export function ConfirmActionDialog({
         <Button
           type="button"
           variant="primary"
-          className={tone === 'danger' ? 'bg-rose-700 hover:bg-rose-800 focus-visible:outline-rose-700' : undefined}
+          className={
+            tone === 'danger'
+              ? 'bg-danger-700 hover:bg-danger-800 focus-visible:outline-danger-700'
+              : undefined
+          }
           onClick={onConfirm}
           disabled={isPending}
         >
