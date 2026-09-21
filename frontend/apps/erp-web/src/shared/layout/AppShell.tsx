@@ -3,14 +3,20 @@ import {
   Boxes,
   Building2,
   ChevronDown,
+  HelpCircle,
   LayoutDashboard,
+  LogOut,
   Menu,
   MonitorSmartphone,
   PackageSearch,
   ReceiptText,
   Search,
+  Settings,
+  Shield,
   ShieldCheck,
   ShoppingCart,
+  Store,
+  User,
   Users,
   WalletCards,
   X,
@@ -18,7 +24,16 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { Button, cn, ThemeToggle } from '@boticas/ui-web';
+import {
+  Button,
+  cn,
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  ThemeToggle
+} from '@boticas/ui-web';
+import { useAuthSession } from '../../features/auth';
 
 type NavigationItem = {
   label: string;
@@ -89,6 +104,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { signOut } = useAuthSession();
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
@@ -143,18 +159,63 @@ export function AppShell() {
               <Bell className="size-5" />
               <span className="bg-danger-500 absolute top-1.5 right-1.5 size-2 rounded-full ring-2 ring-white dark:ring-neutral-900" />
             </Button>
-            <button className="flex items-center gap-3 rounded-xl p-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800">
-              <div className="bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200 grid size-9 place-items-center rounded-xl text-sm font-bold">
-                MR
+            <DropdownMenu
+              trigger={
+                <button
+                  aria-label="Menú de perfil de María Rojas"
+                  className="flex items-center gap-3 rounded-xl p-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                >
+                  <div className="bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200 grid size-9 place-items-center rounded-xl text-sm font-bold">
+                    MR
+                  </div>
+                  <div className="hidden sm:block">
+                    <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+                      María Rojas
+                    </p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                      Administradora
+                    </p>
+                  </div>
+                  <ChevronDown className="hidden size-4 text-neutral-400 sm:block" />
+                </button>
+              }
+            >
+              <div className="bg-primary-600 flex items-center gap-3 px-4 py-3.5 text-white">
+                <div className="grid size-9 place-items-center rounded-full bg-white text-sm font-bold text-primary-700">
+                  MR
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">María Rojas</p>
+                  <p className="text-primary-100 text-xs">Administradora</p>
+                </div>
               </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                  María Rojas
-                </p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">Administradora</p>
-              </div>
-              <ChevronDown className="hidden size-4 text-neutral-400 sm:block" />
-            </button>
+
+              <DropdownMenuLabel>Cuenta</DropdownMenuLabel>
+              <DropdownMenuItem icon={User} to="/perfil">
+                Mi Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem icon={Shield} to="/perfil/seguridad">
+                Seguridad
+              </DropdownMenuItem>
+
+              <DropdownMenuLabel>Preferencias</DropdownMenuLabel>
+              <DropdownMenuItem icon={Settings} to="/perfil/configuraciones">
+                Configuraciones
+              </DropdownMenuItem>
+              <DropdownMenuItem icon={Store} to="/perfil/sucursal">
+                Cambiar sucursal
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem icon={HelpCircle} to="/perfil/ayuda">
+                Ayuda y soporte
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem icon={LogOut} tone="danger" onSelect={() => void signOut()}>
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenu>
           </div>
         </header>
 
