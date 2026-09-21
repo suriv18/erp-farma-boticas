@@ -152,6 +152,15 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) {
+        return viaAdministracionRepository.findById(codigo)
+                .map(entity -> ViaAdministracion.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getFuente(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
     @Transactional
     public SaveOutcome save(UnidadMedida unidadMedida) {
         var existing = unidadMedidaRepository.findById(unidadMedida.codigo());

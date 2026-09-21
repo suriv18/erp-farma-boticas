@@ -28,6 +28,8 @@ public interface CatalogoSoportePort {
 
     Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo);
 
+    Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo);
+
     Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
     boolean condicionVentaExists(String codigo);

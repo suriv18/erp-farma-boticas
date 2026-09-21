@@ -3,7 +3,7 @@ package com.softprimesolutions.catalogo.application.usecase.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.query.ConsultarCondicionVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarViaAdministracionQuery;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
@@ -18,23 +18,22 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class ConsultarCondicionVentaHandlerTest {
+class ConsultarViaAdministracionHandlerTest {
 
     @Test
-    void returnsCondicionVentaResultWhenFound() {
-        var condicionVenta = CondicionVenta.restore(
-                "VENTA_LIBRE", "Venta libre", false, false, "DIGEMID", "2026.1", null, null,
-                EstadoCatalogoSoporte.ACTIVO);
-        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(condicionVenta));
-        var handler = new ConsultarCondicionVentaHandler(port);
+    void returnsViaAdministracionResultWhenFound() {
+        var viaAdministracion = ViaAdministracion.restore(
+                "ORAL", "Via oral", "DIGEMID", EstadoCatalogoSoporte.ACTIVO);
+        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(viaAdministracion));
+        var handler = new ConsultarViaAdministracionHandler(port);
 
-        var result = handler.execute(new ConsultarCondicionVentaQuery("VENTA_LIBRE"));
+        var result = handler.execute(new ConsultarViaAdministracionQuery("ORAL"));
 
         assertTrue(result.isSuccess());
         result.fold(
                 success -> {
-                    assertEquals("VENTA_LIBRE", success.codigo());
-                    assertEquals("Venta libre", success.denominacion());
+                    assertEquals("ORAL", success.codigo());
+                    assertEquals("Via oral", success.denominacion());
                     return null;
                 },
                 failure -> null);
@@ -43,21 +42,22 @@ class ConsultarCondicionVentaHandlerTest {
     @Test
     void returnsNotFoundWhenMissing() {
         CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.empty());
-        var handler = new ConsultarCondicionVentaHandler(port);
+        var handler = new ConsultarViaAdministracionHandler(port);
 
-        var result = handler.execute(new ConsultarCondicionVentaQuery("NO_EXISTE"));
+        var result = handler.execute(new ConsultarViaAdministracionQuery("NO_EXISTE"));
 
         assertTrue(result.isFailure());
         result.fold(
                 success -> null,
                 failure -> {
-                    assertEquals("CAT_CONDICION_VENTA_NO_ENCONTRADA", failure.code());
+                    assertEquals("CAT_VIA_ADMINISTRACION_NO_ENCONTRADA", failure.code());
                     assertEquals(ErrorCategory.NOT_FOUND, failure.category());
                     return null;
                 });
     }
 
-    private record StubCatalogoSoportePort(Optional<CondicionVenta> condicionVenta) implements CatalogoSoportePort {
+    private record StubCatalogoSoportePort(Optional<ViaAdministracion> viaAdministracion)
+            implements CatalogoSoportePort {
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) {
@@ -91,7 +91,7 @@ class ConsultarCondicionVentaHandlerTest {
 
         @Override
         public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) {
-            return condicionVenta;
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -101,7 +101,7 @@ class ConsultarCondicionVentaHandlerTest {
 
         @Override
         public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) {
-            throw new UnsupportedOperationException();
+            return viaAdministracion;
         }
 
         @Override

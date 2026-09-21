@@ -20,6 +20,7 @@ import com.softprimesolutions.catalogo.application.port.in.ConsultarMarcaUseCase
 import com.softprimesolutions.catalogo.application.port.in.ConsultarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearClasificacionControladaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCondicionVentaUseCase;
@@ -80,6 +81,7 @@ import com.softprimesolutions.catalogo.application.usecase.query.ConsultarMarcaH
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoReguladoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarSkuHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarViaAdministracionHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasProductoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarClasificacionesControladasHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarCondicionesVentaHandler;
@@ -177,6 +179,11 @@ public class CatalogoModuleConfiguration {
     @Bean
     ActualizarViaAdministracionUseCase actualizarViaAdministracionUseCase(CatalogoSoportePort soportePort) {
         return new ActualizarViaAdministracionHandler(soportePort);
+    }
+
+    @Bean
+    ConsultarViaAdministracionUseCase consultarViaAdministracionUseCase(CatalogoSoportePort soportePort) {
+        return new ConsultarViaAdministracionHandler(soportePort);
     }
 
     @Bean

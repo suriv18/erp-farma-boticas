@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarViaAdministracionQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarViasAdministracionQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarViasAdministracionUseCase;
 import jakarta.validation.Valid;
@@ -29,16 +31,19 @@ public class ViaAdministracionController {
 
     private final CrearViaAdministracionUseCase crearViaAdministracion;
     private final ActualizarViaAdministracionUseCase actualizarViaAdministracion;
+    private final ConsultarViaAdministracionUseCase consultarViaAdministracion;
     private final ListarViasAdministracionUseCase listarViasAdministracion;
     private final CatalogoControlUseCase control;
 
     public ViaAdministracionController(
             CrearViaAdministracionUseCase crearViaAdministracion,
             ActualizarViaAdministracionUseCase actualizarViaAdministracion,
+            ConsultarViaAdministracionUseCase consultarViaAdministracion,
             ListarViasAdministracionUseCase listarViasAdministracion,
             CatalogoControlUseCase control) {
         this.crearViaAdministracion = crearViaAdministracion;
         this.actualizarViaAdministracion = actualizarViaAdministracion;
+        this.consultarViaAdministracion = consultarViaAdministracion;
         this.listarViasAdministracion = listarViasAdministracion;
         this.control = control;
     }
@@ -66,6 +71,14 @@ public class ViaAdministracionController {
             @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changeViaAdministracionStatus(codigo, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> get(@PathVariable String codigo) {
+        return consultarViaAdministracion.execute(new ConsultarViaAdministracionQuery(codigo)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping
