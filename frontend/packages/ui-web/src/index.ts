@@ -3,6 +3,14 @@ export { Button, type ButtonProps } from './button/Button';
 export { Card } from './card/Card';
 export { cn } from './lib/cn';
 export { DataTable, type DataTableColumn, type DataTableProps } from './data-table/DataTable';
+export {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  type DropdownMenuProps,
+  type DropdownMenuItemProps
+} from './dropdown-menu/DropdownMenu';
 export { EstadoBadge } from './estado-badge/EstadoBadge';
 export { FormField, type FormFieldProps } from './form-field/FormField';
 export { Modal, type ModalProps } from './modal/Modal';
