@@ -36,7 +36,7 @@ export function InventoryPage() {
             <input
               type="search"
               placeholder="Buscar por producto o SKU"
-              className="focus:border-primary-600 focus:ring-primary-100 h-10 w-full rounded-xl border border-neutral-200 pr-3 pl-10 text-sm outline-none focus:ring-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
+              className="focus:border-primary-600 focus:ring-primary-100 h-10 w-full rounded-xl border border-neutral-200 pr-3 pl-10 text-sm outline-none focus:ring-3 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
           </div>
           <Button variant="secondary" size="sm">
