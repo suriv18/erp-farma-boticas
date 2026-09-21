@@ -69,15 +69,24 @@ export function MarcasPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Catálogo / Marcas</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Marcas</h1>
-          <p className="mt-2 text-sm text-slate-500">Administra las marcas comerciales del catálogo.</p>
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            Catálogo / Marcas
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            Marcas
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Administra las marcas comerciales del catálogo.
+          </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>Nueva marca</Button>
       </div>
 
       <div className="mt-6">
-        <label htmlFor="marcas-search" className="text-sm font-semibold text-slate-700">
+        <label
+          htmlFor="marcas-search"
+          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+        >
           Buscar marca
         </label>
         <input
@@ -89,7 +98,7 @@ export function MarcasPage() {
             setPage(0);
           }}
           placeholder="Código o nombre"
-          className="mt-2 h-11 w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
         />
       </div>
 
@@ -108,14 +117,14 @@ export function MarcasPage() {
                   <button
                     type="button"
                     onClick={() => setEditing(row)}
-                    className="font-semibold text-teal-700 hover:underline"
+                    className="font-semibold text-primary-700 hover:underline dark:text-primary-400"
                   >
                     Editar {row.nombre}
                   </button>
                   <button
                     type="button"
                     onClick={() => statusMutation.mutate(row)}
-                    className="font-semibold text-slate-600 hover:underline"
+                    className="font-semibold text-neutral-600 hover:underline dark:text-neutral-300"
                   >
                     {row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`}
                   </button>
