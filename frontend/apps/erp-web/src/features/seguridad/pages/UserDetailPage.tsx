@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router';
-import { Button, Card } from '@boticas/ui-web';
+import { Button, Card, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import {
@@ -22,7 +22,6 @@ import { CredencialLocalForm } from '../components/CredencialLocalForm';
 import { DataTable } from '../components/DataTable';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { IdentidadExternaForm } from '../components/IdentidadExternaForm';
-import { Modal } from '../components/Modal';
 import type { AsignacionRolFormValues } from '../schemas/asignacion-rol.schema';
 
 export function UserDetailPage() {

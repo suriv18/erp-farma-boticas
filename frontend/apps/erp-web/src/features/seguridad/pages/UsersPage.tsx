@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button } from '@boticas/ui-web';
+import { Button, Modal } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearUsuario, usuariosQuery } from '../api/usuarios.api';
@@ -9,7 +9,6 @@ import type { Usuario } from '../api/usuarios.types';
 import type { UsuarioFormValues } from '../schemas/usuario.schema';
 import { DataTable } from '../components/DataTable';
 import { EstadoBadge } from '../components/EstadoBadge';
-import { Modal } from '../components/Modal';
 import { UsuarioForm } from '../components/UsuarioForm';
 
 export function UsersPage() {

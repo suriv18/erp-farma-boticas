@@ -1,5 +1,4 @@
-import { Button } from '@boticas/ui-web';
-import { Modal } from './Modal';
+import { Button, Modal } from '@boticas/ui-web';
 
 export type ConfirmActionDialogProps = {
   open: boolean;
