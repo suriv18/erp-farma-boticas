@@ -18,14 +18,14 @@ type StatCardProps = {
   value: string;
   detail: string;
   icon: LucideIcon;
-  tone: 'teal' | 'blue' | 'amber' | 'rose';
+  tone: 'primary' | 'secondary' | 'warning' | 'danger';
 };
 
 const toneClasses = {
-  teal: 'bg-teal-50 text-teal-700',
-  blue: 'bg-blue-50 text-blue-700',
-  amber: 'bg-amber-50 text-amber-700',
-  rose: 'bg-rose-50 text-rose-700'
+  primary: 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300',
+  secondary: 'bg-secondary-50 text-secondary-700 dark:bg-secondary-900/40 dark:text-secondary-300',
+  warning: 'bg-warning-50 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300',
+  danger: 'bg-danger-50 text-danger-700 dark:bg-danger-900/40 dark:text-danger-300'
 };
 
 function StatCard({ detail, icon: Icon, label, tone, value }: StatCardProps) {
@@ -33,14 +33,16 @@ function StatCard({ detail, icon: Icon, label, tone, value }: StatCardProps) {
     <Card className="p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{label}</p>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            {value}
+          </p>
         </div>
         <div className={`grid size-11 place-items-center rounded-xl ${toneClasses[tone]}`}>
           <Icon className="size-5" aria-hidden="true" />
         </div>
       </div>
-      <p className="mt-4 text-xs font-medium text-slate-500">{detail}</p>
+      <p className="mt-4 text-xs font-medium text-neutral-500 dark:text-neutral-400">{detail}</p>
     </Card>
   );
 }
@@ -63,11 +65,13 @@ export function DashboardPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Domingo, 9 de agosto</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            Domingo, 9 de agosto
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
             Buenos días, María
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
             Este es el estado operativo de tu botica hoy.
           </p>
         </div>
@@ -78,7 +82,7 @@ export function DashboardPage() {
       </div>
 
       {isError ? (
-        <Card className="mt-7 border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <Card className="mt-7 border-danger-200 bg-danger-50 p-4 text-sm text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300">
           No fue posible obtener el resumen. Verifica la conexión con la API.
         </Card>
       ) : null}
@@ -96,37 +100,39 @@ export function DashboardPage() {
               : `${data?.transactionsToday ?? 0} operaciones registradas`
           }
           icon={CircleDollarSign}
-          tone="teal"
+          tone="primary"
         />
         <StatCard
           label="Unidades en stock"
           value={isPending ? '—' : String(data?.stockUnits ?? 0)}
           detail="En todos los almacenes"
           icon={Boxes}
-          tone="blue"
+          tone="secondary"
         />
         <StatCard
           label="Stock bajo"
           value={isPending ? '—' : String(data?.lowStockProducts ?? 0)}
           detail="Productos que requieren atención"
           icon={AlertTriangle}
-          tone="amber"
+          tone="warning"
         />
         <StatCard
           label="Lotes por vencer"
           value={isPending ? '—' : String(data?.expiringLots ?? 0)}
           detail="En los próximos 60 días"
           icon={Clock3}
-          tone="rose"
+          tone="danger"
         />
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <Card className="overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+          <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 sm:px-6 dark:border-neutral-800">
             <div>
-              <h2 className="font-bold text-slate-900">Ventas recientes</h2>
-              <p className="mt-1 text-xs text-slate-500">Últimas operaciones de la sucursal</p>
+              <h2 className="font-bold text-neutral-900 dark:text-neutral-50">Ventas recientes</h2>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Últimas operaciones de la sucursal
+              </p>
             </div>
             <Button variant="ghost" size="sm">
               Ver todas
@@ -134,7 +140,7 @@ export function DashboardPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+              <thead className="bg-neutral-50 text-xs font-semibold text-neutral-500 uppercase dark:bg-neutral-800/60 dark:text-neutral-400">
                 <tr>
                   <th className="px-6 py-3">Venta</th>
                   <th className="px-6 py-3">Cliente</th>
@@ -142,12 +148,18 @@ export function DashboardPage() {
                   <th className="px-6 py-3">Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                 {recentSales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-slate-50/70">
-                    <td className="px-6 py-4 font-semibold text-slate-800">{sale.id}</td>
-                    <td className="px-6 py-4 text-slate-600">{sale.customer}</td>
-                    <td className="px-6 py-4 font-medium text-slate-800">{sale.total}</td>
+                  <tr key={sale.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40">
+                    <td className="px-6 py-4 font-semibold text-neutral-800 dark:text-neutral-100">
+                      {sale.id}
+                    </td>
+                    <td className="px-6 py-4 text-neutral-600 dark:text-neutral-300">
+                      {sale.customer}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-neutral-800 dark:text-neutral-100">
+                      {sale.total}
+                    </td>
                     <td className="px-6 py-4">
                       <Badge tone={sale.status === 'Completada' ? 'success' : 'warning'}>
                         {sale.status}
@@ -163,35 +175,45 @@ export function DashboardPage() {
         <Card className="p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-bold text-slate-900">Atención requerida</h2>
-              <p className="mt-1 text-xs text-slate-500">Prioridades operativas</p>
+              <h2 className="font-bold text-neutral-900 dark:text-neutral-50">
+                Atención requerida
+              </h2>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Prioridades operativas
+              </p>
             </div>
-            <PackageCheck className="size-5 text-teal-700" />
+            <PackageCheck className="size-5 text-primary-700 dark:text-primary-400" />
           </div>
           <div className="mt-5 space-y-3">
-            <div className="flex gap-3 rounded-xl bg-amber-50 p-4">
-              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-700" />
+            <div className="flex gap-3 rounded-xl bg-warning-50 p-4 dark:bg-warning-900/30">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-700 dark:text-warning-400" />
               <div>
-                <p className="text-sm font-semibold text-amber-950">Reposición de inventario</p>
-                <p className="mt-1 text-xs leading-5 text-amber-800">
+                <p className="text-sm font-semibold text-warning-950 dark:text-warning-100">
+                  Reposición de inventario
+                </p>
+                <p className="mt-1 text-xs leading-5 text-warning-800 dark:text-warning-300">
                   12 productos alcanzaron su stock mínimo.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl bg-blue-50 p-4">
-              <ReceiptText className="mt-0.5 size-5 shrink-0 text-blue-700" />
+            <div className="flex gap-3 rounded-xl bg-secondary-50 p-4 dark:bg-secondary-900/30">
+              <ReceiptText className="mt-0.5 size-5 shrink-0 text-secondary-700 dark:text-secondary-400" />
               <div>
-                <p className="text-sm font-semibold text-blue-950">Comprobantes pendientes</p>
-                <p className="mt-1 text-xs leading-5 text-blue-800">
+                <p className="text-sm font-semibold text-secondary-950 dark:text-secondary-100">
+                  Comprobantes pendientes
+                </p>
+                <p className="mt-1 text-xs leading-5 text-secondary-800 dark:text-secondary-300">
                   3 documentos esperan confirmación.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl bg-emerald-50 p-4">
-              <Users className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+            <div className="flex gap-3 rounded-xl bg-success-50 p-4 dark:bg-success-900/30">
+              <Users className="mt-0.5 size-5 shrink-0 text-success-700 dark:text-success-400" />
               <div>
-                <p className="text-sm font-semibold text-emerald-950">Clientes activos</p>
-                <p className="mt-1 text-xs leading-5 text-emerald-800">
+                <p className="text-sm font-semibold text-success-950 dark:text-success-100">
+                  Clientes activos
+                </p>
+                <p className="mt-1 text-xs leading-5 text-success-800 dark:text-success-300">
                   {data?.activeCustomers ?? 0} clientes compraron este mes.
                 </p>
               </div>
