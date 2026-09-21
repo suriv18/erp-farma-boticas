@@ -7,6 +7,7 @@ import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CatalogoSoportePort {
@@ -22,6 +23,8 @@ public interface CatalogoSoportePort {
     SaveOutcome save(ClasificacionControlada clasificacionControlada);
 
     SavePrincipioActivoOutcome save(PrincipioActivo principioActivo);
+
+    Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
     boolean condicionVentaExists(String codigo);
 

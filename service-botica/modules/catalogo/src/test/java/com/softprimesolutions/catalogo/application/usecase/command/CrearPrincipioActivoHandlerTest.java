@@ -12,6 +12,7 @@ import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,9 @@ class CrearPrincipioActivoHandlerTest {
         public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
             return SavePrincipioActivoOutcome.CREATED;
         }
+
+        @Override
+        public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }

@@ -1,12 +1,14 @@
 package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
 
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.EstadoPrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoSoporteWriteMapper;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ClasificacionControladaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CondicionVentaJpaRepository;
@@ -15,6 +17,7 @@ import com.softprimesolutions.catalogo.infrastructure.persistence.write.reposito
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.UnidadMedidaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ViaAdministracionJpaRepository;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -209,6 +212,16 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
                 .param("principioActivoId", principioActivo.id().value())
                 .update();
         return SavePrincipioActivoOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) {
+        return principioActivoRepository.findByUuidPublico(principioActivoId)
+                .map(entity -> PrincipioActivo.restore(
+                        new PrincipioActivoId(entity.getUuidPublico()), entity.getCodigoFuente(),
+                        entity.getDenominacion(), entity.getNombreNormalizado(), entity.getFuente(),
+                        EstadoPrincipioActivo.valueOf(entity.getEstado())));
     }
 
     @Override

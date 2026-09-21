@@ -97,6 +97,9 @@ class CatalogoControlServiceTest {
         public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) { throw new UnsupportedOperationException(); }
 
         @Override
+        public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) { throw new UnsupportedOperationException(); }
+
+        @Override
         public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }
 
         @Override

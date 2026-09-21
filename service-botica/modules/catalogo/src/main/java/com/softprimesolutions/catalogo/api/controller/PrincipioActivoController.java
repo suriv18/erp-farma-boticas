@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarPrincipioActivoQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarPrincipioActivoQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarPrincipioActivoUseCase;
 import jakarta.validation.Valid;
@@ -30,16 +32,19 @@ public class PrincipioActivoController {
 
     private final CrearPrincipioActivoUseCase createPrincipioActivo;
     private final ActualizarPrincipioActivoUseCase updatePrincipioActivo;
+    private final ConsultarPrincipioActivoUseCase getPrincipioActivo;
     private final ListarPrincipioActivoUseCase listPrincipiosActivos;
     private final CatalogoControlUseCase control;
 
     public PrincipioActivoController(
             CrearPrincipioActivoUseCase createPrincipioActivo,
             ActualizarPrincipioActivoUseCase updatePrincipioActivo,
+            ConsultarPrincipioActivoUseCase getPrincipioActivo,
             ListarPrincipioActivoUseCase listPrincipiosActivos,
             CatalogoControlUseCase control) {
         this.createPrincipioActivo = createPrincipioActivo;
         this.updatePrincipioActivo = updatePrincipioActivo;
+        this.getPrincipioActivo = getPrincipioActivo;
         this.listPrincipiosActivos = listPrincipiosActivos;
         this.control = control;
     }
@@ -67,6 +72,14 @@ public class PrincipioActivoController {
             @PathVariable UUID principioActivoId, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changePrincipioActivoStatus(principioActivoId, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{principioActivoId}")
+    @PreAuthorize("hasAuthority('catalogo.principios-activos.consultar')")
+    public ResponseEntity<?> get(@PathVariable UUID principioActivoId) {
+        return getPrincipioActivo.execute(new ConsultarPrincipioActivoQuery(principioActivoId)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping
