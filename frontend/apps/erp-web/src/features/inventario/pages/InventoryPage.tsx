@@ -13,9 +13,11 @@ export function InventoryPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Operaciones</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Inventario</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">Operaciones</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            Inventario
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
             Stock por producto, almacén, lote y vencimiento.
           </p>
         </div>
@@ -26,13 +28,13 @@ export function InventoryPage() {
       </div>
 
       <Card className="mt-7 overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
           <div className="relative max-w-md flex-1">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
             <input
               type="search"
               placeholder="Buscar por producto o SKU"
-              className="h-10 w-full rounded-xl border border-slate-200 pr-3 pl-10 text-sm outline-none focus:border-teal-600 focus:ring-3 focus:ring-teal-100"
+              className="h-10 w-full rounded-xl border border-neutral-200 pr-3 pl-10 text-sm outline-none focus:border-primary-600 focus:ring-3 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
           </div>
           <Button variant="secondary" size="sm">
@@ -42,7 +44,7 @@ export function InventoryPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+            <thead className="bg-neutral-50 text-xs font-semibold text-neutral-500 uppercase dark:bg-neutral-800/60 dark:text-neutral-400">
               <tr>
                 <th className="px-6 py-3">Producto</th>
                 <th className="px-6 py-3">SKU</th>
@@ -50,19 +52,23 @@ export function InventoryPage() {
                 <th className="px-6 py-3">Estado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {inventoryRows.map((row) => (
-                <tr key={row.sku} className="hover:bg-slate-50/70">
+                <tr key={row.sku} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="grid size-9 place-items-center rounded-lg bg-teal-50 text-teal-700">
+                      <div className="grid size-9 place-items-center rounded-lg bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
                         <Boxes className="size-4" />
                       </div>
-                      <span className="font-semibold text-slate-800">{row.product}</span>
+                      <span className="font-semibold text-neutral-800 dark:text-neutral-100">
+                        {row.product}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-500">{row.sku}</td>
-                  <td className="px-6 py-4 font-semibold text-slate-800">{row.stock}</td>
+                  <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{row.sku}</td>
+                  <td className="px-6 py-4 font-semibold text-neutral-800 dark:text-neutral-100">
+                    {row.stock}
+                  </td>
                   <td className="px-6 py-4">
                     <Badge tone={row.status === 'Disponible' ? 'success' : 'warning'}>
                       {row.status}
