@@ -9,6 +9,7 @@ import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.MarcaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.RubroComercialRequest;
 import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
 import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
@@ -23,6 +24,7 @@ import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoAsociadoR
 import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.RubroComercialResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse;
 import com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse;
@@ -34,6 +36,7 @@ import com.softprimesolutions.catalogo.application.dto.command.ActualizarFormaFa
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarMarcaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincipioActivoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
@@ -46,6 +49,7 @@ import com.softprimesolutions.catalogo.application.dto.command.CrearFormaFarmace
 import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
@@ -58,6 +62,7 @@ import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
@@ -182,6 +187,12 @@ public final class CatalogoApiMapper {
                 result.estado());
     }
 
+    public static PaginaResponse<MarcaResponse> toMarcaPage(PaginaResult<MarcaResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
     public static CrearCategoriaProductoCommand toCreateCommand(CategoriaProductoRequest request) {
         return new CrearCategoriaProductoCommand(
                 request.tenantId(), request.categoriaPadreId(), request.codigo(), request.nombre(),
@@ -198,6 +209,39 @@ public final class CatalogoApiMapper {
         return new CategoriaProductoResponse(
                 result.id(), result.tenantId(), result.categoriaPadreId(), result.codigo(), result.nombre(),
                 result.descripcion(), result.nivel(), result.orden(), result.estado());
+    }
+
+    public static PaginaResponse<CategoriaProductoResponse> toCategoriaPage(
+            PaginaResult<CategoriaProductoResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static CrearRubroComercialCommand toCreateCommand(RubroComercialRequest request) {
+        return new CrearRubroComercialCommand(
+                request.tenantId(), request.codigo(), request.nombre(), request.descripcion(),
+                request.esFarmaceutico(), request.orden());
+    }
+
+    public static ActualizarRubroComercialCommand toUpdateCommand(
+            UUID rubroComercialId, RubroComercialRequest request) {
+        return new ActualizarRubroComercialCommand(
+                request.tenantId(), rubroComercialId, request.codigo(), request.nombre(), request.descripcion(),
+                request.esFarmaceutico(), request.orden());
+    }
+
+    public static RubroComercialResponse toResponse(RubroComercialResult result) {
+        return new RubroComercialResponse(
+                result.id(), result.tenantId(), result.codigo(), result.nombre(), result.descripcion(),
+                result.esFarmaceutico(), result.orden(), result.estado());
+    }
+
+    public static PaginaResponse<RubroComercialResponse> toRubroComercialPage(
+            PaginaResult<RubroComercialResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
     }
 
     public static CrearProductoReguladoCommand toCreateCommand(ProductoReguladoRequest request) {

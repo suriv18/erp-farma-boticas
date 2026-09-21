@@ -421,7 +421,9 @@ public class CatalogoModuleConfiguration {
     @Bean
     CatalogoControlUseCase catalogoControlUseCase(
             CatalogoSoportePort soportePort, CatalogoComercialPort comercialPort,
-            ProductoReguladoPort productoReguladoPort, ClockPort catalogoClockPort) {
-        return new CatalogoControlService(soportePort, comercialPort, productoReguladoPort, catalogoClockPort);
+            ProductoReguladoPort productoReguladoPort, RubroComercialPort rubroComercialPort,
+            ClockPort catalogoClockPort) {
+        return new CatalogoControlService(
+                soportePort, comercialPort, productoReguladoPort, rubroComercialPort, catalogoClockPort);
     }
 }

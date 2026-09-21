@@ -26,4 +26,6 @@ public interface CatalogoControlUseCase {
     Result<Unit, ApplicationError> changeProductoReguladoStatus(UUID productoReguladoId, String status);
 
     Result<Unit, ApplicationError> changeSkuStatus(UUID tenantId, UUID skuId, String status);
+
+    Result<Unit, ApplicationError> changeRubroComercialStatus(UUID tenantId, UUID rubroComercialId, String status);
 }
