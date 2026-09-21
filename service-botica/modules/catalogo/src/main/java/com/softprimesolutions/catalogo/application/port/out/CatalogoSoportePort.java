@@ -32,6 +32,8 @@ public interface CatalogoSoportePort {
 
     Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo);
 
+    Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo);
+
     Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
     boolean condicionVentaExists(String codigo);

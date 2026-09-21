@@ -14,6 +14,7 @@ import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUse
 import com.softprimesolutions.catalogo.application.port.in.AsociarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarClasificacionControladaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarCondicionVentaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarFormaFarmaceuticaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarMarcaUseCase;
@@ -76,6 +77,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.DesasociarPri
 import com.softprimesolutions.catalogo.application.usecase.command.EliminarCodigoBarraHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.MarcarCodigoBarraPrincipalHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarCategoriaProductoHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarClasificacionControladaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarCondicionVentaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarFormaFarmaceuticaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarMarcaHandler;
@@ -226,6 +228,12 @@ public class CatalogoModuleConfiguration {
     ActualizarClasificacionControladaUseCase actualizarClasificacionControladaUseCase(
             CatalogoSoportePort soportePort) {
         return new ActualizarClasificacionControladaHandler(soportePort);
+    }
+
+    @Bean
+    ConsultarClasificacionControladaUseCase consultarClasificacionControladaUseCase(
+            CatalogoSoportePort soportePort) {
+        return new ConsultarClasificacionControladaHandler(soportePort);
     }
 
     @Bean

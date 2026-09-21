@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ClasificacionControladaRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarClasificacionControladaQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarClasificacionesControladasQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarClasificacionControladaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarClasificacionControladaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearClasificacionControladaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarClasificacionesControladasUseCase;
 import jakarta.validation.Valid;
@@ -29,16 +31,19 @@ public class ClasificacionControladaController {
 
     private final CrearClasificacionControladaUseCase crearClasificacionControlada;
     private final ActualizarClasificacionControladaUseCase actualizarClasificacionControlada;
+    private final ConsultarClasificacionControladaUseCase consultarClasificacionControlada;
     private final ListarClasificacionesControladasUseCase listarClasificacionesControladas;
     private final CatalogoControlUseCase control;
 
     public ClasificacionControladaController(
             CrearClasificacionControladaUseCase crearClasificacionControlada,
             ActualizarClasificacionControladaUseCase actualizarClasificacionControlada,
+            ConsultarClasificacionControladaUseCase consultarClasificacionControlada,
             ListarClasificacionesControladasUseCase listarClasificacionesControladas,
             CatalogoControlUseCase control) {
         this.crearClasificacionControlada = crearClasificacionControlada;
         this.actualizarClasificacionControlada = actualizarClasificacionControlada;
+        this.consultarClasificacionControlada = consultarClasificacionControlada;
         this.listarClasificacionesControladas = listarClasificacionesControladas;
         this.control = control;
     }
@@ -66,6 +71,14 @@ public class ClasificacionControladaController {
             @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changeClasificacionControladaStatus(codigo, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> get(@PathVariable String codigo) {
+        return consultarClasificacionControlada.execute(new ConsultarClasificacionControladaQuery(codigo)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping

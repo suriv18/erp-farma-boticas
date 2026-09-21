@@ -228,6 +228,16 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo) {
+        return clasificacionControladaRepository.findById(codigo)
+                .map(entity -> ClasificacionControlada.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getNormaFuente(),
+                        entity.isRequiereRecetaEspecial(), entity.isRetieneReceta(),
+                        entity.getVigenciaRecetaDias(), EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
     @Transactional
     public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
         var existing = principioActivoRepository.findByUuidPublico(principioActivo.id().value());
