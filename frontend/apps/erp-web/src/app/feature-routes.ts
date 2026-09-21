@@ -7,8 +7,8 @@ import { purchasesRoutes } from '../features/compras';
 import { dashboardRoutes } from '../features/dashboard';
 import { inventoryRoutes } from '../features/inventario';
 import { organizationRoutes } from '../features/organizacion';
-import { posRoutes } from '../features/pos';
 import { profileRoutes } from '../features/perfil';
+import { posRoutes } from '../features/pos';
 import { securityRoutes } from '../features/seguridad';
 import { salesRoutes } from '../features/ventas';
 
