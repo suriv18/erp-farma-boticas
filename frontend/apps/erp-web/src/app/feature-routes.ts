@@ -8,6 +8,7 @@ import { dashboardRoutes } from '../features/dashboard';
 import { inventoryRoutes } from '../features/inventario';
 import { organizationRoutes } from '../features/organizacion';
 import { posRoutes } from '../features/pos';
+import { profileRoutes } from '../features/perfil';
 import { securityRoutes } from '../features/seguridad';
 import { salesRoutes } from '../features/ventas';
 
@@ -23,5 +24,6 @@ export const erpFeatureRoutes = [
   ...cashRegisterRoutes,
   ...customerRoutes,
   ...securityRoutes,
-  ...organizationRoutes
+  ...organizationRoutes,
+  ...profileRoutes
 ] satisfies RouteObject[];

@@ -8,6 +8,8 @@ describe('featureRoutes', () => {
     expect(paths).toEqual([
       'dashboard',
       'catalogo',
+      'catalogo/marcas',
+      'catalogo/categorias',
       'inventario',
       'compras',
       'ventas',
@@ -20,7 +22,12 @@ describe('featureRoutes', () => {
       'seguridad/usuarios/:userId',
       'seguridad/roles',
       'seguridad/roles/:roleId',
-      'organizacion'
+      'organizacion',
+      'perfil',
+      'perfil/seguridad',
+      'perfil/configuraciones',
+      'perfil/sucursal',
+      'perfil/ayuda'
     ]);
     expect(new Set(paths).size).toBe(paths.length);
     expect(erpFeatureRoutes.every(({ lazy }) => typeof lazy === 'function')).toBe(true);
