@@ -10,15 +10,22 @@ export function PermissionsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <div>
-        <p className="text-sm font-semibold text-teal-700">Seguridad / Permisos</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Permisos</h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+          Seguridad / Permisos
+        </p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+          Permisos
+        </h1>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
           Catálogo de permisos disponibles para asignar a roles.
         </p>
       </div>
 
       <div className="mt-6">
-        <label htmlFor="permisos-search" className="text-sm font-semibold text-slate-700">
+        <label
+          htmlFor="permisos-search"
+          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+        >
           Buscar permiso
         </label>
         <input
@@ -27,7 +34,7 @@ export function PermissionsPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Código, nombre o módulo"
-          className="mt-2 h-11 w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-primary-900/40"
         />
       </div>
 

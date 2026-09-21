@@ -122,23 +122,31 @@ export function UserDetailPage() {
 
   if (!usuario) {
     if (usuariosResult.isError || asignacionesResult.isError || identidadesResult.isError) {
-      return <p className="text-sm text-rose-700">No se pudo cargar la información.</p>;
+      return (
+        <p className="text-sm text-danger-700 dark:text-danger-400">
+          No se pudo cargar la información.
+        </p>
+      );
     }
     if (usuariosResult.isSuccess) {
-      return <p className="text-sm text-rose-700">Usuario no encontrado.</p>;
+      return (
+        <p className="text-sm text-danger-700 dark:text-danger-400">Usuario no encontrado.</p>
+      );
     }
-    return <p className="text-sm text-slate-500">Cargando usuario…</p>;
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando usuario…</p>;
   }
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Seguridad / Usuarios</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            Seguridad / Usuarios
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
             {usuario.displayName ?? usuario.email ?? usuario.username ?? usuario.id}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">{usuario.email}</p>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{usuario.email}</p>
         </div>
         <EstadoBadge status={usuario.status} />
       </div>
@@ -151,7 +159,7 @@ export function UserDetailPage() {
 
       <Card className="mt-6 p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-slate-950">Roles asignados</h2>
+          <h2 className="font-bold text-neutral-950 dark:text-white">Roles asignados</h2>
           <Button size="sm" onClick={() => setAssignRoleOpen(true)}>
             Asignar rol
           </Button>
@@ -183,7 +191,7 @@ export function UserDetailPage() {
 
       <Card className="mt-6 p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-slate-950">Identidades externas</h2>
+          <h2 className="font-bold text-neutral-950 dark:text-white">Identidades externas</h2>
           <Button size="sm" onClick={() => setLinkIdentityOpen(true)}>
             Vincular identidad
           </Button>
@@ -213,8 +221,8 @@ export function UserDetailPage() {
       </Card>
 
       <Card className="mt-6 p-5">
-        <h2 className="font-bold text-slate-950">Credencial local</h2>
-        <p className="mt-1 text-sm text-slate-500">Fija una contraseña inicial para el acceso local del usuario.</p>
+        <h2 className="font-bold text-neutral-950 dark:text-white">Credencial local</h2>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Fija una contraseña inicial para el acceso local del usuario.</p>
         <div className="mt-4">
           <CredencialLocalForm
             key={credentialFormKey}
@@ -280,7 +288,7 @@ export function UserDetailPage() {
         title="Vincular identidad externa"
       >
         {linkIdentityMutation.isError ? (
-          <p role="alert" className="mb-4 text-sm font-medium text-rose-700">
+          <p role="alert" className="mb-4 text-sm font-medium text-danger-700 dark:text-danger-400">
             {linkIdentityMutation.error.message}
           </p>
         ) : null}

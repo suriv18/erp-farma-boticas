@@ -42,22 +42,26 @@ export function RoleDetailPage() {
   });
 
   if (!rol) {
-    return <p className="text-sm text-slate-500">Cargando rol…</p>;
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando rol…</p>;
   }
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Seguridad / Roles</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{rol.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">{rol.code}</p>
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            Seguridad / Roles
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            {rol.name}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{rol.code}</p>
         </div>
         <EstadoBadge status={rol.status} />
       </div>
 
       <Card className="mt-6 p-5">
-        <h2 className="font-bold text-slate-950">Permisos</h2>
+        <h2 className="font-bold text-neutral-950 dark:text-white">Permisos</h2>
         <div className="mt-4">
           <PermisosChecklist
             permisos={permisosResult.data ?? []}

@@ -39,9 +39,13 @@ export function RolesPage() {
     <div className="mx-auto max-w-7xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Seguridad / Roles</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Roles</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
+            Seguridad / Roles
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            Roles
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
             Administra los roles y sus permisos asociados.
           </p>
         </div>
@@ -54,7 +58,10 @@ export function RolesPage() {
             {
               header: 'Código',
               cell: (row) => (
-                <Link to={`/seguridad/roles/${row.id}`} className="font-semibold text-teal-700 hover:underline">
+                <Link
+                  to={`/seguridad/roles/${row.id}`}
+                  className="font-semibold text-primary-700 hover:underline dark:text-primary-400"
+                >
                   {row.code}
                 </Link>
               )
