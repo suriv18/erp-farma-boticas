@@ -727,9 +727,11 @@ Expected: `@playwright/test` agregado a `devDependencies` de `frontend/package.j
 
 - [ ] **Step 2: Instalar los navegadores de Playwright**
 
-Run: `pnpm exec playwright install --with-deps chromium`
+Run: `pnpm exec playwright install --with-deps chromium webkit`
 
-Expected: descarga el binario de Chromium que usan los 3 proyectos (desktop/tablet/móvil emulan viewports sobre el mismo motor Chromium, no requieren WebKit/Firefox para este plan).
+Expected: descarga los binarios de Chromium y WebKit.
+
+**Corrección respecto al plan original:** los proyectos `tablet` (`devices['iPad (gen 7)']`) y `mobile` (`devices['iPhone 14']`) de Playwright usan **WebKit** por defecto, no Chromium — los perfiles de dispositivo de Playwright están atados al motor real del navegador de esa plataforma (Safari/iOS = WebKit), no son solo un cambio de viewport sobre Chromium. Instalar solo `chromium` deja los proyectos `tablet`/`mobile` fallando con `Executable doesn't exist at .../webkit-XXXX/Playwright.exe`. Instalar ambos motores desde este paso evita el error.
 
 - [ ] **Step 3: Agregar el script `e2e`**
 
@@ -791,13 +793,17 @@ import type { Page } from '@playwright/test';
 export async function login(page: Page): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Correo corporativo').fill('maria.rojas@boticas.pe');
-  await page.getByLabel('Contraseña').fill('Boticas2026!');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Boticas2026!');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
   await page.waitForURL('**/dashboard');
 }
 ```
 
 Nota: las credenciales están fijadas por el mock handler (`apps/erp-web/src/test/mocks/handlers.ts:4-19`), que solo valida la contraseña (`'Boticas2026!'`) — el valor de correo es arbitrario mientras sea un string no vacío que pase la validación del formulario (`login.schema.ts`), ya que el mock no verifica el campo `login`.
+
+**Corrección respecto al plan original:** `getByLabel('Contraseña')` sin `{ exact: true }` es ambiguo — resuelve tanto al campo de contraseña como al botón "Mostrar contraseña" (`LoginForm.tsx`, cuyo `aria-label` contiene la palabra "contraseña"), y Playwright lanza `strict mode violation`. El `{ exact: true }` es necesario.
+
+**Advertencia sobre `webServer.reuseExistingServer`:** con `reuseExistingServer: !process.env.CI` (línea de configuración de Task 6 Step 4), si ya hay un proceso `vite dev` corriendo en el puerto 3000 (por ejemplo, dejado de una sesión anterior de `pnpm dev`), Playwright **reutiliza ese servidor en vez de levantar uno nuevo con `VITE_API_MODE=mock`**. El síntoma es confuso: el login falla con "Credenciales incorrectas o cuenta bloqueada" porque el servidor reutilizado corre en modo `http` (valor de `.env.development`) contra un backend real que no existe, no porque el mock esté mal configurado. Antes de correr `pnpm e2e`, verificar que no haya un servidor zombi en el puerto 3000 (`netstat -ano | grep ":3000"` en Windows/Git Bash) y matarlo si existe.
 
 - [ ] **Step 6: Actualizar `.gitignore`**
 
@@ -889,7 +895,7 @@ test.describe('Dropdown de perfil', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('navegable por teclado: Tab hasta el trigger, Enter abre, flecha mueve el foco', async ({
+  test('navegable por teclado: Enter abre el menu y Enter navega al item resaltado', async ({
     page
   }) => {
     const trigger = page.getByRole('button', { name: /María Rojas/ });
@@ -898,16 +904,26 @@ test.describe('Dropdown de perfil', () => {
 
     await expect(page.getByRole('menuitem', { name: 'Mi Perfil' })).toBeVisible();
 
-    await page.keyboard.press('ArrowDown');
-    await expect(page.getByRole('menuitem', { name: 'Mi Perfil' })).toBeFocused();
+    // Radix DropdownMenu resalta el primer item ("Mi Perfil") automáticamente
+    // al abrir con teclado. Enter lo activa y navega a su ruta — se verifica
+    // el resultado end-to-end (la navegación) en vez de un atributo interno
+    // de highlight de Radix.
+    await page.keyboard.press('Enter');
+
+    await expect(page).toHaveURL(/\/perfil$/);
+    await expect(page.getByRole('heading', { name: 'Mi Perfil' })).toBeVisible();
   });
 });
 ```
+
+**Corrección respecto al plan original:** el spec de teclado originalmente proponía `await page.keyboard.press('ArrowDown')` seguido de `expect(...).toBeFocused()` sobre el `menuitem` "Mi Perfil". Esto falla: el `DropdownMenuItem` con `to` renderiza un `<Link>` compuesto vía Radix `asChild`, que queda con `tabindex="-1"` — Radix gestiona el resaltado con foco "roving" interno (no mueve `document.activeElement` al `<a>`), así que `toBeFocused()` nunca es verdadero ahí. La versión corregida verifica el comportamiento observable end-to-end (Enter navega al primer ítem resaltado automáticamente por Radix al abrir con teclado) en vez de un detalle de implementación interno de Radix.
 
 - [ ] **Step 2: Ejecutar los specs en los 3 proyectos**
 
 Run (desde `frontend/`): `pnpm e2e`
 Expected: PASS — 6 tests × 3 proyectos (desktop/tablet/mobile) = 18 ejecuciones, todas en verde. El `webServer` de `playwright.config.ts` levanta `pnpm --filter @boticas/erp-web dev` automáticamente en modo mock antes de correr los specs.
+
+Si `pnpm e2e` falla con "Credenciales incorrectas o cuenta bloqueada" en el login de todos los tests, ver la advertencia sobre `webServer.reuseExistingServer` en Task 6 Step 5 — probablemente hay un servidor `vite dev` zombi en el puerto 3000 desde una sesión anterior.
 
 Si algún test falla por timing (el menú de Radix anima su apertura), agregar `await expect(...).toBeVisible()` con el timeout default de Playwright (5s) es suficiente — no se requiere `page.waitForTimeout`.
 
