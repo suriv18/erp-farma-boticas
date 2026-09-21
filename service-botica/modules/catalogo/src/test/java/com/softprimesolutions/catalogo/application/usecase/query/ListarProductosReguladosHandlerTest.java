@@ -12,6 +12,7 @@ import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
@@ -72,15 +73,18 @@ class ListarProductosReguladosHandlerTest {
         public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) { throw new UnsupportedOperationException(); }
 
         @Override
-        public List<MarcaResult> findMarcas(UUID tenantId, String estado) { throw new UnsupportedOperationException(); }
+        public PaginaResult<MarcaResult> findMarcas(UUID tenantId, String texto, String estado, int page, int size) { throw new UnsupportedOperationException(); }
 
         @Override
-        public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) { throw new UnsupportedOperationException(); }
+        public PaginaResult<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, String texto, UUID categoriaPadreId, String estado, int page, int size) { throw new UnsupportedOperationException(); }
 
         @Override
         public PaginaResult<ProductoReguladoResumen> findProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size) { return this.page; }
 
         @Override
         public PaginaResult<SkuResumen> findSkus(UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado, int page, int size) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public PaginaResult<RubroComercialResult> findRubrosComerciales(UUID tenantId, String texto, Boolean esFarmaceutico, String estado, int page, int size) { throw new UnsupportedOperationException(); }
     }
 }

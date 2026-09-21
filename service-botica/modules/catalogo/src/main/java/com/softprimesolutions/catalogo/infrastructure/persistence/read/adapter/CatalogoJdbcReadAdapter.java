@@ -8,6 +8,7 @@ import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
@@ -65,14 +66,19 @@ public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MarcaResult> findMarcas(UUID tenantId, String estado) {
-        return repository.findMarcas(tenantId, estado);
+    public PaginaResult<MarcaResult> findMarcas(UUID tenantId, String texto, String estado, int page, int size) {
+        var items = repository.findMarcas(tenantId, texto, estado, page * size, size);
+        var total = repository.countMarcas(tenantId, texto, estado);
+        return new PaginaResult<>(items, page, size, total);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) {
-        return repository.findCategoriasProducto(tenantId, categoriaPadreId, estado);
+    public PaginaResult<CategoriaProductoResult> findCategoriasProducto(
+            UUID tenantId, String texto, UUID categoriaPadreId, String estado, int page, int size) {
+        var items = repository.findCategoriasProducto(tenantId, texto, categoriaPadreId, estado, page * size, size);
+        var total = repository.countCategoriasProducto(tenantId, texto, categoriaPadreId, estado);
+        return new PaginaResult<>(items, page, size, total);
     }
 
     @Override
@@ -91,6 +97,15 @@ public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
             int page, int size) {
         var items = repository.findSkus(tenantId, texto, categoriaId, marcaId, tipoSku, estado, page * size, size);
         var total = repository.countSkus(tenantId, texto, categoriaId, marcaId, tipoSku, estado);
+        return new PaginaResult<>(items, page, size, total);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResult<RubroComercialResult> findRubrosComerciales(
+            UUID tenantId, String texto, Boolean esFarmaceutico, String estado, int page, int size) {
+        var items = repository.findRubrosComerciales(tenantId, texto, esFarmaceutico, estado, page * size, size);
+        var total = repository.countRubrosComerciales(tenantId, texto, esFarmaceutico, estado);
         return new PaginaResult<>(items, page, size, total);
     }
 }

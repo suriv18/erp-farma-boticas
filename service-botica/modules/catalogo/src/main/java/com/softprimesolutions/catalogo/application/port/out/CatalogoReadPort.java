@@ -8,6 +8,7 @@ import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
@@ -28,9 +29,10 @@ public interface CatalogoReadPort {
 
     List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado);
 
-    List<MarcaResult> findMarcas(UUID tenantId, String estado);
+    PaginaResult<MarcaResult> findMarcas(UUID tenantId, String texto, String estado, int page, int size);
 
-    List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado);
+    PaginaResult<CategoriaProductoResult> findCategoriasProducto(
+            UUID tenantId, String texto, UUID categoriaPadreId, String estado, int page, int size);
 
     PaginaResult<ProductoReguladoResumen> findProductosRegulados(
             String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size);
@@ -38,4 +40,7 @@ public interface CatalogoReadPort {
     PaginaResult<SkuResumen> findSkus(
             UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado,
             int page, int size);
+
+    PaginaResult<RubroComercialResult> findRubrosComerciales(
+            UUID tenantId, String texto, Boolean esFarmaceutico, String estado, int page, int size);
 }

@@ -7,6 +7,7 @@ import com.softprimesolutions.catalogo.application.port.in.ActualizarFormaFarmac
 import com.softprimesolutions.catalogo.application.port.in.ActualizarMarcaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarSkuUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdministracionUseCase;
@@ -20,6 +21,7 @@ import com.softprimesolutions.catalogo.application.port.in.ConsultarFormaFarmace
 import com.softprimesolutions.catalogo.application.port.in.ConsultarMarcaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarViaAdministracionUseCase;
@@ -30,6 +32,7 @@ import com.softprimesolutions.catalogo.application.port.in.CrearFormaFarmaceutic
 import com.softprimesolutions.catalogo.application.port.in.CrearMarcaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearSkuUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearViaAdministracionUseCase;
@@ -42,6 +45,7 @@ import com.softprimesolutions.catalogo.application.port.in.ListarFormasFarmaceut
 import com.softprimesolutions.catalogo.application.port.in.ListarMarcasUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarProductosReguladosUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarRubrosComercialesUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarSkusUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarUnidadesMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarViasAdministracionUseCase;
@@ -50,6 +54,7 @@ import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPor
 import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.application.port.out.RubroComercialPort;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarCategoriaProductoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarClasificacionControladaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarCondicionVentaHandler;
@@ -57,6 +62,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.ActualizarFor
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarMarcaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarProductoReguladoHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.ActualizarRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarSkuHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarViaAdministracionHandler;
@@ -70,6 +76,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.CrearFormaFar
 import com.softprimesolutions.catalogo.application.usecase.command.CrearMarcaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearProductoReguladoHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.CrearRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearSkuHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearViaAdministracionHandler;
@@ -83,6 +90,7 @@ import com.softprimesolutions.catalogo.application.usecase.query.ConsultarFormaF
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarMarcaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoReguladoHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarSkuHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarViaAdministracionHandler;
@@ -93,6 +101,7 @@ import com.softprimesolutions.catalogo.application.usecase.query.ListarFormasFar
 import com.softprimesolutions.catalogo.application.usecase.query.ListarMarcasHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarProductosReguladosHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ListarRubrosComercialesHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarSkusHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarUnidadesMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarViasAdministracionHandler;
@@ -308,6 +317,29 @@ public class CatalogoModuleConfiguration {
     @Bean
     ListarCategoriasProductoUseCase listarCategoriasProductoUseCase(CatalogoReadPort readPort) {
         return new ListarCategoriasProductoHandler(readPort);
+    }
+
+    // ---- Rubros comerciales ----
+
+    @Bean
+    CrearRubroComercialUseCase crearRubroComercialUseCase(
+            RubroComercialPort rubroComercialPort, IdentifierGenerator catalogoIdentifierGenerator) {
+        return new CrearRubroComercialHandler(rubroComercialPort, catalogoIdentifierGenerator);
+    }
+
+    @Bean
+    ActualizarRubroComercialUseCase actualizarRubroComercialUseCase(RubroComercialPort rubroComercialPort) {
+        return new ActualizarRubroComercialHandler(rubroComercialPort);
+    }
+
+    @Bean
+    ConsultarRubroComercialUseCase consultarRubroComercialUseCase(RubroComercialPort rubroComercialPort) {
+        return new ConsultarRubroComercialHandler(rubroComercialPort);
+    }
+
+    @Bean
+    ListarRubrosComercialesUseCase listarRubrosComercialesUseCase(CatalogoReadPort readPort) {
+        return new ListarRubrosComercialesHandler(readPort);
     }
 
     // ---- Productos regulados ----

@@ -1,10 +1,13 @@
 package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
 
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.EstadoRubroComercial;
 import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.RubroComercial;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaProductoJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.MarcaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.RubroComercialJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuComercialJpaEntity;
 import java.time.Instant;
 
@@ -39,5 +42,19 @@ public final class CatalogoComercialWriteMapper {
                 sku.unidadFraccionCodigo(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
                 sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(), sku.estado().name(),
                 sku.createdBy(), sku.createdAt(), sku.updatedBy(), sku.updatedAt());
+    }
+
+    public static RubroComercialJpaEntity toEntity(RubroComercial rubro, Long tenantId) {
+        return new RubroComercialJpaEntity(
+                rubro.id().value(), tenantId, rubro.codigo(), rubro.nombre(), rubro.descripcion(),
+                rubro.esFarmaceutico(), rubro.orden(), toEsActivo(rubro.estado()), SYSTEM_ACTOR, Instant.now());
+    }
+
+    public static String toEsActivo(EstadoRubroComercial estado) {
+        return estado == EstadoRubroComercial.ACTIVO ? "1" : "0";
+    }
+
+    public static EstadoRubroComercial toEstadoRubroComercial(String esActivo) {
+        return "1".equals(esActivo) ? EstadoRubroComercial.ACTIVO : EstadoRubroComercial.INACTIVO;
     }
 }
