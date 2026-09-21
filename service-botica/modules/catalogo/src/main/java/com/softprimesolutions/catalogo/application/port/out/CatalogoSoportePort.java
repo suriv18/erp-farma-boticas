@@ -24,6 +24,8 @@ public interface CatalogoSoportePort {
 
     SavePrincipioActivoOutcome save(PrincipioActivo principioActivo);
 
+    Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo);
+
     Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
     boolean condicionVentaExists(String codigo);

@@ -5,6 +5,7 @@ import com.softprimesolutions.catalogo.domain.model.EstadoPrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
@@ -82,6 +83,17 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
                 .param("codigo", condicionVenta.codigo())
                 .update();
         return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) {
+        return condicionVentaRepository.findById(codigo)
+                .map(entity -> CondicionVenta.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.isRequiereReceta(),
+                        entity.isRequiereRetencion(), entity.getFuente(), entity.getVersionFuente(),
+                        entity.getVigenteDesde(), entity.getVigenteHasta(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
     }
 
     @Override

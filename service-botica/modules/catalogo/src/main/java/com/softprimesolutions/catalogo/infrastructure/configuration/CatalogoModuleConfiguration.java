@@ -14,6 +14,7 @@ import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUse
 import com.softprimesolutions.catalogo.application.port.in.AsociarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarCondicionVentaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarMarcaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarPrincipioActivoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
@@ -72,6 +73,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.DesasociarPri
 import com.softprimesolutions.catalogo.application.usecase.command.EliminarCodigoBarraHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.MarcarCodigoBarraPrincipalHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarCategoriaProductoHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarCondicionVentaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarMarcaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarPrincipioActivoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoReguladoHandler;
@@ -129,6 +131,11 @@ public class CatalogoModuleConfiguration {
     @Bean
     ActualizarCondicionVentaUseCase actualizarCondicionVentaUseCase(CatalogoSoportePort soportePort) {
         return new ActualizarCondicionVentaHandler(soportePort);
+    }
+
+    @Bean
+    ConsultarCondicionVentaUseCase consultarCondicionVentaUseCase(CatalogoSoportePort soportePort) {
+        return new ConsultarCondicionVentaHandler(soportePort);
     }
 
     @Bean

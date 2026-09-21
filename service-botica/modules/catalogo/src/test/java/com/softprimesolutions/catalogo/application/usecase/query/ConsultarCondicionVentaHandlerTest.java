@@ -3,41 +3,38 @@ package com.softprimesolutions.catalogo.application.usecase.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.query.ConsultarPrincipioActivoQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarCondicionVentaQuery;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
-import com.softprimesolutions.catalogo.domain.model.EstadoPrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
-import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class ConsultarPrincipioActivoHandlerTest {
-
-    private static final UUID PRINCIPIO_ACTIVO_ID = UUID.randomUUID();
+class ConsultarCondicionVentaHandlerTest {
 
     @Test
-    void returnsPrincipioActivoResultWhenFound() {
-        var principioActivo = PrincipioActivo.restore(
-                new PrincipioActivoId(PRINCIPIO_ACTIVO_ID), "PARAC-500", "Paracetamol", "PARACETAMOL", "DIGEMID",
-                EstadoPrincipioActivo.ACTIVO);
-        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(principioActivo));
-        var handler = new ConsultarPrincipioActivoHandler(port);
+    void returnsCondicionVentaResultWhenFound() {
+        var condicionVenta = CondicionVenta.restore(
+                "VENTA_LIBRE", "Venta libre", false, false, "DIGEMID", "2026.1", null, null,
+                EstadoCatalogoSoporte.ACTIVO);
+        CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.of(condicionVenta));
+        var handler = new ConsultarCondicionVentaHandler(port);
 
-        var result = handler.execute(new ConsultarPrincipioActivoQuery(PRINCIPIO_ACTIVO_ID));
+        var result = handler.execute(new ConsultarCondicionVentaQuery("VENTA_LIBRE"));
 
         assertTrue(result.isSuccess());
         result.fold(
                 success -> {
-                    assertEquals(PRINCIPIO_ACTIVO_ID, success.id());
-                    assertEquals("Paracetamol", success.denominacion());
+                    assertEquals("VENTA_LIBRE", success.codigo());
+                    assertEquals("Venta libre", success.denominacion());
                     return null;
                 },
                 failure -> null);
@@ -46,21 +43,21 @@ class ConsultarPrincipioActivoHandlerTest {
     @Test
     void returnsNotFoundWhenMissing() {
         CatalogoSoportePort port = new StubCatalogoSoportePort(Optional.empty());
-        var handler = new ConsultarPrincipioActivoHandler(port);
+        var handler = new ConsultarCondicionVentaHandler(port);
 
-        var result = handler.execute(new ConsultarPrincipioActivoQuery(PRINCIPIO_ACTIVO_ID));
+        var result = handler.execute(new ConsultarCondicionVentaQuery("NO_EXISTE"));
 
         assertTrue(result.isFailure());
         result.fold(
                 success -> null,
                 failure -> {
-                    assertEquals("CAT_PRINCIPIO_ACTIVO_NO_ENCONTRADO", failure.code());
+                    assertEquals("CAT_CONDICION_VENTA_NO_ENCONTRADA", failure.code());
                     assertEquals(ErrorCategory.NOT_FOUND, failure.category());
                     return null;
                 });
     }
 
-    private record StubCatalogoSoportePort(Optional<PrincipioActivo> principioActivo) implements CatalogoSoportePort {
+    private record StubCatalogoSoportePort(Optional<CondicionVenta> condicionVenta) implements CatalogoSoportePort {
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) {
@@ -94,12 +91,12 @@ class ConsultarPrincipioActivoHandlerTest {
 
         @Override
         public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) {
-            throw new UnsupportedOperationException();
+            return condicionVenta;
         }
 
         @Override
         public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) {
-            return principioActivo;
+            throw new UnsupportedOperationException();
         }
 
         @Override
