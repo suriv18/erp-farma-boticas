@@ -13,7 +13,7 @@ Este es un monorepo para un ERP de cadena de farmacias en Perú. No existe un do
 `docs/arquitectura/`, `docs/sprint/`, `docs/decisiones-adr/` y `docs/db/` (fuera de `cadena-farmacias-docs/`) son antecedentes/borradores legados, conservados solo para trazabilidad — no confiar en ellos como estado actual sin contrastarlos contra `docs/cadena-farmacias-docs/`.
 
 **Estado real del proyecto (no asumir más de lo implementado):**
-- `service-botica/`: monolito modular Java/Spring que compila y verifica 17 módulos explícitos, pero la mayoría son scaffolds. El módulo `security` (IAM: login, JWT, RBAC, sesiones, dispositivos) es el más maduro y funcional del backend. `organizacion` tiene un primer slice parcial (agregado, command/handler, puerto). Los demás módulos de negocio (ventas, inventario, compras, etc.) aún no tienen controladores, adapters de persistencia ni migraciones propias.
+- `service-botica/`: monolito modular Java/Spring que compila y verifica 17 módulos explícitos, pero la mayoría son scaffolds. El módulo `security` (IAM: login, JWT, RBAC, sesiones, dispositivos) es el más maduro y funcional del backend. `catalogo` es el segundo módulo más completo: expone CRUD REST real (CQRS + `Result` + `@PreAuthorize`) para 9 de los ~11 catálogos maestros de `sch_catalogo` bajo `/api/v1/catalogo/*` (categorías, marcas, condiciones de venta, formas farmacéuticas, vías de administración, unidades de medida, clasificaciones controladas, principios activos, productos regulados/SKU); faltan controladores para `rubro_comercial` y `tipo_documento_identidad` (V018), que ya existen en BD. `organizacion` tiene un primer slice parcial (agregado, command/handler, puerto) sin controller REST todavía. Los demás módulos de negocio (ventas, inventario, compras, etc.) aún no tienen controladores, adapters de persistencia ni migraciones propias.
 - `frontend/`: scaffold React navegable, no un ERP funcional. Login es simulado (no llama al backend, sesión solo en memoria), dashboard usa MSW/mocks, inventario usa fixtures, organización consulta un contrato mock, y catálogo/compras/ventas/POS/caja/clientes/seguridad son placeholders sin lógica.
 
 Una pantalla visible, un módulo detectado en el código o una tabla en el DDL legado **no** equivalen a una capacidad terminada. El flujo de entrega es `RF/RN → CU/CA → dominio → ADR → contrato/modelo → slice → pruebas`.
@@ -47,7 +47,7 @@ SERVER_PORT=8080
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
-pnpm dev            # servidor de desarrollo en http://localhost:5173
+pnpm dev            # servidor de desarrollo en http://localhost:3000
 pnpm check           # lint + typecheck + test + build (usar antes de dar por terminado un cambio)
 pnpm test            # vitest run (todas)
 pnpm test:watch      # vitest en watch
