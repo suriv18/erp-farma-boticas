@@ -1,0 +1,1 @@
+com.softprimesolutions.organizacion.domain.empresa.EmpresaOperadora

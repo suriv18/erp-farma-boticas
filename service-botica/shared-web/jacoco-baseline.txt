@@ -1,0 +1,2 @@
+com.softprimesolutions.shared.web.error.ApplicationErrorHttpMapper
+com.softprimesolutions.shared.web.error.GlobalExceptionHandler
