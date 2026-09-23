@@ -102,3 +102,22 @@ Un paquete nuevo en `packages/` solo se justifica con ≥2 consumidores reales y
 **Configuración de API:** en desarrollo, `.env.development` activa modo mock vía MSW para trabajar sin backend. En producción, la base es `/api/v1`. Contra un backend local, Vite redirige `/api` a `http://localhost:8080` cuando el modo mock está desactivado. Toda variable expuesta al navegador debe empezar con `VITE_` (son públicas por definición, nunca secretos).
 
 React Router 8 y componentes con `forwardRef` (patrón antiguo) están bloqueados por reglas de ESLint — no reintroducir esos patrones.
+
+## Cobertura de tests
+
+Todo archivo fuente **nuevo**, backend (`service-botica/`) y frontend (`frontend/`), debe alcanzar 100% de cobertura de líneas y ramas en sí mismo, exigido como gate automático en el build (JaCoCo por clase/archivo en Gradle para los módulos Java; umbrales por archivo de Vitest para el workspace pnpm). No es un umbral retroactivo global: el código ya existente al momento de introducir el gate no está obligado a llegar a 100% salvo que se reescriba o se cree de nuevo; un archivo nuevo con cobertura menor a 100% no se considera terminado aunque compile y los tests existentes pasen.
+
+## Estándares de implementación
+
+Toda implementación, backend y frontend, debe seguir:
+- Bajo acoplamiento, alta cohesión.
+- Código mantenible; principios SOLID y Clean Code.
+- Sin comentarios explicativos en el código (evitarlos salvo lo estrictamente necesario para una decisión no obvia).
+- Patrones de diseño aplicados según la necesidad y complejidad real del problema, no por adelantado.
+- Preferir funciones lambda donde el lenguaje/framework lo permita idiomáticamente.
+- Prohibido el código duplicado: identificar patrones repetidos y extraer abstracciones reutilizables.
+- Respetar la arquitectura definida (Clean Architecture + DDD + Ports & Adapters + CQRS en backend; estructura por features en frontend) y la estructura de carpetas del proyecto descrita en este documento — no introducir capas, paquetes o convenciones nuevas sin justificarlo.
+
+## Atributos de calidad arquitectónica
+
+Toda decisión de arquitectura y diseño, backend y frontend, debe estar guiada por: trazabilidad, rendimiento, corrección, mantenibilidad, seguridad y usabilidad.
