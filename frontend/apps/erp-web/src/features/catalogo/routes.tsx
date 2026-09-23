@@ -7,5 +7,19 @@ export const catalogRoutes = [
       const { CatalogPage } = await import('./pages/CatalogPage');
       return { Component: CatalogPage };
     }
+  },
+  {
+    path: 'catalogo/marcas',
+    lazy: async () => {
+      const { MarcasPage } = await import('./pages/MarcasPage');
+      return { Component: MarcasPage };
+    }
+  },
+  {
+    path: 'catalogo/categorias',
+    lazy: async () => {
+      const { CategoriasPage } = await import('./pages/CategoriasPage');
+      return { Component: CategoriasPage };
+    }
   }
 ] satisfies RouteObject[];

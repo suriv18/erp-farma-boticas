@@ -14,7 +14,7 @@
 - `sch_catalogo.tipo_documento_identidad` (migración V018, ya aplicada, no se modifica): PK `codigo VARCHAR(2)` con `CHECK (codigo ~ '^[0-9A-Z]$')`, `sigla VARCHAR(30) NOT NULL`, `denominacion VARCHAR(200) NOT NULL`, `max SMALLINT NULL CHECK (max IS NULL OR max > 0)`, `min SMALLINT NULL CHECK (min IS NULL OR min > 0)` con `CHECK (min IS NULL OR max IS NULL OR min <= max)`, `es_activo CHAR(1) NOT NULL DEFAULT '1'`. Sin `tenant_id`, sin columnas de auditoría (`created_by`/`created_at`/`updated_by`/`updated_at`), sin columna `estado`.
 - Todo commit debe compilar y pasar tests del módulo `catalogo` antes de continuar a la siguiente tarea: `cd service-botica && .\gradlew.bat :modules:catalogo:test --warning-mode all` (Windows PowerShell) tras cada tarea con cambios de código+test. Verificación final con `check` completo al cerrar el plan.
 - No se agregan nuevas authorities RBAC — se reutilizan `catalogo.soporte.gestionar` / `catalogo.soporte.consultar`, ya usadas por `CondicionVentaController`.
-- No se pagina el listado — mismo criterio que los demás catálogos de soporte (`CatalogoReadPort.findCondicionesVenta` retorna `List`, no `PaginaResult`).
+- El listado SÍ se pagina (decisión revisada tras la aprobación inicial del spec — el usuario pidió paginación explícitamente): `ListarTiposDocumentoIdentidadQuery`/`UseCase`/`Handler` usan `PaginaResult<TipoDocumentoIdentidadResult>`, con validación `page >= 0` y `1 <= size <= 100` (error `CAT_PAGINACION_INVALIDA`), replicando exactamente el patrón de `ListarRubrosComercialesQuery`/`UseCase`/`Handler` — no el patrón sin paginar de `CondicionVenta`. Task 2 ya fue implementada y revisada con la versión SIN paginar (commit `3bbeb8f`, aprobado antes de este pedido); Task 2b la reemplaza con la versión paginada antes de continuar con Task 3.
 - Ampliar `CatalogoSoportePort` y `CatalogoReadPort` (interfaces) rompe todos sus implementadores existentes (10 en total: 1 en `main`, 9 en `test`) hasta que se les agreguen los métodos nuevos — cada tarea que amplía una interfaz debe actualizar TODOS sus implementadores en el mismo paso, antes de compilar.
 
 ---
@@ -477,6 +477,73 @@ git commit -m "feat(catalogo): agregar DTOs y puertos in de TipoDocumentoIdentid
 
 ---
 
+### Task 2b: Migrar `ListarTiposDocumentoIdentidadQuery`/`UseCase` a paginación
+
+Task 2 (ya implementada y revisada, commit `3bbeb8f`) creó `ListarTiposDocumentoIdentidadQuery(String estado)` y `ListarTiposDocumentoIdentidadUseCase` sin paginar, retornando `List<TipoDocumentoIdentidadResult>`. El usuario pidió explícitamente agregar paginación al listado. Esta tarea reemplaza esos dos archivos por la versión paginada, siguiendo exactamente el patrón de `ListarRubrosComercialesQuery`/`ListarRubrosComercialesUseCase` (`page`/`size`, `PaginaResult<T>`).
+
+**Files:**
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarTiposDocumentoIdentidadQuery.java`
+- Modify: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarTiposDocumentoIdentidadUseCase.java`
+
+**Interfaces:**
+- Consumes: `PaginaResult<T>` (ya existe, `com.softprimesolutions.catalogo.application.dto.result.PaginaResult`, record `(List<T> items, int page, int size, long totalElements)`).
+- Produces: `ListarTiposDocumentoIdentidadQuery(String estado, int page, int size)` implements `Query<PaginaResult<TipoDocumentoIdentidadResult>>`; `ListarTiposDocumentoIdentidadUseCase.execute(...)` → `Result<PaginaResult<TipoDocumentoIdentidadResult>, ApplicationError>`. Task 3 (que aún no se ha ejecutado) debe usar estas firmas paginadas, no las de Task 2.
+
+No hay test propio en esta tarea (son DTOs/interfaces puras, igual que Task 2) — se verifica con compilación; el comportamiento se testea en Task 3.
+
+- [ ] **Step 1: Reemplazar `ListarTiposDocumentoIdentidadQuery`**
+
+Reemplazar el contenido completo de `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarTiposDocumentoIdentidadQuery.java` por:
+
+```java
+package com.softprimesolutions.catalogo.application.dto.query;
+
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
+import com.softprimesolutions.shared.application.cqrs.Query;
+
+public record ListarTiposDocumentoIdentidadQuery(String estado, int page, int size)
+        implements Query<PaginaResult<TipoDocumentoIdentidadResult>> {
+}
+```
+
+- [ ] **Step 2: Reemplazar `ListarTiposDocumentoIdentidadUseCase`**
+
+Reemplazar el contenido completo de `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarTiposDocumentoIdentidadUseCase.java` por:
+
+```java
+package com.softprimesolutions.catalogo.application.port.in;
+
+import com.softprimesolutions.catalogo.application.dto.query.ListarTiposDocumentoIdentidadQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.kernel.result.Result;
+
+@FunctionalInterface
+public interface ListarTiposDocumentoIdentidadUseCase {
+    Result<PaginaResult<TipoDocumentoIdentidadResult>, ApplicationError> execute(
+            ListarTiposDocumentoIdentidadQuery query);
+}
+```
+
+- [ ] **Step 3: Compilar el módulo**
+
+```
+.\gradlew.bat :modules:catalogo:compileJava --warning-mode all
+```
+
+Esperado: BUILD SUCCESSFUL (nada más referencia todavía estos dos tipos — Task 3 es la próxima tarea en crear ese código).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/dto/query/ListarTiposDocumentoIdentidadQuery.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/in/ListarTiposDocumentoIdentidadUseCase.java
+git commit -m "feat(catalogo): paginar ListarTiposDocumentoIdentidadQuery"
+```
+
+---
+
 ### Task 3: Ampliar `CatalogoSoportePort` y `CatalogoReadPort` + handlers
 
 Esta tarea amplía dos interfaces compartidas por 10 implementadores existentes (1 en `main`, 9 en `test`). Todos deben actualizarse en el mismo paso para que el módulo compile.
@@ -497,8 +564,8 @@ Esta tarea amplía dos interfaces compartidas por 10 implementadores existentes 
 - Test: `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ListarTiposDocumentoIdentidadHandlerTest.java`
 
 **Interfaces:**
-- Consumes: `TipoDocumentoIdentidad` (Task 1), los 4 puertos in y DTOs (Task 2), `EstadoCatalogoSoporte`.
-- Produces: `CatalogoSoportePort.save(TipoDocumentoIdentidad)` → `SaveOutcome`; `CatalogoSoportePort.findTipoDocumentoIdentidadByCodigo(String)` → `Optional<TipoDocumentoIdentidad>`; `CatalogoSoportePort.tipoDocumentoIdentidadExists(String)` → `boolean` (declarado pero no usado por los handlers de esta tarea — se deja consistente con el resto del puerto, que expone `existsById` por catálogo aunque `Crear*Handler` no lo invoque directamente); `CatalogoSoportePort.changeTipoDocumentoIdentidadStatus(String, String, Instant)` → `boolean`; `CatalogoReadPort.findTiposDocumentoIdentidad(String estado)` → `List<TipoDocumentoIdentidadResult>`; `CrearTipoDocumentoIdentidadHandler`, `ActualizarTipoDocumentoIdentidadHandler`, `ConsultarTipoDocumentoIdentidadHandler`, `ListarTiposDocumentoIdentidadHandler` implementando sus respectivos `UseCase`. Usados por Task 4 (control service) y Task 7 (wiring/controller).
+- Consumes: `TipoDocumentoIdentidad` (Task 1), los 4 puertos in y DTOs (Task 2, con `ListarTiposDocumentoIdentidadQuery`/`UseCase` ya paginados por Task 2b), `EstadoCatalogoSoporte`, `PaginaResult<T>`.
+- Produces: `CatalogoSoportePort.save(TipoDocumentoIdentidad)` → `SaveOutcome`; `CatalogoSoportePort.findTipoDocumentoIdentidadByCodigo(String)` → `Optional<TipoDocumentoIdentidad>`; `CatalogoSoportePort.tipoDocumentoIdentidadExists(String)` → `boolean` (declarado pero no usado por los handlers de esta tarea — se deja consistente con el resto del puerto, que expone `existsById` por catálogo aunque `Crear*Handler` no lo invoque directamente); `CatalogoSoportePort.changeTipoDocumentoIdentidadStatus(String, String, Instant)` → `boolean`; `CatalogoReadPort.findTiposDocumentoIdentidad(String estado, int page, int size)` → `PaginaResult<TipoDocumentoIdentidadResult>`; `CrearTipoDocumentoIdentidadHandler`, `ActualizarTipoDocumentoIdentidadHandler`, `ConsultarTipoDocumentoIdentidadHandler`, `ListarTiposDocumentoIdentidadHandler` implementando sus respectivos `UseCase` (`ListarTiposDocumentoIdentidadHandler` valida `page >= 0` y `1 <= size <= 100`, error `CAT_PAGINACION_INVALIDA`, igual que `ListarRubrosComercialesHandler`). Usados por Task 4 (control service) y Task 7 (wiring/controller).
 
 - [ ] **Step 1: Escribir los tests que fallan para `CrearTipoDocumentoIdentidadHandler` y `ListarTiposDocumentoIdentidadHandler`**
 
@@ -671,23 +738,38 @@ import org.junit.jupiter.api.Test;
 class ListarTiposDocumentoIdentidadHandlerTest {
 
     @Test
-    void returnsTiposDocumentoIdentidadFromReadPort() {
+    void returnsPageFromReadPort() {
         var tipo = new TipoDocumentoIdentidadResult("1", "DNI", "Documento Nacional de Identidad", 8, 8, "ACTIVO");
-        var readPort = new FakeCatalogoReadPort(List.of(tipo));
+        var page = new PaginaResult<>(List.of(tipo), 0, 20, 1);
+        var readPort = new StubCatalogoReadPort(page);
         var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
 
-        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null));
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, 0, 20));
 
         assertTrue(result.isSuccess());
-        assertEquals(1, result.getOrElse(error -> null).size());
+        result.fold(
+                success -> {
+                    assertEquals(1, success.items().size());
+                    assertEquals("1", success.items().get(0).codigo());
+                    return null;
+                },
+                error -> {
+                    throw new AssertionError("expected success but got " + error);
+                });
     }
 
-    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
-        private final List<TipoDocumentoIdentidadResult> tipos;
+    @Test
+    void rejectsInvalidPageSize() {
+        var readPort = new StubCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
 
-        private FakeCatalogoReadPort(List<TipoDocumentoIdentidadResult> tipos) {
-            this.tipos = tipos;
-        }
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, 0, 0));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private record StubCatalogoReadPort(PaginaResult<TipoDocumentoIdentidadResult> page) implements CatalogoReadPort {
 
         @Override
         public List<CondicionVentaResult> findCondicionesVenta(String estado) { throw new UnsupportedOperationException(); }
@@ -705,7 +787,7 @@ class ListarTiposDocumentoIdentidadHandlerTest {
         public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) { throw new UnsupportedOperationException(); }
 
         @Override
-        public List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado) { return tipos; }
+        public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) { return this.page(); }
 
         @Override
         public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) { throw new UnsupportedOperationException(); }
@@ -770,16 +852,18 @@ Agregar tras `boolean changeClasificacionControladaStatus(String codigo, String 
 
 - [ ] **Step 4: Ampliar `CatalogoReadPort`**
 
-En `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`, agregar el import:
+En `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/application/port/out/CatalogoReadPort.java`, agregar los imports:
 
 ```java
 import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 ```
 
+(`PaginaResult` ya está importado en este archivo — no duplicar el import.)
+
 Agregar tras `List<ClasificacionControladaResult> findClasificacionesControladas(String estado);`:
 
 ```java
-    List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado);
+    PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size);
 ```
 
 - [ ] **Step 5: Agregar overrides temporales en `CatalogoSoporteJpaWriteAdapter` y `CatalogoJdbcReadAdapter`**
@@ -812,7 +896,7 @@ En `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalog
 
 ```java
     @Override
-    public List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado) {
+    public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) {
         throw new UnsupportedOperationException("Implementado en Task 5");
     }
 ```
@@ -854,11 +938,11 @@ Archivos a modificar (verificar el nombre exacto de la clase/record interno y el
 - `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarViaAdministracionHandlerTest.java`
 - `service-botica/modules/catalogo/src/test/java/com/softprimesolutions/catalogo/application/usecase/query/ConsultarClasificacionControladaHandlerTest.java`
 
-Y para `CatalogoReadPort`, agregar en cada uno de estos 3 archivos el import de `TipoDocumentoIdentidadResult` y el método:
+Y para `CatalogoReadPort`, agregar en cada uno de estos 3 archivos el import de `TipoDocumentoIdentidadResult` (si no está — `PaginaResult` ya está importado en los 3, al implementar `CatalogoReadPort`) y el método:
 
 ```java
         @Override
-        public List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado) {
+        public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) {
             throw new UnsupportedOperationException();
         }
 ```
@@ -1038,12 +1122,15 @@ Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/cata
 package com.softprimesolutions.catalogo.application.usecase.query;
 
 import com.softprimesolutions.catalogo.application.dto.query.ListarTiposDocumentoIdentidadQuery;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.port.in.ListarTiposDocumentoIdentidadUseCase;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
 import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.application.error.ErrorCategory;
+import com.softprimesolutions.shared.application.error.StandardApplicationError;
 import com.softprimesolutions.shared.kernel.result.Result;
-import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class ListarTiposDocumentoIdentidadHandler implements ListarTiposDocumentoIdentidadUseCase {
@@ -1055,9 +1142,17 @@ public final class ListarTiposDocumentoIdentidadHandler implements ListarTiposDo
     }
 
     @Override
-    public Result<List<TipoDocumentoIdentidadResult>, ApplicationError> execute(ListarTiposDocumentoIdentidadQuery query) {
+    public Result<PaginaResult<TipoDocumentoIdentidadResult>, ApplicationError> execute(
+            ListarTiposDocumentoIdentidadQuery query) {
         Objects.requireNonNull(query, "query es obligatorio");
-        return Result.success(readPort.findTiposDocumentoIdentidad(query.estado()));
+        if (query.page() < 0 || query.size() < 1 || query.size() > 100) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PAGINACION_INVALIDA",
+                    "page debe ser mayor o igual a 0 y size debe estar entre 1 y 100.",
+                    ErrorCategory.VALIDATION,
+                    Map.of("page", query.page(), "size", query.size())));
+        }
+        return Result.success(readPort.findTiposDocumentoIdentidad(query.estado(), query.page(), query.size()));
     }
 }
 ```

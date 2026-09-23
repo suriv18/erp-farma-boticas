@@ -44,14 +44,16 @@ VO inmutable plano (sin `AggregateRoot`, sin `TenantId`), mismo estilo que `Cond
 - `command/CrearTipoDocumentoIdentidadCommand(String codigo, String sigla, String denominacion, Integer max, Integer min)`
 - `command/ActualizarTipoDocumentoIdentidadCommand(String codigo, String sigla, String denominacion, Integer max, Integer min)`
 - `query/ConsultarTipoDocumentoIdentidadQuery(String codigo)`
-- `query/ListarTiposDocumentoIdentidadQuery(String estado)`
+- `query/ListarTiposDocumentoIdentidadQuery(String estado, int page, int size)` — **paginado** (decisión revisada: ver nota abajo)
 - `result/TipoDocumentoIdentidadResult(String codigo, String sigla, String denominacion, Integer max, Integer min, String estado)`
+
+> **Nota de revisión (post-aprobación inicial):** el diseño original de esta sección decía "no paginar, igual que los demás catálogos de soporte". El usuario pidió explícitamente agregar paginación al listado durante la ejecución del plan. Esta sección y las siguientes reflejan ya la decisión revisada: `ListarTiposDocumentoIdentidadQuery`/`UseCase` usan `PaginaResult<TipoDocumentoIdentidadResult>`, siguiendo el patrón de `ListarRubrosComercialesQuery`/`UseCase`/`Handler` (validación `page >= 0`, `1 <= size <= 100`, error `CAT_PAGINACION_INVALIDA`), no el patrón sin paginar de `CondicionVenta`.
 
 **Puertos in** (`application/port/in/`):
 - `CrearTipoDocumentoIdentidadUseCase`
 - `ActualizarTipoDocumentoIdentidadUseCase`
 - `ConsultarTipoDocumentoIdentidadUseCase`
-- `ListarTiposDocumentoIdentidadUseCase`
+- `ListarTiposDocumentoIdentidadUseCase` → `Result<PaginaResult<TipoDocumentoIdentidadResult>, ApplicationError>`
 
 **Puerto out** — ampliar `CatalogoSoportePort` (no crear uno nuevo, mismo patrón que los demás catálogos de soporte comparten un único puerto):
 ```java
@@ -65,7 +67,7 @@ boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant
 - `CrearTipoDocumentoIdentidadHandler`: valida no-duplicado (`tipoDocumentoIdentidadExists`), construye el dominio vía `create`, persiste, mapea a `Result`.
 - `ActualizarTipoDocumentoIdentidadHandler`: reconstruye, valida, persiste (`SaveOutcome.UPDATED`/`NOT_FOUND`).
 - `ConsultarTipoDocumentoIdentidadHandler`: `findTipoDocumentoIdentidadByCodigo`, mapea o error `NOT_FOUND`.
-- `ListarTiposDocumentoIdentidadHandler`: lista completa filtrable por `estado`.
+- `ListarTiposDocumentoIdentidadHandler`: paginado, filtrable por `estado`, con validación `page >= 0` y `1 <= size <= 100` (error `CAT_PAGINACION_INVALIDA` si no se cumple), igual que `ListarRubrosComercialesHandler`.
 - `CatalogoApplicationMapper`: agregar `toResult(TipoDocumentoIdentidad)`.
 - `CatalogoControlService`: agregar `changeTipoDocumentoIdentidadStatus(codigo, status)` delegando al puerto (mismo patrón que `changeCondicionVentaStatus`).
 
@@ -75,7 +77,7 @@ boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant
 - `infrastructure/persistence/write/repository/TipoDocumentoIdentidadJpaRepository.java`: `JpaRepository<TipoDocumentoIdentidadJpaEntity, String>`.
 - `CatalogoSoporteWriteMapper`: agregar `toEntity(TipoDocumentoIdentidad)` / `toDomain(TipoDocumentoIdentidadJpaEntity)`.
 - `CatalogoSoporteJpaWriteAdapter`: implementar los 4 métodos nuevos del puerto (save con detección de duplicado, find, exists, changeStatus), siguiendo exactamente el bloque existente de `CondicionVenta`.
-- `CatalogoJdbcReadRepository` / `CatalogoJdbcReadAdapter`: agregar `findTipoDocumentoIdentidadByCodigo` y `findTiposDocumentoIdentidad(estado)` (lista simple sin paginar, igual que `findCondicionesVenta`) para el lado de lectura usado por los handlers de consulta/listado.
+- `CatalogoJdbcReadRepository` / `CatalogoJdbcReadAdapter`: agregar `findTipoDocumentoIdentidadByCodigo` (vía `CatalogoSoportePort`, no paginado) y, para el listado, `findTiposDocumentoIdentidad(estado, offset, limit)` + `countTiposDocumentoIdentidad(estado)` (paginado, mismo patrón `FROM`/`FILTER`/`LIMIT :limit OFFSET :offset` + `COUNT(*)` que `findRubrosComerciales`/`countRubrosComerciales`), expuestos en `CatalogoReadPort.findTiposDocumentoIdentidad(String estado, int page, int size)` → `PaginaResult<TipoDocumentoIdentidadResult>`.
 - `CatalogoModuleConfiguration`: registrar el bean del repositorio y cablear el nuevo caso de uso si aplica (seguir el wiring existente de `CondicionVenta*`).
 
 ### 4. API REST
@@ -88,14 +90,14 @@ boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant
   - `PUT /{codigo}` → actualizar (200)
   - `PATCH /{codigo}/estado` → cambiar estado (204), usa `CambiarEstadoGlobalRequest` existente
   - `GET /{codigo}` → consultar (200)
-  - `GET` (`?estado=`) → listar (200)
+  - `GET` (`?estado=&page=&size=`) → listar paginado (200), `page` default 0 (`@Min(0)`), `size` default 20 (`@Min(1) @Max(100)`), respuesta `PaginaResponse<TipoDocumentoIdentidadResponse>` — mismo patrón que `RubroComercialController.list`
 
 ### 5. Tests
 
 TDD estricto por capa (test-first), replicando la cobertura existente para `CondicionVenta`:
 - `domain/model/soporte/TipoDocumentoIdentidadTest.java`: casos válidos + cada regla de validación (código vacío/no-1-char/no-alfanumérico-mayúscula, sigla vacía/larga, denominación vacía/larga, max/min inválidos, min > max).
 - `application/usecase/command/CrearTipoDocumentoIdentidadHandlerTest.java`: creación exitosa + duplicado.
-- `application/usecase/query/ListarTiposDocumentoIdentidadHandlerTest.java`: listar sin filtro y filtrado por estado (mismo patrón que `ListarCondicionesVentaHandlerTest`, que ya cubre el read adapter JDBC vía H2/test profile).
+- `application/usecase/query/ListarTiposDocumentoIdentidadHandlerTest.java`: listar página válida (con stub de `CatalogoReadPort` devolviendo un `PaginaResult`) y rechazo de paginación inválida (`page < 0` o `size` fuera de `[1, 100]`), mismo patrón que `ListarRubrosComercialesHandlerTest`.
 
 No se agregan tests de `Actualizar`/`Consultar` handler como unidades nuevas más allá de lo que ya cubre el patrón (el plan original tampoco los tenía para todos los catálogos de soporte); se valida su comportamiento vía el test de listar/crear y, si el checklist de implementación lo requiere, un test de actualización exitosa análogo a `CrearTipoDocumentoIdentidadHandlerTest`.
 
@@ -103,5 +105,5 @@ No se agregan tests de `Actualizar`/`Consultar` handler como unidades nuevas má
 
 - No se toca `rubro_comercial` (ya completo).
 - No se agregan nuevas authorities RBAC — se reutilizan `catalogo.soporte.gestionar`/`catalogo.soporte.consultar`.
-- No se pagina el listado (los catálogos de soporte no lo hacen; solo `ProductoRegulado`/`SKUComercial` son paginados).
 - No se crea agregado `AggregateRoot` ni `TenantId` — este catálogo es global, no multi-tenant.
+- El listado SÍ se pagina (decisión revisada — ver nota en la sección 2), a diferencia de los demás catálogos de soporte (`CondicionVenta`, etc.), que siguen sin paginar y no se tocan en este plan.
