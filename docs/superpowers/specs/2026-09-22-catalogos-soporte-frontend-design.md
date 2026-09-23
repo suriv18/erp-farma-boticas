@@ -17,13 +17,23 @@ Quedan fuera de este plan (más complejos, con relaciones N:M): Principios Activ
 
 ## Objetivo
 
-Implementar, para cada uno de los 6 catálogos anteriores, un slice frontend independiente que siga exactamente el patrón ya validado de Categoría/Marca: `api/*.api.ts+.types.ts+.test.ts`, `schemas/*.schema.ts`, `components/*Form.tsx(+.test.tsx)`, `pages/*Page.tsx(+.test.tsx)`, ruta lazy en `routes.tsx`, card en `CatalogPage`, y handlers MSW para modo mock.
+Implementar los 6 catálogos anteriores en el frontend: Rubro Comercial como slice independiente que sigue exactamente el patrón ya validado de Marca (`api/*.api.ts+.types.ts+.test.ts`, `schemas/*.schema.ts`, `components/*Form.tsx`, `pages/*Page.tsx(+.test.tsx)`), y los otros 5 como configuraciones livianas sobre un módulo genérico compartido (`support-catalog/`) que concentra la lógica repetida de fetch, formulario y tabla. Todos con ruta lazy en `routes.tsx`, card en `CatalogPage`, y handlers MSW para modo mock.
 
 ## Decisiones de diseño
 
-### 1. Un slice independiente por catálogo (no una abstracción compartida)
+### 1. Rubro Comercial calca el patrón de Marca; los otros 5 comparten un módulo genérico
 
-A pesar de que los 5 catálogos "puros de soporte" comparten forma casi idéntica, se implementan como 6 slices independientes (uno por catálogo), calcando el patrón de `MarcasPage`/`MarcaForm`/`marcas.api.ts` archivo por archivo. Se prioriza consistencia con el código existente y simplicidad de lectura por sobre una abstracción genérica prematura — cada pieza se puede entender y modificar sin conocer una capa de indirección adicional.
+`CLAUDE.md` exige evitar código duplicado y extraer abstracciones reutilizables cuando hay patrones repetidos, y exige 100% de cobertura de tests en código nuevo — dos slices casi idénticos multiplicados por 5 (API, formulario y página) violarían esa regla sin aportar nada, porque los 5 catálogos "puros de soporte" (Condición de Venta, Forma Farmacéutica, Vía de Administración, Unidad de Medida, Clasificación Controlada) comparten exactamente la misma forma de contrato HTTP: `codigo: string` como identificador, `GET` de lista sin paginar con único filtro `estado`, `GET /{codigo}`, `POST`, `PUT /{codigo}`, `PATCH /{codigo}/estado` con body `{ status }`.
+
+Por eso:
+- **Rubro Comercial** se implementa como slice independiente calcando `marcas.api.ts`/`MarcaForm.tsx`/`MarcasPage.tsx` archivo por archivo — su contrato (tenant-scoped, `id: UUID`, paginado server-side) es genuinamente distinto al de los otros 5, así que no comparte el módulo genérico.
+- **Los otros 5** comparten un módulo genérico bajo `features/catalogo/support-catalog/`:
+  - `support-catalog.api.ts` — factory `createSupportCatalogApi<TItem, TRequest>(resource: string)` que devuelve las funciones `fetchList`, `fetchOne`, `create`, `update`, `changeStatus`, `listQuery` contra `/catalogo/{resource}`.
+  - `SupportCatalogForm.tsx` — formulario genérico dirigido por una lista de definición de campos (`FieldDef[]`), con validación delegada al `zodResolver` del schema que cada catálogo define.
+  - `SupportCatalogPage.tsx` — página genérica (tabla + búsqueda/paginado en cliente + filtro de estado + modales crear/editar) parametrizada por columnas, campos de formulario, título y la instancia de API.
+  - Cada uno de los 5 catálogos reales se reduce a un archivo de configuración (`<slug>.config.ts`: tipos `Item`/`Request`, schema zod, columnas de tabla, `FieldDef[]`, instancia de la API vía la factory) más su entrada de ruta — sin repetir lógica de fetch, formulario o tabla.
+
+Cada unidad genérica es testeable de forma aislada (tests de la factory de API con un `resource` de ejemplo, tests del formulario genérico con un `FieldDef[]` de ejemplo, tests de la página genérica con una instancia de API mockeada), y cada configuración de catálogo real se prueba con un test de integración liviano que verifica que el catálogo se renderiza y llama a los endpoints correctos con MSW — sin duplicar la lógica ya cubierta en los tests del módulo genérico.
 
 ### 2. Identificador y forma de request según tipo de catálogo
 
@@ -37,23 +47,35 @@ A pesar de que los 5 catálogos "puros de soporte" comparten forma casi idéntic
 - El backend no pagina (`GET /...?estado=` devuelve el array completo, sin `page`/`size`/`totalElements`) ni admite búsqueda por texto server-side.
 - Los `*.api.ts` de estos 5 devuelven `Promise<CatalogoItem[]>` directamente desde `fetchX`, no `PaginaResponse<T>`.
 
-### 3. Paginación y búsqueda en cliente para los 5 catálogos sin paginación server-side
+### 3. Paginación y búsqueda en cliente, centralizadas en `SupportCatalogPage`
 
-Para mantener la misma experiencia visual que Categorías/Marcas (tabla + input de búsqueda + `Pagination`), cada página de estos 5 catálogos:
-1. Trae la lista completa una sola vez vía `xQuery` (TanStack Query, `queryKey: ['catalogo', '<slug>', estado]`, sin `page`/`size`/`q` en la key).
-2. Filtra en cliente por texto libre (`codigo` o `denominacion`, case-insensitive) usando `useMemo` sobre `data`.
+Para mantener la misma experiencia visual que Categorías/Marcas (tabla + input de búsqueda + `Pagination`), `SupportCatalogPage` (el componente genérico) implementa una sola vez, para los 5 catálogos que lo usan:
+1. Trae la lista completa una sola vez vía `listQuery` (TanStack Query, `queryKey: ['catalogo', resource, estado]`, sin `page`/`size`/`q` en la key).
+2. Filtra en cliente por texto libre (`codigo` o el campo de denominación que cada config declare como buscable, case-insensitive) usando `useMemo` sobre `data`.
 3. Pagina en cliente cortando el array filtrado (`slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)`) y construye un objeto `{ items, page, size, totalElements }` compatible con el componente `Pagination` existente (sin cambios a `Pagination.tsx`).
 4. El único filtro real contra el backend es `estado` (Activo/Inactivo/Todos), ya que el propio endpoint lo soporta vía query param.
 
-Rubro Comercial, al ser tenant-scoped con paginación server-side real (igual que Marca), no aplica este punto — usa `fetchRubrosComerciales` con `page`/`size`/`q` enviados al backend, igual que `fetchMarcas`.
+Esta lógica se implementa y se prueba **una sola vez** en `SupportCatalogPage.test.tsx`; las páginas concretas de cada catálogo no repiten estos casos de prueba.
 
-### 4. Formularios: campos por catálogo
+Rubro Comercial, al ser tenant-scoped con paginación server-side real (igual que Marca), no usa `SupportCatalogPage` — usa `fetchRubrosComerciales` con `page`/`size`/`q` enviados al backend, igual que `fetchMarcas`, en su propia `RubrosComercialesPage.tsx`.
 
-Todos siguen el patrón de `MarcaForm` (react-hook-form + `zodResolver` + `FormField` de `@boticas/ui-web`), agregando `<input type="checkbox">` (patrón ya usado en `UsuarioForm.tsx:99-104`) para los campos booleanos:
+### 4. Formularios: `SupportCatalogForm` genérico + `FieldDef[]` por catálogo
+
+`SupportCatalogForm` reemplaza a los 5 formularios repetidos: recibe `fields: FieldDef[]`, un `schema` de zod, `defaultValues`, `onSubmit` y `submitLabel`, y renderiza cada campo según su `type` (`'text' | 'textarea' | 'number' | 'checkbox'`) usando `FormField`/`register` de la misma forma que `MarcaForm` — incluyendo `<input type="checkbox">` para los booleanos (patrón ya usado en `UsuarioForm.tsx:99-104`). El componente en sí no conoce nada específico de ningún catálogo.
+
+```ts
+export type FieldDef = {
+  name: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'checkbox';
+};
+```
+
+Campos por catálogo (usados para construir tanto el `FieldDef[]` como el schema zod de cada config):
 
 | Catálogo | Campos del formulario |
 |---|---|
-| Rubro Comercial | `codigo`, `nombre`, `descripcion?`, `esFarmaceutico` (checkbox), `orden` (number) |
+| Rubro Comercial (slice propio, no usa `SupportCatalogForm`) | `codigo`, `nombre`, `descripcion?`, `esFarmaceutico` (checkbox), `orden` (number) |
 | Condición de Venta | `codigo`, `denominacion`, `requiereReceta` (checkbox), `requiereRetencion` (checkbox), `fuente`, `versionFuente` |
 | Forma Farmacéutica | `codigo`, `denominacion`, `fuente` |
 | Vía de Administración | `codigo`, `denominacion`, `fuente` |
@@ -100,23 +122,43 @@ No se agrega lógica de permisos en frontend (Categoría/Marca tampoco la tienen
 - Tests de integración HTTP del backend (gap pre-existente, no se resuelve desde el frontend).
 - Cualquier cambio a `Pagination.tsx`, `DataTable`, `FormField` o el `apiClient` — se reutilizan tal cual existen hoy.
 
-## Archivos nuevos por catálogo (× 6)
+## Archivos nuevos — módulo genérico (una sola vez)
 
 ```
-features/catalogo/api/<slug>.api.ts
-features/catalogo/api/<slug>.types.ts
-features/catalogo/api/<slug>.api.test.ts
-features/catalogo/schemas/<slug>.schema.ts
-features/catalogo/components/<Catalogo>Form.tsx
-features/catalogo/components/<Catalogo>Form.test.tsx
-features/catalogo/pages/<Catalogo>Page.tsx
-features/catalogo/pages/<Catalogo>Page.test.tsx
+features/catalogo/support-catalog/support-catalog.api.ts
+features/catalogo/support-catalog/support-catalog.api.test.ts
+features/catalogo/support-catalog/SupportCatalogForm.tsx
+features/catalogo/support-catalog/SupportCatalogForm.test.tsx
+features/catalogo/support-catalog/SupportCatalogPage.tsx
+features/catalogo/support-catalog/SupportCatalogPage.test.tsx
+features/catalogo/support-catalog/index.ts
 ```
+
+## Archivos nuevos — Rubro Comercial (slice propio, calca Marca)
+
+```
+features/catalogo/api/rubros-comerciales.api.ts
+features/catalogo/api/rubros-comerciales.types.ts
+features/catalogo/api/rubros-comerciales.api.test.ts
+features/catalogo/schemas/rubro-comercial.schema.ts
+features/catalogo/components/RubroComercialForm.tsx
+features/catalogo/pages/RubrosComercialesPage.tsx
+features/catalogo/pages/RubrosComercialesPage.test.tsx
+```
+
+## Archivos nuevos — configuración por catálogo de soporte (× 5)
+
+```
+features/catalogo/support-catalog/configs/<slug>.config.ts
+features/catalogo/support-catalog/configs/<slug>.config.test.ts
+```
+
+Cada `<slug>.config.ts` exporta: el tipo `Item`, el tipo `Request`, el `schema` zod, el arreglo `fields: FieldDef[]`, las `columns` de tabla, y la instancia de API creada con `createSupportCatalogApi<Item, Request>('<resource>')`. Su `.config.test.ts` es un test de integración liviano: monta `SupportCatalogPage` con esa config y un servidor MSW con los endpoints reales del catálogo (`/catalogo/<resource>`), y verifica listar/crear/editar/cambiar-estado end-to-end — sin repetir los casos de borde ya cubiertos por `SupportCatalogPage.test.tsx` (paginación en cliente, búsqueda en cliente, filtro de estado), que se prueban una sola vez con una config de ejemplo.
 
 ## Archivos modificados
 
 ```
-features/catalogo/routes.tsx            — +6 rutas lazy
+features/catalogo/routes.tsx            — +6 rutas lazy (rubros-comerciales + los 5 de soporte)
 features/catalogo/pages/CatalogPage.tsx — +6 cards
 test/mocks/handlers.ts                  — +handlers de los 6 nuevos +handlers faltantes de categorías/marcas
 app/feature-routes.test.ts              — actualizar lista de paths esperados
@@ -124,15 +166,17 @@ app/feature-routes.test.ts              — actualizar lista de paths esperados
 
 ## Testing
 
-- Unitario: cada `*.api.test.ts` cubre `fetchX`/`crearX`/`actualizarX`/`cambiarEstadoX` contra el `ApiClient` (mockeado), igual que `marcas.api.test.ts`.
-- Unitario: cada `*Form.test.tsx` cubre validación zod (campos requeridos, límites) y submit, igual que `MarcaForm` (si existe su test — verificar patrón exacto al implementar).
-- Unitario: cada `*Page.test.tsx` cubre render de tabla, filtro de estado, búsqueda en cliente (para los 5 sin paginación server-side) y flujo crear/editar/cambiar estado con `MSW` interceptando.
-- `pnpm check` (lint + typecheck + test + build) en verde al final.
+- Unitario: `support-catalog.api.test.ts` cubre `fetchList`/`fetchOne`/`create`/`update`/`changeStatus` de la factory contra el `ApiClient` (mockeado), con un `resource` de ejemplo — cubre a los 5 catálogos que la consumen.
+- Unitario: `SupportCatalogForm.test.tsx` cubre render de cada `type` de `FieldDef` (text/textarea/number/checkbox), validación zod y submit, con un `fields`/`schema` de ejemplo.
+- Unitario: `SupportCatalogPage.test.tsx` cubre render de tabla, filtro de estado, búsqueda en cliente, paginación en cliente y flujo crear/editar/cambiar estado con MSW, con una config de ejemplo.
+- Unitario: cada `<slug>.config.test.ts` es un test de integración liviano (ver arriba) — no repite casos de la página genérica, solo confirma que la config real (schema, fields, resource) funciona end-to-end contra los endpoints reales de ese catálogo.
+- Unitario: `rubros-comerciales.api.test.ts` y `RubrosComercialesPage.test.tsx` calcan exactamente `marcas.api.test.ts`/`MarcasPage.test.tsx`.
+- `pnpm check` (lint + typecheck + test + build) en verde al final. Cobertura 100% en todos los archivos nuevos (`CLAUDE.md` § Cobertura de tests).
 - Verificación manual en navegador en modo mock: navegar a cada una de las 6 páginas nuevas desde `CatalogPage`, crear/editar/activar-desactivar un registro de cada catálogo.
 
 ## Self-Review
 
 - **Placeholder scan:** sin TBD/TODO.
-- **Consistencia interna:** la distinción tenant-scoped (Rubro Comercial) vs. global-por-código (los otros 5) se aplica consistentemente en las secciones 2, 3 y 4.
-- **Scope check:** acotado a 6 catálogos, dejando explícitamente fuera Principios Activos/Productos Regulados-SKU y tipo_documento_identidad — apto para un solo plan de implementación (probablemente con una tarea por catálogo, siguiendo `superpowers:writing-plans`).
-- **Ambigüedad:** el punto de mocks para Categorías/Marcas (gap pre-existente) se declaró explícitamente en alcance para no dejarlo ambiguo.
+- **Consistencia interna:** la distinción tenant-scoped (Rubro Comercial, slice propio) vs. global-por-código (los otros 5, módulo genérico `support-catalog/`) se aplica consistentemente en las secciones 1, 2, 3 y 4, y en la lista de archivos.
+- **Scope check:** acotado a 6 catálogos, dejando explícitamente fuera Principios Activos/Productos Regulados-SKU y tipo_documento_identidad — apto para un solo plan de implementación (una tarea por el módulo genérico, una tarea por Rubro Comercial, una tarea por cada una de las 5 configs, siguiendo `superpowers:writing-plans`).
+- **Ambigüedad:** el punto de mocks para Categorías/Marcas (gap pre-existente) se declaró explícitamente en alcance para no dejarlo ambiguo. La regla de "no duplicar código" de `CLAUDE.md` motivó el cambio de diseño de 6 slices independientes a 1 módulo genérico + 5 configs + 1 slice propio para Rubro Comercial.
