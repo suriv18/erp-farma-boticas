@@ -13,7 +13,7 @@
     "preview": "pnpm --filter @boticas/erp-web preview",
     "lint": "eslint apps packages",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
