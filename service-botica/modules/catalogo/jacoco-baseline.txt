@@ -145,7 +145,7 @@ com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.FormaFar
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.MarcaJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.PrincipioActivoJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoPrincipioActivoJpaEntity
-com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoPrincipioActivoJpaEntity$Key
+com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoPrincipioActivoJpaEntity.Key
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoReguladoJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.RubroComercialJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuCodigoBarraJpaEntity
