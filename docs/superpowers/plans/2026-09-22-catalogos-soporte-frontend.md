@@ -1730,12 +1730,14 @@ git commit -m "feat(catalogo): agregar CRUD de Rubro Comercial en el frontend"
 
 ---
 
-### Task 3: Config de Condición de Venta
+### Task 3: Config de Condición de Venta ✅ (completada — nota de implementación abajo)
 
 **Files:**
 - Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/condiciones-venta.config.ts`
-- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/condiciones-venta.config.test.ts`
+- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/condiciones-venta.config.test.tsx` (`.tsx`, no `.ts` — el archivo contiene JSX)
 - Create: `apps/erp-web/src/features/catalogo/pages/CondicionesVentaPage.tsx`
+
+> **Nota:** `SupportCatalogPage`/`SupportCatalogForm` (Task 1) divergieron del snippet de este plan durante su implementación real: la prop es `resolver: Resolver<TInput, unknown, TValues>` (de `react-hook-form`), no `schema: z.ZodType<TValues>`. Cada config debe exportar `<algo>Resolver = zodResolver(<algo>Schema)` y pasar `resolver={...}` a `SupportCatalogPage`, no `schema={...}`. Ajustar Tasks 4-7 igual.
 
 **Interfaces:**
 - Consumes: `createSupportCatalogApi`, `SupportCatalogPage`, `FieldDef` de `../index` (el módulo `support-catalog` de Task 1).
