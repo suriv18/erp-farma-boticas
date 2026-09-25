@@ -103,6 +103,31 @@ class CatalogoControlServiceTest {
         assertEquals("CAT_RUBRO_COMERCIAL_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
     }
 
+    @Test
+    void changesTipoDocumentoIdentidadStatusSuccessfully() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeTipoDocumentoIdentidadStatus("1", "INACTIVO");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void failsWithNotFoundWhenTipoDocumentoIdentidadDoesNotExist() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(false), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeTipoDocumentoIdentidadStatus("9", "INACTIVO");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
     private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
         private final boolean found;
 

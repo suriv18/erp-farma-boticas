@@ -17,6 +17,8 @@ public interface CatalogoControlUseCase {
 
     Result<Unit, ApplicationError> changeClasificacionControladaStatus(String codigo, String status);
 
+    Result<Unit, ApplicationError> changeTipoDocumentoIdentidadStatus(String codigo, String status);
+
     Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status);
 
     Result<Unit, ApplicationError> changeMarcaStatus(UUID tenantId, UUID marcaId, String status);

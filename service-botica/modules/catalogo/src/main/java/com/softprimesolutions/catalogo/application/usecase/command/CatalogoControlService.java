@@ -87,6 +87,15 @@ public final class CatalogoControlService implements CatalogoControlUseCase {
     }
 
     @Override
+    public Result<Unit, ApplicationError> changeTipoDocumentoIdentidadStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeTipoDocumentoIdentidadStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", "El tipo de documento indicado no existe.");
+    }
+
+    @Override
     public Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status) {
         var normalized = normalizeStatus(status);
         if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
