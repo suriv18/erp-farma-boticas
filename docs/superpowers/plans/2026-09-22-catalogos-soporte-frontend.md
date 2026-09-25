@@ -2881,7 +2881,9 @@ git commit -m "feat(catalogo): agregar CRUD de Clasificacion Controlada en el fr
 
 ---
 
-### Task 8: Rutas, `CatalogPage` y mocks MSW
+### Task 8: Rutas, `CatalogPage` y mocks MSW ✅ (completada)
+
+> **Nota:** el import de `Beaker` en el snippet de `CatalogPage.tsx` de este plan no se usaba en ninguna sección (rompía lint); se omitió al implementar.
 
 **Files:**
 - Modify: `apps/erp-web/src/features/catalogo/routes.tsx`

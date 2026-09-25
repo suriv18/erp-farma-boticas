@@ -1,4 +1,13 @@
-import { FolderTree, Tag } from 'lucide-react';
+import {
+  ClipboardList,
+  FolderTree,
+  Pill,
+  Ruler,
+  ShieldAlert,
+  Store,
+  Syringe,
+  Tag
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { Card } from '@boticas/ui-web';
 
@@ -14,6 +23,42 @@ const sections = [
     icon: FolderTree,
     title: 'Categorías',
     description: 'Administra las categorías de productos del catálogo.'
+  },
+  {
+    to: '/catalogo/rubros-comerciales',
+    icon: Store,
+    title: 'Rubros comerciales',
+    description: 'Administra los rubros comerciales del catálogo.'
+  },
+  {
+    to: '/catalogo/condiciones-venta',
+    icon: ClipboardList,
+    title: 'Condiciones de venta',
+    description: 'Administra las condiciones de venta del catálogo.'
+  },
+  {
+    to: '/catalogo/formas-farmaceuticas',
+    icon: Pill,
+    title: 'Formas farmacéuticas',
+    description: 'Administra las formas farmacéuticas del catálogo.'
+  },
+  {
+    to: '/catalogo/vias-administracion',
+    icon: Syringe,
+    title: 'Vías de administración',
+    description: 'Administra las vías de administración del catálogo.'
+  },
+  {
+    to: '/catalogo/unidades-medida',
+    icon: Ruler,
+    title: 'Unidades de medida',
+    description: 'Administra las unidades de medida del catálogo.'
+  },
+  {
+    to: '/catalogo/clasificaciones-controladas',
+    icon: ShieldAlert,
+    title: 'Clasificaciones controladas',
+    description: 'Administra las clasificaciones controladas del catálogo.'
   }
 ];
 
@@ -25,7 +70,7 @@ export function CatalogPage() {
         Catálogo
       </h1>
       <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-        Productos, categorías, marcas y laboratorios.
+        Productos, categorías, marcas y catálogos de soporte regulatorio.
       </p>
 
       <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -72,5 +72,120 @@ export const handlers = [
         }
       ]
     })
+  ),
+  http.get('*/api/v1/catalogo/marcas', () =>
+    HttpResponse.json({
+      items: [
+        { id: 'marca-1', tenantId: '11111111-1111-1111-1111-111111111111', codigo: 'BAYER', nombre: 'Bayer', descripcion: null, estado: 'ACTIVO' }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/categorias', () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'categoria-1',
+          tenantId: '11111111-1111-1111-1111-111111111111',
+          categoriaPadreId: null,
+          codigo: 'ANALGESICOS',
+          nombre: 'Analgésicos',
+          descripcion: null,
+          nivel: 1,
+          orden: 1,
+          estado: 'ACTIVO'
+        }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/rubros-comerciales', () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'rubro-1',
+          tenantId: '11111111-1111-1111-1111-111111111111',
+          codigo: 'FARMA',
+          nombre: 'Farmacéutico',
+          descripcion: null,
+          esFarmaceutico: true,
+          orden: 1,
+          estado: 'ACTIVO'
+        }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/condiciones-venta', () =>
+    HttpResponse.json([
+      {
+        codigo: 'VL',
+        denominacion: 'Venta libre',
+        requiereReceta: false,
+        requiereRetencion: false,
+        fuente: 'DIGEMID',
+        versionFuente: '2026',
+        vigenteDesde: null,
+        vigenteHasta: null,
+        estado: 'ACTIVO'
+      },
+      {
+        codigo: 'RM',
+        denominacion: 'Con receta médica',
+        requiereReceta: true,
+        requiereRetencion: false,
+        fuente: 'DIGEMID',
+        versionFuente: '2026',
+        vigenteDesde: null,
+        vigenteHasta: null,
+        estado: 'ACTIVO'
+      }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/formas-farmaceuticas', () =>
+    HttpResponse.json([
+      { codigo: 'TAB', denominacion: 'Tableta', fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'JBE', denominacion: 'Jarabe', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/vias-administracion', () =>
+    HttpResponse.json([
+      { codigo: 'ORAL', denominacion: 'Vía oral', fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'IV', denominacion: 'Vía intravenosa', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/unidades-medida', () =>
+    HttpResponse.json([
+      { codigo: 'UND', denominacion: 'Unidad', simbolo: 'u', permiteDecimal: false, fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'MG', denominacion: 'Miligramo', simbolo: 'mg', permiteDecimal: true, fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/clasificaciones-controladas', () =>
+    HttpResponse.json([
+      {
+        codigo: 'IIA',
+        denominacion: 'Lista II-A',
+        normaFuente: 'DS 023-2001-SA',
+        requiereRecetaEspecial: true,
+        retieneReceta: true,
+        vigenciaRecetaDias: 30,
+        estado: 'ACTIVO'
+      },
+      {
+        codigo: 'IIIA',
+        denominacion: 'Lista III-A',
+        normaFuente: 'DS 023-2001-SA',
+        requiereRecetaEspecial: false,
+        retieneReceta: false,
+        vigenciaRecetaDias: null,
+        estado: 'ACTIVO'
+      }
+    ])
   )
 ];
