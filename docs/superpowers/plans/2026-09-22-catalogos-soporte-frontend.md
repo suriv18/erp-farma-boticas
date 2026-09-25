@@ -2638,12 +2638,14 @@ git commit -m "feat(catalogo): agregar CRUD de Unidad de Medida en el frontend"
 
 ---
 
-### Task 7: Config de Clasificación Controlada
+### Task 7: Config de Clasificación Controlada ✅ (completada — aplica la misma nota de Task 3: `resolver`, no `schema`)
 
 **Files:**
 - Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/clasificaciones-controladas.config.ts`
-- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/clasificaciones-controladas.config.test.ts`
+- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/clasificaciones-controladas.config.test.tsx` (`.tsx`, no `.ts`)
 - Create: `apps/erp-web/src/features/catalogo/pages/ClasificacionesControladasPage.tsx`
+
+> **Nota:** la corrida completa `pnpm vitest run --project erp-web` (todos los archivos, sin filtro) quedó colgada en este entorno sin producir salida por >20 min; se verificó en su lugar el archivo de esta tarea de forma aislada (PASS) más `typecheck` y `build` completos de `erp-web` (ambos PASS, el build corre `tsc -b` internamente).
 
 **Interfaces:**
 - Consumes: igual que Task 3.
