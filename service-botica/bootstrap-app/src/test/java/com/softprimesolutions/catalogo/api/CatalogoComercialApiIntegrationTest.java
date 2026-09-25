@@ -108,15 +108,15 @@ class CatalogoComercialApiIntegrationTest {
                         .param("tenantId", TENANT_ID.toString())
                         .param("categoriaPadreId", categoriaId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
+                .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
 
         // Sin categoriaPadreId (filtro UUID opcional omitido): confirma el fix del bind NULL sin tipo.
         mockMvc.perform(get("/api/v1/catalogo/categorias")
                         .with(consultor())
                         .param("tenantId", TENANT_ID.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='%s')]".formatted(categoriaId)).exists())
-                .andExpect(jsonPath("$[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
+                .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(categoriaId)).exists())
+                .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
     }
 
     @Test
@@ -155,7 +155,53 @@ class CatalogoComercialApiIntegrationTest {
                         .with(consultor())
                         .param("tenantId", TENANT_ID.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='%s')].estado".formatted(marcaId)).value("INACTIVO"));
+                .andExpect(jsonPath("$.items[?(@.id=='%s')].estado".formatted(marcaId)).value("INACTIVO"));
+    }
+
+    @Test
+    void searchesAndPaginatesMarcas() throws Exception {
+        crearMarca("BAYER", "Bayer");
+        crearMarca("PFIZER", "Pfizer");
+        crearMarca("ROCHE", "Roche");
+
+        mockMvc.perform(get("/api/v1/catalogo/marcas")
+                        .with(consultor())
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("q", "pfi"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].codigo").value("PFIZER"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        mockMvc.perform(get("/api/v1/catalogo/marcas")
+                        .with(consultor())
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3));
+
+        mockMvc.perform(get("/api/v1/catalogo/marcas")
+                        .with(consultor())
+                        .param("tenantId", TENANT_ID.toString())
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(3));
+    }
+
+    private void crearMarca(String codigo, String nombre) throws Exception {
+        mockMvc.perform(post("/api/v1/catalogo/marcas")
+                        .with(gestor()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantId":"%s","codigo":"%s","nombre":"%s"}
+                                """.formatted(TENANT_ID, codigo, nombre)))
+                .andExpect(status().isCreated());
     }
 
     @Test
