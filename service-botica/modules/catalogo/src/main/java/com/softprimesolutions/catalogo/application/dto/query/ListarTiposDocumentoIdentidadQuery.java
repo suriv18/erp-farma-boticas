@@ -1,8 +1,9 @@
 package com.softprimesolutions.catalogo.application.dto.query;
 
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.shared.application.cqrs.Query;
-import java.util.List;
 
-public record ListarTiposDocumentoIdentidadQuery(String estado) implements Query<List<TipoDocumentoIdentidadResult>> {
+public record ListarTiposDocumentoIdentidadQuery(String estado, int page, int size)
+        implements Query<PaginaResult<TipoDocumentoIdentidadResult>> {
 }
