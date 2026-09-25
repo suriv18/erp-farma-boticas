@@ -8,6 +8,7 @@ com.softprimesolutions.catalogo.api.controller.PrincipioActivoController
 com.softprimesolutions.catalogo.api.controller.ProductoReguladoController
 com.softprimesolutions.catalogo.api.controller.RubroComercialController
 com.softprimesolutions.catalogo.api.controller.SkuController
+com.softprimesolutions.catalogo.api.controller.TipoDocumentoIdentidadController
 com.softprimesolutions.catalogo.api.controller.UnidadMedidaController
 com.softprimesolutions.catalogo.api.controller.ViaAdministracionController
 com.softprimesolutions.catalogo.api.dto.request.AgregarCodigoBarraRequest
@@ -23,6 +24,7 @@ com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest
 com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest
 com.softprimesolutions.catalogo.api.dto.request.RubroComercialRequest
 com.softprimesolutions.catalogo.api.dto.request.SkuRequest
+com.softprimesolutions.catalogo.api.dto.request.TipoDocumentoIdentidadRequest
 com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest
 com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest
 com.softprimesolutions.catalogo.api.dto.response.CategoriaProductoResponse
@@ -39,6 +41,7 @@ com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenResponse
 com.softprimesolutions.catalogo.api.dto.response.RubroComercialResponse
 com.softprimesolutions.catalogo.api.dto.response.SkuResponse
 com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse
+com.softprimesolutions.catalogo.api.dto.response.TipoDocumentoIdentidadResponse
 com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse
 com.softprimesolutions.catalogo.api.dto.response.ViaAdministracionResponse
 com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper
@@ -150,6 +153,7 @@ com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.Producto
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.RubroComercialJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuCodigoBarraJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuComercialJpaEntity
+com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.TipoDocumentoIdentidadJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.UnidadMedidaJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ViaAdministracionJpaEntity
 com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoComercialWriteMapper

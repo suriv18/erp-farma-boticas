@@ -3,7 +3,7 @@ package com.softprimesolutions.catalogo.application.usecase.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.command.CrearTipoDocumentoIdentidadCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarTipoDocumentoIdentidadCommand;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
@@ -17,14 +17,14 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class CrearTipoDocumentoIdentidadHandlerTest {
+class ActualizarTipoDocumentoIdentidadHandlerTest {
 
     @Test
-    void createsATipoDocumentoIdentidadSuccessfully() {
+    void updatesATipoDocumentoIdentidadSuccessfully() {
         var writePort = new FakeCatalogoSoportePort();
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
+        var handler = new ActualizarTipoDocumentoIdentidadHandler(writePort);
 
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
+        var result = handler.execute(new ActualizarTipoDocumentoIdentidadCommand(
                 "1", "DNI", "Documento Nacional de Identidad", 8, 8));
 
         assertTrue(result.isSuccess());
@@ -32,32 +32,34 @@ class CrearTipoDocumentoIdentidadHandlerTest {
     }
 
     @Test
-    void failsWithConflictWhenCodigoAlreadyExists() {
+    void failsWithNotFoundWhenCodigoDoesNotExist() {
         var writePort = new FakeCatalogoSoportePort();
-        writePort.outcome = CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO;
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
+        writePort.outcome = CatalogoSoportePort.SaveOutcome.NOT_FOUND;
+        var handler = new ActualizarTipoDocumentoIdentidadHandler(writePort);
 
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
+        var result = handler.execute(new ActualizarTipoDocumentoIdentidadCommand(
                 "1", "DNI", "Documento Nacional de Identidad", 8, 8));
 
         assertTrue(result.isFailure());
-        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_DUPLICADO", result.fold(value -> null, error -> error.code()));
+        assertEquals(
+                "CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
     }
 
     @Test
     void failsWithValidationErrorWhenCodigoIsInvalid() {
         var writePort = new FakeCatalogoSoportePort();
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
+        var handler = new ActualizarTipoDocumentoIdentidadHandler(writePort);
 
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
+        var result = handler.execute(new ActualizarTipoDocumentoIdentidadCommand(
                 "", "DNI", "Documento Nacional de Identidad", 8, 8));
 
         assertTrue(result.isFailure());
-        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_INVALIDO", result.fold(value -> null, error -> error.code()));
+        assertEquals(
+                "CAT_TIPO_DOCUMENTO_IDENTIDAD_INVALIDO", result.fold(value -> null, error -> error.code()));
     }
 
     private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
-        private SaveOutcome outcome = SaveOutcome.CREATED;
+        private SaveOutcome outcome = SaveOutcome.UPDATED;
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) { throw new UnsupportedOperationException(); }

@@ -1,13 +1,14 @@
-package com.softprimesolutions.catalogo.application.usecase.command;
+package com.softprimesolutions.catalogo.application.usecase.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.command.CrearTipoDocumentoIdentidadCommand;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarTipoDocumentoIdentidadQuery;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
 import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
@@ -17,47 +18,35 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class CrearTipoDocumentoIdentidadHandlerTest {
+class ConsultarTipoDocumentoIdentidadHandlerTest {
 
     @Test
-    void createsATipoDocumentoIdentidadSuccessfully() {
-        var writePort = new FakeCatalogoSoportePort();
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
+    void returnsTipoDocumentoIdentidadResultWhenFound() {
+        var tipoDocumentoIdentidad = TipoDocumentoIdentidad.restore(
+                "1", "DNI", "Documento Nacional de Identidad", 8, 8, EstadoCatalogoSoporte.ACTIVO);
+        var port = new StubCatalogoSoportePort(Optional.of(tipoDocumentoIdentidad));
+        var handler = new ConsultarTipoDocumentoIdentidadHandler(port);
 
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
-                "1", "DNI", "Documento Nacional de Identidad", 8, 8));
+        var result = handler.execute(new ConsultarTipoDocumentoIdentidadQuery("1"));
 
         assertTrue(result.isSuccess());
         assertEquals("1", result.getOrElse(error -> null).codigo());
     }
 
     @Test
-    void failsWithConflictWhenCodigoAlreadyExists() {
-        var writePort = new FakeCatalogoSoportePort();
-        writePort.outcome = CatalogoSoportePort.SaveOutcome.DUPLICATE_CODIGO;
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
+    void failsWithNotFoundWhenTipoDocumentoIdentidadDoesNotExist() {
+        var port = new StubCatalogoSoportePort(Optional.empty());
+        var handler = new ConsultarTipoDocumentoIdentidadHandler(port);
 
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
-                "1", "DNI", "Documento Nacional de Identidad", 8, 8));
+        var result = handler.execute(new ConsultarTipoDocumentoIdentidadQuery("9"));
 
         assertTrue(result.isFailure());
-        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_DUPLICADO", result.fold(value -> null, error -> error.code()));
+        assertEquals(
+                "CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
     }
 
-    @Test
-    void failsWithValidationErrorWhenCodigoIsInvalid() {
-        var writePort = new FakeCatalogoSoportePort();
-        var handler = new CrearTipoDocumentoIdentidadHandler(writePort);
-
-        var result = handler.execute(new CrearTipoDocumentoIdentidadCommand(
-                "", "DNI", "Documento Nacional de Identidad", 8, 8));
-
-        assertTrue(result.isFailure());
-        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_INVALIDO", result.fold(value -> null, error -> error.code()));
-    }
-
-    private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
-        private SaveOutcome outcome = SaveOutcome.CREATED;
+    private record StubCatalogoSoportePort(Optional<TipoDocumentoIdentidad> tipoDocumentoIdentidad)
+            implements CatalogoSoportePort {
 
         @Override
         public SaveOutcome save(CondicionVenta condicionVenta) { throw new UnsupportedOperationException(); }
@@ -75,7 +64,7 @@ class CrearTipoDocumentoIdentidadHandlerTest {
         public SaveOutcome save(ClasificacionControlada clasificacionControlada) { throw new UnsupportedOperationException(); }
 
         @Override
-        public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) { return outcome; }
+        public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) { throw new UnsupportedOperationException(); }
 
         @Override
         public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) { throw new UnsupportedOperationException(); }
@@ -96,7 +85,9 @@ class CrearTipoDocumentoIdentidadHandlerTest {
         public Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
 
         @Override
-        public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+        public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) {
+            return tipoDocumentoIdentidad;
+        }
 
         @Override
         public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) { throw new UnsupportedOperationException(); }

@@ -56,6 +56,28 @@ class ListarTiposDocumentoIdentidadHandlerTest {
         assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
     }
 
+    @Test
+    void rejectsNegativePage() {
+        var readPort = new StubCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
+
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, -1, 20));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void rejectsPageSizeGreaterThanMax() {
+        var readPort = new StubCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
+
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, 0, 101));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
     private record StubCatalogoReadPort(PaginaResult<TipoDocumentoIdentidadResult> page) implements CatalogoReadPort {
 
         @Override
