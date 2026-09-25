@@ -2190,11 +2190,11 @@ git commit -m "feat(catalogo): agregar CRUD de Forma Farmaceutica en el frontend
 
 ---
 
-### Task 5: Config de Vía de Administración
+### Task 5: Config de Vía de Administración ✅ (completada — aplica la misma nota de Task 3: `resolver`, no `schema`)
 
 **Files:**
 - Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/vias-administracion.config.ts`
-- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/vias-administracion.config.test.ts`
+- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/vias-administracion.config.test.tsx` (`.tsx`, no `.ts`)
 - Create: `apps/erp-web/src/features/catalogo/pages/ViasAdministracionPage.tsx`
 
 **Interfaces:**
