@@ -2404,11 +2404,11 @@ git commit -m "feat(catalogo): agregar CRUD de Via de Administracion en el front
 
 ---
 
-### Task 6: Config de Unidad de Medida
+### Task 6: Config de Unidad de Medida ✅ (completada — aplica la misma nota de Task 3: `resolver`, no `schema`)
 
 **Files:**
 - Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/unidades-medida.config.ts`
-- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/unidades-medida.config.test.ts`
+- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/unidades-medida.config.test.tsx` (`.tsx`, no `.ts`)
 - Create: `apps/erp-web/src/features/catalogo/pages/UnidadesMedidaPage.tsx`
 
 **Interfaces:**
