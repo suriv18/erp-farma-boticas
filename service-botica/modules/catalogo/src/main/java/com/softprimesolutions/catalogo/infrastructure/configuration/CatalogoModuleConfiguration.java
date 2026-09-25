@@ -9,6 +9,7 @@ import com.softprimesolutions.catalogo.application.port.in.ActualizarPrincipioAc
 import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoReguladoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarTipoDocumentoIdentidadUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUseCase;
@@ -23,6 +24,7 @@ import com.softprimesolutions.catalogo.application.port.in.ConsultarPrincipioAct
 import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarTipoDocumentoIdentidadUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ConsultarViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
@@ -34,6 +36,7 @@ import com.softprimesolutions.catalogo.application.port.in.CrearPrincipioActivoU
 import com.softprimesolutions.catalogo.application.port.in.CrearProductoReguladoUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearRubroComercialUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearTipoDocumentoIdentidadUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearUnidadMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearViaAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.DesasociarPrincipioActivoUseCase;
@@ -47,6 +50,7 @@ import com.softprimesolutions.catalogo.application.port.in.ListarPrincipioActivo
 import com.softprimesolutions.catalogo.application.port.in.ListarProductosReguladosUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarRubrosComercialesUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarSkusUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarTiposDocumentoIdentidadUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarUnidadesMedidaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarViasAdministracionUseCase;
 import com.softprimesolutions.catalogo.application.port.in.MarcarCodigoBarraPrincipalUseCase;
@@ -64,6 +68,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.ActualizarPri
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarProductoReguladoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarSkuHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.ActualizarTipoDocumentoIdentidadHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.ActualizarViaAdministracionHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.AgregarCodigoBarraHandler;
@@ -78,6 +83,7 @@ import com.softprimesolutions.catalogo.application.usecase.command.CrearPrincipi
 import com.softprimesolutions.catalogo.application.usecase.command.CrearProductoReguladoHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearSkuHandler;
+import com.softprimesolutions.catalogo.application.usecase.command.CrearTipoDocumentoIdentidadHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.CrearViaAdministracionHandler;
 import com.softprimesolutions.catalogo.application.usecase.command.DesasociarPrincipioActivoHandler;
@@ -92,6 +98,7 @@ import com.softprimesolutions.catalogo.application.usecase.query.ConsultarPrinci
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarProductoReguladoHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarRubroComercialHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarSkuHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ConsultarTipoDocumentoIdentidadHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarUnidadMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ConsultarViaAdministracionHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarCategoriasProductoHandler;
@@ -103,6 +110,7 @@ import com.softprimesolutions.catalogo.application.usecase.query.ListarPrincipio
 import com.softprimesolutions.catalogo.application.usecase.query.ListarProductosReguladosHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarRubrosComercialesHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarSkusHandler;
+import com.softprimesolutions.catalogo.application.usecase.query.ListarTiposDocumentoIdentidadHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarUnidadesMedidaHandler;
 import com.softprimesolutions.catalogo.application.usecase.query.ListarViasAdministracionHandler;
 import com.softprimesolutions.shared.application.port.ClockPort;
@@ -248,6 +256,28 @@ public class CatalogoModuleConfiguration {
     @Bean
     ListarClasificacionesControladasUseCase listarClasificacionesControladasUseCase(CatalogoReadPort readPort) {
         return new ListarClasificacionesControladasHandler(readPort);
+    }
+
+    // ---- Soporte: tipos de documento de identidad ----
+
+    @Bean
+    CrearTipoDocumentoIdentidadUseCase crearTipoDocumentoIdentidadUseCase(CatalogoSoportePort soportePort) {
+        return new CrearTipoDocumentoIdentidadHandler(soportePort);
+    }
+
+    @Bean
+    ActualizarTipoDocumentoIdentidadUseCase actualizarTipoDocumentoIdentidadUseCase(CatalogoSoportePort soportePort) {
+        return new ActualizarTipoDocumentoIdentidadHandler(soportePort);
+    }
+
+    @Bean
+    ConsultarTipoDocumentoIdentidadUseCase consultarTipoDocumentoIdentidadUseCase(CatalogoSoportePort soportePort) {
+        return new ConsultarTipoDocumentoIdentidadHandler(soportePort);
+    }
+
+    @Bean
+    ListarTiposDocumentoIdentidadUseCase listarTiposDocumentoIdentidadUseCase(CatalogoReadPort readPort) {
+        return new ListarTiposDocumentoIdentidadHandler(readPort);
     }
 
     // ---- Principios activos ----

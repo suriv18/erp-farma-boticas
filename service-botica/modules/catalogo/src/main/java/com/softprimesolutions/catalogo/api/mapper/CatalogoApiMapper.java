@@ -11,6 +11,7 @@ import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
 import com.softprimesolutions.catalogo.api.dto.request.RubroComercialRequest;
 import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
+import com.softprimesolutions.catalogo.api.dto.request.TipoDocumentoIdentidadRequest;
 import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
 import com.softprimesolutions.catalogo.api.dto.response.CategoriaProductoResponse;
@@ -27,6 +28,7 @@ import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenR
 import com.softprimesolutions.catalogo.api.dto.response.RubroComercialResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.TipoDocumentoIdentidadResponse;
 import com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ViaAdministracionResponse;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaProductoCommand;
@@ -38,6 +40,7 @@ import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincip
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarTipoDocumentoIdentidadCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
 import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
@@ -51,6 +54,7 @@ import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioAct
 import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearTipoDocumentoIdentidadCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
 import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
@@ -65,6 +69,7 @@ import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoRe
 import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import java.util.UUID;
@@ -153,6 +158,28 @@ public final class CatalogoApiMapper {
         return new ClasificacionControladaResponse(
                 result.codigo(), result.denominacion(), result.normaFuente(), result.requiereRecetaEspecial(),
                 result.retieneReceta(), result.vigenciaRecetaDias(), result.estado());
+    }
+
+    public static CrearTipoDocumentoIdentidadCommand toCreateCommand(TipoDocumentoIdentidadRequest request) {
+        return new CrearTipoDocumentoIdentidadCommand(
+                request.codigo(), request.sigla(), request.denominacion(), request.max(), request.min());
+    }
+
+    public static ActualizarTipoDocumentoIdentidadCommand toUpdateCommand(TipoDocumentoIdentidadRequest request) {
+        return new ActualizarTipoDocumentoIdentidadCommand(
+                request.codigo(), request.sigla(), request.denominacion(), request.max(), request.min());
+    }
+
+    public static TipoDocumentoIdentidadResponse toResponse(TipoDocumentoIdentidadResult result) {
+        return new TipoDocumentoIdentidadResponse(
+                result.codigo(), result.sigla(), result.denominacion(), result.max(), result.min(), result.estado());
+    }
+
+    public static PaginaResponse<TipoDocumentoIdentidadResponse> toTipoDocumentoIdentidadPage(
+            PaginaResult<TipoDocumentoIdentidadResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
     }
 
     public static CrearPrincipioActivoCommand toCreateCommand(PrincipioActivoRequest request) {
