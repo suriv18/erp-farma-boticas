@@ -1976,11 +1976,11 @@ git commit -m "feat(catalogo): agregar CRUD de Condicion de Venta en el frontend
 
 ---
 
-### Task 4: Config de Forma Farmacéutica
+### Task 4: Config de Forma Farmacéutica ✅ (completada — aplica la misma nota de Task 3: `resolver`, no `schema`)
 
 **Files:**
 - Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/formas-farmaceuticas.config.ts`
-- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/formas-farmaceuticas.config.test.ts`
+- Create: `apps/erp-web/src/features/catalogo/support-catalog/configs/formas-farmaceuticas.config.test.tsx` (`.tsx`, no `.ts`)
 - Create: `apps/erp-web/src/features/catalogo/pages/FormasFarmaceuticasPage.tsx`
 
 **Interfaces:**
