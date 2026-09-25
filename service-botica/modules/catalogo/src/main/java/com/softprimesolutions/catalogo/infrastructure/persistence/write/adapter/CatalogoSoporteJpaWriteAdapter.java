@@ -7,6 +7,7 @@ import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControl
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
@@ -344,5 +345,25 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
         return jdbcClient.sql("UPDATE sch_catalogo.principio_activo SET estado = :status WHERE uuid_publico = :principioActivoId")
                 .param("status", status).param("principioActivoId", principioActivoId).update() == 1;
+    }
+
+    @Override
+    public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+        throw new UnsupportedOperationException("Implementado en Task 5");
+    }
+
+    @Override
+    public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) {
+        throw new UnsupportedOperationException("Implementado en Task 5");
+    }
+
+    @Override
+    public boolean tipoDocumentoIdentidadExists(String codigo) {
+        throw new UnsupportedOperationException("Implementado en Task 5");
+    }
+
+    @Override
+    public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) {
+        throw new UnsupportedOperationException("Implementado en Task 5");
     }
 }

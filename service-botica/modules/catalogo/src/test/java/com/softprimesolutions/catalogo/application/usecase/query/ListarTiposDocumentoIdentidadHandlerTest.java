@@ -3,7 +3,7 @@ package com.softprimesolutions.catalogo.application.usecase.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarTiposDocumentoIdentidadQuery;
 import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
 import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
@@ -22,30 +22,44 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class ListarCondicionesVentaHandlerTest {
+class ListarTiposDocumentoIdentidadHandlerTest {
 
     @Test
-    void returnsCondicionesVentaFromReadPort() {
-        var condicion = new CondicionVentaResult(
-                "SIN-RECETA", "Sin receta médica", false, false, null, null, null, null, "ACTIVO");
-        var readPort = new FakeCatalogoReadPort(List.of(condicion));
-        var handler = new ListarCondicionesVentaHandler(readPort);
+    void returnsPageFromReadPort() {
+        var tipo = new TipoDocumentoIdentidadResult("1", "DNI", "Documento Nacional de Identidad", 8, 8, "ACTIVO");
+        var page = new PaginaResult<>(List.of(tipo), 0, 20, 1);
+        var readPort = new StubCatalogoReadPort(page);
+        var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
 
-        var result = handler.execute(new ListarCondicionesVentaQuery(null));
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, 0, 20));
 
         assertTrue(result.isSuccess());
-        assertEquals(1, result.getOrElse(error -> null).size());
+        result.fold(
+                success -> {
+                    assertEquals(1, success.items().size());
+                    assertEquals("1", success.items().get(0).codigo());
+                    return null;
+                },
+                error -> {
+                    throw new AssertionError("expected success but got " + error);
+                });
     }
 
-    private static final class FakeCatalogoReadPort implements CatalogoReadPort {
-        private final List<CondicionVentaResult> condiciones;
+    @Test
+    void rejectsInvalidPageSize() {
+        var readPort = new StubCatalogoReadPort(new PaginaResult<>(List.of(), 0, 20, 0));
+        var handler = new ListarTiposDocumentoIdentidadHandler(readPort);
 
-        private FakeCatalogoReadPort(List<CondicionVentaResult> condiciones) {
-            this.condiciones = condiciones;
-        }
+        var result = handler.execute(new ListarTiposDocumentoIdentidadQuery(null, 0, 0));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_PAGINACION_INVALIDA", result.fold(value -> null, error -> error.code()));
+    }
+
+    private record StubCatalogoReadPort(PaginaResult<TipoDocumentoIdentidadResult> page) implements CatalogoReadPort {
 
         @Override
-        public List<CondicionVentaResult> findCondicionesVenta(String estado) { return condiciones; }
+        public List<CondicionVentaResult> findCondicionesVenta(String estado) { throw new UnsupportedOperationException(); }
 
         @Override
         public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) { throw new UnsupportedOperationException(); }
@@ -60,7 +74,7 @@ class ListarCondicionesVentaHandlerTest {
         public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) { throw new UnsupportedOperationException(); }
 
         @Override
-        public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) { throw new UnsupportedOperationException(); }
+        public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) { return this.page(); }
 
         @Override
         public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) { throw new UnsupportedOperationException(); }

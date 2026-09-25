@@ -10,6 +10,7 @@ import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoRes
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
 import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
@@ -107,5 +108,10 @@ public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
         var items = repository.findRubrosComerciales(tenantId, texto, esFarmaceutico, estado, page * size, size);
         var total = repository.countRubrosComerciales(tenantId, texto, esFarmaceutico, estado);
         return new PaginaResult<>(items, page, size, total);
+    }
+
+    @Override
+    public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) {
+        throw new UnsupportedOperationException("Implementado en Task 5");
     }
 }

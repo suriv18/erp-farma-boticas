@@ -4,6 +4,7 @@ import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
@@ -22,6 +23,8 @@ public interface CatalogoSoportePort {
 
     SaveOutcome save(ClasificacionControlada clasificacionControlada);
 
+    SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad);
+
     SavePrincipioActivoOutcome save(PrincipioActivo principioActivo);
 
     Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo);
@@ -33,6 +36,8 @@ public interface CatalogoSoportePort {
     Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo);
 
     Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo);
+
+    Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo);
 
     Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId);
 
@@ -46,6 +51,8 @@ public interface CatalogoSoportePort {
 
     boolean clasificacionControladaExists(String codigo);
 
+    boolean tipoDocumentoIdentidadExists(String codigo);
+
     boolean principioActivoExists(UUID principioActivoId);
 
     boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt);
@@ -57,6 +64,8 @@ public interface CatalogoSoportePort {
     boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt);
 
     boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt);
+
+    boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt);
 
     boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt);
 

@@ -11,6 +11,7 @@ import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoRes
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
 import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
@@ -22,6 +23,7 @@ import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 
@@ -61,6 +63,12 @@ public final class CatalogoApplicationMapper {
                 clasificacionControlada.normaFuente(), clasificacionControlada.requiereRecetaEspecial(),
                 clasificacionControlada.retieneReceta(), clasificacionControlada.vigenciaRecetaDias(),
                 clasificacionControlada.estado().name());
+    }
+
+    public static TipoDocumentoIdentidadResult toResult(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+        return new TipoDocumentoIdentidadResult(
+                tipoDocumentoIdentidad.codigo(), tipoDocumentoIdentidad.sigla(), tipoDocumentoIdentidad.denominacion(),
+                tipoDocumentoIdentidad.max(), tipoDocumentoIdentidad.min(), tipoDocumentoIdentidad.estado().name());
     }
 
     public static PrincipioActivoResult toResult(PrincipioActivo principioActivo) {

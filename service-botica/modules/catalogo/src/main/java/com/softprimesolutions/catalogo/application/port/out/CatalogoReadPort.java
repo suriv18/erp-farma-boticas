@@ -10,6 +10,7 @@ import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoRes
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
 import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import java.util.List;
@@ -26,6 +27,8 @@ public interface CatalogoReadPort {
     List<UnidadMedidaResult> findUnidadesMedida(String estado);
 
     List<ClasificacionControladaResult> findClasificacionesControladas(String estado);
+
+    PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size);
 
     List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado);
 

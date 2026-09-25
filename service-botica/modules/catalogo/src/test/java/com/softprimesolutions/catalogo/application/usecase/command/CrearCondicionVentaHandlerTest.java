@@ -9,6 +9,7 @@ import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
@@ -163,6 +164,26 @@ class CrearCondicionVentaHandlerTest {
 
         @Override
         public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean tipoDocumentoIdentidadExists(String codigo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) {
             throw new UnsupportedOperationException();
         }
     }
