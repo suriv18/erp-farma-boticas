@@ -16,6 +16,7 @@ import com.softprimesolutions.catalogo.infrastructure.persistence.write.reposito
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CondicionVentaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.FormaFarmaceuticaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.PrincipioActivoJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.TipoDocumentoIdentidadJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.UnidadMedidaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ViaAdministracionJpaRepository;
 import java.time.Instant;
@@ -34,6 +35,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     private final ViaAdministracionJpaRepository viaAdministracionRepository;
     private final UnidadMedidaJpaRepository unidadMedidaRepository;
     private final ClasificacionControladaJpaRepository clasificacionControladaRepository;
+    private final TipoDocumentoIdentidadJpaRepository tipoDocumentoIdentidadRepository;
     private final PrincipioActivoJpaRepository principioActivoRepository;
     private final JdbcClient jdbcClient;
 
@@ -43,6 +45,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
             ViaAdministracionJpaRepository viaAdministracionRepository,
             UnidadMedidaJpaRepository unidadMedidaRepository,
             ClasificacionControladaJpaRepository clasificacionControladaRepository,
+            TipoDocumentoIdentidadJpaRepository tipoDocumentoIdentidadRepository,
             PrincipioActivoJpaRepository principioActivoRepository,
             JdbcClient jdbcClient) {
         this.condicionVentaRepository = condicionVentaRepository;
@@ -50,6 +53,7 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
         this.viaAdministracionRepository = viaAdministracionRepository;
         this.unidadMedidaRepository = unidadMedidaRepository;
         this.clasificacionControladaRepository = clasificacionControladaRepository;
+        this.tipoDocumentoIdentidadRepository = tipoDocumentoIdentidadRepository;
         this.principioActivoRepository = principioActivoRepository;
         this.jdbcClient = jdbcClient;
     }
@@ -348,22 +352,52 @@ public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
     }
 
     @Override
+    @Transactional
     public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
-        throw new UnsupportedOperationException("Implementado en Task 5");
+        var existing = tipoDocumentoIdentidadRepository.findById(tipoDocumentoIdentidad.codigo());
+        if (existing.isEmpty()) {
+            try {
+                tipoDocumentoIdentidadRepository.saveAndFlush(
+                        CatalogoSoporteWriteMapper.toEntity(tipoDocumentoIdentidad));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.tipo_documento_identidad
+                           SET sigla = :sigla, denominacion = :denominacion, max = :max, min = :min
+                         WHERE codigo = :codigo
+                        """)
+                .param("sigla", tipoDocumentoIdentidad.sigla())
+                .param("denominacion", tipoDocumentoIdentidad.denominacion())
+                .param("max", tipoDocumentoIdentidad.max())
+                .param("min", tipoDocumentoIdentidad.min())
+                .param("codigo", tipoDocumentoIdentidad.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) {
-        throw new UnsupportedOperationException("Implementado en Task 5");
+        return tipoDocumentoIdentidadRepository.findById(codigo)
+                .map(entity -> TipoDocumentoIdentidad.restore(
+                        entity.getCodigo(), entity.getSigla(), entity.getDenominacion(),
+                        entity.getMax() == null ? null : entity.getMax().intValue(),
+                        entity.getMin() == null ? null : entity.getMin().intValue(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
     }
 
     @Override
     public boolean tipoDocumentoIdentidadExists(String codigo) {
-        throw new UnsupportedOperationException("Implementado en Task 5");
+        return tipoDocumentoIdentidadRepository.existsById(codigo);
     }
 
     @Override
+    @Transactional
     public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) {
-        throw new UnsupportedOperationException("Implementado en Task 5");
+        return jdbcClient.sql("UPDATE sch_catalogo.tipo_documento_identidad SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
     }
 }

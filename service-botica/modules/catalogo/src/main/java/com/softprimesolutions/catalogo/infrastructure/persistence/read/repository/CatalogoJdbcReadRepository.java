@@ -9,6 +9,7 @@ import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoRes
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
 import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import java.util.List;
@@ -102,6 +103,33 @@ public class CatalogoJdbcReadRepository {
                         rs.getBoolean("requiere_receta_especial"), rs.getBoolean("retiene_receta"),
                         (Integer) rs.getObject("vigencia_receta_dias"), rs.getString("estado")))
                 .list();
+    }
+
+    private static final String TIPO_DOCUMENTO_IDENTIDAD_FILTER = """
+             WHERE :estado = '' OR estado = :estado
+            """;
+
+    public List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(
+            String estado, int offset, int limit) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT codigo, sigla, denominacion, max, min, estado "
+                        + "FROM sch_catalogo.tipo_documento_identidad " + TIPO_DOCUMENTO_IDENTIDAD_FILTER
+                        + " ORDER BY codigo LIMIT :limit OFFSET :offset")
+                .param("estado", filter)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, rowNumber) -> new TipoDocumentoIdentidadResult(
+                        rs.getString("codigo"), rs.getString("sigla"), rs.getString("denominacion"),
+                        (Integer) rs.getObject("max"), (Integer) rs.getObject("min"), rs.getString("estado")))
+                .list();
+    }
+
+    public long countTiposDocumentoIdentidad(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql(
+                        "SELECT COUNT(*) FROM sch_catalogo.tipo_documento_identidad " + TIPO_DOCUMENTO_IDENTIDAD_FILTER)
+                .param("estado", filter)
+                .query(Long.class).single();
     }
 
     public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) {

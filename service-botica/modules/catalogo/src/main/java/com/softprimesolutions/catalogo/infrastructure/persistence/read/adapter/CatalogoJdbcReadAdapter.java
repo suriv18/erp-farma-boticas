@@ -111,7 +111,10 @@ public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PaginaResult<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(String estado, int page, int size) {
-        throw new UnsupportedOperationException("Implementado en Task 5");
+        var items = repository.findTiposDocumentoIdentidad(estado, page * size, size);
+        var total = repository.countTiposDocumentoIdentidad(estado);
+        return new PaginaResult<>(items, page, size, total);
     }
 }
