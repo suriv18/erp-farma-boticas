@@ -1,5 +1,6 @@
 package com.softprimesolutions.security.infrastructure.configuration;
 
+import com.softprimesolutions.security.application.port.in.ActualizarRolUseCase;
 import com.softprimesolutions.security.application.port.in.AsignarRolUsuarioUseCase;
 import com.softprimesolutions.security.application.port.in.CrearRolUseCase;
 import com.softprimesolutions.security.application.port.in.CrearUsuarioUseCase;
@@ -16,6 +17,7 @@ import com.softprimesolutions.security.application.port.out.LocalAuthStorePort;
 import com.softprimesolutions.security.application.port.out.PasswordHashPort;
 import com.softprimesolutions.security.application.port.out.PasswordResetNotificationPort;
 import com.softprimesolutions.security.application.port.out.SecurityControlPort;
+import com.softprimesolutions.security.application.usecase.command.ActualizarRolHandler;
 import com.softprimesolutions.security.application.usecase.command.AsignarRolUsuarioHandler;
 import com.softprimesolutions.security.application.usecase.command.CrearRolHandler;
 import com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandler;
@@ -79,6 +81,11 @@ public class SecurityModuleConfiguration {
     @Bean
     ReemplazarPermisosRolUseCase reemplazarPermisosRolUseCase(IamWritePort writePort, ClockPort iamClockPort) {
         return new ReemplazarPermisosRolHandler(writePort, iamClockPort);
+    }
+
+    @Bean
+    ActualizarRolUseCase actualizarRolUseCase(IamWritePort writePort, ClockPort iamClockPort) {
+        return new ActualizarRolHandler(writePort, iamClockPort);
     }
 
     @Bean
