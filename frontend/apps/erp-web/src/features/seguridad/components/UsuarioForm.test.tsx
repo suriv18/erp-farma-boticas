@@ -42,14 +42,12 @@ describe('UsuarioForm', () => {
     const { user } = renderForm({ onSubmit, submitLabel: 'Crear usuario' });
 
     await screen.findByRole('option', { name: 'DNI' });
-    await user.type(screen.getByLabelText('Nombre visible'), 'Ada Lovelace');
     await user.type(screen.getByLabelText('Número de documento'), '45678912');
     await user.type(screen.getByLabelText('Correo'), 'ada@boticas.pe');
     await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
-        displayName: 'Ada Lovelace',
         email: 'ada@boticas.pe',
         documentType: '1',
         documentNumber: '45678912'

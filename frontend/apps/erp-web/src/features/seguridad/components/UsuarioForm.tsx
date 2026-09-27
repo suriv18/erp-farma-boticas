@@ -57,18 +57,6 @@ export function UsuarioForm({
         void handleSubmit((values) => onSubmit(values))(event);
       }}
     >
-      <FormField
-        label="Nombre visible"
-        htmlFor="usuario-display-name"
-        error={errors.displayName?.message}
-      >
-        <input
-          id="usuario-display-name"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('displayName')}
-        />
-      </FormField>
-
       <div className="grid grid-cols-2 gap-4">
         <FormField
           label="Tipo de documento"
@@ -127,7 +115,7 @@ export function UsuarioForm({
         />
       </FormField>
 
-      <FormField label="Usuario" htmlFor="usuario-username" error={errors.username?.message}>
+      <FormField label="Username" htmlFor="usuario-username" error={errors.username?.message}>
         <input
           id="usuario-username"
           className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
