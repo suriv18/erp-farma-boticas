@@ -1,5 +1,6 @@
 package com.softprimesolutions.security.api.mapper;
 
+import com.softprimesolutions.security.api.dto.request.ActualizarRolRequest;
 import com.softprimesolutions.security.api.dto.request.AsignarRolUsuarioRequest;
 import com.softprimesolutions.security.api.dto.request.CrearRolRequest;
 import com.softprimesolutions.security.api.dto.request.CrearUsuarioRequest;
@@ -9,6 +10,7 @@ import com.softprimesolutions.security.api.dto.response.PaginaResponse;
 import com.softprimesolutions.security.api.dto.response.PermisoResponse;
 import com.softprimesolutions.security.api.dto.response.RolResponse;
 import com.softprimesolutions.security.api.dto.response.UsuarioResponse;
+import com.softprimesolutions.security.application.dto.command.ActualizarRolCommand;
 import com.softprimesolutions.security.application.dto.command.AsignarRolUsuarioCommand;
 import com.softprimesolutions.security.application.dto.command.CrearRolCommand;
 import com.softprimesolutions.security.application.dto.command.CrearUsuarioCommand;
@@ -38,6 +40,10 @@ public final class IamApiMapper {
         return new CrearRolCommand(
                 request.tenantId(), request.code(), request.name(), request.description(),
                 request.roleType(), Boolean.TRUE.equals(request.systemRole()));
+    }
+
+    public static ActualizarRolCommand toCommand(UUID roleId, ActualizarRolRequest request) {
+        return new ActualizarRolCommand(roleId, request.code(), request.name(), request.description(), request.roleType());
     }
 
     public static ReemplazarPermisosRolCommand toCommand(
