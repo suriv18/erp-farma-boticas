@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye } from 'lucide-react';
 import { Link } from 'react-router';
+import { ApiError } from '@boticas/api-client';
 import {
   Button,
   DataTable,
@@ -25,6 +26,7 @@ export function UsersPage() {
   const [size, setSize] = useState(20);
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const { data, isPending, isError } = useQuery({
     ...usuariosQuery({ tenantId: tenantId ?? '', search: search || undefined, page, size }),
@@ -45,7 +47,11 @@ export function UsersPage() {
       }),
     onSuccess: () => {
       setCreateOpen(false);
+      setCreateError(null);
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios'] });
+    },
+    onError: (error: unknown) => {
+      setCreateError(error instanceof ApiError ? error.message : 'No se pudo crear el usuario.');
     }
   });
 
@@ -55,7 +61,16 @@ export function UsersPage() {
         title="Usuarios"
         context="Seguridad / Usuarios"
         description="Administra las cuentas de acceso al sistema."
-        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo usuario</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
+          >
+            Nuevo usuario
+          </Button>
+        }
       />
 
       <ListFilters
@@ -115,6 +130,11 @@ export function UsersPage() {
           submitLabel="Crear usuario"
           isSubmitting={createMutation.isPending}
         />
+        {createError && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+            {createError}
+          </p>
+        )}
       </Modal>
     </div>
   );

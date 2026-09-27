@@ -93,6 +93,26 @@ describe('UsersPage', () => {
     await waitFor(() => expect(screen.getByText('Ada Lovelace')).toBeInTheDocument());
   });
 
+  it('muestra el error del servidor cuando la creacion falla', async () => {
+    server.use(
+      http.get('*/api/v1/usuarios', () =>
+        HttpResponse.json({ items: [], page: 0, size: 20, totalElements: 0 })
+      ),
+      http.post('*/api/v1/usuarios', () =>
+        HttpResponse.json({ detail: 'Ya existe un usuario con ese correo.' }, { status: 409 })
+      )
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('No se encontraron usuarios.');
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
+    await user.type(screen.getByLabelText('Correo'), 'ada@boticas.pe');
+    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe un usuario con ese correo.');
+  });
+
   it('permite buscar por texto', async () => {
     server.use(
       http.get('*/api/v1/usuarios', ({ request }) => {
