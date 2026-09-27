@@ -28,6 +28,10 @@ public final class ActualizarRolHandler implements ActualizarRolUseCase {
     @Override
     public Result<RolResult, ApplicationError> execute(ActualizarRolCommand command) {
         Objects.requireNonNull(command, "command es obligatorio");
+        if (!writePort.roleBelongsToTenant(command.roleId(), command.tenantId())) {
+            return Result.failure(new StandardApplicationError(
+                    "SEC_ROL_NO_ENCONTRADO", "El rol indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
         var role = writePort.findRole(command.roleId());
         if (role.isEmpty()) {
             return Result.failure(new StandardApplicationError(
@@ -47,7 +51,15 @@ public final class ActualizarRolHandler implements ActualizarRolUseCase {
     }
 
     private Result<RolResult, ApplicationError> persist(Rol role) {
-        writePort.save(role);
+        var outcome = writePort.save(role);
+        if (outcome == IamWritePort.SaveRolOutcome.TENANT_NOT_FOUND) {
+            return Result.failure(new StandardApplicationError(
+                    "SEC_TENANT_NO_ENCONTRADO", "El tenant indicado no existe.", ErrorCategory.NOT_FOUND));
+        }
+        if (outcome == IamWritePort.SaveRolOutcome.DUPLICATE_CODE) {
+            return Result.failure(new StandardApplicationError(
+                    "SEC_ROL_CODIGO_DUPLICADO", "Ya existe un rol con el código indicado.", ErrorCategory.CONFLICT));
+        }
         return Result.success(IamApplicationMapper.toResult(role));
     }
 

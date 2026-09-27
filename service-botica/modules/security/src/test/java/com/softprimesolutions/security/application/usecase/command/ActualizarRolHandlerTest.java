@@ -30,7 +30,7 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, "ADMIN_LOCAL", "Administrador local actualizado", "Descripción", "ALMACEN"));
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL", "Administrador local actualizado", "Descripción", "ALMACEN"));
 
         assertTrue(result.isSuccess());
         var updated = result.fold(value -> value, error -> null);
@@ -45,7 +45,7 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, null, "Administrador local", null, "ESTABLECIMIENTO"));
+                ROLE_ID, TENANT_ID, null, "Administrador local", null, "ESTABLECIMIENTO"));
 
         assertTrue(result.isFailure());
         assertEquals("SEC_ROL_INVALIDO", result.fold(value -> null, error -> error.code()));
@@ -57,7 +57,7 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, "ADMIN_LOCAL_2", "Administrador local", null, "ESTABLECIMIENTO"));
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL_2", "Administrador local", null, "ESTABLECIMIENTO"));
 
         assertTrue(result.isSuccess());
         assertEquals("ADMIN_LOCAL_2", result.fold(value -> value.code(), error -> null));
@@ -70,7 +70,7 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, "ADMIN_LOCAL", "Administrador local", null, "ESTABLECIMIENTO"));
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL", "Administrador local", null, "ESTABLECIMIENTO"));
 
         assertTrue(result.isFailure());
         assertEquals("SEC_ROL_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
@@ -83,7 +83,7 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, "ADMIN_LOCAL", "Administrador local", null, "ESTABLECIMIENTO"));
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL", "Administrador local", null, "ESTABLECIMIENTO"));
 
         assertTrue(result.isFailure());
         assertEquals("SEC_ROL_SISTEMA_NO_EDITABLE", result.fold(value -> null, error -> error.code()));
@@ -95,10 +95,50 @@ class ActualizarRolHandlerTest {
         var handler = new ActualizarRolHandler(port, () -> NOW);
 
         var result = handler.execute(new ActualizarRolCommand(
-                ROLE_ID, "ADMIN_LOCAL_2", "Administrador local", null, "ESTABLECIMIENTO"));
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL_2", "Administrador local", null, "ESTABLECIMIENTO"));
 
         assertTrue(result.isFailure());
         assertEquals("SEC_ROL_CODIGO_DUPLICADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void rejectsUpdateWhenSaveReportsDuplicateCodeRaceCondition() {
+        var port = new StubWritePort(true, false);
+        port.saveOutcome = IamWritePort.SaveRolOutcome.DUPLICATE_CODE;
+        var handler = new ActualizarRolHandler(port, () -> NOW);
+
+        var result = handler.execute(new ActualizarRolCommand(
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL", "Administrador local actualizado", "Descripción", "ALMACEN"));
+
+        assertTrue(result.isFailure());
+        assertEquals("SEC_ROL_CODIGO_DUPLICADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void rejectsUpdateWhenSaveReportsTenantNotFound() {
+        var port = new StubWritePort(true, false);
+        port.saveOutcome = IamWritePort.SaveRolOutcome.TENANT_NOT_FOUND;
+        var handler = new ActualizarRolHandler(port, () -> NOW);
+
+        var result = handler.execute(new ActualizarRolCommand(
+                ROLE_ID, TENANT_ID, "ADMIN_LOCAL", "Administrador local actualizado", "Descripción", "ALMACEN"));
+
+        assertTrue(result.isFailure());
+        assertEquals("SEC_TENANT_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void rejectsUpdateWhenTenantIdDoesNotMatchRoleTenant() {
+        var port = new StubWritePort(false, false);
+        port.roleBelongsToTenant = false;
+        var handler = new ActualizarRolHandler(port, () -> NOW);
+
+        var otherTenantId = UUID.fromString("9d5c8f7a-1111-4a2b-8c3d-abc123456789");
+        var result = handler.execute(new ActualizarRolCommand(
+                ROLE_ID, otherTenantId, "ADMIN_LOCAL", "Administrador local", null, "ESTABLECIMIENTO"));
+
+        assertTrue(result.isFailure());
+        assertEquals("SEC_ROL_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
     }
 
     private static final class StubWritePort implements IamWritePort {
@@ -108,6 +148,8 @@ class ActualizarRolHandlerTest {
         private boolean roleFound = true;
         private boolean systemRole;
         private boolean saved;
+        private SaveRolOutcome saveOutcome = SaveRolOutcome.UPDATED;
+        private boolean roleBelongsToTenant = true;
 
         private StubWritePort(boolean allowSave, boolean duplicateCode) {
             this.allowSave = allowSave;
@@ -123,7 +165,7 @@ class ActualizarRolHandlerTest {
         public SaveRolOutcome save(Rol role) {
             if (!allowSave) throw new IllegalStateException("save no debería invocarse en este escenario");
             saved = true;
-            return SaveRolOutcome.UPDATED;
+            return saveOutcome;
         }
 
         @Override
@@ -157,7 +199,7 @@ class ActualizarRolHandlerTest {
 
         @Override
         public boolean roleBelongsToTenant(UUID roleId, UUID tenantId) {
-            return false;
+            return roleBelongsToTenant;
         }
 
         @Override

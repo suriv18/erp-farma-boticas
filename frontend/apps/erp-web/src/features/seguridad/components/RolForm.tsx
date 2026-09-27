@@ -8,6 +8,7 @@ export type RolFormProps = {
   onSubmit: (values: RolFormValues) => void;
   submitLabel: string;
   isSubmitting?: boolean;
+  hideSystemRoleField?: boolean;
 };
 
 const ROLE_TYPES = ['GLOBAL', 'EMPRESA', 'ESTABLECIMIENTO', 'ALMACEN', 'TERMINAL'] as const;
@@ -16,7 +17,8 @@ export function RolForm({
   defaultValues,
   onSubmit,
   submitLabel,
-  isSubmitting = false
+  isSubmitting = false,
+  hideSystemRoleField = false
 }: RolFormProps) {
   const {
     formState: { errors },
@@ -81,14 +83,16 @@ export function RolForm({
         </select>
       </FormField>
 
-      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
-        <input
-          type="checkbox"
-          className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
-          {...register('systemRole')}
-        />
-        Rol de sistema (no editable por usuarios finales)
-      </label>
+      {!hideSystemRoleField && (
+        <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
+          <input
+            type="checkbox"
+            className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
+            {...register('systemRole')}
+          />
+          Rol de sistema (no editable por usuarios finales)
+        </label>
+      )}
 
       <Button type="submit" disabled={isSubmitting}>
         {submitLabel}

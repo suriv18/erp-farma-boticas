@@ -49,7 +49,7 @@ export function RoleDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: (values: RolFormValues) =>
-      actualizarRol(apiClient, roleId as string, {
+      actualizarRol(apiClient, roleId as string, tenantId as string, {
         code: values.code,
         name: values.name,
         description: values.description,
@@ -152,6 +152,7 @@ export function RoleDetailPage() {
           onSubmit={(values) => updateMutation.mutate(values)}
           submitLabel="Guardar cambios"
           isSubmitting={updateMutation.isPending}
+          hideSystemRoleField
         />
         {editError && (
           <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">

@@ -69,10 +69,12 @@ describe('RoleDetailPage', () => {
 
   it('edita el rol y refresca el detalle', async () => {
     let currentRol = sampleRol;
+    let receivedUrl: URL | undefined;
     server.use(
       http.get('*/api/v1/roles/rol-1', () => HttpResponse.json(currentRol)),
       http.get('*/api/v1/permisos', () => HttpResponse.json({ items: [], page: 0, size: 100, totalElements: 0 })),
       http.put('*/api/v1/roles/rol-1', async ({ request }) => {
+        receivedUrl = new URL(request.url);
         const body = (await request.json()) as { name: string };
         currentRol = { ...currentRol, name: body.name };
         return HttpResponse.json(currentRol);
@@ -90,6 +92,24 @@ describe('RoleDetailPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Administrador local editado' })).toBeInTheDocument());
+    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+  });
+
+  it('no muestra el checkbox de rol de sistema en el modal de edicion', async () => {
+    server.use(
+      http.get('*/api/v1/roles/rol-1', () => HttpResponse.json(sampleRol)),
+      http.get('*/api/v1/permisos', () => HttpResponse.json({ items: [], page: 0, size: 100, totalElements: 0 }))
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('Administrador local');
+
+    await user.click(screen.getByRole('button', { name: 'Editar rol' }));
+    const dialog = screen.getByRole('dialog');
+
+    expect(
+      within(dialog).queryByText('Rol de sistema (no editable por usuarios finales)')
+    ).not.toBeInTheDocument();
   });
 
   it('no muestra el boton editar para un rol de sistema', async () => {

@@ -465,6 +465,83 @@ class IamApiIntegrationTest {
     }
 
     @Test
+    void updatesRoleCodeAndPersistsItAcrossReads() throws Exception {
+        var roleResponse = mockMvc.perform(post("/api/v1/roles")
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "tenantId":"%s",
+                                  "code":"ADMIN_ORIGINAL",
+                                  "name":"Administrador original",
+                                  "roleType":"ESTABLECIMIENTO",
+                                  "systemRole":false
+                                }
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String roleId = JsonPath.read(roleResponse, "$.id");
+
+        mockMvc.perform(put("/api/v1/roles/{roleId}", roleId)
+                        .with(admin())
+                        .with(csrf())
+                        .param("tenantId", TENANT_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"ADMIN_NUEVO",
+                                  "name":"Administrador original",
+                                  "roleType":"ESTABLECIMIENTO"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("ADMIN_NUEVO"));
+
+        mockMvc.perform(get("/api/v1/roles/{roleId}", roleId)
+                        .with(admin())
+                        .param("tenantId", TENANT_ID.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("ADMIN_NUEVO"));
+    }
+
+    @Test
+    void rejectsUpdatingASystemRoleWithConflict() throws Exception {
+        var roleId = UUID.randomUUID();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.rol
+                            (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
+                        SELECT :roleId, id, 'SISTEMA', 'Rol de sistema', 'GLOBAL', TRUE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
+                        """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
+
+        mockMvc.perform(put("/api/v1/roles/{roleId}", roleId)
+                        .with(admin())
+                        .with(csrf())
+                        .param("tenantId", TENANT_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"SISTEMA_NUEVO",
+                                  "name":"Rol de sistema",
+                                  "roleType":"GLOBAL"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SEC_ROL_SISTEMA_NO_EDITABLE"));
+    }
+
+    @Test
+    void returnsNotFoundWhenGettingANonExistentRole() throws Exception {
+        mockMvc.perform(get("/api/v1/roles/{roleId}", UUID.randomUUID())
+                        .with(admin())
+                        .param("tenantId", TENANT_ID.toString()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void deniesIamAdministrationWithoutTheRequiredPermission() throws Exception {
         mockMvc.perform(get("/api/v1/roles")
                         .with(SecurityMockMvcRequestPostProcessors.user("viewer"))

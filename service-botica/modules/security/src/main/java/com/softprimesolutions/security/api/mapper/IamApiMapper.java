@@ -42,8 +42,9 @@ public final class IamApiMapper {
                 request.roleType(), Boolean.TRUE.equals(request.systemRole()));
     }
 
-    public static ActualizarRolCommand toCommand(UUID roleId, ActualizarRolRequest request) {
-        return new ActualizarRolCommand(roleId, request.code(), request.name(), request.description(), request.roleType());
+    public static ActualizarRolCommand toCommand(UUID roleId, UUID tenantId, ActualizarRolRequest request) {
+        return new ActualizarRolCommand(
+                roleId, tenantId, request.code(), request.name(), request.description(), request.roleType());
     }
 
     public static ReemplazarPermisosRolCommand toCommand(

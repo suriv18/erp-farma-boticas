@@ -41,4 +41,23 @@ describe('RolForm', () => {
     expect(screen.getByLabelText('Código')).toHaveValue('ADMIN_LOCAL');
     expect(screen.getByLabelText('Nombre')).toHaveValue('Administrador local');
   });
+
+  it('oculta el checkbox de rol de sistema cuando hideSystemRoleField es true', () => {
+    render(
+      <RolForm
+        defaultValues={{ code: 'ADMIN_LOCAL', name: 'Administrador local', roleType: 'ESTABLECIMIENTO', systemRole: false }}
+        onSubmit={vi.fn()}
+        submitLabel="Guardar cambios"
+        hideSystemRoleField
+      />
+    );
+
+    expect(screen.queryByText('Rol de sistema (no editable por usuarios finales)')).not.toBeInTheDocument();
+  });
+
+  it('muestra el checkbox de rol de sistema cuando hideSystemRoleField no se especifica', () => {
+    render(<RolForm onSubmit={vi.fn()} submitLabel="Crear rol" />);
+
+    expect(screen.getByText('Rol de sistema (no editable por usuarios finales)')).toBeInTheDocument();
+  });
 });

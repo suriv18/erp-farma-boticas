@@ -84,8 +84,9 @@ public class RolController {
 
     @PutMapping("/{roleId}")
     @PreAuthorize("hasAuthority('seguridad.roles.gestionar')")
-    public ResponseEntity<?> update(@PathVariable UUID roleId, @Valid @RequestBody ActualizarRolRequest request) {
-        return updateRole.execute(IamApiMapper.toCommand(roleId, request)).fold(
+    public ResponseEntity<?> update(
+            @PathVariable UUID roleId, @RequestParam UUID tenantId, @Valid @RequestBody ActualizarRolRequest request) {
+        return updateRole.execute(IamApiMapper.toCommand(roleId, tenantId, request)).fold(
                 result -> ResponseEntity.ok(IamApiMapper.toResponse(result)),
                 IamControllerSupport::problem);
     }

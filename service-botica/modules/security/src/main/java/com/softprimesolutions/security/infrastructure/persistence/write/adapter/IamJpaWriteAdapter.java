@@ -84,10 +84,12 @@ public class IamJpaWriteAdapter implements IamWritePort {
             if (existing.isPresent()) {
                 jdbcClient.sql("""
                                 UPDATE sch_seguridad.rol
-                                   SET nombre = :name, descripcion = :description, tipo_rol = :roleType,
-                                       es_sistema = :systemRole, estado = :status, updated_at = :updatedAt
+                                   SET codigo = :code, nombre = :name, descripcion = :description,
+                                       tipo_rol = :roleType, es_sistema = :systemRole, estado = :status,
+                                       updated_at = :updatedAt
                                  WHERE uuid_publico = :roleId
                                 """)
+                        .param("code", role.code())
                         .param("name", role.name())
                         .param("description", role.description())
                         .param("roleType", role.roleType().name())

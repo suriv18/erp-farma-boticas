@@ -134,22 +134,25 @@ describe('roles.api', () => {
     expect(result).toEqual(sampleRol);
   });
 
-  it('actualizarRol envia PUT con el payload de edicion', async () => {
+  it('actualizarRol envia PUT con el payload de edicion y el tenantId', async () => {
     let receivedBody: unknown;
+    let receivedUrl: URL | undefined;
     server.use(
       http.put('http://localhost/api/v1/roles/rol-1', async ({ request }) => {
         receivedBody = await request.json();
+        receivedUrl = new URL(request.url);
         return HttpResponse.json({ ...sampleRol, name: 'Administrador local editado' });
       })
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await actualizarRol(client, 'rol-1', {
+    const result = await actualizarRol(client, 'rol-1', 'tenant-1', {
       code: 'ADMIN_LOCAL',
       name: 'Administrador local editado',
       roleType: 'ESTABLECIMIENTO'
     });
 
+    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
     expect(receivedBody).toEqual({
       code: 'ADMIN_LOCAL',
       name: 'Administrador local editado',

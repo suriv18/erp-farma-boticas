@@ -40,8 +40,16 @@ export function rolQuery(roleId: string, tenantId: string) {
   });
 }
 
-export function actualizarRol(client: ApiClient, roleId: string, payload: ActualizarRolPayload): Promise<Rol> {
-  return client.put<Rol, ActualizarRolPayload>(`/roles/${roleId}`, payload);
+export function actualizarRol(
+  client: ApiClient,
+  roleId: string,
+  tenantId: string,
+  payload: ActualizarRolPayload
+): Promise<Rol> {
+  return client.put<Rol, ActualizarRolPayload>(
+    `/roles/${roleId}?tenantId=${encodeURIComponent(tenantId)}`,
+    payload
+  );
 }
 
 export function cambiarEstadoRol(
