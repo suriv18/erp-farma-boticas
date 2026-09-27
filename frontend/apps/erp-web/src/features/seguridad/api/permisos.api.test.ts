@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { createApiClient } from '@boticas/api-client';
-import { fetchPermisos } from './permisos.api';
+import { fetchPermisos, permisosQuery } from './permisos.api';
 
 const server = setupServer();
 
@@ -63,5 +63,11 @@ describe('permisos.api', () => {
     expect(receivedUrl?.searchParams.has('search')).toBe(false);
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
+  });
+
+  it('permisosQuery arma la queryKey con los valores por defecto cuando no se pasan', () => {
+    const { queryKey } = permisosQuery({});
+
+    expect(queryKey).toEqual(['seguridad', 'permisos', '', 0, 20]);
   });
 });

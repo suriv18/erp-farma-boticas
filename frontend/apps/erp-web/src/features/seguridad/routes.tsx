@@ -42,5 +42,26 @@ export const securityRoutes = [
       const { RoleDetailPage } = await import('./pages/RoleDetailPage');
       return { Component: RoleDetailPage };
     }
+  },
+  {
+    path: 'seguridad/sesiones',
+    lazy: async () => {
+      const { SessionsPage } = await import('./pages/SessionsPage');
+      return { Component: SessionsPage };
+    }
+  },
+  {
+    path: 'seguridad/dispositivos',
+    lazy: async () => {
+      const { DevicesPage } = await import('./pages/DevicesPage');
+      return { Component: DevicesPage };
+    }
+  },
+  {
+    path: 'seguridad/modulos',
+    lazy: async () => {
+      const { ModulesPage } = await import('./pages/ModulesPage');
+      return { Component: ModulesPage };
+    }
   }
 ] satisfies RouteObject[];

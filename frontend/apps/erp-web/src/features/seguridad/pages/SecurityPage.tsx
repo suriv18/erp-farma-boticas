@@ -1,4 +1,4 @@
-import { KeyRound, ShieldCheck, Users } from 'lucide-react';
+import { KeyRound, Laptop, LayoutGrid, ShieldCheck, Users2, Users } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card } from '@boticas/ui-web';
 
@@ -20,6 +20,24 @@ const sections = [
     icon: KeyRound,
     title: 'Permisos',
     description: 'Consulta los permisos disponibles en el sistema.'
+  },
+  {
+    to: '/seguridad/sesiones',
+    icon: Users2,
+    title: 'Sesiones',
+    description: 'Consulta y revoca sesiones locales de acceso activas.'
+  },
+  {
+    to: '/seguridad/dispositivos',
+    icon: Laptop,
+    title: 'Dispositivos',
+    description: 'Administra la confianza de los dispositivos de tienda.'
+  },
+  {
+    to: '/seguridad/modulos',
+    icon: LayoutGrid,
+    title: 'Módulos',
+    description: 'Catálogo de módulos que agrupan los permisos del sistema.'
   }
 ];
 
