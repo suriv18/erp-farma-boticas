@@ -8,6 +8,7 @@ import com.softprimesolutions.security.application.port.in.ListarPermisosUseCase
 import com.softprimesolutions.security.application.port.in.ListarRolesUseCase;
 import com.softprimesolutions.security.application.port.in.ListarUsuariosUseCase;
 import com.softprimesolutions.security.application.port.in.LocalAuthUseCase;
+import com.softprimesolutions.security.application.port.in.ObtenerRolUseCase;
 import com.softprimesolutions.security.application.port.in.ReemplazarPermisosRolUseCase;
 import com.softprimesolutions.security.application.port.in.SecurityControlUseCase;
 import com.softprimesolutions.security.application.port.out.IamReadPort;
@@ -30,6 +31,7 @@ import com.softprimesolutions.security.application.usecase.command.SecurityContr
 import com.softprimesolutions.security.application.usecase.query.ListarPermisosHandler;
 import com.softprimesolutions.security.application.usecase.query.ListarRolesHandler;
 import com.softprimesolutions.security.application.usecase.query.ListarUsuariosHandler;
+import com.softprimesolutions.security.application.usecase.query.ObtenerRolHandler;
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import java.time.Clock;
@@ -102,6 +104,11 @@ public class SecurityModuleConfiguration {
     @Bean
     ListarRolesUseCase listarRolesUseCase(IamReadPort readPort) {
         return new ListarRolesHandler(readPort);
+    }
+
+    @Bean
+    ObtenerRolUseCase obtenerRolUseCase(IamReadPort readPort) {
+        return new ObtenerRolHandler(readPort);
     }
 
     @Bean

@@ -129,6 +129,32 @@ public class IamJdbcReadRepository {
                 .single();
     }
 
+    public java.util.Optional<RolProjection> findRoleById(UUID tenantId, UUID roleId) {
+        return jdbcClient.sql("""
+                        SELECT r.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               r.codigo, r.nombre, r.descripcion, r.tipo_rol, r.es_sistema,
+                               r.estado, r.created_at, r.updated_at
+                        FROM sch_seguridad.rol r
+                        JOIN sch_admin.tenant t ON t.id = r.tenant_id
+                        WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
+                        """)
+                .param("tenantId", tenantId)
+                .param("roleId", roleId)
+                .query((rs, rowNumber) -> new RolProjection(
+                        rs.getObject("uuid_publico", UUID.class),
+                        rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("codigo"),
+                        rs.getString("nombre"),
+                        rs.getString("descripcion"),
+                        rs.getString("tipo_rol"),
+                        rs.getBoolean("es_sistema"),
+                        findPermissionCodes(roleId),
+                        rs.getString("estado"),
+                        toInstant(rs.getObject("created_at", OffsetDateTime.class)),
+                        toInstant(rs.getObject("updated_at", OffsetDateTime.class))))
+                .optional();
+    }
+
     public List<PermisoProjection> findPermissions(String search, int offset, int limit) {
         var filter = normalizeSearch(search);
         return jdbcClient.sql("""

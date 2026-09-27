@@ -10,6 +10,7 @@ import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
 import com.softprimesolutions.security.application.port.out.IamReadPort;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +72,11 @@ class ListarPermisosHandlerTest {
             this.receivedPage = page;
             this.receivedSize = size;
             return toReturn;
+        }
+
+        @Override
+        public Optional<RolResult> findRoleById(UUID tenantId, UUID roleId) {
+            throw new UnsupportedOperationException();
         }
     }
 }
