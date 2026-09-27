@@ -1,7 +1,14 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { createApiClient } from '@boticas/api-client';
-import { cambiarEstadoRol, crearRol, fetchRoles, reemplazarPermisosRol } from './roles.api';
+import {
+  actualizarRol,
+  cambiarEstadoRol,
+  crearRol,
+  fetchRolById,
+  fetchRoles,
+  reemplazarPermisosRol
+} from './roles.api';
 
 const server = setupServer();
 
@@ -34,7 +41,12 @@ describe('roles.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchRoles(client, { tenantId: 'tenant-1', search: 'admin', page: 0, size: 20 });
+    const result = await fetchRoles(client, {
+      tenantId: 'tenant-1',
+      search: 'admin',
+      page: 0,
+      size: 20
+    });
 
     expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
     expect(receivedUrl?.searchParams.get('search')).toBe('admin');
@@ -92,7 +104,10 @@ describe('roles.api', () => {
     server.use(
       http.put('http://localhost/api/v1/roles/rol-1/permissions', async ({ request }) => {
         receivedBody = await request.json();
-        return HttpResponse.json({ ...sampleRol, permissionCodes: ['seguridad.usuarios.consultar'] });
+        return HttpResponse.json({
+          ...sampleRol,
+          permissionCodes: ['seguridad.usuarios.consultar']
+        });
       })
     );
 
@@ -101,5 +116,45 @@ describe('roles.api', () => {
 
     expect(receivedBody).toEqual({ permissionCodes: ['seguridad.usuarios.consultar'] });
     expect(result.permissionCodes).toEqual(['seguridad.usuarios.consultar']);
+  });
+
+  it('fetchRolById consulta /roles/{id} con tenantId', async () => {
+    let receivedUrl: URL | undefined;
+    server.use(
+      http.get('http://localhost/api/v1/roles/rol-1', ({ request }) => {
+        receivedUrl = new URL(request.url);
+        return HttpResponse.json(sampleRol);
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    const result = await fetchRolById(client, 'rol-1', 'tenant-1');
+
+    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(result).toEqual(sampleRol);
+  });
+
+  it('actualizarRol envia PUT con el payload de edicion', async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.put('http://localhost/api/v1/roles/rol-1', async ({ request }) => {
+        receivedBody = await request.json();
+        return HttpResponse.json({ ...sampleRol, name: 'Administrador local editado' });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    const result = await actualizarRol(client, 'rol-1', {
+      code: 'ADMIN_LOCAL',
+      name: 'Administrador local editado',
+      roleType: 'ESTABLECIMIENTO'
+    });
+
+    expect(receivedBody).toEqual({
+      code: 'ADMIN_LOCAL',
+      name: 'Administrador local editado',
+      roleType: 'ESTABLECIMIENTO'
+    });
+    expect(result.name).toBe('Administrador local editado');
   });
 });

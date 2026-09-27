@@ -27,3 +27,10 @@ export type CrearRolPayload = {
   roleType: string;
   systemRole?: boolean | undefined;
 };
+
+export type ActualizarRolPayload = {
+  code: string;
+  name: string;
+  description?: string | undefined;
+  roleType: string;
+};

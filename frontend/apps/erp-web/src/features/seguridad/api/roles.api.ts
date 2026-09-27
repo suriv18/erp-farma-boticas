@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
-import type { CrearRolPayload, PaginaResponse, Rol } from './roles.types';
+import type { ActualizarRolPayload, CrearRolPayload, PaginaResponse, Rol } from './roles.types';
 
 export type FetchRolesParams = {
   tenantId: string;
@@ -27,6 +27,21 @@ export function rolesQuery(params: FetchRolesParams) {
 
 export function crearRol(client: ApiClient, payload: CrearRolPayload): Promise<Rol> {
   return client.post<Rol, CrearRolPayload>('/roles', payload);
+}
+
+export function fetchRolById(client: ApiClient, roleId: string, tenantId: string): Promise<Rol> {
+  return client.get<Rol>(`/roles/${roleId}?tenantId=${encodeURIComponent(tenantId)}`);
+}
+
+export function rolQuery(roleId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: ['seguridad', 'roles', roleId],
+    queryFn: () => fetchRolById(apiClient, roleId, tenantId)
+  });
+}
+
+export function actualizarRol(client: ApiClient, roleId: string, payload: ActualizarRolPayload): Promise<Rol> {
+  return client.put<Rol, ActualizarRolPayload>(`/roles/${roleId}`, payload);
 }
 
 export function cambiarEstadoRol(
