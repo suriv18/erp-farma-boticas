@@ -3,6 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { UsuarioForm } from './UsuarioForm';
 
 describe('UsuarioForm', () => {
+  it('muestra un error cuando el correo esta vacio', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<UsuarioForm onSubmit={onSubmit} submitLabel="Crear usuario" />);
+
+    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
+
+    expect(await screen.findByText('Ingresa un correo electrónico válido.')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('muestra un error cuando el correo es invalido', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
