@@ -21,7 +21,7 @@ export function RoleDetailPage() {
   });
   const rol = rolesResult.data?.items.find((item) => item.id === roleId);
 
-  const permisosResult = useQuery(permisosQuery());
+  const permisosResult = useQuery(permisosQuery({ size: 100 }));
 
   const [selectedCodes, setSelectedCodes] = useState<Set<string> | null>(null);
   const effectiveCodes = selectedCodes ?? new Set(rol?.permissionCodes ?? []);
@@ -65,7 +65,7 @@ export function RoleDetailPage() {
         <h2 className="font-bold text-neutral-950 dark:text-white">Permisos</h2>
         <div className="mt-4">
           <PermisosChecklist
-            permisos={permisosResult.data ?? []}
+            permisos={permisosResult.data?.items ?? []}
             selectedCodes={effectiveCodes}
             onChange={setSelectedCodes}
           />

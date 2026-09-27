@@ -1,42 +1,32 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, EstadoBadge } from '@boticas/ui-web';
+import { DataTable, EstadoBadge, PageHeader, ListFilters } from '@boticas/ui-web';
 import { permisosQuery } from '../api/permisos.api';
 
 export function PermissionsPage() {
   const [search, setSearch] = useState('');
-  const { data, isPending, isError } = useQuery(permisosQuery(search || undefined));
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const { data, isPending, isError } = useQuery(permisosQuery({ search: search || undefined, page, size }));
+  const totalElements = data?.totalElements ?? 0;
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div>
-        <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-          Seguridad / Permisos
-        </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-          Permisos
-        </h1>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          Catálogo de permisos disponibles para asignar a roles.
-        </p>
-      </div>
+      <PageHeader
+        title="Permisos"
+        context="Seguridad / Permisos"
+        description="Catálogo de permisos disponibles para asignar a roles."
+      />
 
-      <div className="mt-6">
-        <label
-          htmlFor="permisos-search"
-          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
-        >
-          Buscar permiso
-        </label>
-        <input
-          id="permisos-search"
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Código, nombre o módulo"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        />
-      </div>
+      <ListFilters
+        label="Buscar permiso"
+        placeholder="Código, nombre o módulo"
+        value={search}
+        onValueChange={(value) => {
+          setSearch(value);
+          setPage(0);
+        }}
+      />
 
       <div className="mt-6">
         <DataTable
@@ -47,12 +37,20 @@ export function PermissionsPage() {
             { header: 'Crítico', cell: (row) => (row.critical ? 'Sí' : 'No') },
             { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> }
           ]}
-          rows={data ?? []}
+          rows={data?.items ?? []}
           rowKey={(row) => row.code}
           emptyMessage="No se encontraron permisos."
           isLoading={isPending}
           isError={isError}
           errorMessage="No se pudo cargar el catálogo de permisos."
+          startIndex={page * size}
+          pagination={{
+            page,
+            size,
+            totalElements,
+            onPageChange: setPage,
+            onSizeChange: setSize
+          }}
         />
       </div>
     </div>
