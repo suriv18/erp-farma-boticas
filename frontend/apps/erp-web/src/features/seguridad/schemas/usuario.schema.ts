@@ -3,8 +3,7 @@ import { z } from 'zod';
 export const usuarioSchema = z.object({
   documentType: z
     .string()
-    .min(1, 'Selecciona un tipo de documento.')
-    .max(20, 'El tipo de documento no debe exceder 20 caracteres.'),
+    .length(1, 'Selecciona un tipo de documento.'),
   documentNumber: z
     .string()
     .min(1, 'Ingresa el número de documento.')

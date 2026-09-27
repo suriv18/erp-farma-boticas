@@ -67,7 +67,7 @@ public final class Identidad extends AggregateRoot {
         if ((normalizedDocumentType == null) != (normalizedDocumentNumber == null)) {
             return invalid("document", "El tipo y número de documento deben informarse juntos.");
         }
-        if (normalizedDocumentType != null && (!hasLength(normalizedDocumentType, 1, 20)
+        if (normalizedDocumentType != null && (!hasLength(normalizedDocumentType, 1, 1)
                 || !hasLength(normalizedDocumentNumber, 1, 30))) {
             return invalid("document", "El documento no cumple las longitudes permitidas.");
         }

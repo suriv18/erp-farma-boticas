@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 public class TipoDocumentoIdentidadJpaEntity {
 
     @Id
-    @Column(length = 2)
+    @Column(length = 1)
     private String codigo;
 
     @Column(nullable = false, length = 30)
