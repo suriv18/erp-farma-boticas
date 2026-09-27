@@ -171,6 +171,13 @@ public class IamJpaWriteAdapter implements IamWritePort {
     }
 
     @Override
+    public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
+        return findTenantId(tenantId)
+                .map(id -> roleRepository.existsByTenantIdAndCodigoAndUuidPublicoNot(id, code, excludingRoleId))
+                .orElse(false);
+    }
+
+    @Override
     public boolean scopeExists(
             UUID tenantId,
             com.softprimesolutions.security.domain.valueobject.AmbitoOrganizacional scope) {
