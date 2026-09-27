@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DataTable, EstadoBadge, PageHeader } from '@boticas/ui-web';
+import { ShieldCheck, ShieldOff } from 'lucide-react';
+import { DataTable, EstadoBadge, IconButton, PageHeader } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { cambiarEstadoDispositivo, dispositivosQuery } from '../api/dispositivos.api';
@@ -48,26 +49,25 @@ export function DevicesPage() {
             { header: 'Huella', cell: (row) => row.fingerprintHash ?? '—' },
             { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> },
             {
-              header: '',
+              header: 'Acciones',
               cell: (row) =>
                 row.status === 'PENDIENTE' ? (
-                  <Button
-                    variant="secondary"
+                  <IconButton
+                    icon={ShieldCheck}
+                    label="Marcar confiable"
                     onClick={() =>
                       setPendingAction({ device: row, nextStatus: 'CONFIABLE', label: 'Marcar confiable' })
                     }
-                  >
-                    Marcar confiable
-                  </Button>
+                  />
                 ) : row.status === 'CONFIABLE' ? (
-                  <Button
-                    variant="secondary"
+                  <IconButton
+                    icon={ShieldOff}
+                    label="Bloquear"
+                    tone="danger"
                     onClick={() =>
                       setPendingAction({ device: row, nextStatus: 'BLOQUEADO', label: 'Bloquear' })
                     }
-                  >
-                    Bloquear
-                  </Button>
+                  />
                 ) : null
             }
           ]}

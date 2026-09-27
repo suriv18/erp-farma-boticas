@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Eye } from 'lucide-react';
 import { Link } from 'react-router';
-import { Button, DataTable, EstadoBadge, Modal } from '@boticas/ui-web';
+import { Button, DataTable, EstadoBadge, Modal, PageHeader, iconButtonClassName } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearRol, rolesQuery } from '../api/roles.api';
@@ -12,10 +13,12 @@ import { RolForm } from '../components/RolForm';
 export function RolesPage() {
   const { tenantId } = useAuthSession();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isPending, isError } = useQuery({
-    ...rolesQuery({ tenantId: tenantId ?? '' }),
+    ...rolesQuery({ tenantId: tenantId ?? '', page, size }),
     enabled: Boolean(tenantId)
   });
 
@@ -37,39 +40,34 @@ export function RolesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-            Seguridad / Roles
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-            Roles
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Administra los roles y sus permisos asociados.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo rol</Button>
-      </div>
+      <PageHeader
+        title="Roles"
+        context="Seguridad / Roles"
+        description="Administra los roles y sus permisos asociados."
+        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo rol</Button>}
+      />
 
       <div className="mt-6">
         <DataTable<Rol>
           columns={[
-            {
-              header: 'Código',
-              cell: (row) => (
-                <Link
-                  to={`/seguridad/roles/${row.id}`}
-                  className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
-                >
-                  {row.code}
-                </Link>
-              )
-            },
+            { header: 'Código', cell: (row) => row.code },
             { header: 'Nombre', cell: (row) => row.name },
             { header: 'Tipo', cell: (row) => row.roleType },
             { header: 'Permisos', cell: (row) => row.permissionCodes.length },
-            { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> }
+            { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> },
+            {
+              header: 'Acciones',
+              cell: (row) => (
+                <Link
+                  to={`/seguridad/roles/${row.id}`}
+                  aria-label={`Ver detalle de ${row.name}`}
+                  title={`Ver detalle de ${row.name}`}
+                  className={iconButtonClassName()}
+                >
+                  <Eye className="size-4.5" aria-hidden="true" />
+                </Link>
+              )
+            }
           ]}
           rows={data?.items ?? []}
           rowKey={(row) => row.id}
@@ -77,6 +75,14 @@ export function RolesPage() {
           isLoading={isPending}
           isError={isError}
           errorMessage="No se pudo cargar el listado de roles."
+          startIndex={page * size}
+          pagination={{
+            page,
+            size,
+            totalElements: data?.totalElements ?? 0,
+            onPageChange: setPage,
+            onSizeChange: setSize
+          }}
         />
       </div>
 

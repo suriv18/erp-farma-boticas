@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DataTable, EstadoBadge, Modal } from '@boticas/ui-web';
+import { Pencil, Power } from 'lucide-react';
+import { Button, DataTable, EstadoBadge, IconButton, Modal, PageHeader, ListFilters } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import {
@@ -12,9 +13,6 @@ import {
 import type { RubroComercial } from '../api/rubros-comerciales.types';
 import type { RubroComercialFormValues } from '../schemas/rubro-comercial.schema';
 import { RubroComercialForm } from '../components/RubroComercialForm';
-import { Pagination } from '../components/Pagination';
-
-const PAGE_SIZE = 20;
 
 export function RubrosComercialesPage() {
   const { tenantId } = useAuthSession();
@@ -23,13 +21,20 @@ export function RubrosComercialesPage() {
   const [editing, setEditing] = useState<RubroComercial | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
 
   const { data, isPending, isError } = useQuery({
-    ...rubrosComercialesQuery({ tenantId: tenantId ?? '', q: search || undefined, page, size: PAGE_SIZE }),
+    ...rubrosComercialesQuery({
+      tenantId: tenantId ?? '',
+      q: search || undefined,
+      page,
+      size: size
+    }),
     enabled: Boolean(tenantId)
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['catalogo', 'rubros-comerciales'] });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ['catalogo', 'rubros-comerciales'] });
 
   const createMutation = useMutation({
     mutationFn: (values: RubroComercialFormValues) =>
@@ -76,40 +81,22 @@ export function RubrosComercialesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-            Catálogo / Rubros comerciales
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-            Rubros comerciales
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Administra los rubros comerciales del catálogo.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo rubro comercial</Button>
-      </div>
+      <PageHeader
+        title="Rubros comerciales"
+        context="Catálogo / Rubros comerciales"
+        description="Administra los rubros comerciales del catálogo."
+        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo rubro comercial</Button>}
+      />
 
-      <div className="mt-6">
-        <label
-          htmlFor="rubros-search"
-          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
-        >
-          Buscar rubro comercial
-        </label>
-        <input
-          id="rubros-search"
-          type="search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(0);
-          }}
-          placeholder="Código o nombre"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        />
-      </div>
+      <ListFilters
+        label="Buscar rubro comercial"
+        placeholder="Código o nombre"
+        value={search}
+        onValueChange={(value) => {
+          setSearch(value);
+          setPage(0);
+        }}
+      />
 
       <div className="mt-6">
         <DataTable<RubroComercial>
@@ -122,21 +109,14 @@ export function RubrosComercialesPage() {
             {
               header: 'Acciones',
               cell: (row) => (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(row)}
-                    className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
-                  >
-                    Editar {row.nombre}
-                  </button>
-                  <button
-                    type="button"
+                <div className="flex items-center gap-1">
+                  <IconButton icon={Pencil} label={`Editar ${row.nombre}`} onClick={() => setEditing(row)} />
+                  <IconButton
+                    icon={Power}
+                    label={row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`}
+                    tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
                     onClick={() => statusMutation.mutate(row)}
-                    className="font-semibold text-neutral-600 hover:underline dark:text-neutral-300"
-                  >
-                    {row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`}
-                  </button>
+                  />
                 </div>
               )
             }
@@ -147,13 +127,14 @@ export function RubrosComercialesPage() {
           isLoading={isPending}
           isError={isError}
           errorMessage="No se pudo cargar el listado de rubros comerciales."
-          startIndex={page * PAGE_SIZE}
-        />
-        <Pagination
-          page={data?.page ?? page}
-          size={data?.size ?? PAGE_SIZE}
-          totalElements={data?.totalElements ?? 0}
-          onPageChange={setPage}
+          startIndex={page * size}
+          pagination={{
+            page,
+            size,
+            totalElements: data?.totalElements ?? 0,
+            onPageChange: setPage,
+            onSizeChange: setSize
+          }}
         />
       </div>
 
@@ -165,7 +146,11 @@ export function RubrosComercialesPage() {
         />
       </Modal>
 
-      <Modal open={editing !== null} onClose={() => setEditing(null)} title="Editar rubro comercial">
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="Editar rubro comercial"
+      >
         {editing ? (
           <RubroComercialForm
             defaultValues={{

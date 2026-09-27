@@ -13,6 +13,13 @@ export {
 } from './dropdown-menu/DropdownMenu';
 export { EstadoBadge } from './estado-badge/EstadoBadge';
 export { FormField, type FormFieldProps } from './form-field/FormField';
+export {
+  IconButton,
+  iconButtonClassName,
+  type IconButtonProps,
+  type IconButtonTone,
+  type IconButtonSize
+} from './icon-button/IconButton';
 export { Modal, type ModalProps } from './modal/Modal';
 export { ThemeToggle, type ThemeToggleProps } from './theme/ThemeToggle';
 export { useTheme, type Theme } from './theme/useTheme';

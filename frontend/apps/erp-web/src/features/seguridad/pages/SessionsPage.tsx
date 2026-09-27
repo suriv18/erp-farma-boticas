@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DataTable, EstadoBadge, PageHeader } from '@boticas/ui-web';
+import { ShieldOff } from 'lucide-react';
+import { DataTable, EstadoBadge, IconButton, PageHeader } from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { revocarSesion, sesionesQuery } from '../api/sesiones.api';
@@ -41,12 +42,15 @@ export function SessionsPage() {
             { header: 'Inicio', cell: (row) => new Date(row.loginAt).toLocaleString() },
             { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> },
             {
-              header: '',
+              header: 'Acciones',
               cell: (row) =>
                 row.status === 'ACTIVA' ? (
-                  <Button variant="secondary" onClick={() => setSessionToRevoke(row)}>
-                    Revocar
-                  </Button>
+                  <IconButton
+                    icon={ShieldOff}
+                    label="Revocar"
+                    tone="danger"
+                    onClick={() => setSessionToRevoke(row)}
+                  />
                 ) : null
             }
           ]}

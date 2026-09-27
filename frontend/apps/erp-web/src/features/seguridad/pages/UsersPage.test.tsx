@@ -112,4 +112,19 @@ describe('UsersPage', () => {
 
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
   });
+
+  it('navega al detalle del usuario al usar el boton de accion', async () => {
+    server.use(
+      http.get('*/api/v1/usuarios', () =>
+        HttpResponse.json({ items: [sampleUsuario], page: 0, size: 20, totalElements: 1 })
+      )
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('Ada Lovelace');
+
+    const link = screen.getByRole('link', { name: 'Ver detalle de Ada Lovelace' });
+    expect(link).toHaveAttribute('href', '/seguridad/usuarios/user-1');
+    await user.click(link);
+  });
 });

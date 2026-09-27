@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Eye } from 'lucide-react';
 import { Link } from 'react-router';
-import { Button, DataTable, EstadoBadge, Modal } from '@boticas/ui-web';
+import {
+  Button,
+  DataTable,
+  EstadoBadge,
+  Modal,
+  PageHeader,
+  ListFilters,
+  iconButtonClassName
+} from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearUsuario, usuariosQuery } from '../api/usuarios.api';
@@ -12,11 +21,13 @@ import { UsuarioForm } from '../components/UsuarioForm';
 export function UsersPage() {
   const { tenantId } = useAuthSession();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
 
   const { data, isPending, isError } = useQuery({
-    ...usuariosQuery({ tenantId: tenantId ?? '', search: search || undefined }),
+    ...usuariosQuery({ tenantId: tenantId ?? '', search: search || undefined, page, size }),
     enabled: Boolean(tenantId)
   });
 
@@ -40,55 +51,46 @@ export function UsersPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-            Seguridad / Usuarios
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-            Usuarios
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Administra las cuentas de acceso al sistema.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo usuario</Button>
-      </div>
+      <PageHeader
+        title="Usuarios"
+        context="Seguridad / Usuarios"
+        description="Administra las cuentas de acceso al sistema."
+        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo usuario</Button>}
+      />
 
-      <div className="mt-6">
-        <label
-          htmlFor="usuarios-search"
-          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
-        >
-          Buscar usuario
-        </label>
-        <input
-          id="usuarios-search"
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Nombre, correo o documento"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 mt-2 h-11 w-full max-w-md rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        />
-      </div>
+      <ListFilters
+        label="Buscar usuario"
+        placeholder="Nombre, correo o documento"
+        value={search}
+        onValueChange={(value) => {
+          setSearch(value);
+          setPage(0);
+        }}
+      />
 
       <div className="mt-6">
         <DataTable<Usuario>
           columns={[
             {
               header: 'Nombre',
-              cell: (row) => (
-                <Link
-                  to={`/seguridad/usuarios/${row.id}`}
-                  className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
-                >
-                  {row.displayName ?? row.email ?? row.username ?? row.id}
-                </Link>
-              )
+              cell: (row) => row.displayName ?? row.email ?? row.username ?? row.id
             },
             { header: 'Correo', cell: (row) => row.email ?? '—' },
             { header: 'MFA', cell: (row) => (row.mfaRequired ? 'Sí' : 'No') },
-            { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> }
+            { header: 'Estado', cell: (row) => <EstadoBadge status={row.status} /> },
+            {
+              header: 'Acciones',
+              cell: (row) => (
+                <Link
+                  to={`/seguridad/usuarios/${row.id}`}
+                  aria-label={`Ver detalle de ${row.displayName ?? row.email ?? row.username ?? row.id}`}
+                  title={`Ver detalle de ${row.displayName ?? row.email ?? row.username ?? row.id}`}
+                  className={iconButtonClassName()}
+                >
+                  <Eye className="size-4.5" aria-hidden="true" />
+                </Link>
+              )
+            }
           ]}
           rows={data?.items ?? []}
           rowKey={(row) => row.id}
@@ -96,6 +98,14 @@ export function UsersPage() {
           isLoading={isPending}
           isError={isError}
           errorMessage="No se pudo cargar el listado de usuarios."
+          startIndex={page * size}
+          pagination={{
+            page,
+            size,
+            totalElements: data?.totalElements ?? 0,
+            onPageChange: setPage,
+            onSizeChange: setSize
+          }}
         />
       </div>
 

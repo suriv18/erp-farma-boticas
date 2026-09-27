@@ -89,4 +89,18 @@ describe('RolesPage', () => {
 
     await waitFor(() => expect(screen.getByText('Administrador local')).toBeInTheDocument());
   });
+
+  it('navega al detalle del rol al usar el boton de accion', async () => {
+    server.use(
+      http.get('*/api/v1/roles', () =>
+        HttpResponse.json({ items: [sampleRol], page: 0, size: 20, totalElements: 1 })
+      )
+    );
+
+    renderPage();
+    await screen.findByText('Administrador local');
+
+    const link = screen.getByRole('link', { name: 'Ver detalle de Administrador local' });
+    expect(link).toHaveAttribute('href', '/seguridad/roles/rol-1');
+  });
 });
