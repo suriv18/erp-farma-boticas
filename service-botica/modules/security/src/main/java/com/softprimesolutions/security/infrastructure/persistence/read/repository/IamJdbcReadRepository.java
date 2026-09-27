@@ -31,6 +31,14 @@ public class IamJdbcReadRepository {
             WHERE t.uuid_publico = :tenantId
               AND (:search = '' OR LOWER(r.codigo) LIKE :pattern OR LOWER(r.nombre) LIKE :pattern)
             """;
+    private static final String PERMISSION_FILTER = """
+            FROM sch_seguridad.permiso p
+            JOIN sch_seguridad.modulo_sistema m ON m.id = p.modulo_id
+            WHERE (:search = ''
+              OR LOWER(p.codigo) LIKE :pattern
+              OR LOWER(p.nombre) LIKE :pattern
+              OR LOWER(m.codigo) LIKE :pattern)
+            """;
 
     private final JdbcClient jdbcClient;
 
@@ -121,28 +129,32 @@ public class IamJdbcReadRepository {
                 .single();
     }
 
-    public List<PermisoProjection> findPermissions(String search) {
+    public List<PermisoProjection> findPermissions(String search, int offset, int limit) {
         var filter = normalizeSearch(search);
         return jdbcClient.sql("""
                         SELECT m.codigo AS modulo_codigo, m.nombre AS modulo_nombre,
                                p.codigo, p.recurso, p.accion, p.nombre, p.descripcion,
                                p.es_critico, p.estado
-                        FROM sch_seguridad.permiso p
-                        JOIN sch_seguridad.modulo_sistema m ON m.id = p.modulo_id
-                        WHERE (:search = ''
-                          OR LOWER(p.codigo) LIKE :pattern
-                          OR LOWER(p.nombre) LIKE :pattern
-                          OR LOWER(m.codigo) LIKE :pattern)
-                        ORDER BY m.orden, p.codigo
-                        """)
+                        """ + PERMISSION_FILTER + " ORDER BY m.orden, p.codigo LIMIT :limit OFFSET :offset")
                 .param("search", filter)
                 .param("pattern", '%' + filter + '%')
+                .param("limit", limit)
+                .param("offset", offset)
                 .query((rs, rowNumber) -> new PermisoProjection(
                         rs.getString("modulo_codigo"), rs.getString("modulo_nombre"),
                         rs.getString("codigo"), rs.getString("recurso"), rs.getString("accion"),
                         rs.getString("nombre"), rs.getString("descripcion"),
                         rs.getBoolean("es_critico"), rs.getString("estado")))
                 .list();
+    }
+
+    public long countPermissions(String search) {
+        var filter = normalizeSearch(search);
+        return jdbcClient.sql("SELECT COUNT(*) " + PERMISSION_FILTER)
+                .param("search", filter)
+                .param("pattern", '%' + filter + '%')
+                .query(Long.class)
+                .single();
     }
 
     private LinkedHashSet<String> findPermissionCodes(UUID roleId) {

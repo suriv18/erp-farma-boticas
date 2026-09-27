@@ -92,4 +92,10 @@ public final class IamApiMapper {
                 result.items().stream().map(IamApiMapper::toResponse).toList(),
                 result.page(), result.size(), result.totalElements());
     }
+
+    public static PaginaResponse<PermisoResponse> toPermisoPage(PaginaResult<PermisoResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(IamApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
 }
