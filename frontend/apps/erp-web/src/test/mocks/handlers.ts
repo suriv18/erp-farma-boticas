@@ -166,6 +166,18 @@ export const handlers = [
       { codigo: 'MG', denominacion: 'Miligramo', simbolo: 'mg', permiteDecimal: true, fuente: 'DIGEMID', estado: 'ACTIVO' }
     ])
   ),
+  http.get('*/api/v1/catalogo/tipos-documento-identidad', () =>
+    HttpResponse.json({
+      items: [
+        { codigo: '1', sigla: 'DNI', denominacion: 'Documento Nacional de Identidad', max: 8, min: 8, estado: 'ACTIVO' },
+        { codigo: '4', sigla: 'CE', denominacion: 'Carnet de extranjería', max: null, min: null, estado: 'ACTIVO' },
+        { codigo: '6', sigla: 'RUC', denominacion: 'Registro Unico de Contributentes', max: 11, min: 11, estado: 'ACTIVO' }
+      ],
+      page: 0,
+      size: 100,
+      totalElements: 3
+    })
+  ),
   http.get('*/api/v1/catalogo/clasificaciones-controladas', () =>
     HttpResponse.json([
       {

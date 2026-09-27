@@ -1,6 +1,9 @@
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { Button, FormField } from '@boticas/ui-web';
+import { tiposDocumentoIdentidadApi } from '../../catalogo';
 import { usuarioSchema, type UsuarioFormValues } from '../schemas/usuario.schema';
 
 export type UsuarioFormProps = {
@@ -18,10 +21,14 @@ export function UsuarioForm({
 }: UsuarioFormProps) {
   const {
     formState: { errors },
+    getValues,
     handleSubmit,
-    register
+    register,
+    setValue
   } = useForm<UsuarioFormValues>({
     defaultValues: defaultValues ?? {
+      documentType: '',
+      documentNumber: '',
       firstNames: '',
       lastNames: '',
       username: '',
@@ -33,6 +40,14 @@ export function UsuarioForm({
     mode: 'onTouched',
     resolver: zodResolver(usuarioSchema)
   });
+
+  const tiposDocumentoIdentidad = useQuery(tiposDocumentoIdentidadApi.listQuery('ACTIVO'));
+
+  useEffect(() => {
+    if (defaultValues || !tiposDocumentoIdentidad.data || getValues('documentType')) return;
+    const dni = tiposDocumentoIdentidad.data.find((tipo) => tipo.sigla === 'DNI');
+    if (dni) setValue('documentType', dni.codigo);
+  }, [defaultValues, getValues, setValue, tiposDocumentoIdentidad.data]);
 
   return (
     <form
@@ -53,6 +68,38 @@ export function UsuarioForm({
           {...register('displayName')}
         />
       </FormField>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          label="Tipo de documento"
+          htmlFor="usuario-document-type"
+          error={errors.documentType?.message}
+        >
+          <select
+            id="usuario-document-type"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            {...register('documentType')}
+          >
+            <option value="">Sin especificar</option>
+            {tiposDocumentoIdentidad.data?.map((tipo) => (
+              <option key={tipo.codigo} value={tipo.codigo}>
+                {tipo.sigla}
+              </option>
+            ))}
+          </select>
+        </FormField>
+        <FormField
+          label="Número de documento"
+          htmlFor="usuario-document-number"
+          error={errors.documentNumber?.message}
+        >
+          <input
+            id="usuario-document-number"
+            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            {...register('documentNumber')}
+          />
+        </FormField>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Nombres" htmlFor="usuario-first-names" error={errors.firstNames?.message}>

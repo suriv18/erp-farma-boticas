@@ -37,6 +37,8 @@ export function UsersPage() {
     mutationFn: (values: UsuarioFormValues) =>
       crearUsuario(apiClient, {
         tenantId: tenantId ?? '',
+        documentType: values.documentType || undefined,
+        documentNumber: values.documentNumber || undefined,
         displayName: values.displayName || undefined,
         firstNames: values.firstNames || undefined,
         lastNames: values.lastNames || undefined,

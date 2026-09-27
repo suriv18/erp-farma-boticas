@@ -9,6 +9,26 @@ const rows: Row[] = [
 ];
 
 describe('DataTable', () => {
+  it('integra la navegación fuera de la región desplazable y la bloquea durante carga o error', () => {
+    const props = {
+      columns: [{ header: 'Nombre', cell: (row: Row) => row.nombre }],
+      rows,
+      rowKey: (row: Row) => row.id,
+      emptyMessage: 'Sin filas.',
+      pagination: { page: 0, size: 20, totalElements: 45, onPageChange: vi.fn() }
+    };
+    const { rerender } = render(<DataTable {...props} />);
+    const region = screen.getByRole('region', { name: 'Tabla de resultados' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).not.toContainElement(screen.getByRole('navigation', { name: 'Paginación' }));
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled();
+    rerender(<DataTable {...props} isLoading />);
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    rerender(<DataTable {...props} isError />);
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    rerender(<DataTable {...props} pagination={{ ...props.pagination, disabled: true }} />);
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+  });
   it('renderiza una fila por cada elemento', () => {
     render(
       <DataTable<Row>

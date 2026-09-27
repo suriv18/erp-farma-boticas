@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 export const usuarioSchema = z.object({
+  documentType: z
+    .string()
+    .min(1, 'Selecciona un tipo de documento.')
+    .max(20, 'El tipo de documento no debe exceder 20 caracteres.'),
+  documentNumber: z
+    .string()
+    .min(1, 'Ingresa el número de documento.')
+    .max(30, 'El número de documento no debe exceder 30 caracteres.'),
   firstNames: z.string().max(150, 'Los nombres no deben exceder 150 caracteres.').optional(),
   lastNames: z.string().max(180, 'Los apellidos no deben exceder 180 caracteres.').optional(),
   username: z.string().max(150, 'El usuario no debe exceder 150 caracteres.').optional(),

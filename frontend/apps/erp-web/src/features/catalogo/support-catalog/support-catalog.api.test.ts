@@ -114,3 +114,26 @@ describe('createSupportCatalogApi', () => {
     expect(options.queryKey).toEqual(['catalogo', 'vias-administracion', 'ACTIVO']);
   });
 });
+
+describe('createSupportCatalogApi con paginated:true', () => {
+  const paginatedApi = createSupportCatalogApi<SampleItem, SampleRequest>('tipos-documento-identidad', {
+    paginated: true
+  });
+
+  it('fetchList extrae items de una respuesta paginada y pide una pagina grande', async () => {
+    let receivedUrl: URL | undefined;
+    server.use(
+      http.get('http://localhost/api/v1/catalogo/tipos-documento-identidad', ({ request }) => {
+        receivedUrl = new URL(request.url);
+        return HttpResponse.json({ items: [sampleItem], page: 0, size: 100, totalElements: 1 });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    const result = await paginatedApi.fetchList(client);
+
+    expect(receivedUrl?.searchParams.get('page')).toBe('0');
+    expect(receivedUrl?.searchParams.get('size')).toBe('100');
+    expect(result).toEqual([sampleItem]);
+  });
+});

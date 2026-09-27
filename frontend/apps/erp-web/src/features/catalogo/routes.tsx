@@ -63,5 +63,12 @@ export const catalogRoutes = [
       const { ClasificacionesControladasPage } = await import('./pages/ClasificacionesControladasPage');
       return { Component: ClasificacionesControladasPage };
     }
+  },
+  {
+    path: 'catalogo/tipos-documento-identidad',
+    lazy: async () => {
+      const { TiposDocumentoIdentidadPage } = await import('./pages/TiposDocumentoIdentidadPage');
+      return { Component: TiposDocumentoIdentidadPage };
+    }
   }
 ] satisfies RouteObject[];

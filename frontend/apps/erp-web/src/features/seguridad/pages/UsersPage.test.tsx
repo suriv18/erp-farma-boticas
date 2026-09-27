@@ -86,7 +86,9 @@ describe('UsersPage', () => {
     expect(await screen.findByText('No se encontraron usuarios.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
+    await screen.findByRole('option', { name: 'DNI' });
     await user.type(screen.getByLabelText('Nombre visible'), 'Ada Lovelace');
+    await user.type(screen.getByLabelText('Número de documento'), '45678912');
     await user.type(screen.getByLabelText('Correo'), 'ada@boticas.pe');
     await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
 
@@ -107,6 +109,8 @@ describe('UsersPage', () => {
     await screen.findByText('No se encontraron usuarios.');
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }));
+    await screen.findByRole('option', { name: 'DNI' });
+    await user.type(screen.getByLabelText('Número de documento'), '45678912');
     await user.type(screen.getByLabelText('Correo'), 'ada@boticas.pe');
     await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
 

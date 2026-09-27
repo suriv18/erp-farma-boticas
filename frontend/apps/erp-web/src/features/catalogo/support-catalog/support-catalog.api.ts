@@ -3,6 +3,18 @@ import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { SupportCatalogItem } from './support-catalog.types';
 
+type PaginaResponse<T> = {
+  items: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+};
+
+export type SupportCatalogApiOptions = {
+  /** El GET de lista devuelve {items,page,size,totalElements} en vez de un array plano. */
+  paginated?: boolean;
+};
+
 export type SupportCatalogApi<TItem extends SupportCatalogItem, TRequest> = {
   fetchList: (client: ApiClient, estado?: string) => Promise<TItem[]>;
   fetchOne: (client: ApiClient, codigo: string) => Promise<TItem>;
@@ -12,12 +24,24 @@ export type SupportCatalogApi<TItem extends SupportCatalogItem, TRequest> = {
   listQuery: (estado?: string) => ReturnType<typeof queryOptions<TItem[]>>;
 };
 
+const PAGINATED_LIST_SIZE = 100;
+
 export function createSupportCatalogApi<TItem extends SupportCatalogItem, TRequest>(
-  resource: string
+  resource: string,
+  options?: SupportCatalogApiOptions
 ): SupportCatalogApi<TItem, TRequest> {
+  const paginated = options?.paginated ?? false;
+
   function fetchList(client: ApiClient, estado?: string): Promise<TItem[]> {
     const query = new URLSearchParams();
     if (estado) query.set('estado', estado);
+    if (paginated) {
+      query.set('page', '0');
+      query.set('size', String(PAGINATED_LIST_SIZE));
+      return client
+        .get<PaginaResponse<TItem>>(`/catalogo/${resource}?${query.toString()}`)
+        .then((response) => response.items);
+    }
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return client.get<TItem[]>(`/catalogo/${resource}${suffix}`);
   }

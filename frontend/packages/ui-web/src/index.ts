@@ -1,6 +1,9 @@
 export { Badge, type BadgeProps } from './badge/Badge';
 export { Button, type ButtonProps } from './button/Button';
 export { Card } from './card/Card';
+export { Pagination, type PaginationProps } from './pagination/Pagination';
+export { PageHeader, type PageHeaderProps } from './page-header/PageHeader';
+export { ListFilters, type ListFiltersProps } from './list-filters/ListFilters';
 export { cn } from './lib/cn';
 export { DataTable, type DataTableColumn, type DataTableProps } from './data-table/DataTable';
 export {

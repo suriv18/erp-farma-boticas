@@ -42,13 +42,47 @@ const sampleMarca = {
   estado: 'ACTIVO'
 };
 
-function paginaResponse(items: unknown[], overrides: Partial<{ page: number; size: number; totalElements: number }> = {}) {
+function paginaResponse(
+  items: unknown[],
+  overrides: Partial<{ page: number; size: number; totalElements: number }> = {}
+) {
   return { items, page: 0, size: 20, totalElements: items.length, ...overrides };
 }
 
 describe('MarcasPage', () => {
+  it('pagina en servidor, cambia tamaño y reinicia la página al buscar', async () => {
+    let received: URLSearchParams;
+    server.use(
+      http.get('*/api/v1/catalogo/marcas', ({ request }) => {
+        received = new URL(request.url).searchParams;
+        const page = Number(received.get('page'));
+        const size = Number(received.get('size'));
+        return HttpResponse.json(paginaResponse([sampleMarca], { page, size, totalElements: 120 }));
+      })
+    );
+    const { user } = renderPage();
+    await screen.findByText('Bayer');
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }));
+    await waitFor(() => expect(received.get('page')).toBe('1'));
+    await screen.findByText('Página 2 de 6');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Filas por página' }), '50');
+    await waitFor(() => {
+      expect(received.get('size')).toBe('50');
+      expect(received.get('page')).toBe('0');
+    });
+    await screen.findByText('Página 1 de 3');
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }));
+    await screen.findByText('Página 2 de 3');
+    await user.type(screen.getByLabelText('Buscar marca'), 'bay');
+    await waitFor(() => {
+      expect(received.get('q')).toBe('bay');
+      expect(received.get('page')).toBe('0');
+    });
+  });
   it('lista las marcas del tenant activo con columna N°', async () => {
-    server.use(http.get('*/api/v1/catalogo/marcas', () => HttpResponse.json(paginaResponse([sampleMarca]))));
+    server.use(
+      http.get('*/api/v1/catalogo/marcas', () => HttpResponse.json(paginaResponse([sampleMarca])))
+    );
 
     renderPage();
 

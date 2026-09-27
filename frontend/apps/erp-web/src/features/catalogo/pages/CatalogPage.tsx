@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   FolderTree,
+  IdCard,
   Pill,
   Ruler,
   ShieldAlert,
@@ -59,6 +60,12 @@ const sections = [
     icon: ShieldAlert,
     title: 'Clasificaciones controladas',
     description: 'Administra las clasificaciones controladas del catálogo.'
+  },
+  {
+    to: '/catalogo/tipos-documento-identidad',
+    icon: IdCard,
+    title: 'Tipos de documento de identidad',
+    description: 'Administra el catálogo SUNAT de tipos de documento de identidad.'
   }
 ];
 
