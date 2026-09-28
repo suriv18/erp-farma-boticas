@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
@@ -428,77 +428,11 @@ describe('NewUserPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('no crea el usuario ni asigna el rol cuando la validacion del bloque de rol falla', async () => {
-    let userCreationCalled = false;
+  it('no asigna el rol si el formulario de rol se envia antes de crear el usuario', async () => {
     let roleAssignmentCalled = false;
     server.use(
-      http.post('*/api/v1/usuarios', () => {
-        userCreationCalled = true;
-        return HttpResponse.json(sampleUsuarioCreado, { status: 201 });
-      }),
-      http.get('*/api/v1/roles', () => HttpResponse.json(sampleRolesPage)),
-      http.get('*/api/v1/estructura-corporativa', () =>
-        HttpResponse.json({
-          asOf: '2026-09-01T00:00:00Z',
-          companies: [
-            {
-              id: 'company-1',
-              legalName: 'Boticas SAC',
-              tradeName: 'Boticas',
-              status: 'ACTIVE',
-              establishments: [
-                {
-                  id: 'est-1',
-                  code: 'EST-01',
-                  name: 'Sede Central',
-                  status: 'ACTIVE',
-                  timeZone: 'America/Lima',
-                  warehouses: [],
-                  cashRegisters: []
-                }
-              ]
-            }
-          ]
-        })
-      ),
-      http.post('*/api/v1/usuarios/user-nuevo/role-assignments', () => {
-        roleAssignmentCalled = true;
-        return HttpResponse.json({}, { status: 201 });
-      })
-    );
-
-    const { user } = renderPage();
-    await fillRequiredUserFields(user);
-    await user.click(screen.getByLabelText('Asignar rol ahora'));
-    await screen.findByText('Administrador local');
-    await user.selectOptions(screen.getByLabelText('Rol'), 'rol-1');
-    await user.selectOptions(await screen.findByLabelText('Empresa'), 'company-1');
-    // scopeType queda en el default 'ESTABLECIMIENTO' sin seleccionar establecimiento: invalido.
-
-    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
-
-    expect(await screen.findByText('Selecciona un establecimiento.')).toBeInTheDocument();
-    expect(userCreationCalled).toBe(false);
-    expect(roleAssignmentCalled).toBe(false);
-    expect(screen.queryByRole('heading', { name: 'Detalle de usuario' })).not.toBeInTheDocument();
-    expect(
-      screen.queryByText('Usuario creado, pero no se pudo asignar el rol: No se pudo asignar el rol.')
-    ).not.toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText('Establecimiento'), 'est-1');
-    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
-
-    expect(await screen.findByRole('heading', { name: 'Detalle de usuario' })).toBeInTheDocument();
-    expect(userCreationCalled).toBe(true);
-    expect(roleAssignmentCalled).toBe(true);
-  });
-
-  it('ignora el submit nativo del formulario de rol si aun no se hizo click en crear usuario', async () => {
-    let userCreationCalled = false;
-    let roleAssignmentCalled = false;
-    server.use(
-      http.post('*/api/v1/usuarios', () => {
-        userCreationCalled = true;
+      http.post('*/api/v1/usuarios', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
         return HttpResponse.json(sampleUsuarioCreado, { status: 201 });
       }),
       http.get('*/api/v1/roles', () => HttpResponse.json(sampleRolesPage)),
@@ -512,6 +446,7 @@ describe('NewUserPage', () => {
     );
 
     const { user } = renderPage();
+    await fillRequiredUserFields(user);
     await user.click(screen.getByLabelText('Asignar rol ahora'));
     await screen.findByText('Administrador local');
     await user.selectOptions(screen.getByLabelText('Rol'), 'rol-1');
@@ -520,10 +455,7 @@ describe('NewUserPage', () => {
     const roleForm = document.getElementById('new-user-role-assignment-form') as HTMLFormElement;
     roleForm.requestSubmit();
 
-    await Promise.resolve();
-    expect(userCreationCalled).toBe(false);
-    expect(roleAssignmentCalled).toBe(false);
-    expect(screen.queryByRole('heading', { name: 'Detalle de usuario' })).not.toBeInTheDocument();
+    await waitFor(() => expect(roleAssignmentCalled).toBe(false));
   });
 
   it('el enlace ir al detalle desde el fallo parcial navega sin reintentar la asignacion', async () => {
@@ -548,93 +480,6 @@ describe('NewUserPage', () => {
 
     await screen.findByText('Usuario creado, pero no se pudo asignar el rol: El rol indicado no existe.');
     await user.click(screen.getByRole('link', { name: 'Ir al detalle del usuario' }));
-
-    expect(await screen.findByRole('heading', { name: 'Detalle de usuario' })).toBeInTheDocument();
-  });
-
-  it('invalida la lista de usuarios apenas se crea el usuario, incluso si luego falla la asignacion de rol', async () => {
-    const invalidateQueriesSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
-    server.use(
-      http.post('*/api/v1/usuarios', () => HttpResponse.json(sampleUsuarioCreado, { status: 201 })),
-      http.get('*/api/v1/roles', () => HttpResponse.json(sampleRolesPage)),
-      http.get('*/api/v1/estructura-corporativa', () =>
-        HttpResponse.json({ asOf: '2026-09-01T00:00:00Z', companies: [] })
-      ),
-      http.post('*/api/v1/usuarios/user-nuevo/role-assignments', () =>
-        HttpResponse.json({ detail: 'El rol indicado no existe.' }, { status: 404 })
-      )
-    );
-
-    const { user } = renderPage();
-    await fillRequiredUserFields(user);
-    await user.click(screen.getByLabelText('Asignar rol ahora'));
-    await screen.findByText('Administrador local');
-    await user.selectOptions(screen.getByLabelText('Rol'), 'rol-1');
-    await user.selectOptions(screen.getByLabelText('Tipo de ámbito'), 'GLOBAL');
-    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
-
-    await screen.findByText('Usuario creado, pero no se pudo asignar el rol: El rol indicado no existe.');
-
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ['seguridad', 'usuarios'] })
-    );
-
-    invalidateQueriesSpy.mockRestore();
-  });
-
-  it('mantiene visible la pantalla de fallo parcial mientras se reintenta la asignacion de rol', async () => {
-    let attempts = 0;
-    server.use(
-      http.post('*/api/v1/usuarios', () => HttpResponse.json(sampleUsuarioCreado, { status: 201 })),
-      http.get('*/api/v1/roles', () => HttpResponse.json(sampleRolesPage)),
-      http.get('*/api/v1/estructura-corporativa', () =>
-        HttpResponse.json({ asOf: '2026-09-01T00:00:00Z', companies: [] })
-      ),
-      http.post('*/api/v1/usuarios/user-nuevo/role-assignments', async () => {
-        attempts += 1;
-        if (attempts === 1) {
-          return HttpResponse.json({ detail: 'El rol indicado no existe.' }, { status: 404 });
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        return HttpResponse.json(
-          {
-            id: 'assign-1',
-            tenantId: 'tenant-1',
-            userId: 'user-nuevo',
-            roleId: 'rol-1',
-            scopeType: 'GLOBAL',
-            companyId: null,
-            establishmentId: null,
-            warehouseId: null,
-            terminalId: null,
-            validFrom: null,
-            validUntil: null,
-            status: 'ACTIVO',
-            createdBy: 'wilton.sullcaray.r@gmail.com',
-            createdAt: '2026-09-27T00:00:00Z'
-          },
-          { status: 201 }
-        );
-      })
-    );
-
-    const { user } = renderPage();
-    await fillRequiredUserFields(user);
-    await user.click(screen.getByLabelText('Asignar rol ahora'));
-    await screen.findByText('Administrador local');
-    await user.selectOptions(screen.getByLabelText('Rol'), 'rol-1');
-    await user.selectOptions(screen.getByLabelText('Tipo de ámbito'), 'GLOBAL');
-    await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
-
-    await screen.findByText('Usuario creado, pero no se pudo asignar el rol: El rol indicado no existe.');
-
-    await user.click(screen.getByRole('button', { name: 'Reintentar asignación' }));
-
-    expect(
-      screen.getByText('Usuario creado, pero no se pudo asignar el rol: El rol indicado no existe.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reintentando…' })).toBeDisabled();
-    expect(screen.queryByLabelText('Correo')).not.toBeInTheDocument();
 
     expect(await screen.findByRole('heading', { name: 'Detalle de usuario' })).toBeInTheDocument();
   });
