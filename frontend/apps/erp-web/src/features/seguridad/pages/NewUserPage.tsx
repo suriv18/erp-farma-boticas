@@ -13,7 +13,7 @@ import { AsignacionRolForm } from '../components/AsignacionRolForm';
 
 const ROLE_FORM_ID = 'new-user-role-assignment-form';
 
-type Phase = 'idle' | 'creating' | 'assigning' | 'partial-failure';
+type Phase = 'idle' | 'creating' | 'assigning' | 'retrying-assignment' | 'partial-failure';
 
 export function NewUserPage() {
   const { tenantId } = useAuthSession();
@@ -27,6 +27,7 @@ export function NewUserPage() {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [pendingRoleValues, setPendingRoleValues] = useState<AsignacionRolFormValues | null>(null);
   const createdUserIdRef = useRef<string | null>(null);
+  const pendingUserValuesRef = useRef<UsuarioFormValues | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (values: UsuarioFormValues) =>
@@ -60,11 +61,10 @@ export function NewUserPage() {
   });
 
   const goToDetail = (userId: string) => {
-    void queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios'] });
     void navigate(`/seguridad/usuarios/${userId}`);
   };
 
-  const handleCreateUser = (values: UsuarioFormValues) => {
+  const createUser = (values: UsuarioFormValues, onCreated: (userId: string) => void) => {
     setCreateError(null);
     setPhase('creating');
     createMutation.mutate(values, {
@@ -75,22 +75,20 @@ export function NewUserPage() {
       onSuccess: (usuario) => {
         createdUserIdRef.current = usuario.id;
         setCreatedUserId(usuario.id);
-        if (!assignRoleEnabled) {
-          goToDetail(usuario.id);
-          return;
-        }
-        const roleForm = document.getElementById(ROLE_FORM_ID) as HTMLFormElement | null;
-        roleForm?.requestSubmit();
+        void queryClient.invalidateQueries({ queryKey: ['seguridad', 'usuarios'] });
+        onCreated(usuario.id);
       }
     });
   };
 
-  const handleAssignRole = (values: AsignacionRolFormValues) => {
-    const userId = createdUserIdRef.current;
-    if (!userId) return;
-    setAssignError(null);
+  const assignRole = (
+    userId: string,
+    values: AsignacionRolFormValues,
+    inProgressPhase: 'assigning' | 'retrying-assignment' = 'assigning'
+  ) => {
+    if (inProgressPhase === 'assigning') setAssignError(null);
     setPendingRoleValues(values);
-    setPhase('assigning');
+    setPhase(inProgressPhase);
     assignRoleMutation.mutate(
       { userId, values },
       {
@@ -105,13 +103,33 @@ export function NewUserPage() {
     );
   };
 
+  const handleCreateUser = (values: UsuarioFormValues) => {
+    if (!assignRoleEnabled) {
+      createUser(values, goToDetail);
+      return;
+    }
+    pendingUserValuesRef.current = values;
+    const roleForm = document.getElementById(ROLE_FORM_ID) as HTMLFormElement | null;
+    roleForm?.requestSubmit();
+  };
+
+  const handleRoleFormValidated = (roleValues: AsignacionRolFormValues) => {
+    const userValues = pendingUserValuesRef.current;
+    if (!userValues) return;
+    createUser(userValues, (userId) => assignRole(userId, roleValues));
+  };
+
   // pendingRoleValues siempre está seteado aquí: este botón solo se renderiza en phase
-  // 'partial-failure', que handleAssignRole únicamente alcanza después de setPendingRoleValues.
-  const handleRetryAssignment = () => handleAssignRole(pendingRoleValues!);
+  // 'partial-failure', que assignRole únicamente alcanza después de setPendingRoleValues.
+  const handleRetryAssignment = () =>
+    assignRole(createdUserIdRef.current!, pendingRoleValues!, 'retrying-assignment');
 
   const handleCancelRoleAssignment = () => setAssignRoleEnabled(false);
 
-  if (phase === 'partial-failure' && createdUserId) {
+  const showPartialFailure =
+    (phase === 'partial-failure' || phase === 'retrying-assignment') && createdUserId !== null;
+
+  if (showPartialFailure) {
     return (
       <div className="mx-auto max-w-3xl">
         <PageHeader
@@ -125,7 +143,7 @@ export function NewUserPage() {
           </p>
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={handleRetryAssignment} disabled={assignRoleMutation.isPending}>
-              Reintentar asignación
+              {assignRoleMutation.isPending ? 'Reintentando…' : 'Reintentar asignación'}
             </Button>
             <Link
               to={`/seguridad/usuarios/${createdUserId}`}
@@ -178,7 +196,7 @@ export function NewUserPage() {
             <AsignacionRolForm
               formId={ROLE_FORM_ID}
               tenantId={tenantId ?? ''}
-              onSubmit={handleAssignRole}
+              onSubmit={handleRoleFormValidated}
               onCancel={handleCancelRoleAssignment}
               isSubmitting={phase === 'assigning'}
             />
