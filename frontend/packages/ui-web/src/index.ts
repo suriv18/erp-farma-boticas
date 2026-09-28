@@ -1,5 +1,5 @@
 export { Badge, type BadgeProps } from './badge/Badge';
-export { Button, type ButtonProps } from './button/Button';
+export { Button, buttonClassName, type ButtonProps } from './button/Button';
 export { Card } from './card/Card';
 export { Pagination, type PaginationProps } from './pagination/Pagination';
 export { PageHeader, type PageHeaderProps } from './page-header/PageHeader';

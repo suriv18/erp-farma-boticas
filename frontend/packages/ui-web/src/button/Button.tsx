@@ -23,6 +23,14 @@ const sizes: Record<ButtonSize, string> = {
   md: 'h-11 px-4 text-sm'
 };
 
+export function buttonClassName(variant: ButtonVariant = 'primary', size: ButtonSize = 'md'): string {
+  return cn(
+    'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
+    variants[variant],
+    sizes[size]
+  );
+}
+
 export function Button({
   className,
   ref,
@@ -35,12 +43,7 @@ export function Button({
     <button
       ref={ref}
       type={type}
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
-        variants[variant],
-        sizes[size],
-        className
-      )}
+      className={cn(buttonClassName(variant, size), className)}
       {...props}
     />
   );
