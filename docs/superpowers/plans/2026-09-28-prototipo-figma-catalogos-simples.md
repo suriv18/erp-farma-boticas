@@ -121,7 +121,7 @@ Criterio de aceptación: los 5 estilos existen con los tamaños/pesos especifica
 **Consume:** ninguna variable nueva todavía (el shell ya usa fills sólidos existentes; rebind a variables `success/*` es opcional, ver Paso 4).
 
 **Produce:** dos componentes de Figma:
-- `Shell / Sidebar` (252×900) — clon del nodo `3:3`, con una propiedad de componente `NavActivo` de tipo `VARIANT` con 7 opciones (`Inicio`, `Ventas`, `Inventario`, `Compras`, `Clientes`, `Reportes`, `Configuración`) que controla qué ítem de nav se muestra resaltado (fondo `success/50` + texto `success/700`, replicando el estilo ya usado en "Inicio" dentro de `3:11`).
+- `Shell / Sidebar` (252×900+38 de alto extra por el ítem nuevo, o re-distribuido para mantener 900 de alto) — clon del nodo `3:3`, con un ítem de nav nuevo **"Catálogo"** insertado entre "Inventario" y "Compras" (mismo patrón visual que `3:21` Nav/Inventario: ícono + texto, sin badge numérico), y una propiedad de componente `NavActivo` de tipo `VARIANT` con **8 opciones** (`Inicio`, `Ventas`, `Inventario`, `Catálogo`, `Compras`, `Clientes`, `Reportes`, `Configuración`) que controla qué ítem de nav se muestra resaltado (fondo `success/50` + texto `success/700`, replicando el estilo ya usado en "Inicio" dentro de `3:11`). Las 8 pantallas de catálogo (Tasks 4-11) usan la variante `NavActivo=Catálogo`.
 - `Shell / Topbar` (1116×100) — clon del nodo `3:62`, con un slot de texto `Título` (vacío/oculto por defecto) para casos donde se requiera un breadcrumb distinto al buscador — si no se necesita en la práctica al construir Task 3, se simplifica a un clon directo sin modificar.
 
 - [ ] **Paso 1: Cargar las skills `figma-use` y `figma-generate-library`**
@@ -174,7 +174,7 @@ Usar `figma.combineAsVariants` sobre 7 copias del sidebar clonado (una por cada 
 
 **Herramientas:** `figma-use` + `figma-generate-library` skills, `mcp__claude_ai_Figma__use_figma`, `mcp__claude_ai_Figma__get_screenshot`
 
-**Consume:** `Shell / Sidebar` (variante `NavActivo=Configuración` por defecto, ya que no hay un ítem de nav dedicado a "Catálogo" en el sidebar actual — ver decisión abierta al final de esta task), `Shell / Topbar`, variables `success/*` y estilos de texto de Task 1.
+**Consume:** `Shell / Sidebar` (variante `NavActivo=Catálogo`, ítem agregado en Task 2), `Shell / Topbar`, variables `success/*` y estilos de texto de Task 1.
 
 **Produce:** un componente `Catálogo simple / Página` (1440×900, Sidebar a la izquierda + Contenido a la derecha) con estas capas nombradas exactamente así (las Tasks 4-11 dependen de estos nombres para hacer overrides):
 - `Header` → `Breadcrumb` (texto, estilo `Body/Description`), `Título` (texto, estilo `Heading/Page`), `Descripción` (texto, estilo `Body/Description`), `BotónNuevo` (fondo `success/600`, texto blanco, estilo `Label/Field`)
@@ -186,7 +186,7 @@ Además: `Modal / Crear` y `Modal / Editar` (overlay semitransparente + tarjeta 
 
 - [ ] **Paso 1: Cargar las skills `figma-use` y `figma-generate-library`**
 
-- [ ] **Paso 2: Crear página "03 · Catálogo simple (maestro)". Instanciar `Shell / Sidebar` (variante `NavActivo=Configuración`) en x=0 e instanciar `Shell / Topbar` en x=252,y=0**
+- [ ] **Paso 2: Crear página "03 · Catálogo simple (maestro)". Instanciar `Shell / Sidebar` (variante `NavActivo=Catálogo`) en x=0 e instanciar `Shell / Topbar` en x=252,y=0**
 
 - [ ] **Paso 3: Construir `Header` debajo del Topbar (x=288, y=152, siguiendo el mismo margen que usa `3:77` "Buen día, Juan" en el dashboard original) con los 4 elementos listados arriba, usando placeholders genéricos ("Catálogo / {Recurso}", "{Recurso}", "Administra los {recurso}s del catálogo.", "+ Nuevo {Recurso}") que se sobreescriben en cada instancia**
 
@@ -204,11 +204,9 @@ Además: `Modal / Crear` y `Modal / Editar` (overlay semitransparente + tarjeta 
 
 - [ ] **Paso 10: Ensamblar todo en el componente `Catálogo simple / Página` y verificar con `get_screenshot`**
 
-Criterio de aceptación: el layout combina el shell real del dashboard (sidebar+topbar idénticos a `04 · Panel principal`) con el patrón de `SupportCatalogPage.tsx` (header con acción a la derecha, filtros debajo, tabla con columna Estado y Acciones al final), colores usan la paleta `success`, tipografía Plus Jakarta Sans consistente con el resto del archivo.
+Criterio de aceptación: el layout combina el shell real del dashboard (sidebar+topbar idénticos a `04 · Panel principal`, con "Catálogo" resaltado en el nav) con el patrón de `SupportCatalogPage.tsx` (header con acción a la derecha, filtros debajo, tabla con columna Estado y Acciones al final), colores usan la paleta `success`, tipografía Plus Jakarta Sans consistente con el resto del archivo.
 
 - [ ] **Paso 11: Checkpoint — confirmar con el usuario que el componente maestro completo (Tasks 1-3) se ve correcto antes de replicarlo 8 veces**
-
-**Decisión abierta para este paso:** el sidebar actual no tiene un ítem de nav "Catálogo". Antes del Paso 2, preguntar al usuario si (a) se usa `NavActivo=Configuración` como aproximación, (b) se agrega un 8vo ítem "Catálogo" al sidebar (lo que obliga a rehacer la variante de Task 2), o (c) se deja sin ningún ítem resaltado. No asumir — bloquea el Paso 2.
 
 ---
 
