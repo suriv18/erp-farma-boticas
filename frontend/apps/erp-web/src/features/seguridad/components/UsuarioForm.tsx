@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
-import { Button, FormField } from '@boticas/ui-web';
+import { Button, FormField, Input } from '@boticas/ui-web';
 import { tiposDocumentoIdentidadApi } from '../../catalogo';
 import { usuarioSchema, type UsuarioFormValues } from '../schemas/usuario.schema';
 
@@ -81,54 +81,29 @@ export function UsuarioForm({
           htmlFor="usuario-document-number"
           error={errors.documentNumber?.message}
         >
-          <input
-            id="usuario-document-number"
-            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            {...register('documentNumber')}
-          />
+          <Input id="usuario-document-number" {...register('documentNumber')} />
         </FormField>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Nombres" htmlFor="usuario-first-names" error={errors.firstNames?.message}>
-          <input
-            id="usuario-first-names"
-            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            {...register('firstNames')}
-          />
+          <Input id="usuario-first-names" {...register('firstNames')} />
         </FormField>
         <FormField label="Apellidos" htmlFor="usuario-last-names" error={errors.lastNames?.message}>
-          <input
-            id="usuario-last-names"
-            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            {...register('lastNames')}
-          />
+          <Input id="usuario-last-names" {...register('lastNames')} />
         </FormField>
       </div>
 
       <FormField label="Correo" htmlFor="usuario-email" error={errors.email?.message}>
-        <input
-          id="usuario-email"
-          type="email"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('email')}
-        />
+        <Input id="usuario-email" type="email" {...register('email')} />
       </FormField>
 
       <FormField label="Username" htmlFor="usuario-username" error={errors.username?.message}>
-        <input
-          id="usuario-username"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('username')}
-        />
+        <Input id="usuario-username" {...register('username')} />
       </FormField>
 
       <FormField label="Teléfono" htmlFor="usuario-phone" error={errors.phone?.message}>
-        <input
-          id="usuario-phone"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('phone')}
-        />
+        <Input id="usuario-phone" {...register('phone')} />
       </FormField>
 
       <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button, FormField } from '@boticas/ui-web';
+import { Button, FormField, Input } from '@boticas/ui-web';
 import type { VincularIdentidadPayload } from '../api/usuarios.types';
 import {
   identidadExternaSchema,
@@ -85,11 +85,7 @@ export function IdentidadExternaForm({
           htmlFor="identidad-provider-custom"
           error={errors.providerCustom?.message}
         >
-          <input
-            id="identidad-provider-custom"
-            className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            {...register('providerCustom')}
-          />
+          <Input id="identidad-provider-custom" {...register('providerCustom')} />
         </FormField>
       ) : null}
 
@@ -98,11 +94,7 @@ export function IdentidadExternaForm({
         htmlFor="identidad-subject"
         error={errors.subject?.message}
       >
-        <input
-          id="identidad-subject"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('subject')}
-        />
+        <Input id="identidad-subject" {...register('subject')} />
       </FormField>
 
       <FormField
@@ -110,11 +102,7 @@ export function IdentidadExternaForm({
         htmlFor="identidad-issuer"
         error={errors.issuer?.message}
       >
-        <input
-          id="identidad-issuer"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('issuer')}
-        />
+        <Input id="identidad-issuer" {...register('issuer')} />
       </FormField>
 
       <FormField
@@ -122,12 +110,7 @@ export function IdentidadExternaForm({
         htmlFor="identidad-email"
         error={errors.emailClaim?.message}
       >
-        <input
-          id="identidad-email"
-          type="email"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('emailClaim')}
-        />
+        <Input id="identidad-email" type="email" {...register('emailClaim')} />
       </FormField>
 
       <div className="flex justify-end gap-3">

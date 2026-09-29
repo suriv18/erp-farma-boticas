@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button, FormField } from '@boticas/ui-web';
+import { Button, FormField, Input } from '@boticas/ui-web';
 import { rolSchema, type RolFormValues } from '../schemas/rol.schema';
 
 export type RolFormProps = {
@@ -45,19 +45,11 @@ export function RolForm({
       }}
     >
       <FormField label="Código" htmlFor="rol-code" error={errors.code?.message}>
-        <input
-          id="rol-code"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('code')}
-        />
+        <Input id="rol-code" {...register('code')} />
       </FormField>
 
       <FormField label="Nombre" htmlFor="rol-name" error={errors.name?.message}>
-        <input
-          id="rol-name"
-          className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          {...register('name')}
-        />
+        <Input id="rol-name" {...register('name')} />
       </FormField>
 
       <FormField label="Descripción" htmlFor="rol-description" error={errors.description?.message}>
