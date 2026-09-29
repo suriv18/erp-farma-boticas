@@ -39,9 +39,9 @@
   - `Body/Table` — 14px, Regular (400) — igual que el placeholder del buscador (`3:67`)
   - `Label/Nav` — 14px, Medium (500) / Bold (700) para el ítem activo — igual que los ítems del sidebar (`3:20`, `3:14`)
 
-- [ ] **Paso 1: Cargar la skill `figma-use` y `figma-generate-library`** (ya cargadas en esta sesión si se continúa el mismo hilo de trabajo; si se retoma en una sesión nueva, cargarlas de nuevo antes de cualquier `use_figma`).
+- [x] **Paso 1: Cargar la skill `figma-use` y `figma-generate-library`** (ya cargadas en esta sesión si se continúa el mismo hilo de trabajo; si se retoma en una sesión nueva, cargarlas de nuevo antes de cualquier `use_figma`).
 
-- [ ] **Paso 2: Crear la colección de variables de color**
+- [x] **Paso 2: Crear la colección de variables de color**
 
 ```js
 // skillNames: "figma-use,figma-generate-library"
@@ -70,14 +70,9 @@ for (const [step, hex] of Object.entries(steps)) {
 return { collectionId: collection.id, modeId, createdVariableIds: createdIds };
 ```
 
-- [ ] **Paso 3: Verificar con `get_variable_defs`**
+- [x] **Paso 3: Verificar con `get_variable_defs`** — verificado por lectura directa vía `use_figma` (`getLocalVariableCollectionsAsync`): colección "Catálogos — Color" con 11 variables.
 
-```
-mcp__claude_ai_Figma__get_variable_defs(fileKey: "dAGg5r6W2taj38y4MMH3xH", nodeId: "0:1")
-```
-Criterio de aceptación: las 11 variables `success/50`…`success/950` existen con los valores hex correctos.
-
-- [ ] **Paso 4: Crear los 5 estilos de texto usando `figma.loadFontAsync` antes de cada uno (recipe: load font → await → crear estilo → return ids)**
+- [x] **Paso 4: Crear los 5 estilos de texto usando `figma.loadFontAsync` antes de cada uno (recipe: load font → await → crear estilo → return ids)**
 
 ```js
 // skillNames: "figma-use,figma-generate-library"
@@ -102,19 +97,15 @@ for (const spec of specs) {
 return { createdStyleIds };
 ```
 
-Nota: verificar primero con `await figma.listAvailableFontsAsync()` que el string de estilo exacto es `"Extra Bold"`/`"Semi Bold"` (con espacio) y no `"ExtraBold"`/`"SemiBold"` (sin espacio) — los nodos existentes reportaron `style: "ExtraBold"` vía `fontName`, pero la convención de `loadFontAsync` puede requerir el nombre con espacio tal como lo expone la fuente variable; si el paso 4 falla por fuente no encontrada, correr `listAvailableFontsAsync()` filtrando por `family === 'Plus Jakarta Sans'` y usar el string exacto devuelto.
+Nota (resuelta): `listAvailableFontsAsync()` confirmó que los estilos son **sin espacio** — `"ExtraBold"`, `"SemiBold"` — no `"Extra Bold"`/`"Semi Bold"`. El script usó los strings correctos sin espacio.
 
-- [ ] **Paso 5: Verificar con lectura de `getLocalTextStyles()`**
-
-```js
-// skillNames: "figma-use,figma-generate-library"
-return figma.getLocalTextStyles().map(s => ({ name: s.name, id: s.id, fontSize: s.fontSize, fontName: s.fontName }));
-```
-Criterio de aceptación: los 5 estilos existen con los tamaños/pesos especificados.
+- [x] **Paso 5: Verificar con lectura de `getLocalTextStyles()`** — confirmado: los 5 estilos existen con los tamaños/pesos especificados (Heading/Page 26/ExtraBold, Body/Description 14/Medium, Label/Field 13/SemiBold, Body/Table 14/Regular, Label/Nav 14/Medium).
 
 ---
 
 ## Task 2: Extraer el shell (Sidebar + Topbar) como componentes reutilizables
+
+> **Estado:** bloqueada — al intentar el Paso 2 se alcanzó el límite de llamadas MCP del plan Starter de la cuenta de Figma ("You've reached the Figma MCP tool call limit on the Starter plan"). Task 1 quedó completa y verificada antes del bloqueo. Reintentar el Paso 2 cuando la cuota se libere; no se perdió ningún trabajo (los scripts son atómicos, nada se ejecutó a medias).
 
 **Herramientas:** `figma-use` + `figma-generate-library` skills, `mcp__claude_ai_Figma__use_figma`, `mcp__claude_ai_Figma__get_screenshot`
 
