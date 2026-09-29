@@ -23,6 +23,7 @@ export {
   type IconButtonTone,
   type IconButtonSize
 } from './icon-button/IconButton';
+export { Input, type InputProps } from './input/Input';
 export { Modal, type ModalProps } from './modal/Modal';
 export { ThemeToggle, type ThemeToggleProps } from './theme/ThemeToggle';
 export { useTheme, type Theme } from './theme/useTheme';
