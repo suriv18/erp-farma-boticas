@@ -26,7 +26,7 @@ Rediseño visual de:
    - Título "Bienvenido de nuevo 👋" y subtítulo, reemplazando "Ingresa a tu cuenta".
    - Nuevo campo **"Sucursal"**: `<select>` puramente visual con opciones estáticas de ejemplo (ej. "Botica Central – Huamanga"). **No se registra en `useForm`, no se valida contra `loginSchema`, no se incluye en `onAuthenticate`** — el schema real no lo soporta y esto no cambia.
    - Campos "Usuario o correo electrónico" y "Contraseña" (con toggle mostrar/ocultar ya existente) se mantienen funcionalmente idénticos, solo restilizados.
-   - Checkbox "Recordar sesión" + link "¿Olvidaste tu contraseña?" se mantienen funcionalmente idénticos (mismo estado `recoveryVisible`), solo restilizados.
+   - Checkbox "Recordar mi correo en este equipo" + link "¿Olvidaste tu contraseña?" se mantienen funcionalmente idénticos (mismo estado `recoveryVisible`), solo restilizados.
    - Botón "Iniciar sesión" restilizado, mismo `type="submit"` y mismo comportamiento de `isSubmitting`.
    - Nuevo separador "o continúa con" + botones "Código QR" y "PIN de caja": **puramente decorativos**, sin `onClick` funcional (o un `onClick` que no hace nada — se decide en el plan si se omite el atributo o se deja un no-op explícito, ninguna de las dos opciones implica navegación ni llamada a API).
    - Aviso de seguridad inferior se mantiene (ya existe, solo restilizado).
