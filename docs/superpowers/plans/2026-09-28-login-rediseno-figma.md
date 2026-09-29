@@ -792,32 +792,20 @@ git commit -m "feat(auth): agregar topbar decorativa de ayuda e idioma"
 
 **Files:** ninguno nuevo — solo comandos de verificación.
 
-- [ ] **Paso 1: Lint**
+- [x] **Paso 1: Lint** — `npx eslint apps/erp-web/src/features/auth` desde `frontend/`: sin errores (exit 0).
 
-Run: `pnpm lint`
-Expected: sin errores nuevos.
+- [x] **Paso 2: Typecheck** — `npx tsc -b --pretty false` desde `frontend/apps/erp-web/`: sin errores (exit 0).
 
-- [ ] **Paso 2: Typecheck**
+- [x] **Paso 3: Suite completa de tests de auth** — `npx vitest run apps/erp-web/src/features/auth` desde `frontend/`: 4 archivos, 17/17 tests PASS.
 
-Run: `pnpm --filter @boticas/erp-web typecheck`
-Expected: sin errores.
-
-- [ ] **Paso 3: Suite completa de tests de auth**
-
-Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx AuthSessionProvider.test.tsx`
-Expected: todos PASS.
-
-- [ ] **Paso 4: Revisión visual manual**
+- [ ] **Paso 4: Revisión visual manual** — pendiente: requiere `pnpm dev` y abrir el navegador; no ejecutado en esta sesión de implementación inline.
 
 ```bash
 pnpm --filter @boticas/erp-web dev
 ```
 Abrir `http://localhost:3000/login`, comparar visualmente contra el screenshot de Figma del frame `01 · Login` (paleta verde-teal, layout de 2 paneles, textos exactos), en modo claro y oscuro (si el toggle de tema existe en el shell de la app; si no, verificar las clases `dark:` inspeccionando con DevTools).
 
-- [ ] **Paso 5: Build completo**
-
-Run: `pnpm --filter @boticas/erp-web build`
-Expected: build exitoso sin errores de tipos ni de bundling.
+- [x] **Paso 5: Build completo** — `npx vite build` desde `frontend/apps/erp-web/`: build exitoso (exit 0).
 
 ---
 
