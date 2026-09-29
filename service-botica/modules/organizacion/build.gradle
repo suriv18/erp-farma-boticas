@@ -14,4 +14,6 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api'
 
     testImplementation 'org.assertj:assertj-core'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
 }
