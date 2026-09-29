@@ -1,4 +1,3 @@
-com.softprimesolutions.organizacion.domain.empresa.EmpresaOperadora
 com.softprimesolutions.organizacion.application.dto.result.PaginaResult
 com.softprimesolutions.organizacion.application.dto.result.EmpresaOperadoraResult
 com.softprimesolutions.organizacion.application.dto.result.EstablecimientoResult
