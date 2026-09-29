@@ -36,7 +36,7 @@ function renderLogin(initialEntry = '/login') {
 }
 
 async function fillValidCredentials(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Correo corporativo'), 'admin@boticas.pe');
+  await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'admin@boticas.pe');
   await user.type(screen.getByLabelText('Contraseña'), 'Boticas2026!');
 }
 
@@ -68,7 +68,7 @@ describe('LoginPage', () => {
   it('muestra un mensaje de error cuando el backend rechaza las credenciales', async () => {
     const { user } = renderLogin();
 
-    await user.type(screen.getByLabelText('Correo corporativo'), 'admin@boticas.pe');
+    await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'admin@boticas.pe');
     await user.type(screen.getByLabelText('Contraseña'), 'ContrasenaIncorrecta1!');
     await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
 

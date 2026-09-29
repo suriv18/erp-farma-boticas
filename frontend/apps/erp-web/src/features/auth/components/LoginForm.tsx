@@ -56,7 +56,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
           htmlFor="email"
           className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
         >
-          Correo corporativo
+          Usuario o correo electrónico
         </label>
         <div className="relative mt-2">
           <Mail
@@ -68,10 +68,10 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
             type="email"
             autoComplete="username"
             autoFocus
-            placeholder="nombre@boticas.pe"
+            placeholder="ej. jperez@farmavita.pe"
             aria-describedby={errors.email ? 'email-error' : undefined}
             aria-invalid={Boolean(errors.email)}
-            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
+            className="focus:border-success-600 focus:ring-success-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-success-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('email')}
           />
         </div>
@@ -96,7 +96,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
           </label>
           <button
             type="button"
-            className="text-primary-700 hover:text-primary-900 focus-visible:outline-primary-600 dark:text-primary-400 dark:hover:text-primary-200 text-xs font-semibold transition focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="text-success-700 hover:text-success-900 focus-visible:outline-success-600 dark:text-success-400 dark:hover:text-success-200 text-xs font-semibold transition focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => setRecoveryVisible((visible) => !visible)}
             aria-expanded={recoveryVisible}
             aria-controls="recovery-help"
@@ -116,7 +116,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
             placeholder="Ingresa tu contraseña"
             aria-describedby={errors.password ? 'password-error' : undefined}
             aria-invalid={Boolean(errors.password)}
-            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-12 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
+            className="focus:border-success-600 focus:ring-success-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-success-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-12 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('password')}
           />
           <button
@@ -157,7 +157,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
       <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
         <input
           type="checkbox"
-          className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
+          className="text-success-700 focus:ring-success-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
           {...register('remember')}
         />
         Recordar mi correo en este equipo
@@ -176,7 +176,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
 
       <div className="flex items-start gap-2.5 rounded-xl bg-neutral-50 px-3.5 py-3 text-xs leading-5 text-neutral-500 dark:bg-neutral-800/50 dark:text-neutral-400">
         <ShieldCheck
-          className="text-primary-700 dark:text-primary-400 mt-0.5 size-4 shrink-0"
+          className="text-success-700 dark:text-success-400 mt-0.5 size-4 shrink-0"
           aria-hidden="true"
         />
         <span>
