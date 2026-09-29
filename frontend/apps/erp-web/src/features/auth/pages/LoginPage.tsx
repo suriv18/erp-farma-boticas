@@ -1,5 +1,14 @@
 import { ApiError } from '@boticas/api-client';
-import { Boxes, Building2, Pill, ShieldCheck, Store, Warehouse } from 'lucide-react';
+import {
+  Boxes,
+  Building2,
+  CircleHelp,
+  Globe,
+  Pill,
+  ShieldCheck,
+  Store,
+  Warehouse
+} from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { LoginForm } from '../components/LoginForm';
@@ -134,6 +143,17 @@ export function LoginPage() {
       </section>
 
       <section className="flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12 xl:px-20">
+        <div className="hidden items-center justify-end gap-5 pb-4 text-sm font-semibold text-neutral-500 lg:flex dark:text-neutral-400">
+          <span className="flex items-center gap-1.5">
+            <CircleHelp className="size-4" aria-hidden="true" />
+            Ayuda
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Globe className="size-4" aria-hidden="true" />
+            Español
+          </span>
+        </div>
+
         <div className="flex items-center gap-3 lg:hidden">
           <div className="bg-success-900 text-white grid size-10 place-items-center rounded-xl">
             <Pill className="size-4.5" aria-hidden="true" />
