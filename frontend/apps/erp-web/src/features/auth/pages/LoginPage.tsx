@@ -1,15 +1,27 @@
 import { ApiError } from '@boticas/api-client';
-import { Boxes, Building2, Check, Pill, ShieldCheck, Store, Warehouse } from 'lucide-react';
+import { Boxes, Building2, Pill, ShieldCheck, Store, Warehouse } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { LoginForm } from '../components/LoginForm';
 import { useAuthSession } from '../model/useAuthSession';
 import type { LoginCredentials } from '../schemas/login.schema';
 
-const operationalBenefits = [
-  'Inventario y lotes en tiempo real',
-  'Ventas y caja con trazabilidad',
-  'Permisos por empresa y sucursal'
+const operationalFeatures = [
+  {
+    icon: Boxes,
+    title: 'Inventario inteligente',
+    description: 'Control de lotes, stock mínimo y alertas de vencimiento.'
+  },
+  {
+    icon: Store,
+    title: 'Ventas y comprobantes',
+    description: 'Boletas y facturas electrónicas en segundos.'
+  },
+  {
+    icon: Warehouse,
+    title: 'Reportes en tiempo real',
+    description: 'Indicadores por sucursal, turno y vendedor.'
+  }
 ];
 
 const GENERIC_LOGIN_ERROR = 'Credenciales incorrectas o cuenta bloqueada.';
@@ -45,80 +57,78 @@ export function LoginPage() {
 
   return (
     <main className="min-h-screen bg-[#f4f7f5] lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)] dark:bg-neutral-950">
-      <section className="bg-primary-950 relative hidden min-h-screen overflow-hidden p-10 text-white lg:flex lg:flex-col xl:p-14">
+      <section
+        className="relative hidden min-h-screen overflow-hidden p-10 text-white lg:flex lg:flex-col xl:p-14"
+        style={{ backgroundImage: 'linear-gradient(160deg, #0d9488 0%, #065f46 55%, #022c22 100%)' }}
+      >
         <div
           className="pointer-events-none absolute inset-0 opacity-80"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 12% 18%, rgba(45, 212, 191, 0.22), transparent 28%), radial-gradient(circle at 82% 78%, rgba(250, 204, 21, 0.18), transparent 27%)'
+              'radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.10), transparent 28%), radial-gradient(circle at 82% 78%, rgba(255, 255, 255, 0.08), transparent 27%)'
           }}
         />
         <div className="pointer-events-none absolute top-24 -right-24 size-72 rounded-full border border-white/10" />
         <div className="pointer-events-none absolute top-40 -right-4 size-44 rounded-full border border-white/10" />
 
         <div className="relative flex items-center gap-3">
-          <div className="bg-warning-300 text-primary-950 shadow-primary-950/30 grid size-11 place-items-center rounded-2xl shadow-lg">
+          <div className="bg-white text-success-800 shadow-success-950/30 grid size-11 place-items-center rounded-2xl shadow-lg">
             <Pill className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-lg font-black tracking-tight">ERP Boticas</p>
-            <p className="text-primary-100/65 text-xs font-medium">
-              Gestión farmacéutica inteligente
+            <p className="text-lg font-black tracking-tight">FarmaVita</p>
+            <p className="text-success-100/65 text-xs font-medium">
+              Sistema de gestión de boticas
             </p>
           </div>
         </div>
 
         <div className="relative my-auto max-w-xl py-16">
-          <div className="border-primary-300/20 text-primary-50 inline-flex items-center gap-2 rounded-full border bg-white/10 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-            <ShieldCheck className="text-warning-300 size-3.5" aria-hidden="true" />
-            Operación segura y centralizada
+          <div className="border-white/20 text-success-50 inline-flex items-center gap-2 rounded-full border bg-white/10 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+            <ShieldCheck className="text-white size-3.5" aria-hidden="true" />
+            Plataforma para boticas y farmacias
           </div>
           <h1 className="mt-6 max-w-lg text-4xl leading-[1.08] font-black tracking-[-0.035em] text-balance xl:text-5xl">
-            Todo lo que tu botica necesita, en un solo lugar.
+            Gestiona tu botica con precisión y confianza.
           </h1>
-          <p className="text-primary-50/70 mt-5 max-w-lg text-base leading-7 xl:text-lg">
-            Controla sucursales, productos, stock y ventas con información confiable para decidir
-            mejor cada día.
+          <p className="text-success-50/70 mt-5 max-w-lg text-base leading-7 xl:text-lg">
+            Controla inventario, lotes y vencimientos, ventas y caja de todas tus sucursales desde
+            un solo lugar.
           </p>
 
-          <ul className="mt-8 space-y-3.5" aria-label="Beneficios de la plataforma">
-            {operationalBenefits.map((benefit) => (
-              <li
-                key={benefit}
-                className="text-primary-50 flex items-center gap-3 text-sm font-medium"
-              >
-                <span className="bg-warning-300 text-primary-950 grid size-6 place-items-center rounded-full">
-                  <Check className="size-3.5 stroke-[3]" aria-hidden="true" />
+          <ul className="mt-8 space-y-4" aria-label="Funcionalidades de la plataforma">
+            {operationalFeatures.map(({ icon: Icon, title, description }) => (
+              <li key={title} className="flex items-start gap-3.5">
+                <span className="bg-white/15 text-white grid size-10 shrink-0 place-items-center rounded-xl">
+                  <Icon className="size-5" aria-hidden="true" />
                 </span>
-                {benefit}
+                <div>
+                  <p className="text-white text-sm font-bold">{title}</p>
+                  <p className="text-success-50/70 mt-0.5 text-sm leading-6">{description}</p>
+                </div>
               </li>
             ))}
           </ul>
 
-          <div className="mt-10 grid max-w-lg grid-cols-3 gap-3">
+          <div className="mt-10 grid max-w-lg grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-              <Store className="text-warning-300 size-5" aria-hidden="true" />
-              <p className="mt-3 text-xl font-bold">12</p>
-              <p className="text-primary-50/60 mt-0.5 text-[11px]">Sucursales</p>
+              <p className="text-success-50/70 text-xs font-semibold">Ventas de hoy</p>
+              <p className="mt-2 text-xl font-black">S/ 8,452.30</p>
+              <p className="text-success-200 mt-1 text-[11px] font-bold">▲ 12.4%</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-              <Warehouse className="text-warning-300 size-5" aria-hidden="true" />
-              <p className="mt-3 text-xl font-bold">8.4k</p>
-              <p className="text-primary-50/60 mt-0.5 text-[11px]">Unidades</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-              <Boxes className="text-warning-300 size-5" aria-hidden="true" />
-              <p className="mt-3 text-xl font-bold">99.9%</p>
-              <p className="text-primary-50/60 mt-0.5 text-[11px]">Disponibilidad</p>
+              <p className="text-success-50/70 text-xs font-semibold">Por vencer (30 días)</p>
+              <p className="mt-2 text-xl font-black">7 lotes</p>
+              <p className="text-success-200 mt-1 text-[11px] font-bold">Amoxicilina 500mg</p>
             </div>
           </div>
         </div>
 
-        <div className="text-primary-50/50 relative flex items-center justify-between gap-5 border-t border-white/10 pt-6 text-xs">
-          <span>© 2026 ERP Boticas</span>
+        <div className="text-success-50/50 relative flex items-center justify-between gap-5 border-t border-white/10 pt-6 text-xs">
+          <span>Datos cifrados de extremo a extremo · Respaldo diario automático</span>
           <span className="flex items-center gap-1.5">
             <Building2 className="size-3.5" aria-hidden="true" />
-            Botica Central · Lima
+            © 2026 FarmaVita
           </span>
         </div>
       </section>

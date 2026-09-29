@@ -10,7 +10,8 @@
 
 ## Global Constraints
 
-- Paleta: únicamente tokens `success-*` ya definidos en `frontend/apps/erp-web/src/styles.css:35-45` (`50`→`#ecfdf5` … `950`→`#022c22`). No introducir hex nuevos, no tocar `primary`/`warning` globales.
+- Paleta: tokens `success-*` ya definidos en `frontend/apps/erp-web/src/styles.css:35-45` (`50`→`#ecfdf5` … `950`→`#022c22`) para todo color sólido. No tocar `primary`/`warning` globales.
+- **Excepción documentada:** el fondo del panel izquierdo usa un `linear-gradient` con 3 paradas hardcodeadas (`#0d9488 → #065f46 → #022c22`, ver Task 1 Paso 1) porque el prototipo de Figma muestra un degradado diagonal (teal vivo arriba a verde oscuro abajo) que no puede expresarse como un solo token de la escala `success`. El valor exacto del degradado del prototipo no se pudo leer de Figma (cuota MCP agotada durante la sesión) — este es un valor aproximado por inspección visual, marcado explícitamente como pendiente de verificación exacta contra Figma cuando la cuota se libere (ver nota al final de Task 1).
 - No modificar `useAuthSession`, `auth.api.ts`, `login.schema.ts`. El payload enviado por `onAuthenticate` sigue siendo exactamente `{ email, password, remember }`.
 - No modificar `packages/ui-web/src/button/Button.tsx` — su variante `primary` sigue en azul para el resto de la app; el botón de login se ajusta con `className` override.
 - El campo "Sucursal" y los botones "Código QR"/"PIN de caja" son puramente visuales: no se registran en `useForm`, no aparecen en el payload de submit, no tienen `onClick` que navegue o llame a una API.
@@ -29,9 +30,11 @@
 - Consume: ninguna interfaz nueva — sigue usando `useAuthSession`, `useLocation`, `useNavigate` exactamente igual.
 - Produce: el JSX del panel izquierdo (`<section>` con `lg:flex`) queda con la nueva estructura visual; no expone ninguna prop ni función nueva a `LoginForm`.
 
-- [ ] **Paso 1: Reemplazar el fondo y gradientes del panel izquierdo**
+- [x] **Paso 1: Reemplazar el fondo y gradientes del panel izquierdo**
 
-En `LoginPage.tsx`, reemplazar:
+> **Corrección post-implementación:** la primera versión de este paso usaba `bg-success-950` sólido, pero el usuario señaló correctamente que no coincidía con el degradado diagonal (teal vivo → verde oscuro) del prototipo. Se corrigió a un `linear-gradient` inline. El valor exacto no se pudo verificar contra Figma (cuota MCP agotada) — es una aproximación visual pendiente de ajuste fino, ver nota en Global Constraints.
+
+En `LoginPage.tsx`, se reemplazó:
 ```tsx
 <section className="bg-primary-950 relative hidden min-h-screen overflow-hidden p-10 text-white lg:flex lg:flex-col xl:p-14">
   <div
@@ -42,19 +45,22 @@ En `LoginPage.tsx`, reemplazar:
     }}
   />
 ```
-por:
+por (versión final aplicada):
 ```tsx
-<section className="bg-success-950 relative hidden min-h-screen overflow-hidden p-10 text-white lg:flex lg:flex-col xl:p-14">
+<section
+  className="relative hidden min-h-screen overflow-hidden p-10 text-white lg:flex lg:flex-col xl:p-14"
+  style={{ backgroundImage: 'linear-gradient(160deg, #0d9488 0%, #065f46 55%, #022c22 100%)' }}
+>
   <div
     className="pointer-events-none absolute inset-0 opacity-80"
     style={{
       backgroundImage:
-        'radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.22), transparent 28%), radial-gradient(circle at 82% 78%, rgba(255, 255, 255, 0.12), transparent 27%)'
+        'radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.10), transparent 28%), radial-gradient(circle at 82% 78%, rgba(255, 255, 255, 0.08), transparent 27%)'
     }}
   />
 ```
 
-- [ ] **Paso 2: Reemplazar el bloque de marca (logo + badge de seguridad) quitando el acento amarillo**
+- [x] **Paso 2: Reemplazar el bloque de marca (logo + badge de seguridad) quitando el acento amarillo**
 
 Reemplazar:
 ```tsx
@@ -111,7 +117,7 @@ por:
   </p>
 ```
 
-- [ ] **Paso 3: Reemplazar la lista de beneficios por los 3 bloques de feature con ícono, quitando el check amarillo**
+- [x] **Paso 3: Reemplazar la lista de beneficios por los 3 bloques de feature con ícono, quitando el check amarillo**
 
 Reemplazar el array y el `<ul>`:
 ```tsx
@@ -174,7 +180,7 @@ por:
 </ul>
 ```
 
-- [ ] **Paso 4: Reemplazar el grid de métricas (Sucursales/Unidades/Disponibilidad) por las 2 tarjetas del prototipo (Ventas de hoy / Por vencer)**
+- [x] **Paso 4: Reemplazar el grid de métricas (Sucursales/Unidades/Disponibilidad) por las 2 tarjetas del prototipo (Ventas de hoy / Por vencer)**
 
 Reemplazar:
 ```tsx
@@ -212,7 +218,7 @@ por:
 </div>
 ```
 
-- [ ] **Paso 5: Reemplazar el footer del panel izquierdo**
+- [x] **Paso 5: Reemplazar el footer del panel izquierdo**
 
 Reemplazar:
 ```tsx
@@ -235,16 +241,16 @@ por:
 </div>
 ```
 
-- [ ] **Paso 6: Ajustar los imports de íconos** (quitar `Check` si ya no se usa en este archivo, mantener `Boxes`, `Building2`, `Pill`, `ShieldCheck`, `Store`, `Warehouse`)
+- [x] **Paso 6: Ajustar los imports de íconos** (quitar `Check` si ya no se usa en este archivo, mantener `Boxes`, `Building2`, `Pill`, `ShieldCheck`, `Store`, `Warehouse`)
 
 Verificar con lectura del archivo tras los pasos 1-5 cuáles íconos siguen usados y limpiar el import `lucide-react` en consecuencia.
 
-- [ ] **Paso 7: Correr los tests existentes para confirmar que el panel izquierdo (sin aserciones directas) no rompe nada**
+- [x] **Paso 7: Correr los tests existentes para confirmar que el panel izquierdo (sin aserciones directas) no rompe nada**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
-Expected: los 6 tests existentes siguen en verde (ninguno asevera contenido del panel izquierdo).
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
+Expected/Real: los 5 tests existentes en verde (ninguno asevera contenido del panel izquierdo). Nota: el comando `pnpm --filter @boticas/erp-web test -- ...` documentado originalmente no funciona — `erp-web/package.json` no tiene script `test` propio; el comando correcto es `npx vitest run <ruta>` desde `frontend/`, corregido en todas las tasks de este plan.
 
-- [ ] **Paso 8: Commit**
+- [x] **Paso 8: Commit**
 
 ```bash
 git add frontend/apps/erp-web/src/features/auth/pages/LoginPage.tsx
@@ -278,7 +284,7 @@ por:
 
 - [ ] **Paso 2: Ejecutar el test y confirmar que falla por el heading nuevo aún no existente**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx -t "redirige al login"`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx -t "redirige al login"`
 Expected: FAIL — no encuentra un heading con nombre "Bienvenido de nuevo 👋" (el componente todavía dice "Ingresa a tu cuenta").
 
 - [ ] **Paso 3: Actualizar el header móvil (quitar acento `warning`) y el bloque de icono/título/subtítulo del panel derecho**
@@ -349,7 +355,7 @@ por:
 
 - [ ] **Paso 4: Ejecutar el test y confirmar que pasa**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde.
 
 - [ ] **Paso 5: Commit**
@@ -388,7 +394,7 @@ por:
 
 - [ ] **Paso 2: Correr los tests**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS.
 
 - [ ] **Paso 3: Commit**
@@ -424,7 +430,7 @@ screen.getByLabelText('Usuario o correo electrónico')
 
 - [ ] **Paso 2: Ejecutar los tests y confirmar que fallan por el label aún no cambiado**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: FAIL — `getByLabelText('Usuario o correo electrónico')` no encuentra ningún elemento.
 
 - [ ] **Paso 3: Actualizar el label del campo de correo y los focus rings a `success`**
@@ -534,7 +540,7 @@ por:
 
 - [ ] **Paso 8: Ejecutar los tests y confirmar que pasan**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde.
 
 - [ ] **Paso 9: Commit**
@@ -570,7 +576,7 @@ screen.getByRole('button', { name: 'Iniciar sesión' })
 
 - [ ] **Paso 2: Ejecutar los tests y confirmar que fallan por el nombre accesible aún no cambiado**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: FAIL — no se encuentra un botón con nombre accesible "Iniciar sesión".
 
 - [ ] **Paso 3: Actualizar el texto y estilo del botón de submit**
@@ -615,7 +621,7 @@ En el bloque de imports de `LoginForm.tsx`, agregar `ArrowRight` a la lista ya i
 
 - [ ] **Paso 5: Ejecutar los tests y confirmar que pasan**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde.
 
 - [ ] **Paso 6: Commit**
@@ -669,7 +675,7 @@ Nota: el `<select>` es puramente visual — una sola opción de ejemplo, `defaul
 
 - [ ] **Paso 3: Ejecutar los tests existentes para confirmar que el nuevo campo no interfiere con el submit**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde; en particular, el test "navega al dashboard cuando las credenciales son válidas" sigue pasando porque el payload real no incluye `sucursal`.
 
 - [ ] **Paso 4: Commit**
@@ -726,7 +732,7 @@ Nota: ambos `<button>` son `type="button"` (no `submit`) y sin `onClick` — no 
 
 - [ ] **Paso 3: Ejecutar los tests existentes para confirmar que no interfieren con el submit real**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde (en particular, `user.click(screen.getByRole('button', { name: 'Iniciar sesión' }))` sigue apuntando al botón correcto porque `getByRole` con `name` exacto distingue "Iniciar sesión" de "Código QR"/"PIN de caja").
 
 - [ ] **Paso 4: Commit**
@@ -768,7 +774,7 @@ Nota: ambos `<span>` son decorativos (no `<button>`, no `onClick`) — visualmen
 
 - [ ] **Paso 3: Ejecutar los tests**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx`
 Expected: PASS — los 6 tests en verde.
 
 - [ ] **Paso 4: Commit**
@@ -786,7 +792,7 @@ git commit -m "feat(auth): agregar topbar decorativa de ayuda e idioma"
 
 - [ ] **Paso 1: Lint**
 
-Run: `pnpm --filter @boticas/erp-web lint`
+Run: `pnpm lint`
 Expected: sin errores nuevos.
 
 - [ ] **Paso 2: Typecheck**
@@ -796,7 +802,7 @@ Expected: sin errores.
 
 - [ ] **Paso 3: Suite completa de tests de auth**
 
-Run: `pnpm --filter @boticas/erp-web test -- LoginPage.test.tsx AuthSessionProvider.test.tsx`
+Run: `npx vitest run apps/erp-web/src/features/auth/pages/LoginPage.test.tsx AuthSessionProvider.test.tsx`
 Expected: todos PASS.
 
 - [ ] **Paso 4: Revisión visual manual**
