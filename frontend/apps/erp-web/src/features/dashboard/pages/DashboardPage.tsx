@@ -18,12 +18,12 @@ type StatCardProps = {
   value: string;
   detail: string;
   icon: LucideIcon;
-  tone: 'primary' | 'secondary' | 'warning' | 'danger';
+  tone: 'primary' | 'neutral' | 'warning' | 'danger';
 };
 
 const toneClasses = {
   primary: 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300',
-  secondary: 'bg-secondary-50 text-secondary-700 dark:bg-secondary-900/40 dark:text-secondary-300',
+  neutral: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
   warning: 'bg-warning-50 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300',
   danger: 'bg-danger-50 text-danger-700 dark:bg-danger-900/40 dark:text-danger-300'
 };
@@ -107,7 +107,7 @@ export function DashboardPage() {
           value={isPending ? '—' : String(data?.stockUnits ?? 0)}
           detail="En todos los almacenes"
           icon={Boxes}
-          tone="secondary"
+          tone="neutral"
         />
         <StatCard
           label="Stock bajo"
@@ -196,13 +196,13 @@ export function DashboardPage() {
                 </p>
               </div>
             </div>
-            <div className="bg-secondary-50 dark:bg-secondary-900/30 flex gap-3 rounded-xl p-4">
-              <ReceiptText className="text-secondary-700 dark:text-secondary-400 mt-0.5 size-5 shrink-0" />
+            <div className="bg-neutral-100 dark:bg-neutral-800/60 flex gap-3 rounded-xl p-4">
+              <ReceiptText className="text-neutral-600 dark:text-neutral-400 mt-0.5 size-5 shrink-0" />
               <div>
-                <p className="text-secondary-950 dark:text-secondary-100 text-sm font-semibold">
+                <p className="text-neutral-900 dark:text-neutral-100 text-sm font-semibold">
                   Comprobantes pendientes
                 </p>
-                <p className="text-secondary-800 dark:text-secondary-300 mt-1 text-xs leading-5">
+                <p className="text-neutral-700 dark:text-neutral-300 mt-1 text-xs leading-5">
                   3 documentos esperan confirmación.
                 </p>
               </div>

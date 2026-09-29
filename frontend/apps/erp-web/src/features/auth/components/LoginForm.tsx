@@ -146,10 +146,10 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
         <div
           id="recovery-help"
           role="status"
-          className="border-secondary-100 bg-secondary-50 text-secondary-900 dark:border-secondary-800 dark:bg-secondary-900/30 dark:text-secondary-200 flex gap-3 rounded-xl border p-3.5 text-xs leading-5"
+          className="border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800/40 dark:text-neutral-300 flex gap-3 rounded-xl border p-3.5 text-xs leading-5"
         >
           <CircleHelp
-            className="text-secondary-600 dark:text-secondary-400 mt-0.5 size-4 shrink-0"
+            className="text-neutral-500 dark:text-neutral-400 mt-0.5 size-4 shrink-0"
             aria-hidden="true"
           />
           Solicita el restablecimiento al administrador de tu organización. El enlace se enviará
