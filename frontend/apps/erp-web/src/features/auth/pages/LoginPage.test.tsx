@@ -44,7 +44,7 @@ describe('LoginPage', () => {
   it('muestra validaciones accesibles y permite visualizar la contraseña', async () => {
     const { user } = renderLogin();
 
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByText('Ingresa un correo electrónico válido.')).toBeInTheDocument();
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('LoginPage', () => {
     const { user } = renderLogin();
 
     await fillValidCredentials(user);
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByRole('heading', { name: 'Resumen operativo' })).toBeInTheDocument();
   });
@@ -70,7 +70,7 @@ describe('LoginPage', () => {
 
     await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'admin@boticas.pe');
     await user.type(screen.getByLabelText('Contraseña'), 'ContrasenaIncorrecta1!');
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(
       await screen.findByText('Credenciales incorrectas o cuenta bloqueada.')

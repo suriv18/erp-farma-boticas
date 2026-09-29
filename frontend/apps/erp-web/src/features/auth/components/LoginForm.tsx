@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  ArrowRight,
   CheckCircle2,
   CircleHelp,
   Eye,
@@ -163,14 +164,21 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
         Recordar mi correo en este equipo
       </label>
 
-      <Button type="submit" className="h-12 w-full text-[15px]" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="bg-success-600 hover:bg-success-700 focus-visible:outline-success-600 h-12 w-full text-[15px]"
+        disabled={isSubmitting}
+      >
         {isSubmitting ? (
           <>
             <LoaderCircle className="size-4.5 animate-spin" aria-hidden="true" />
             Verificando acceso
           </>
         ) : (
-          <>Iniciar Sesión</>
+          <>
+            Iniciar sesión
+            <ArrowRight className="size-4.5" aria-hidden="true" />
+          </>
         )}
       </Button>
 
