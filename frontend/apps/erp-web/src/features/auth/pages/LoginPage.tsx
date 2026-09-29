@@ -163,8 +163,8 @@ export function LoginPage() {
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-neutral-200/70 pt-5 text-[11px] text-neutral-400 sm:flex-row dark:border-neutral-800 dark:text-neutral-500">
-          <span>Privacidad y tratamiento de datos</span>
-          <span>Versión 1.0.0</span>
+          <span>© 2026 FarmaVita · Términos · Privacidad</span>
+          <span>v2.4.0</span>
         </footer>
       </section>
     </main>
