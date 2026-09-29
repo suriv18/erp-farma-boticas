@@ -80,7 +80,9 @@ describe('LoginPage', () => {
   it('redirige al login cuando se intenta abrir una ruta privada sin sesión', async () => {
     renderLogin('/dashboard');
 
-    expect(await screen.findByRole('heading', { name: 'Ingresa a tu cuenta' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Bienvenido de nuevo 👋' })
+    ).toBeInTheDocument();
   });
 
   it('no redirige al login mientras restaura la sesión desde el refresh token guardado', async () => {

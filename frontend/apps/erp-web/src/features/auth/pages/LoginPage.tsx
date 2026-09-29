@@ -135,31 +135,28 @@ export function LoginPage() {
 
       <section className="flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12 xl:px-20">
         <div className="flex items-center gap-3 lg:hidden">
-          <div className="bg-primary-900 text-warning-300 grid size-10 place-items-center rounded-xl">
+          <div className="bg-success-900 text-white grid size-10 place-items-center rounded-xl">
             <Pill className="size-4.5" aria-hidden="true" />
           </div>
           <div>
             <p className="font-black tracking-tight text-neutral-950 dark:text-white">
-              ERP Boticas
+              FarmaVita
             </p>
             <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-              Gestión farmacéutica
+              Sistema de gestión de boticas
             </p>
           </div>
         </div>
 
         <div className="my-auto w-full max-w-md self-center py-10">
-          <div className="bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300 mb-7 inline-flex size-12 items-center justify-center rounded-2xl lg:hidden">
+          <div className="bg-success-100 text-success-800 dark:bg-success-900/40 dark:text-success-300 mb-7 inline-flex size-12 items-center justify-center rounded-2xl lg:hidden">
             <ShieldCheck className="size-5" aria-hidden="true" />
           </div>
-          <p className="text-primary-700 dark:text-primary-400 text-sm font-bold">
-            Bienvenido de nuevo
-          </p>
-          <h2 className="mt-2 text-3xl font-black tracking-[-0.03em] text-neutral-950 sm:text-4xl dark:text-white">
-            Ingresa a tu cuenta
+          <h2 className="text-3xl font-black tracking-[-0.03em] text-neutral-950 sm:text-4xl dark:text-white">
+            Bienvenido de nuevo 👋
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-6 text-neutral-500 dark:text-neutral-400">
-            Utiliza las credenciales asignadas por el administrador de tu organización.
+            Ingresa tus credenciales para acceder al panel de tu botica.
           </p>
 
           <LoginForm onAuthenticate={handleAuthentication} submitError={submitError} />
