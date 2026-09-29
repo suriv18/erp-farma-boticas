@@ -95,7 +95,7 @@ public final class Establecimiento extends AggregateRoot {
         }
 
         var normalizedCodigo = normalize(codigo);
-        if (normalizedCodigo == null || normalizedCodigo.isEmpty() || normalizedCodigo.length() > 40) {
+        if (normalizedCodigo == null || normalizedCodigo.length() > 40) {
             return invalid("codigo", "El código debe tener entre 1 y 40 caracteres.");
         }
 
