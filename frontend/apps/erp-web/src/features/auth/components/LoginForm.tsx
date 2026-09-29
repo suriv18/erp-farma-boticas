@@ -5,9 +5,11 @@ import {
   CircleHelp,
   Eye,
   EyeOff,
+  KeyRound,
   LoaderCircle,
   LockKeyhole,
   Mail,
+  QrCode,
   ShieldCheck
 } from 'lucide-react';
 import { useState } from 'react';
@@ -181,6 +183,31 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
           </>
         )}
       </Button>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <span className="text-xs font-medium text-neutral-400 dark:text-neutral-500">
+          o continúa con
+        </span>
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+        >
+          <QrCode className="size-4.5" aria-hidden="true" />
+          Código QR
+        </button>
+        <button
+          type="button"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+        >
+          <KeyRound className="size-4.5" aria-hidden="true" />
+          PIN de caja
+        </button>
+      </div>
 
       <div className="flex items-start gap-2.5 rounded-xl bg-neutral-50 px-3.5 py-3 text-xs leading-5 text-neutral-500 dark:bg-neutral-800/50 dark:text-neutral-400">
         <ShieldCheck

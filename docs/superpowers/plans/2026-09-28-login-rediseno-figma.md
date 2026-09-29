@@ -635,6 +635,8 @@ git commit -m "feat(auth): actualizar boton de envio del login al nuevo diseño"
 
 ## Task 6: Agregar el campo visual "Sucursal" (sin lógica de formulario) en `LoginForm.tsx`
 
+> **Estado: OMITIDA por decisión del usuario.** Se implementó, se verificó que los 5 tests pasaban con el campo agregado, y luego el usuario pidió explícitamente retirarla "por el momento". Se revirtió el cambio (sin diff neto en el archivo, no se generó commit de esta task). Queda pendiente para una futura iteración si el usuario decide retomarla.
+
 **Files:**
 - Modify: `frontend/apps/erp-web/src/features/auth/components/LoginForm.tsx`
 
