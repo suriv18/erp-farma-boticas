@@ -280,6 +280,8 @@ git commit -m "feat(design-system): migrar usos de secondary a neutral"
 
 ## Task 3: Corregir las fugas de color hardcodeadas en `LoginPage.tsx`
 
+> **Estado: OMITIDA por decisión explícita del usuario.** El usuario indicó "el login ya estuvo bien, no lo cambies" — aunque el resultado visual de esta task sería idéntico (los hex hardcodeados ya coinciden con los nuevos valores de `primary`, solo se limpiaría cómo está escrito el código), se decidió no tocar `LoginPage.tsx` en absoluto. El archivo queda con sus valores hex hardcodeados (`#0d9488`, `#065f46`, `#022c22`, `#f4f7f5`) tal como estaban antes de este plan. Esto no afecta el resto del rediseño de paleta: el token `primary` ya migró a teal (Task 1) y esos hex del login ya son visualmente equivalentes al nuevo token, así que no hay discrepancia visual, solo una inconsistencia de "cómo está escrito" que se acepta conscientemente.
+
 **Files:**
 - Modify: `frontend/apps/erp-web/src/features/auth/pages/LoginPage.tsx`
 

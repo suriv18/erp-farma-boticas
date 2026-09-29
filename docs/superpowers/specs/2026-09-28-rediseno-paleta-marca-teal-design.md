@@ -86,6 +86,7 @@ El bloque `--color-secondary-*` (11 líneas) se elimina de `@theme`.
 - Migrar `<textarea>` u otros controles de formulario a un componente compartido — solo `<input>`.
 - Cualquier otro componente de `ui-web` más allá de `Input`.
 - Actualizar el spec obsoleto `2026-09-20-rediseno-paleta-colores-frontend-design.md` — queda como está, solo se documenta aquí que no representa el estado actual.
+- **`LoginPage.tsx` no se modifica en absoluto** (decisión explícita del usuario durante la implementación: "el login ya estuvo bien, no lo cambies"). Los hex hardcodeados del degradado (`#0d9488`, `#065f46`, `#022c22`) y del fondo (`#f4f7f5`) se dejan tal cual, aunque ya coinciden visualmente con el nuevo `primary`/`neutral` — la limpieza de esa duplicación queda pendiente para cuando el usuario lo pida.
 
 ## Verificación
 
