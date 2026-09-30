@@ -317,6 +317,16 @@ class AlmacenTest {
                 ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-12", "Sin máxima", TipoAlmacen.GENERAL,
                 true, true, true, true, true, new BigDecimal("2"), null, NOW);
 
+        assertRejected(result, "temperaturaMaxC",
+                "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
+    }
+
+    @Test
+    void rejectsTemperatureControlWithoutBothLimitsReportingMinimum() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-15", "Sin límites", TipoAlmacen.GENERAL,
+                true, true, true, true, true, null, null, NOW);
+
         assertRejected(result, "temperaturaMinC",
                 "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
     }

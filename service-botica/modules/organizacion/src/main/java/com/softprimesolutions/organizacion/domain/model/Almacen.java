@@ -147,7 +147,7 @@ public final class Almacen extends AggregateRoot {
             return error("controlTemperatura", "Un almacén refrigerado debe controlar temperatura.");
         }
         if (controlTemperatura && (temperaturaMinC == null || temperaturaMaxC == null)) {
-            return error("temperaturaMinC",
+            return error(temperaturaMinC == null ? "temperaturaMinC" : "temperaturaMaxC",
                     "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
         }
         if (temperaturaMinC != null && temperaturaMaxC != null && temperaturaMinC.compareTo(temperaturaMaxC) > 0) {
