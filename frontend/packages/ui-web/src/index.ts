@@ -24,6 +24,7 @@ export {
   type IconButtonSize
 } from './icon-button/IconButton';
 export { Input, type InputProps } from './input/Input';
+export { Select, type SelectProps } from './select/Select';
 export { Modal, type ModalProps } from './modal/Modal';
 export { ThemeToggle, type ThemeToggleProps } from './theme/ThemeToggle';
 export { useTheme, type Theme } from './theme/useTheme';
