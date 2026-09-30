@@ -25,6 +25,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
 
+    private static final String SERIE_BOLETA_EN_USO = """
+            SELECT EXISTS (
+                SELECT 1 FROM sch_organizacion.terminal_pos
+                 WHERE tenant_id = :tenantId AND empresa_id = :empresaId AND es_activo = '1'
+                   AND serie_boleta_defecto = :serie AND uuid_publico <> :terminalId)
+            """;
+
+    private static final String SERIE_FACTURA_EN_USO = """
+            SELECT EXISTS (
+                SELECT 1 FROM sch_organizacion.terminal_pos
+                 WHERE tenant_id = :tenantId AND empresa_id = :empresaId AND es_activo = '1'
+                   AND serie_factura_defecto = :serie AND uuid_publico <> :terminalId)
+            """;
+
     private final EmpresaOperadoraJpaRepository empresaRepository;
     private final EstablecimientoJpaRepository establecimientoRepository;
     private final AlmacenJpaRepository almacenRepository;
@@ -226,6 +240,14 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
                 return SaveTerminalOutcome.DUPLICATE_CODIGO;
             }
         }
+        if (serieEnUso(SERIE_BOLETA_EN_USO, tenantId.get(), parent.get().empresaId(),
+                terminal.serieBoletaDefecto(), terminal.id().value())) {
+            return SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA;
+        }
+        if (serieEnUso(SERIE_FACTURA_EN_USO, tenantId.get(), parent.get().empresaId(),
+                terminal.serieFacturaDefecto(), terminal.id().value())) {
+            return SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA;
+        }
         try {
             if (existing.isPresent()) {
                 jdbcClient.sql("""
@@ -256,8 +278,27 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
                     terminal, tenantId.get(), parent.get().empresaId(), parent.get().establecimientoId()));
             return SaveTerminalOutcome.CREATED;
         } catch (DataIntegrityViolationException exception) {
-            return SaveTerminalOutcome.DUPLICATE_CODIGO;
+            return terminalViolation(exception);
         }
+    }
+
+    private boolean serieEnUso(String sql, Long tenantId, Long empresaId, String serie, UUID terminalId) {
+        if (serie == null) return false;
+        return jdbcClient.sql(sql)
+                .param("tenantId", tenantId)
+                .param("empresaId", empresaId)
+                .param("serie", serie)
+                .param("terminalId", terminalId)
+                .query(Boolean.class)
+                .optional()
+                .orElse(false);
+    }
+
+    private static SaveTerminalOutcome terminalViolation(DataIntegrityViolationException exception) {
+        var message = String.valueOf(exception.getMessage());
+        if (message.contains("uk_terminal_pos_serie_boleta")) return SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA;
+        if (message.contains("uk_terminal_pos_serie_factura")) return SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA;
+        return SaveTerminalOutcome.DUPLICATE_CODIGO;
     }
 
     @Override

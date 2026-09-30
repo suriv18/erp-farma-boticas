@@ -71,6 +71,8 @@ class OrganizacionJpaWriteAdapterTest {
     private Long resolvedParentEmpresaId = EMPRESA_ID;
     private String resolvedEmpresaEstado = "ACTIVO";
     private String resolvedEstablecimientoEstado = "ACTIVO";
+    private boolean serieBoletaEnUso = false;
+    private boolean serieFacturaEnUso = false;
 
     OrganizacionJpaWriteAdapterTest() {
         when(jdbcClient.sql(anyString())).thenAnswer(invocation -> statement(invocation.getArgument(0)));
@@ -90,6 +92,8 @@ class OrganizacionJpaWriteAdapterTest {
     }
 
     private Optional<?> lookup(String sql, Object queryArgument) throws SQLException {
+        if (sql.contains("serie_boleta_defecto = :serie")) return Optional.of(serieBoletaEnUso);
+        if (sql.contains("serie_factura_defecto = :serie")) return Optional.of(serieFacturaEnUso);
         if (sql.contains("SELECT e.estado")) return Optional.of(resolvedEmpresaEstado);
         if (sql.contains("SELECT s.estado_operativo")) return Optional.of(resolvedEstablecimientoEstado);
         if (sql.contains("sch_admin.tenant WHERE")) return Optional.ofNullable(resolvedTenantId);
@@ -130,6 +134,13 @@ class OrganizacionJpaWriteAdapterTest {
         return TerminalPos.create(
                         new TerminalPosId(id), new TenantId(TENANT_UUID), new EstablecimientoId(ESTABLECIMIENTO_UUID),
                         "POS001", "Caja 1", "B001", "F001", "SN-001", "host-1", "192.168.0.10", "IMP01", true, NOW)
+                .fold(value -> value, error -> { throw new AssertionError(error.message()); });
+    }
+
+    private TerminalPos terminalSinSeries(UUID id) {
+        return TerminalPos.create(
+                        new TerminalPosId(id), new TenantId(TENANT_UUID), new EstablecimientoId(ESTABLECIMIENTO_UUID),
+                        "POS002", "Caja 2", null, null, "SN-002", "host-2", "192.168.0.11", "IMP02", false, NOW)
                 .fold(value -> value, error -> { throw new AssertionError(error.message()); });
     }
 
@@ -463,6 +474,66 @@ class OrganizacionJpaWriteAdapterTest {
                 .thenReturn(Optional.of(mock(TerminalPosJpaEntity.class)));
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.UPDATED);
+    }
+
+    @Test
+    void returnsDuplicateSerieBoletaWhenAnotherTerminalOfTheEmpresaUsesIt() {
+        serieBoletaEnUso = true;
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
+        verify(terminalRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void returnsDuplicateSerieFacturaWhenAnotherTerminalOfTheEmpresaUsesIt() {
+        serieFacturaEnUso = true;
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA);
+        verify(terminalRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void returnsDuplicateSerieWhenUpdatingATerminalToAUsedSerie() {
+        serieBoletaEnUso = true;
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value()))
+                .thenReturn(Optional.of(mock(TerminalPosJpaEntity.class)));
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
+    }
+
+    @Test
+    void skipsTheSerieCheckWhenTheTerminalHasNoSeries() {
+        serieBoletaEnUso = true;
+        serieFacturaEnUso = true;
+        var terminal = terminalSinSeries(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.CREATED);
+    }
+
+    @Test
+    void returnsDuplicateSerieBoletaWhenInsertViolatesTheBoletaIndex() {
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_serie_boleta"));
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
+    }
+
+    @Test
+    void returnsDuplicateSerieFacturaWhenInsertViolatesTheFacturaIndex() {
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_serie_factura"));
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA);
     }
 
     @Test

@@ -118,4 +118,35 @@ class ActualizarTerminalPosHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenTheNewSerieBoletaBelongsToAnotherTerminal() {
+        when(readPort.findTerminalById(TENANT_ID, TERMINAL_ID)).thenReturn(Optional.of(existingTerminal("ACTIVO")));
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
+
+        var result = handler.execute(validCommand("ACTIVO"));
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.message()).isEqualTo("La serie B002 ya está asignada a otra caja de esta empresa.");
+            return null;
+        });
+    }
+
+    @Test
+    void returnsConflictWhenTheNewSerieFacturaBelongsToAnotherTerminal() {
+        when(readPort.findTerminalById(TENANT_ID, TERMINAL_ID)).thenReturn(Optional.of(existingTerminal("ACTIVO")));
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA);
+
+        var result = handler.execute(validCommand("ACTIVO"));
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.message()).isEqualTo("La serie F002 ya está asignada a otra caja de esta empresa.");
+            return null;
+        });
+    }
 }

@@ -131,4 +131,35 @@ class CrearTerminalPosHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenSerieBoletaIsAlreadyAssignedInTheEmpresa() {
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_SERIE_BOLETA_DUPLICADA");
+            assertThat(error.message()).isEqualTo("La serie B001 ya está asignada a otra caja de esta empresa.");
+            return null;
+        });
+    }
+
+    @Test
+    void returnsConflictWhenSerieFacturaIsAlreadyAssignedInTheEmpresa() {
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_SERIE_FACTURA_DUPLICADA");
+            assertThat(error.message()).isEqualTo("La serie F001 ya está asignada a otra caja de esta empresa.");
+            return null;
+        });
+    }
 }
