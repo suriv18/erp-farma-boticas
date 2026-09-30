@@ -54,7 +54,10 @@ describe('establecimientoSchema', () => {
     [{ referencia: 'x'.repeat(301) }, 'La referencia no debe exceder 300 caracteres.'],
     [{ latitud: '95' }, 'La latitud debe estar entre -90 y 90.'],
     [{ longitud: '181' }, 'La longitud debe estar entre -180 y 180.'],
-    [{ telefono: 'x'.repeat(41) }, 'El teléfono no debe exceder 40 caracteres.'],
+    [
+      { telefono: 'abc' },
+      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+    ],
     [{ email: 'no-es-correo' }, 'El correo no es válido.'],
     [{ perfilOperacion: 'OFFLINE' }, 'Selecciona un perfil de operación.'],
     [{ zonaHoraria: '' }, 'La zona horaria es obligatoria.'],

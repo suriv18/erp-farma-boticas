@@ -12,6 +12,7 @@ import { ESTADOS_ESTABLECIMIENTO, type EstadoEstablecimiento } from '../api/esta
 import { invalidateOrganizacion } from '../api/invalidate';
 import { AlmacenesSection } from '../components/AlmacenesSection';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
+import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
 import { EstablecimientoForm } from '../components/EstablecimientoForm';
 import { FormError } from '../components/FormError';
@@ -119,8 +120,8 @@ export function EstablecimientoDetailPage() {
           <DatoItem label="Longitud">
             {valueOrDash(numberOrEmpty(establecimiento.longitud))}
           </DatoItem>
-          <DatoItem label="Teléfono">{valueOrDash(establecimiento.telefono)}</DatoItem>
-          <DatoItem label="Correo">{valueOrDash(establecimiento.email)}</DatoItem>
+          <DatoContacto label="Teléfono" tipo="telefono" valor={establecimiento.telefono} />
+          <DatoContacto label="Correo" tipo="correo" valor={establecimiento.email} />
           <DatoItem label="Zona horaria">{establecimiento.zonaHoraria}</DatoItem>
           <DatoItem label="Es principal">{yesNo(establecimiento.esPrincipal)}</DatoItem>
           <DatoItem label="Venta online">{yesNo(establecimiento.permiteVentaOnline)}</DatoItem>

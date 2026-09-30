@@ -158,4 +158,33 @@ describe('EmpresaDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('muestra correo, teléfono y sitio web como enlaces', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json({
+          ...sampleEmpresa,
+          email: 'contacto@boticas.pe',
+          telefono: '014445566',
+          sitioWeb: 'https://boticas.pe'
+        })
+      ),
+      http.get('*/api/v1/organizacion/establecimientos', () => HttpResponse.json(pagina([])))
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: 'contacto@boticas.pe' })).toHaveAttribute(
+      'href',
+      'mailto:contacto@boticas.pe'
+    );
+    expect(screen.getByRole('link', { name: '014445566' })).toHaveAttribute(
+      'href',
+      'tel:014445566'
+    );
+    expect(screen.getByRole('link', { name: 'https://boticas.pe' })).toHaveAttribute(
+      'href',
+      'https://boticas.pe'
+    );
+  });
 });

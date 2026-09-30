@@ -7,6 +7,7 @@ import { actualizarEmpresa, cambiarEstadoEmpresa, empresaQuery } from '../api/em
 import { ESTADOS_EMPRESA, type EstadoEmpresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
+import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
 import { EmpresaForm } from '../components/EmpresaForm';
 import { EstablecimientosSection } from '../components/EstablecimientosSection';
@@ -90,9 +91,9 @@ export function EmpresaDetailPage() {
           <DatoItem label="Nombre comercial">{valueOrDash(empresa.nombreComercial)}</DatoItem>
           <DatoItem label="Dirección fiscal">{valueOrDash(empresa.direccionFiscal)}</DatoItem>
           <DatoItem label="Ubigeo fiscal">{valueOrDash(empresa.ubigeoFiscal)}</DatoItem>
-          <DatoItem label="Teléfono">{valueOrDash(empresa.telefono)}</DatoItem>
-          <DatoItem label="Correo">{valueOrDash(empresa.email)}</DatoItem>
-          <DatoItem label="Sitio web">{valueOrDash(empresa.sitioWeb)}</DatoItem>
+          <DatoContacto label="Teléfono" tipo="telefono" valor={empresa.telefono} />
+          <DatoContacto label="Correo" tipo="correo" valor={empresa.email} />
+          <DatoContacto label="Sitio web" tipo="web" valor={empresa.sitioWeb} />
           <DatoItem label="Moneda funcional">{empresa.monedaFuncional}</DatoItem>
           <DatoItem label="Zona horaria">{empresa.zonaHoraria}</DatoItem>
           <DatoItem label="Venta online">{yesNo(empresa.permiteVentaOnline)}</DatoItem>

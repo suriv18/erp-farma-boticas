@@ -41,3 +41,18 @@ export function numeroOpcional(etiqueta: string, limite?: number) {
         : `${etiqueta} debe estar entre -${limite} y ${limite}.`
     );
 }
+
+export const telefonoOpcional = z
+  .string()
+  .regex(
+    /^([\d\s+\-()]{6,15})?$/,
+    'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+  );
+
+export const sitioWebOpcional = z
+  .string()
+  .max(300, 'El sitio web no debe exceder 300 caracteres.')
+  .refine(
+    (valor) => valor === '' || (z.url().safeParse(valor).success && /^https?:\/\//i.test(valor)),
+    'El sitio web debe ser una URL que empiece con http:// o https://.'
+  );

@@ -181,4 +181,29 @@ describe('EstablecimientoDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('muestra correo y teléfono como enlaces', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json({
+          ...sampleEstablecimiento,
+          email: 'botica@boticas.pe',
+          telefono: '014445566'
+        })
+      ),
+      http.get('*/api/v1/organizacion/almacenes', () => HttpResponse.json(pagina([]))),
+      http.get('*/api/v1/organizacion/terminales-pos', () => HttpResponse.json(pagina([])))
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: 'botica@boticas.pe' })).toHaveAttribute(
+      'href',
+      'mailto:botica@boticas.pe'
+    );
+    expect(screen.getByRole('link', { name: '014445566' })).toHaveAttribute(
+      'href',
+      'tel:014445566'
+    );
+  });
 });

@@ -1,5 +1,12 @@
 import type { ZodType } from 'zod';
-import { correoOpcional, numeroOpcional, textoOpcional, ubigeoOpcional } from './campos';
+import {
+  correoOpcional,
+  numeroOpcional,
+  sitioWebOpcional,
+  telefonoOpcional,
+  textoOpcional,
+  ubigeoOpcional
+} from './campos';
 
 function messages(schema: ZodType, value: unknown) {
   const result = schema.safeParse(value);
@@ -44,5 +51,34 @@ describe('campos', () => {
     expect(messages(schema, '-12.0464')).toEqual([]);
     expect(messages(schema, '91')).toEqual(['La latitud debe estar entre -90 y 90.']);
     expect(messages(schema, 'x')).toEqual(['La latitud debe estar entre -90 y 90.']);
+  });
+
+  it('telefonoOpcional acepta vacío y teléfonos con números, espacios, +, - y paréntesis', () => {
+    expect(messages(telefonoOpcional, '')).toEqual([]);
+    expect(messages(telefonoOpcional, '014445566')).toEqual([]);
+    expect(messages(telefonoOpcional, '+51 (1) 4445566')).toEqual([]);
+  });
+
+  it('telefonoOpcional rechaza letras, textos cortos y textos largos', () => {
+    const mensaje =
+      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.';
+    expect(messages(telefonoOpcional, 'abc')).toEqual([mensaje]);
+    expect(messages(telefonoOpcional, '12345')).toEqual([mensaje]);
+    expect(messages(telefonoOpcional, '1234567890123456')).toEqual([mensaje]);
+  });
+
+  it('sitioWebOpcional acepta vacío y URL http o https', () => {
+    expect(messages(sitioWebOpcional, '')).toEqual([]);
+    expect(messages(sitioWebOpcional, 'https://boticas.pe')).toEqual([]);
+    expect(messages(sitioWebOpcional, 'http://boticas.pe/ayuda')).toEqual([]);
+  });
+
+  it('sitioWebOpcional rechaza texto que no es URL http(s) y textos largos', () => {
+    const mensaje = 'El sitio web debe ser una URL que empiece con http:// o https://.';
+    expect(messages(sitioWebOpcional, 'x')).toEqual([mensaje]);
+    expect(messages(sitioWebOpcional, 'ftp://boticas.pe')).toEqual([mensaje]);
+    expect(messages(sitioWebOpcional, `https://${'a'.repeat(300)}.pe`)).toContain(
+      'El sitio web no debe exceder 300 caracteres.'
+    );
   });
 });

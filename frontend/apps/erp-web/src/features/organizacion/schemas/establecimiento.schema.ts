@@ -5,6 +5,7 @@ import {
   correoOpcional,
   nombreRequerido,
   numeroOpcional,
+  telefonoOpcional,
   textoOpcional,
   ubigeoOpcional,
   zonaHorariaRequerida
@@ -24,7 +25,7 @@ export const establecimientoSchema = z.object({
   referencia: textoOpcional(300, 'La referencia'),
   latitud: numeroOpcional('La latitud', 90),
   longitud: numeroOpcional('La longitud', 180),
-  telefono: textoOpcional(40, 'El teléfono'),
+  telefono: telefonoOpcional,
   email: correoOpcional,
   esPrincipal: z.boolean(),
   permiteVentaOnline: z.boolean(),

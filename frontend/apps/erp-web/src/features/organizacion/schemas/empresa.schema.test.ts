@@ -48,9 +48,13 @@ describe('empresaSchema', () => {
     [{ nombreComercial: 'x'.repeat(301) }, 'El nombre comercial no debe exceder 300 caracteres.'],
     [{ direccionFiscal: 'x'.repeat(501) }, 'La dirección fiscal no debe exceder 500 caracteres.'],
     [{ ubigeoFiscal: '123' }, 'El ubigeo debe tener 6 dígitos.'],
-    [{ telefono: 'x'.repeat(41) }, 'El teléfono no debe exceder 40 caracteres.'],
+    [
+      { telefono: 'abc' },
+      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+    ],
     [{ email: 'no-es-correo' }, 'El correo no es válido.'],
-    [{ sitioWeb: 'x'.repeat(301) }, 'El sitio web no debe exceder 300 caracteres.'],
+    [{ sitioWeb: 'x' }, 'El sitio web debe ser una URL que empiece con http:// o https://.'],
+    [{ sitioWeb: `https://${'x'.repeat(300)}.pe` }, 'El sitio web no debe exceder 300 caracteres.'],
     [{ monedaFuncional: 'PE' }, 'La moneda debe tener 3 caracteres (ISO 4217).'],
     [{ zonaHoraria: '' }, 'La zona horaria es obligatoria.'],
     [{ zonaHoraria: 'x'.repeat(81) }, 'La zona horaria no debe exceder 80 caracteres.']

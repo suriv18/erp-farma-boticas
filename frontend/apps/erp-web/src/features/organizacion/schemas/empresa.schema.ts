@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { RUC_FORMATO, tieneDigitoVerificadorValido } from '../lib/ruc';
-import { correoOpcional, textoOpcional, ubigeoOpcional, zonaHorariaRequerida } from './campos';
+import {
+  correoOpcional,
+  sitioWebOpcional,
+  telefonoOpcional,
+  textoOpcional,
+  ubigeoOpcional,
+  zonaHorariaRequerida
+} from './campos';
 
 export const empresaSchema = z.object({
   ruc: z
@@ -17,9 +24,9 @@ export const empresaSchema = z.object({
   nombreComercial: textoOpcional(300, 'El nombre comercial'),
   direccionFiscal: textoOpcional(500, 'La dirección fiscal'),
   ubigeoFiscal: ubigeoOpcional,
-  telefono: textoOpcional(40, 'El teléfono'),
+  telefono: telefonoOpcional,
   email: correoOpcional,
-  sitioWeb: textoOpcional(300, 'El sitio web'),
+  sitioWeb: sitioWebOpcional,
   monedaFuncional: z.string().length(3, 'La moneda debe tener 3 caracteres (ISO 4217).'),
   zonaHoraria: zonaHorariaRequerida,
   permiteVentaOnline: z.boolean()
