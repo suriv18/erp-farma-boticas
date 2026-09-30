@@ -12,7 +12,13 @@ import { useTenantId } from '../lib/use-tenant-id';
 import type { EstablecimientoFormValues } from '../schemas/establecimiento.schema';
 import { EstablecimientoForm } from './EstablecimientoForm';
 
-export function EstablecimientosSection({ empresaId }: { empresaId: string }) {
+export function EstablecimientosSection({
+  empresaId,
+  motivoSinAltas = null
+}: {
+  empresaId: string;
+  motivoSinAltas?: string | null;
+}) {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -40,7 +46,13 @@ export function EstablecimientosSection({ empresaId }: { empresaId: string }) {
     <section aria-label="Establecimientos" className="mt-8">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-bold text-neutral-950 dark:text-white">Establecimientos</h2>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo establecimiento</Button>
+        <Button
+          disabled={motivoSinAltas !== null}
+          title={motivoSinAltas ?? undefined}
+          onClick={() => setCreateOpen(true)}
+        >
+          Nuevo establecimiento
+        </Button>
       </div>
 
       <div className="mt-4">

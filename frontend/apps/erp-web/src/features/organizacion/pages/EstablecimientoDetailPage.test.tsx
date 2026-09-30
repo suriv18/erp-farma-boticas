@@ -222,4 +222,39 @@ describe('EstablecimientoDetailPage', () => {
       screen.getByRole('heading', { name: 'Cambiar estado de Botica Central' })
     ).toBeInTheDocument();
   });
+
+  it('avisa y bloquea las altas cuando el establecimiento está clausurado', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json({ ...sampleEstablecimiento, estadoOperativo: 'CLAUSURADO' })
+      ),
+      http.get('*/api/v1/organizacion/almacenes', () => HttpResponse.json(pagina([]))),
+      http.get('*/api/v1/organizacion/terminales-pos', () => HttpResponse.json(pagina([])))
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos.'
+    );
+    expect(screen.getByRole('button', { name: 'Nuevo almacén' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Nuevo terminal' })).toBeDisabled();
+  });
+
+  it('permite las altas en remodelación y no muestra aviso', async () => {
+    server.use(
+      http.get(detailUrl, () =>
+        HttpResponse.json({ ...sampleEstablecimiento, estadoOperativo: 'REMODELACION' })
+      ),
+      http.get('*/api/v1/organizacion/almacenes', () => HttpResponse.json(pagina([]))),
+      http.get('*/api/v1/organizacion/terminales-pos', () => HttpResponse.json(pagina([])))
+    );
+
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'Botica Central' });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo almacén' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Nuevo terminal' })).toBeEnabled();
+  });
 });

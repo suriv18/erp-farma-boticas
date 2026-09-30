@@ -14,7 +14,13 @@ import { useTenantId } from '../lib/use-tenant-id';
 import type { TerminalFormValues } from '../schemas/terminal.schema';
 import { TerminalForm } from './TerminalForm';
 
-export function TerminalesSection({ establecimientoId }: { establecimientoId: string }) {
+export function TerminalesSection({
+  establecimientoId,
+  motivoSinAltas = null
+}: {
+  establecimientoId: string;
+  motivoSinAltas?: string | null;
+}) {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -57,7 +63,13 @@ export function TerminalesSection({ establecimientoId }: { establecimientoId: st
     <section aria-label="Terminales POS" className="mt-8">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-bold text-neutral-950 dark:text-white">Terminales POS</h2>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo terminal</Button>
+        <Button
+          disabled={motivoSinAltas !== null}
+          title={motivoSinAltas ?? undefined}
+          onClick={() => setCreateOpen(true)}
+        >
+          Nuevo terminal
+        </Button>
       </div>
 
       <div className="mt-4">

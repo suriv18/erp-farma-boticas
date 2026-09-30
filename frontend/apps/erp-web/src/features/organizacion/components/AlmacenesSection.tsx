@@ -13,7 +13,13 @@ import { useTenantId } from '../lib/use-tenant-id';
 import type { AlmacenFormValues } from '../schemas/almacen.schema';
 import { AlmacenForm } from './AlmacenForm';
 
-export function AlmacenesSection({ establecimientoId }: { establecimientoId: string }) {
+export function AlmacenesSection({
+  establecimientoId,
+  motivoSinAltas = null
+}: {
+  establecimientoId: string;
+  motivoSinAltas?: string | null;
+}) {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -56,7 +62,13 @@ export function AlmacenesSection({ establecimientoId }: { establecimientoId: str
     <section aria-label="Almacenes" className="mt-8">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-bold text-neutral-950 dark:text-white">Almacenes</h2>
-        <Button onClick={() => setCreateOpen(true)}>Nuevo almacén</Button>
+        <Button
+          disabled={motivoSinAltas !== null}
+          title={motivoSinAltas ?? undefined}
+          onClick={() => setCreateOpen(true)}
+        >
+          Nuevo almacén
+        </Button>
       </div>
 
       <div className="mt-4">

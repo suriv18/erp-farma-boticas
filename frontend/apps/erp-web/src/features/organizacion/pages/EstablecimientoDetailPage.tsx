@@ -11,6 +11,7 @@ import {
 import { ESTADOS_ESTABLECIMIENTO, type EstadoEstablecimiento } from '../api/establecimientos.types';
 import { invalidateOrganizacion } from '../api/invalidate';
 import { AlmacenesSection } from '../components/AlmacenesSection';
+import { Aviso } from '../components/Aviso';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
@@ -18,6 +19,7 @@ import { EstablecimientoForm } from '../components/EstablecimientoForm';
 import { FormError } from '../components/FormError';
 import { TerminalesSection } from '../components/TerminalesSection';
 import { CONSECUENCIAS_ESTADO_ESTABLECIMIENTO } from '../lib/consecuencias-estado';
+import { motivoSinAltasEstablecimiento } from '../lib/altas';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEstablecimientoFormValues } from '../lib/form-defaults';
 import { toActualizarEstablecimientoPayload } from '../lib/form-payloads';
@@ -78,6 +80,7 @@ export function EstablecimientoDetailPage() {
   if (result.isError) return <FormError message={describeApiError(result.error)} />;
 
   const establecimiento = result.data;
+  const motivoSinAltas = motivoSinAltasEstablecimiento(establecimiento.estadoOperativo);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -100,6 +103,8 @@ export function EstablecimientoDetailPage() {
           </>
         }
       />
+
+      {motivoSinAltas ? <Aviso>{motivoSinAltas}</Aviso> : null}
 
       <Card className="mt-6 p-6">
         <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,8 +135,8 @@ export function EstablecimientoDetailPage() {
         </dl>
       </Card>
 
-      <AlmacenesSection establecimientoId={establecimientoId} />
-      <TerminalesSection establecimientoId={establecimientoId} />
+      <AlmacenesSection establecimientoId={establecimientoId} motivoSinAltas={motivoSinAltas} />
+      <TerminalesSection establecimientoId={establecimientoId} motivoSinAltas={motivoSinAltas} />
 
       <Modal open={editOpen} onClose={closeEdit} title="Editar establecimiento" size="lg">
         <EstablecimientoForm

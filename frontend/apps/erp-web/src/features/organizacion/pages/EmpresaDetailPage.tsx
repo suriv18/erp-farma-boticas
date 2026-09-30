@@ -6,6 +6,7 @@ import { apiClient } from '../../../app/api';
 import { actualizarEmpresa, cambiarEstadoEmpresa, empresaQuery } from '../api/empresas.api';
 import { ESTADOS_EMPRESA, type EstadoEmpresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
+import { Aviso } from '../components/Aviso';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
@@ -13,6 +14,7 @@ import { EmpresaForm } from '../components/EmpresaForm';
 import { EstablecimientosSection } from '../components/EstablecimientosSection';
 import { FormError } from '../components/FormError';
 import { CONSECUENCIAS_ESTADO_EMPRESA } from '../lib/consecuencias-estado';
+import { motivoSinAltasEmpresa } from '../lib/altas';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEmpresaFormValues } from '../lib/form-defaults';
 import { toActualizarEmpresaPayload } from '../lib/form-payloads';
@@ -64,6 +66,7 @@ export function EmpresaDetailPage() {
   if (result.isError) return <FormError message={describeApiError(result.error)} />;
 
   const empresa = result.data;
+  const motivoSinAltas = motivoSinAltasEmpresa(empresa.estado);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -83,6 +86,8 @@ export function EmpresaDetailPage() {
         }
       />
 
+      {motivoSinAltas ? <Aviso>{motivoSinAltas}</Aviso> : null}
+
       <Card className="mt-6 p-6">
         <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <DatoItem label="Estado">
@@ -101,7 +106,7 @@ export function EmpresaDetailPage() {
         </dl>
       </Card>
 
-      <EstablecimientosSection empresaId={empresaId} />
+      <EstablecimientosSection empresaId={empresaId} motivoSinAltas={motivoSinAltas} />
 
       <Modal open={editOpen} onClose={closeEdit} title="Editar empresa" size="lg">
         <EmpresaForm

@@ -204,4 +204,28 @@ describe('EmpresaDetailPage', () => {
       screen.getByRole('heading', { name: 'Cambiar estado de Boticas SAC' })
     ).toBeInTheDocument();
   });
+
+  it('avisa y bloquea el alta de establecimientos cuando la empresa está suspendida', async () => {
+    server.use(
+      http.get(detailUrl, () => HttpResponse.json({ ...sampleEmpresa, estado: 'SUSPENDIDO' })),
+      http.get('*/api/v1/organizacion/establecimientos', () => HttpResponse.json(pagina([])))
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'La empresa está SUSPENDIDO; no admite establecimientos nuevos.'
+    );
+    expect(screen.getByRole('button', { name: 'Nuevo establecimiento' })).toBeDisabled();
+  });
+
+  it('no muestra aviso ni bloquea el alta cuando la empresa está activa', async () => {
+    mockDefaultHandlers();
+
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'Boticas SAC' });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo establecimiento' })).toBeEnabled();
+  });
 });

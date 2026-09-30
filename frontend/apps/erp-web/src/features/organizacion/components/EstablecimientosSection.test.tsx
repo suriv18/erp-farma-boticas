@@ -103,4 +103,26 @@ describe('EstablecimientosSection', () => {
     await user.click(screen.getByRole('button', { name: 'Nuevo establecimiento' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('deshabilita el alta y explica el motivo cuando la empresa no admite altas', async () => {
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([]))));
+    renderRoute(
+      '/empresa',
+      () => (
+        <EstablecimientosSection
+          empresaId="empresa-1"
+          motivoSinAltas="La empresa está SUSPENDIDO; no admite establecimientos nuevos."
+        />
+      ),
+      '/empresa'
+    );
+    await screen.findByText('Esta empresa aún no tiene establecimientos.');
+
+    const boton = screen.getByRole('button', { name: 'Nuevo establecimiento' });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAttribute(
+      'title',
+      'La empresa está SUSPENDIDO; no admite establecimientos nuevos.'
+    );
+  });
 });

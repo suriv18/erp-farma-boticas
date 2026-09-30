@@ -167,4 +167,26 @@ describe('TerminalesSection', () => {
     await user.click(screen.getByRole('button', { name: 'Editar Caja 1' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('deshabilita el alta y explica el motivo cuando el establecimiento no admite altas', async () => {
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([]))));
+    renderRoute(
+      '/establecimiento',
+      () => (
+        <TerminalesSection
+          establecimientoId="est-1"
+          motivoSinAltas="El establecimiento está SUSPENDIDO; no admite almacenes ni terminales POS nuevos."
+        />
+      ),
+      '/establecimiento'
+    );
+    await screen.findByText('Este establecimiento aún no tiene terminales.');
+
+    const boton = screen.getByRole('button', { name: 'Nuevo terminal' });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAttribute(
+      'title',
+      'El establecimiento está SUSPENDIDO; no admite almacenes ni terminales POS nuevos.'
+    );
+  });
 });

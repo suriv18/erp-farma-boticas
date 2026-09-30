@@ -169,4 +169,26 @@ describe('AlmacenesSection', () => {
     await user.click(screen.getByRole('button', { name: 'Editar Almacén Central' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('deshabilita el alta y explica el motivo cuando el establecimiento no admite altas', async () => {
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([]))));
+    renderRoute(
+      '/establecimiento',
+      () => (
+        <AlmacenesSection
+          establecimientoId="est-1"
+          motivoSinAltas="El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos."
+        />
+      ),
+      '/establecimiento'
+    );
+    await screen.findByText('Este establecimiento aún no tiene almacenes.');
+
+    const boton = screen.getByRole('button', { name: 'Nuevo almacén' });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAttribute(
+      'title',
+      'El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos.'
+    );
+  });
 });
