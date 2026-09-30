@@ -66,6 +66,7 @@ class CambiarEstadoEstablecimientoHandlerTest {
         var result = handler.execute(
                 new CambiarEstadoEstablecimientoCommand(ESTABLECIMIENTO_ID, TENANT_ID, "SUSPENDIDO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(establecimiento -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.NOT_FOUND);
             return null;
@@ -78,6 +79,7 @@ class CambiarEstadoEstablecimientoHandlerTest {
         var result = handler.execute(
                 new CambiarEstadoEstablecimientoCommand(ESTABLECIMIENTO_ID, TENANT_ID, "BLOQUEADO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(establecimiento -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.VALIDATION);
             assertThat(error.code()).isEqualTo("ORG_ESTABLECIMIENTO_ESTADO_INVALIDO");
@@ -99,6 +101,7 @@ class CambiarEstadoEstablecimientoHandlerTest {
         var result = handlerWithoutInstant.execute(
                 new CambiarEstadoEstablecimientoCommand(ESTABLECIMIENTO_ID, TENANT_ID, "CLAUSURADO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(establecimiento -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.VALIDATION);
             return null;

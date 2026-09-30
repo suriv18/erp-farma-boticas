@@ -12,7 +12,6 @@ import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import com.softprimesolutions.shared.application.error.StandardApplicationError;
 import com.softprimesolutions.shared.application.port.ClockPort;
-import com.softprimesolutions.shared.kernel.error.ErrorDetail;
 import com.softprimesolutions.shared.kernel.result.Result;
 import java.util.Objects;
 
@@ -34,11 +33,7 @@ public final class CambiarEstadoEstablecimientoHandler implements CambiarEstadoE
         Objects.requireNonNull(command, "command es obligatorio");
         var estado = EnumParser.parse(EstadoEstablecimiento.class, command.estado());
         if (estado.isEmpty()) {
-            return Result.failure(new StandardApplicationError(
-                    "ORG_ESTABLECIMIENTO_ESTADO_INVALIDO",
-                    "El estado indicado no es válido. Valores permitidos: "
-                            + EnumParser.allowedValues(EstadoEstablecimiento.class) + ".",
-                    ErrorCategory.VALIDATION));
+            return EstadoErrors.invalidEstado("ORG_ESTABLECIMIENTO_ESTADO_INVALIDO", EstadoEstablecimiento.class);
         }
         var existing = readPort.findEstablecimientoById(command.tenantId(), command.establecimientoId());
         if (existing.isEmpty()) {
@@ -49,16 +44,11 @@ public final class CambiarEstadoEstablecimientoHandler implements CambiarEstadoE
 
         return OrganizacionApplicationMapper.toDomain(existing.get())
                 .cambiarEstadoOperativo(estado.get(), clock.now())
-                .fold(this::persist, this::validationFailure);
+                .fold(this::persist, EstadoErrors::validationFailure);
     }
 
     private Result<EstablecimientoResult, ApplicationError> persist(Establecimiento establecimiento) {
         writePort.save(establecimiento);
         return Result.success(OrganizacionApplicationMapper.toResult(establecimiento));
-    }
-
-    private Result<EstablecimientoResult, ApplicationError> validationFailure(ErrorDetail error) {
-        return Result.failure(new StandardApplicationError(
-                error.code(), error.message(), ErrorCategory.VALIDATION, error.metadata()));
     }
 }

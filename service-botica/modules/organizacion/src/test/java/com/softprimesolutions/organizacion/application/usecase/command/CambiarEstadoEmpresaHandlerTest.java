@@ -61,6 +61,7 @@ class CambiarEstadoEmpresaHandlerTest {
 
         var result = handler.execute(new CambiarEstadoEmpresaCommand(EMPRESA_ID, TENANT_ID, "SUSPENDIDO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(empresa -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.NOT_FOUND);
             return null;
@@ -72,6 +73,7 @@ class CambiarEstadoEmpresaHandlerTest {
     void rejectsAnUnknownStatusWithoutReadingTheEmpresa() {
         var result = handler.execute(new CambiarEstadoEmpresaCommand(EMPRESA_ID, TENANT_ID, "FOO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(empresa -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.VALIDATION);
             assertThat(error.code()).isEqualTo("ORG_EMPRESA_ESTADO_INVALIDO");
@@ -91,6 +93,7 @@ class CambiarEstadoEmpresaHandlerTest {
         var result = handlerWithoutInstant.execute(
                 new CambiarEstadoEmpresaCommand(EMPRESA_ID, TENANT_ID, "BLOQUEADO"));
 
+        assertThat(result.isFailure()).isTrue();
         result.fold(empresa -> null, error -> {
             assertThat(error.category()).isEqualTo(ErrorCategory.VALIDATION);
             return null;
