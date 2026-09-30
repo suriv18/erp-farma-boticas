@@ -50,7 +50,7 @@ describe('empresaSchema', () => {
     [{ ubigeoFiscal: '123' }, 'El ubigeo debe tener 6 dígitos.'],
     [
       { telefono: 'abc' },
-      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+      'El teléfono debe tener entre 6 y 15 dígitos y solo admite números, espacios, +, - y paréntesis.'
     ],
     [{ email: 'no-es-correo' }, 'El correo no es válido.'],
     [{ sitioWeb: 'x' }, 'El sitio web debe ser una URL que empiece con http:// o https://.'],

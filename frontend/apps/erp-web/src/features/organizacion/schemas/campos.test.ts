@@ -53,18 +53,28 @@ describe('campos', () => {
     expect(messages(schema, 'x')).toEqual(['La latitud debe estar entre -90 y 90.']);
   });
 
-  it('telefonoOpcional acepta vacío y teléfonos con números, espacios, +, - y paréntesis', () => {
+  it('telefonoOpcional acepta vacío y teléfonos con 6 a 15 dígitos, espacios, +, - y paréntesis', () => {
     expect(messages(telefonoOpcional, '')).toEqual([]);
     expect(messages(telefonoOpcional, '014445566')).toEqual([]);
-    expect(messages(telefonoOpcional, '+51 (1) 4445566')).toEqual([]);
+    expect(messages(telefonoOpcional, '+51 (1) 444-5566')).toEqual([]);
+    expect(messages(telefonoOpcional, '123456')).toEqual([]);
+    expect(messages(telefonoOpcional, '123456789012345')).toEqual([]);
   });
 
-  it('telefonoOpcional rechaza letras, textos cortos y textos largos', () => {
+  it('telefonoOpcional rechaza letras, símbolos y cantidades de dígitos fuera de rango', () => {
     const mensaje =
-      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.';
+      'El teléfono debe tener entre 6 y 15 dígitos y solo admite números, espacios, +, - y paréntesis.';
     expect(messages(telefonoOpcional, 'abc')).toEqual([mensaje]);
     expect(messages(telefonoOpcional, '12345')).toEqual([mensaje]);
     expect(messages(telefonoOpcional, '1234567890123456')).toEqual([mensaje]);
+    expect(messages(telefonoOpcional, '444-5566 ext.')).toEqual([mensaje]);
+    expect(messages(telefonoOpcional, '444#5566')).toEqual([mensaje]);
+  });
+
+  it('telefonoOpcional informa solo la longitud cuando excede 40 caracteres válidos', () => {
+    expect(messages(telefonoOpcional, `123456${' '.repeat(35)}`)).toEqual([
+      'El teléfono no debe exceder 40 caracteres.'
+    ]);
   });
 
   it('sitioWebOpcional acepta vacío y URL http o https', () => {

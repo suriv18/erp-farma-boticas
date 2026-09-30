@@ -56,7 +56,7 @@ describe('establecimientoSchema', () => {
     [{ longitud: '181' }, 'La longitud debe estar entre -180 y 180.'],
     [
       { telefono: 'abc' },
-      'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+      'El teléfono debe tener entre 6 y 15 dígitos y solo admite números, espacios, +, - y paréntesis.'
     ],
     [{ email: 'no-es-correo' }, 'El correo no es válido.'],
     [{ perfilOperacion: 'OFFLINE' }, 'Selecciona un perfil de operación.'],

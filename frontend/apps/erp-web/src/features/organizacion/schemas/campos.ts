@@ -42,11 +42,20 @@ export function numeroOpcional(etiqueta: string, limite?: number) {
     );
 }
 
+const TELEFONO_CARACTERES = /^[\d\s+\-()]*$/;
+
+function tieneCantidadDigitosValida(valor: string) {
+  const digitos = valor.replace(/\D/g, '').length;
+  return digitos >= 6 && digitos <= 15;
+}
+
 export const telefonoOpcional = z
   .string()
-  .regex(
-    /^([\d\s+\-()]{6,15})?$/,
-    'El teléfono debe tener entre 6 y 15 caracteres: números, espacios, +, - o paréntesis.'
+  .max(40, 'El teléfono no debe exceder 40 caracteres.')
+  .refine(
+    (valor) =>
+      valor === '' || (TELEFONO_CARACTERES.test(valor) && tieneCantidadDigitosValida(valor)),
+    'El teléfono debe tener entre 6 y 15 dígitos y solo admite números, espacios, +, - y paréntesis.'
   );
 
 export const sitioWebOpcional = z
