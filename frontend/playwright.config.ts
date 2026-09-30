@@ -15,7 +15,7 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     env: {
-      VITE_API_MODE: 'mock'
+      VITE_API_MODE: 'http'
     }
   },
   projects: [
