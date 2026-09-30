@@ -4,7 +4,8 @@ import { Button } from '@boticas/ui-web';
 import { EMPRESA_FORM_VACIO } from '../lib/form-defaults';
 import { empresaSchema, type EmpresaFormValues } from '../schemas/empresa.schema';
 import { FormError } from './FormError';
-import { CheckboxField, TextField } from './FormFields';
+import { CamposTexto, type CampoTexto } from './CamposTexto';
+import { CheckboxField } from './FormFields';
 
 export type EmpresaFormProps = {
   defaultValues?: EmpresaFormValues | undefined;
@@ -14,6 +15,22 @@ export type EmpresaFormProps = {
   isSubmitting?: boolean;
   error?: string | null;
 };
+
+const CAMPOS_EMPRESA: ReadonlyArray<CampoTexto<EmpresaFormValues>> = [
+  { name: 'ruc', id: 'empresa-ruc', label: 'RUC' },
+  { name: 'razonSocial', id: 'empresa-razon-social', label: 'Razón social' },
+  { name: 'nombreComercial', id: 'empresa-nombre-comercial', label: 'Nombre comercial' },
+  { name: 'direccionFiscal', id: 'empresa-direccion-fiscal', label: 'Dirección fiscal' },
+  { name: 'ubigeoFiscal', id: 'empresa-ubigeo-fiscal', label: 'Ubigeo fiscal' },
+  { name: 'telefono', id: 'empresa-telefono', label: 'Teléfono' },
+  { name: 'email', id: 'empresa-email', label: 'Correo' },
+  { name: 'sitioWeb', id: 'empresa-sitio-web', label: 'Sitio web' },
+  { name: 'monedaFuncional', id: 'empresa-moneda', label: 'Moneda funcional' },
+  { name: 'zonaHoraria', id: 'empresa-zona-horaria', label: 'Zona horaria' }
+];
+
+const camposEmpresa = (isEdit: boolean) =>
+  CAMPOS_EMPRESA.map((campo) => (campo.name === 'ruc' ? { ...campo, readOnly: isEdit } : campo));
 
 export function EmpresaForm({
   defaultValues,
@@ -33,6 +50,8 @@ export function EmpresaForm({
     resolver: zodResolver(empresaSchema)
   });
 
+  const campos = camposEmpresa(isEdit);
+
   return (
     <form
       className="space-y-4"
@@ -42,67 +61,7 @@ export function EmpresaForm({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          id="empresa-ruc"
-          label="RUC"
-          readOnly={isEdit}
-          error={errors.ruc?.message}
-          {...register('ruc')}
-        />
-        <TextField
-          id="empresa-razon-social"
-          label="Razón social"
-          error={errors.razonSocial?.message}
-          {...register('razonSocial')}
-        />
-        <TextField
-          id="empresa-nombre-comercial"
-          label="Nombre comercial"
-          error={errors.nombreComercial?.message}
-          {...register('nombreComercial')}
-        />
-        <TextField
-          id="empresa-direccion-fiscal"
-          label="Dirección fiscal"
-          error={errors.direccionFiscal?.message}
-          {...register('direccionFiscal')}
-        />
-        <TextField
-          id="empresa-ubigeo-fiscal"
-          label="Ubigeo fiscal"
-          error={errors.ubigeoFiscal?.message}
-          {...register('ubigeoFiscal')}
-        />
-        <TextField
-          id="empresa-telefono"
-          label="Teléfono"
-          error={errors.telefono?.message}
-          {...register('telefono')}
-        />
-        <TextField
-          id="empresa-email"
-          label="Correo"
-          error={errors.email?.message}
-          {...register('email')}
-        />
-        <TextField
-          id="empresa-sitio-web"
-          label="Sitio web"
-          error={errors.sitioWeb?.message}
-          {...register('sitioWeb')}
-        />
-        <TextField
-          id="empresa-moneda"
-          label="Moneda funcional"
-          error={errors.monedaFuncional?.message}
-          {...register('monedaFuncional')}
-        />
-        <TextField
-          id="empresa-zona-horaria"
-          label="Zona horaria"
-          error={errors.zonaHoraria?.message}
-          {...register('zonaHoraria')}
-        />
+        <CamposTexto fields={campos} register={register} errors={errors} />
       </div>
       <CheckboxField
         id="empresa-venta-online"
