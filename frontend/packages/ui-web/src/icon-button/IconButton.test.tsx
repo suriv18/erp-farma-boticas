@@ -24,7 +24,7 @@ describe('IconButton', () => {
     expect(screen.getByRole('button', { name: 'Eliminar' }).className).toContain('danger');
   });
 
-  it('forwards onClick and other button props', async () => {
+  it('forwards onClick and other button props', () => {
     const onClick = vi.fn();
     render(<IconButton icon={Pencil} label="Editar" onClick={onClick} disabled />);
 

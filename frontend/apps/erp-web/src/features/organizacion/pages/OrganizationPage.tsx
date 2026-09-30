@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Clock3, MapPin, MonitorSmartphone, Warehouse } from 'lucide-react';
-import { Badge, Card } from '@boticas/ui-web';
+import { Link } from 'react-router';
+import { Badge, Card, buttonClassName } from '@boticas/ui-web';
 import { corporateStructureQuery } from '../api/organization.api';
 
 function statusLabel(status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') {
@@ -37,16 +38,21 @@ export function OrganizationPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div>
-        <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-          Foundation / Core maestro
-        </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-          Organización
-        </h1>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          Estructura corporativa efectiva dentro del ámbito autorizado de la sesión.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
+            Foundation / Core maestro
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            Organización
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Estructura corporativa efectiva dentro del ámbito autorizado de la sesión.
+          </p>
+        </div>
+        <Link className={buttonClassName('primary')} to="/organizacion/empresas">
+          Gestionar empresas
+        </Link>
       </div>
 
       {isError ? (
@@ -92,7 +98,9 @@ export function OrganizationPage() {
               <div className="flex flex-col gap-3 border-b border-neutral-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-neutral-800">
                 <div>
                   <h2 className="font-bold text-neutral-950 dark:text-white">
-                    {company.tradeName ?? company.legalName}
+                    <Link className="hover:underline" to={`/organizacion/empresas/${company.id}`}>
+                      {company.tradeName ?? company.legalName}
+                    </Link>
                   </h2>
                   <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                     {company.legalName}
@@ -110,7 +118,12 @@ export function OrganizationPage() {
                           {establishment.code}
                         </p>
                         <h3 className="mt-1 font-semibold text-neutral-900 dark:text-neutral-50">
-                          {establishment.name}
+                          <Link
+                            className="hover:underline"
+                            to={`/organizacion/establecimientos/${establishment.id}`}
+                          >
+                            {establishment.name}
+                          </Link>
                         </h3>
                         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                           {establishment.timeZone}
