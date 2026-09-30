@@ -2,15 +2,12 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './pagina.types';
+import { resolverPaginacion, type ParametrosLista } from './paginacion';
 import { buildQuery } from './query-string';
 import type { ActualizarTerminalPayload, CrearTerminalPayload, Terminal } from './terminales.types';
 
-export type FetchTerminalesParams = {
-  tenantId: string;
+export type FetchTerminalesParams = ParametrosLista & {
   establecimientoId?: string | undefined;
-  search?: string | undefined;
-  page?: number | undefined;
-  size?: number | undefined;
 };
 
 export function fetchTerminales(
@@ -21,13 +18,13 @@ export function fetchTerminales(
     tenantId: params.tenantId,
     establecimientoId: params.establecimientoId,
     search: params.search,
-    page: params.page ?? 0,
-    size: params.size ?? 20
+    ...resolverPaginacion(params)
   });
   return client.get<PaginaResponse<Terminal>>(`/organizacion/terminales-pos?${query}`);
 }
 
 export function terminalesQuery(params: FetchTerminalesParams) {
+  const { page, size } = resolverPaginacion(params);
   return queryOptions({
     queryKey: [
       'organizacion',
@@ -36,8 +33,8 @@ export function terminalesQuery(params: FetchTerminalesParams) {
       params.tenantId,
       params.establecimientoId ?? '',
       params.search ?? '',
-      params.page ?? 0,
-      params.size ?? 20
+      page,
+      size
     ],
     queryFn: () => fetchTerminales(apiClient, params)
   });

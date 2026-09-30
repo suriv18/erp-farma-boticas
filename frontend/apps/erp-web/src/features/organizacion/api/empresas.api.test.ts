@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { QueryClient } from '@tanstack/react-query';
-import { createApiClient } from '@boticas/api-client';
+import { ApiError, createApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import {
   actualizarEmpresa,
@@ -194,12 +194,30 @@ describe('empresas.api', () => {
   });
 
   it('empresaQuery ejecuta la consulta contra /organizacion/empresas/empresa-1?tenantId=tenant-1', async () => {
-    const get = vi
-      .spyOn(apiClient, 'get')
-      .mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0 });
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValue(sampleEmpresa);
 
     await new QueryClient().fetchQuery(empresaQuery('tenant-1', 'empresa-1'));
 
     expect(get).toHaveBeenCalledWith('/organizacion/empresas/empresa-1?tenantId=tenant-1');
+  });
+
+  it('crearEmpresa rechaza con ApiError 409 cuando el servidor informa un conflicto', async () => {
+    server.use(
+      http.post('http://localhost/api/v1/organizacion/empresas', () =>
+        HttpResponse.json({ title: 'Conflict', detail: 'Codigo duplicado' }, { status: 409 })
+      )
+    );
+
+    const result = crearEmpresa(client, {
+      tenantId: 'tenant-1',
+      ruc: '20123456789',
+      razonSocial: 'Boticas SAC',
+      monedaFuncional: 'PEN',
+      zonaHoraria: 'America/Lima',
+      permiteVentaOnline: false
+    });
+
+    await expect(result).rejects.toBeInstanceOf(ApiError);
+    await expect(result).rejects.toMatchObject({ status: 409, message: 'Codigo duplicado' });
   });
 });

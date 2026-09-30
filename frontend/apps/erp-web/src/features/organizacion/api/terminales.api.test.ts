@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { QueryClient } from '@tanstack/react-query';
-import { createApiClient } from '@boticas/api-client';
+import { ApiError, createApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import {
   actualizarTerminal,
@@ -152,5 +152,24 @@ describe('terminales.api', () => {
     expect(get).toHaveBeenCalledWith(
       '/organizacion/terminales-pos?tenantId=tenant-1&establecimientoId=est-1&page=0&size=20'
     );
+  });
+
+  it('crearTerminal rechaza con ApiError 409 cuando el servidor informa un conflicto', async () => {
+    server.use(
+      http.post('http://localhost/api/v1/organizacion/terminales-pos', () =>
+        HttpResponse.json({ title: 'Conflict', detail: 'Codigo duplicado' }, { status: 409 })
+      )
+    );
+
+    const result = crearTerminal(client, {
+      tenantId: 'tenant-1',
+      establecimientoId: 'est-1',
+      codigo: 'POS001',
+      nombre: 'Caja 1',
+      storeEdgeHabilitado: false
+    });
+
+    await expect(result).rejects.toBeInstanceOf(ApiError);
+    await expect(result).rejects.toMatchObject({ status: 409, message: 'Codigo duplicado' });
   });
 });

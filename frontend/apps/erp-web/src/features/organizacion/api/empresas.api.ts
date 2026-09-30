@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './pagina.types';
+import { resolverPaginacion, type ParametrosLista } from './paginacion';
 import { buildQuery } from './query-string';
 import type {
   ActualizarEmpresaPayload,
@@ -10,12 +11,7 @@ import type {
   EstadoEmpresa
 } from './empresas.types';
 
-export type FetchEmpresasParams = {
-  tenantId: string;
-  search?: string | undefined;
-  page?: number | undefined;
-  size?: number | undefined;
-};
+export type FetchEmpresasParams = ParametrosLista;
 
 export function fetchEmpresas(
   client: ApiClient,
@@ -24,13 +20,13 @@ export function fetchEmpresas(
   const query = buildQuery({
     tenantId: params.tenantId,
     search: params.search,
-    page: params.page ?? 0,
-    size: params.size ?? 20
+    ...resolverPaginacion(params)
   });
   return client.get<PaginaResponse<Empresa>>(`/organizacion/empresas?${query}`);
 }
 
 export function empresasQuery(params: FetchEmpresasParams) {
+  const { page, size } = resolverPaginacion(params);
   return queryOptions({
     queryKey: [
       'organizacion',
@@ -38,8 +34,8 @@ export function empresasQuery(params: FetchEmpresasParams) {
       'lista',
       params.tenantId,
       params.search ?? '',
-      params.page ?? 0,
-      params.size ?? 20
+      page,
+      size
     ],
     queryFn: () => fetchEmpresas(apiClient, params)
   });

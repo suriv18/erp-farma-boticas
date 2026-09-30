@@ -2,15 +2,12 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './pagina.types';
+import { resolverPaginacion, type ParametrosLista } from './paginacion';
 import { buildQuery } from './query-string';
 import type { ActualizarAlmacenPayload, Almacen, CrearAlmacenPayload } from './almacenes.types';
 
-export type FetchAlmacenesParams = {
-  tenantId: string;
+export type FetchAlmacenesParams = ParametrosLista & {
   establecimientoId?: string | undefined;
-  search?: string | undefined;
-  page?: number | undefined;
-  size?: number | undefined;
 };
 
 export function fetchAlmacenes(
@@ -21,13 +18,13 @@ export function fetchAlmacenes(
     tenantId: params.tenantId,
     establecimientoId: params.establecimientoId,
     search: params.search,
-    page: params.page ?? 0,
-    size: params.size ?? 20
+    ...resolverPaginacion(params)
   });
   return client.get<PaginaResponse<Almacen>>(`/organizacion/almacenes?${query}`);
 }
 
 export function almacenesQuery(params: FetchAlmacenesParams) {
+  const { page, size } = resolverPaginacion(params);
   return queryOptions({
     queryKey: [
       'organizacion',
@@ -36,8 +33,8 @@ export function almacenesQuery(params: FetchAlmacenesParams) {
       params.tenantId,
       params.establecimientoId ?? '',
       params.search ?? '',
-      params.page ?? 0,
-      params.size ?? 20
+      page,
+      size
     ],
     queryFn: () => fetchAlmacenes(apiClient, params)
   });

@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './pagina.types';
+import { resolverPaginacion, type ParametrosLista } from './paginacion';
 import { buildQuery } from './query-string';
 import type {
   ActualizarEstablecimientoPayload,
@@ -10,12 +11,8 @@ import type {
   Establecimiento
 } from './establecimientos.types';
 
-export type FetchEstablecimientosParams = {
-  tenantId: string;
+export type FetchEstablecimientosParams = ParametrosLista & {
   empresaId?: string | undefined;
-  search?: string | undefined;
-  page?: number | undefined;
-  size?: number | undefined;
 };
 
 export function fetchEstablecimientos(
@@ -26,13 +23,13 @@ export function fetchEstablecimientos(
     tenantId: params.tenantId,
     empresaId: params.empresaId,
     search: params.search,
-    page: params.page ?? 0,
-    size: params.size ?? 20
+    ...resolverPaginacion(params)
   });
   return client.get<PaginaResponse<Establecimiento>>(`/organizacion/establecimientos?${query}`);
 }
 
 export function establecimientosQuery(params: FetchEstablecimientosParams) {
+  const { page, size } = resolverPaginacion(params);
   return queryOptions({
     queryKey: [
       'organizacion',
@@ -41,8 +38,8 @@ export function establecimientosQuery(params: FetchEstablecimientosParams) {
       params.tenantId,
       params.empresaId ?? '',
       params.search ?? '',
-      params.page ?? 0,
-      params.size ?? 20
+      page,
+      size
     ],
     queryFn: () => fetchEstablecimientos(apiClient, params)
   });
