@@ -11,6 +11,7 @@ export type EmpresaFormProps = {
   defaultValues?: EmpresaFormValues | undefined;
   isEdit?: boolean;
   onSubmit: (values: EmpresaFormValues) => void;
+  onCancel?: (() => void) | undefined;
   submitLabel: string;
   isSubmitting?: boolean;
   error?: string | null;
@@ -36,6 +37,7 @@ export function EmpresaForm({
   defaultValues,
   isEdit = false,
   onSubmit,
+  onCancel,
   submitLabel,
   isSubmitting = false,
   error = null
@@ -69,9 +71,16 @@ export function EmpresaForm({
         {...register('permiteVentaOnline')}
       />
       {error ? <FormError message={error} /> : null}
-      <Button type="submit" disabled={isSubmitting}>
-        {submitLabel}
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" disabled={isSubmitting}>
+          {submitLabel}
+        </Button>
+        {onCancel ? (
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancelar
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

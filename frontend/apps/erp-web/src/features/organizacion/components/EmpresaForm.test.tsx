@@ -74,6 +74,24 @@ describe('EmpresaForm', () => {
     expect(screen.getByRole('button', { name: 'Crear empresa' })).toBeDisabled();
   });
 
+  it('muestra Cancelar después del botón de envío solo cuando recibe onCancel', async () => {
+    const onCancel = vi.fn();
+    const { user } = renderForm({ onCancel });
+
+    const [submit, cancel] = screen.getAllByRole('button').slice(-2);
+    expect(submit).toHaveTextContent('Crear empresa');
+    expect(cancel).toHaveTextContent('Cancelar');
+    await user.click(cancel as HTMLElement);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('no muestra Cancelar sin onCancel', () => {
+    renderForm();
+
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument();
+  });
+
   it('no muestra alerta ni deshabilita el envío sin error ni guardado en curso', () => {
     renderForm();
 

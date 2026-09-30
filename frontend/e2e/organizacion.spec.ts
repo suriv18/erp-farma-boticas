@@ -51,6 +51,26 @@ test.describe('Organización', () => {
     await expect(page.getByRole('dialog')).toBeHidden();
   });
 
+  test('cancela la creación de una empresa sin guardarla', async ({ page }) => {
+    await abrirSesionEn(page, '/organizacion/empresas');
+
+    await page.getByRole('button', { name: 'Nueva empresa' }).click();
+    const dialog = page.getByRole('dialog');
+    const crear = dialog.getByRole('button', { name: 'Crear empresa' });
+    const cancelar = dialog.getByRole('button', { name: 'Cancelar' });
+    const [crearBox, cancelarBox] = await Promise.all([
+      crear.boundingBox(),
+      cancelar.boundingBox()
+    ]);
+    expect(cancelarBox?.x).toBeGreaterThan((crearBox?.x ?? 0) + (crearBox?.width ?? 0) - 1);
+
+    await dialog.getByLabel('RUC').fill('20999999992');
+    await cancelar.click();
+
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByText('Aún no hay empresas registradas.')).toBeVisible();
+  });
+
   test('gestiona empresa, establecimiento, almacén y terminal de punta a punta', async ({
     page
   }) => {

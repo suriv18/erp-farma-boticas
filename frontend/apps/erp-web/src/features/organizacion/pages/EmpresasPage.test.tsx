@@ -120,6 +120,26 @@ describe('EmpresasPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('cierra el modal con Cancelar sin crear la empresa', async () => {
+    let posts = 0;
+    server.use(
+      http.get(listUrl, () => HttpResponse.json(pagina([]))),
+      http.post(listUrl, () => {
+        posts += 1;
+        return HttpResponse.json(sampleEmpresa, { status: 201 });
+      })
+    );
+    const { user } = renderPage();
+    await screen.findByText('Aún no hay empresas registradas.');
+
+    await user.click(screen.getByRole('button', { name: 'Nueva empresa' }));
+    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(posts).toBe(0);
+  });
+
   it('muestra el error del servidor al crear y lo limpia al cerrar el modal', async () => {
     server.use(
       http.get(listUrl, () => HttpResponse.json(pagina([]))),

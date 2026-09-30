@@ -96,6 +96,7 @@ export function EmpresasPage() {
       <Modal open={createOpen} onClose={closeCreate} title="Nueva empresa" size="lg">
         <EmpresaForm
           onSubmit={(values) => createMutation.mutate(values)}
+          onCancel={closeCreate}
           submitLabel="Crear empresa"
           isSubmitting={createMutation.isPending}
           error={createMutation.isError ? describeApiError(createMutation.error) : null}
