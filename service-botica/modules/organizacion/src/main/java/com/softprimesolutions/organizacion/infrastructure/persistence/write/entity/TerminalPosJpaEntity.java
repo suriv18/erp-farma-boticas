@@ -48,7 +48,7 @@ public class TerminalPosJpaEntity {
     @Column(length = 150)
     private String hostname;
 
-    @ColumnTransformer(read = "CAST(ip_equipo AS text)", write = "CAST(? AS inet)")
+    @ColumnTransformer(read = "host(ip_equipo)", write = "CAST(? AS inet)")
     @Column(name = "ip_equipo", columnDefinition = "inet")
     private String ipEquipo;
 

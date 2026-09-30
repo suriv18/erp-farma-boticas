@@ -84,7 +84,7 @@ public class OrganizacionJdbcReadRepository {
     private static final String TERMINAL_SELECT = """
             SELECT p.uuid_publico, t.uuid_publico AS tenant_uuid, s.uuid_publico AS establecimiento_uuid,
                    p.codigo, p.nombre, p.serie_boleta_defecto, p.serie_factura_defecto,
-                   p.numero_serie_equipo, p.hostname, CAST(p.ip_equipo AS text) AS ip_equipo,
+                   p.numero_serie_equipo, p.hostname, host(p.ip_equipo) AS ip_equipo,
                    p.impresora_codigo, p.store_edge_habilitado, p.estado, p.created_at, p.updated_at
             FROM sch_organizacion.terminal_pos p
             JOIN sch_organizacion.establecimiento_farmaceutico s
