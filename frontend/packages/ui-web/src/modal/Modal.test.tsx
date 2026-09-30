@@ -33,4 +33,28 @@ describe('Modal', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('usa el ancho md por defecto y permite scroll interno', () => {
+    render(
+      <Modal open onClose={() => {}} title="Tamaño">
+        <p>Contenido</p>
+      </Modal>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('max-w-lg');
+    expect(dialog.className).not.toContain('max-w-3xl');
+    expect(dialog.className).toContain('overflow-y-auto');
+    expect(dialog.className).toContain('max-h-[90vh]');
+  });
+
+  it('usa el ancho lg cuando se solicita', () => {
+    render(
+      <Modal open onClose={() => {}} title="Tamaño grande" size="lg">
+        <p>Contenido</p>
+      </Modal>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('max-w-3xl');
+    expect(dialog.className).not.toContain('max-w-lg');
+  });
 });

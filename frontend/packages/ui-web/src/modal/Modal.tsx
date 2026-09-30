@@ -1,13 +1,17 @@
 import type { PropsWithChildren } from 'react';
 import { X } from 'lucide-react';
+import { cn } from '../lib/cn';
 
 export type ModalProps = PropsWithChildren<{
   open: boolean;
   onClose: () => void;
   title: string;
+  size?: 'md' | 'lg';
 }>;
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+const sizes = { md: 'max-w-lg', lg: 'max-w-3xl' } as const;
+
+export function Modal({ open, onClose, title, size = 'md', children }: ModalProps) {
   if (!open) return null;
 
   return (
@@ -16,7 +20,10 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className={cn(
+          'max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900',
+          sizes[size]
+        )}
       >
         <div className="flex items-center justify-between">
           <h2 id="modal-title" className="text-lg font-bold text-neutral-950 dark:text-white">
