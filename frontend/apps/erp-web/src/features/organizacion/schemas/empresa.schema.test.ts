@@ -1,7 +1,7 @@
 import { empresaSchema } from './empresa.schema';
 
 const valid = {
-  ruc: '20123456789',
+  ruc: '20123456786',
   razonSocial: 'Boticas SAC',
   nombreComercial: '',
   direccionFiscal: '',
@@ -25,7 +25,19 @@ describe('empresaSchema', () => {
   });
 
   it('acepta un RUC de persona natural que inicia con 10', () => {
-    expect(messages({ ruc: '10123456789' })).toEqual([]);
+    expect(messages({ ruc: '10123456781' })).toEqual([]);
+  });
+
+  it('rechaza un RUC con dígito verificador inválido', () => {
+    expect(messages({ ruc: '20123456789' })).toEqual([
+      'El RUC no es válido: el dígito verificador no coincide.'
+    ]);
+  });
+
+  it('con formato inválido solo informa el formato, no el dígito verificador', () => {
+    expect(messages({ ruc: '30123456789' })).toEqual([
+      'El RUC debe tener 11 dígitos e iniciar con 10 o 20.'
+    ]);
   });
 
   it.each([

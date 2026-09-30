@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { RUC_FORMATO, tieneDigitoVerificadorValido } from '../lib/ruc';
 import { correoOpcional, textoOpcional, ubigeoOpcional, zonaHorariaRequerida } from './campos';
 
 export const empresaSchema = z.object({
-  ruc: z.string().regex(/^(10|20)\d{9}$/, 'El RUC debe tener 11 dígitos e iniciar con 10 o 20.'),
+  ruc: z
+    .string()
+    .regex(RUC_FORMATO, 'El RUC debe tener 11 dígitos e iniciar con 10 o 20.')
+    .refine(
+      (ruc) => !RUC_FORMATO.test(ruc) || tieneDigitoVerificadorValido(ruc),
+      'El RUC no es válido: el dígito verificador no coincide.'
+    ),
   razonSocial: z
     .string()
     .min(2, 'La razón social debe tener al menos 2 caracteres.')

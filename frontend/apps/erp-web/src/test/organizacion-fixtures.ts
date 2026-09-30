@@ -6,7 +6,7 @@ import type { Terminal } from '../features/organizacion/api/terminales.types';
 export const sampleEmpresa: Empresa = {
   id: 'empresa-1',
   tenantId: 'tenant-1',
-  ruc: '20123456789',
+  ruc: '20123456786',
   razonSocial: 'Boticas SAC',
   nombreComercial: null,
   direccionFiscal: null,

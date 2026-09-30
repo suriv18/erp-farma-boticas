@@ -10,7 +10,7 @@ import {
 } from './form-payloads';
 
 const empresaVacia = {
-  ruc: '20123456789',
+  ruc: '20123456786',
   razonSocial: '  Boticas SAC  ',
   nombreComercial: '',
   direccionFiscal: '',
@@ -66,7 +66,7 @@ describe('form-payloads', () => {
   it('empresa: al crear agrega tenantId y RUC', () => {
     expect(toCrearEmpresaPayload('tenant-1', empresaVacia)).toMatchObject({
       tenantId: 'tenant-1',
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC'
     });
   });

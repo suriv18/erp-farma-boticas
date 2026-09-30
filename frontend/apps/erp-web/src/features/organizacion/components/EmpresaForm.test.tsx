@@ -13,14 +13,14 @@ describe('EmpresaForm', () => {
   it('envía los valores válidos con los valores por defecto de moneda y zona horaria', async () => {
     const { onSubmit, user } = renderForm();
 
-    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.type(screen.getByLabelText('RUC'), '20123456786');
     await user.type(screen.getByLabelText('Razón social'), 'Boticas SAC');
     await user.click(screen.getByLabelText('Permite venta online'));
     await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       ...EMPRESA_FORM_VACIO,
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       permiteVentaOnline: true
     });
@@ -44,18 +44,18 @@ describe('EmpresaForm', () => {
     const { onSubmit, user } = renderForm({
       isEdit: true,
       submitLabel: 'Guardar cambios',
-      defaultValues: { ...EMPRESA_FORM_VACIO, ruc: '20123456789', razonSocial: 'Boticas SAC' }
+      defaultValues: { ...EMPRESA_FORM_VACIO, ruc: '20123456786', razonSocial: 'Boticas SAC' }
     });
 
     const ruc = screen.getByLabelText('RUC');
-    expect(ruc).toHaveValue('20123456789');
+    expect(ruc).toHaveValue('20123456786');
     expect(ruc).toHaveAttribute('readonly');
     await user.clear(screen.getByLabelText('Razón social'));
     await user.type(screen.getByLabelText('Razón social'), 'Boticas del Perú SAC');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ ruc: '20123456789', razonSocial: 'Boticas del Perú SAC' })
+      expect.objectContaining({ ruc: '20123456786', razonSocial: 'Boticas del Perú SAC' })
     );
   });
 

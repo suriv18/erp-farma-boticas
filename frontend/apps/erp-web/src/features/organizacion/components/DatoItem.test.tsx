@@ -5,11 +5,11 @@ describe('DatoItem', () => {
   it('muestra la etiqueta y el valor', () => {
     render(
       <dl>
-        <DatoItem label="RUC">20123456789</DatoItem>
+        <DatoItem label="RUC">20123456786</DatoItem>
       </dl>
     );
 
     expect(screen.getByText('RUC')).toBeInTheDocument();
-    expect(screen.getByText('20123456789')).toBeInTheDocument();
+    expect(screen.getByText('20123456786')).toBeInTheDocument();
   });
 });

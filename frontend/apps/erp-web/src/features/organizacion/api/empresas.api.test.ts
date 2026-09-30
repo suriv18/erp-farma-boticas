@@ -28,7 +28,7 @@ const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
 const sampleEmpresa: Empresa = {
   id: 'empresa-1',
   tenantId: 'tenant-1',
-  ruc: '20123456789',
+  ruc: '20123456786',
   razonSocial: 'Boticas SAC',
   nombreComercial: null,
   direccionFiscal: null,
@@ -104,7 +104,7 @@ describe('empresas.api', () => {
     );
     const payload = {
       tenantId: 'tenant-1',
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN',
       zonaHoraria: 'America/Lima',
@@ -210,7 +210,7 @@ describe('empresas.api', () => {
 
     const result = crearEmpresa(client, {
       tenantId: 'tenant-1',
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN',
       zonaHoraria: 'America/Lima',

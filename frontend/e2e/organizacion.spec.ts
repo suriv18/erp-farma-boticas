@@ -31,7 +31,7 @@ test.describe('Organización', () => {
     await abrirSesionEn(page, '/organizacion/empresas');
     await expect(page.getByText('Aún no hay empresas registradas.')).toBeVisible();
 
-    await crearEmpresa(page, '20999999992', 'PRUEBA UI Boticas SAC');
+    await crearEmpresa(page, '20999999990', 'PRUEBA UI Boticas SAC');
 
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' })).toBeVisible();
@@ -42,7 +42,7 @@ test.describe('Organización', () => {
     await page.getByLabel('Buscar empresa').fill('PRUEBA');
     await expect(page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' })).toBeVisible();
 
-    await crearEmpresa(page, '20999999992', 'Otra razón social');
+    await crearEmpresa(page, '20999999990', 'Otra razón social');
 
     await expect(page.getByRole('alert')).toContainText(
       'Ya existe una empresa con el RUC indicado.'
@@ -64,7 +64,7 @@ test.describe('Organización', () => {
     ]);
     expect(cancelarBox?.x).toBeGreaterThan((crearBox?.x ?? 0) + (crearBox?.width ?? 0) - 1);
 
-    await dialog.getByLabel('RUC').fill('20999999992');
+    await dialog.getByLabel('RUC').fill('20999999990');
     await cancelar.click();
 
     await expect(page.getByRole('dialog')).toBeHidden();
@@ -76,7 +76,7 @@ test.describe('Organización', () => {
   }) => {
     test.setTimeout(90_000);
     await abrirSesionEn(page, '/organizacion/empresas');
-    await crearEmpresa(page, '20999999992', 'PRUEBA UI Boticas SAC');
+    await crearEmpresa(page, '20999999990', 'PRUEBA UI Boticas SAC');
     await page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' }).click();
 
     await expect(

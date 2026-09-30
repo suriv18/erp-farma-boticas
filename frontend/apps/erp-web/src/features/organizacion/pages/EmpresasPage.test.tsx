@@ -106,14 +106,14 @@ describe('EmpresasPage', () => {
     await screen.findByText('Aún no hay empresas registradas.');
 
     await user.click(screen.getByRole('button', { name: 'Nueva empresa' }));
-    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.type(screen.getByLabelText('RUC'), '20123456786');
     await user.type(screen.getByLabelText('Razón social'), 'Boticas SAC');
     await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
 
     expect(await screen.findByRole('link', { name: 'Boticas SAC' })).toBeInTheDocument();
     expect(created).toMatchObject({
       tenantId: 'tenant-1',
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN'
     });
@@ -133,7 +133,7 @@ describe('EmpresasPage', () => {
     await screen.findByText('Aún no hay empresas registradas.');
 
     await user.click(screen.getByRole('button', { name: 'Nueva empresa' }));
-    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.type(screen.getByLabelText('RUC'), '20123456786');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('EmpresasPage', () => {
     await screen.findByText('Aún no hay empresas registradas.');
 
     await user.click(screen.getByRole('button', { name: 'Nueva empresa' }));
-    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.type(screen.getByLabelText('RUC'), '20123456786');
     await user.type(screen.getByLabelText('Razón social'), 'Boticas SAC');
     await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
 

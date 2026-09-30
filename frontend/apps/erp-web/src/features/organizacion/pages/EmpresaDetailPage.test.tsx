@@ -32,7 +32,7 @@ describe('EmpresaDetailPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Boticas SAC' })).toBeInTheDocument();
-    expect(screen.getByText('20123456789')).toBeInTheDocument();
+    expect(screen.getByText('20123456786')).toBeInTheDocument();
     expect(screen.getByText('PEN')).toBeInTheDocument();
     expect(screen.getByText('America/Lima')).toBeInTheDocument();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);

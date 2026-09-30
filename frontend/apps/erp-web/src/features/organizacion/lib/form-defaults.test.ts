@@ -42,7 +42,7 @@ describe('form-defaults', () => {
     const empresa: Empresa = {
       id: 'e1',
       tenantId: 't1',
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       nombreComercial: null,
       direccionFiscal: null,
@@ -59,7 +59,7 @@ describe('form-defaults', () => {
     };
 
     expect(toEmpresaFormValues(empresa)).toEqual({
-      ruc: '20123456789',
+      ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       nombreComercial: '',
       direccionFiscal: '',
