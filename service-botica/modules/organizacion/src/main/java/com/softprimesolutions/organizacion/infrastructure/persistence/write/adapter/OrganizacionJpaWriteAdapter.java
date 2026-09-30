@@ -274,8 +274,33 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
                         .update();
                 return SaveTerminalOutcome.UPDATED;
             }
-            terminalRepository.saveAndFlush(OrganizacionWriteMapper.toEntity(
-                    terminal, tenantId.get(), parent.get().empresaId(), parent.get().establecimientoId()));
+            jdbcClient.sql("""
+                            INSERT INTO sch_organizacion.terminal_pos
+                                (uuid_publico, tenant_id, empresa_id, establecimiento_id, codigo, nombre,
+                                 serie_boleta_defecto, serie_factura_defecto, numero_serie_equipo, hostname,
+                                 ip_equipo, impresora_codigo, store_edge_habilitado, estado, created_at)
+                            VALUES
+                                (:terminalId, :tenantId, :empresaId, :establecimientoId, :codigo, :nombre,
+                                 :serieBoletaDefecto, :serieFacturaDefecto, :numeroSerieEquipo, :hostname,
+                                 CAST(:ipEquipo AS inet), :impresoraCodigo, :storeEdgeHabilitado, :estado,
+                                 :createdAt)
+                            """)
+                    .param("terminalId", terminal.id().value())
+                    .param("tenantId", tenantId.get())
+                    .param("empresaId", parent.get().empresaId())
+                    .param("establecimientoId", parent.get().establecimientoId())
+                    .param("codigo", terminal.codigo())
+                    .param("nombre", terminal.nombre())
+                    .param("serieBoletaDefecto", terminal.serieBoletaDefecto())
+                    .param("serieFacturaDefecto", terminal.serieFacturaDefecto())
+                    .param("numeroSerieEquipo", terminal.numeroSerieEquipo())
+                    .param("hostname", terminal.hostname())
+                    .param("ipEquipo", terminal.ipEquipo())
+                    .param("impresoraCodigo", terminal.impresoraCodigo())
+                    .param("storeEdgeHabilitado", terminal.storeEdgeHabilitado())
+                    .param("estado", terminal.estado().name())
+                    .param("createdAt", toOffsetDateTime(terminal.createdAt()))
+                    .update();
             return SaveTerminalOutcome.CREATED;
         } catch (DataIntegrityViolationException exception) {
             return terminalViolation(exception);

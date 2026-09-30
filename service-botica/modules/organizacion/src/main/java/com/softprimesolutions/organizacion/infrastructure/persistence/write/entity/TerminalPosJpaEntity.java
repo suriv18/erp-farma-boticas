@@ -70,29 +70,6 @@ public class TerminalPosJpaEntity {
     protected TerminalPosJpaEntity() {
     }
 
-    public TerminalPosJpaEntity(
-            UUID uuidPublico, Long tenantId, Long empresaId, Long establecimientoId, String codigo,
-            String nombre, String serieBoletaDefecto, String serieFacturaDefecto, String numeroSerieEquipo,
-            String hostname, String ipEquipo, String impresoraCodigo, boolean storeEdgeHabilitado,
-            String estado, Instant createdAt, Instant updatedAt) {
-        this.uuidPublico = uuidPublico;
-        this.tenantId = tenantId;
-        this.empresaId = empresaId;
-        this.establecimientoId = establecimientoId;
-        this.codigo = codigo;
-        this.nombre = nombre;
-        this.serieBoletaDefecto = serieBoletaDefecto;
-        this.serieFacturaDefecto = serieFacturaDefecto;
-        this.numeroSerieEquipo = numeroSerieEquipo;
-        this.hostname = hostname;
-        this.ipEquipo = ipEquipo;
-        this.impresoraCodigo = impresoraCodigo;
-        this.storeEdgeHabilitado = storeEdgeHabilitado;
-        this.estado = estado;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
     public Long getId() { return id; }
     public UUID getUuidPublico() { return uuidPublico; }
     public Long getTenantId() { return tenantId; }

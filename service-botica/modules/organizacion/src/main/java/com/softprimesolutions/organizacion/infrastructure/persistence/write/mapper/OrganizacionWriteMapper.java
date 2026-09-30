@@ -3,11 +3,9 @@ package com.softprimesolutions.organizacion.infrastructure.persistence.write.map
 import com.softprimesolutions.organizacion.domain.model.Almacen;
 import com.softprimesolutions.organizacion.domain.model.EmpresaOperadora;
 import com.softprimesolutions.organizacion.domain.model.Establecimiento;
-import com.softprimesolutions.organizacion.domain.model.TerminalPos;
 import com.softprimesolutions.organizacion.infrastructure.persistence.write.entity.AlmacenJpaEntity;
 import com.softprimesolutions.organizacion.infrastructure.persistence.write.entity.EmpresaOperadoraJpaEntity;
 import com.softprimesolutions.organizacion.infrastructure.persistence.write.entity.EstablecimientoJpaEntity;
-import com.softprimesolutions.organizacion.infrastructure.persistence.write.entity.TerminalPosJpaEntity;
 
 public final class OrganizacionWriteMapper {
 
@@ -50,15 +48,5 @@ public final class OrganizacionWriteMapper {
                 almacen.permiteVencimiento(), almacen.permiteVenta(), almacen.permiteDespacho(),
                 almacen.controlTemperatura(), almacen.temperaturaMinC(), almacen.temperaturaMaxC(),
                 activoFlag(almacen.activo()), almacen.createdAt(), almacen.updatedAt());
-    }
-
-    public static TerminalPosJpaEntity toEntity(
-            TerminalPos terminal, Long tenantId, Long empresaId, Long establecimientoId) {
-        return new TerminalPosJpaEntity(
-                terminal.id().value(), tenantId, empresaId, establecimientoId, terminal.codigo(),
-                terminal.nombre(), terminal.serieBoletaDefecto(), terminal.serieFacturaDefecto(),
-                terminal.numeroSerieEquipo(), terminal.hostname(), terminal.ipEquipo(),
-                terminal.impresoraCodigo(), terminal.storeEdgeHabilitado(), terminal.estado().name(),
-                terminal.createdAt(), terminal.updatedAt());
     }
 }

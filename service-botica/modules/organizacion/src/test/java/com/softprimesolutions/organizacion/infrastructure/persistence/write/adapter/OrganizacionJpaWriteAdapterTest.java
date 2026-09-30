@@ -38,10 +38,13 @@ import com.softprimesolutions.organizacion.infrastructure.persistence.write.repo
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -53,6 +56,7 @@ class OrganizacionJpaWriteAdapterTest {
     private static final Long EMPRESA_ID = 2L;
     private static final UUID ESTABLECIMIENTO_UUID = UUID.randomUUID();
     private static final Long ESTABLECIMIENTO_ID = 3L;
+    private static final String TERMINAL_INSERT = "INSERT INTO sch_organizacion.terminal_pos";
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
 
     private final EmpresaOperadoraJpaRepository empresaRepository = mock(EmpresaOperadoraJpaRepository.class);
@@ -73,17 +77,24 @@ class OrganizacionJpaWriteAdapterTest {
     private String resolvedEstablecimientoEstado = "ACTIVO";
     private boolean serieBoletaEnUso = false;
     private boolean serieFacturaEnUso = false;
+    private RuntimeException terminalInsertFailure;
+    private final List<String> issuedSql = new ArrayList<>();
 
     OrganizacionJpaWriteAdapterTest() {
         when(jdbcClient.sql(anyString())).thenAnswer(invocation -> statement(invocation.getArgument(0)));
     }
 
     private JdbcClient.StatementSpec statement(String sql) {
+        issuedSql.add(sql);
         return mock(JdbcClient.StatementSpec.class, invocation -> {
             var method = invocation.getMethod();
             if (method.getReturnType().equals(JdbcClient.StatementSpec.class)) return invocation.getMock();
             if (method.getName().equals("query")) return mappedQuery(lookup(sql, invocation.getArgument(0)));
-            return method.getReturnType().equals(int.class) ? 1 : null;
+            if (method.getReturnType().equals(int.class)) {
+                if (terminalInsertFailure != null && sql.contains(TERMINAL_INSERT)) throw terminalInsertFailure;
+                return 1;
+            }
+            return null;
         });
     }
 
@@ -142,6 +153,10 @@ class OrganizacionJpaWriteAdapterTest {
                         new TerminalPosId(id), new TenantId(TENANT_UUID), new EstablecimientoId(ESTABLECIMIENTO_UUID),
                         "POS002", "Caja 2", null, null, "SN-002", "host-2", "192.168.0.11", "IMP02", false, NOW)
                 .fold(value -> value, error -> { throw new AssertionError(error.message()); });
+    }
+
+    private boolean terminalInsertIssued() {
+        return issuedSql.stream().anyMatch(sql -> sql.contains(TERMINAL_INSERT));
     }
 
     private static <T> T unwrap(com.softprimesolutions.shared.kernel.result.Result<T, ?> result) {
@@ -357,7 +372,8 @@ class OrganizacionJpaWriteAdapterTest {
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.CREATED);
-        verify(terminalRepository).saveAndFlush(any(TerminalPosJpaEntity.class));
+        assertThat(terminalInsertIssued()).isTrue();
+        verify(terminalRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -384,14 +400,14 @@ class OrganizacionJpaWriteAdapterTest {
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_CODIGO);
         verify(terminalRepository, never()).saveAndFlush(any());
+        assertThat(terminalInsertIssued()).isFalse();
     }
 
     @Test
     void returnsDuplicateCodigoWhenTerminalInsertViolatesUniqueConstraint() {
         var terminal = terminal(UUID.randomUUID());
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
-        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
-                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_codigo"));
+        terminalInsertFailure = new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_codigo");
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_CODIGO);
     }
@@ -400,8 +416,7 @@ class OrganizacionJpaWriteAdapterTest {
     void returnsIntegrityViolationWhenTerminalInsertViolatesAnUnknownConstraint() {
         var terminal = terminal(UUID.randomUUID());
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
-        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
-                .thenThrow(new DataIntegrityViolationException("value too long for column nombre"));
+        terminalInsertFailure = new DataIntegrityViolationException("value too long for column nombre");
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.INTEGRITY_VIOLATION);
     }
@@ -530,8 +545,7 @@ class OrganizacionJpaWriteAdapterTest {
     void returnsDuplicateSerieBoletaWhenInsertViolatesTheBoletaIndex() {
         var terminal = terminal(UUID.randomUUID());
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
-        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
-                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_serie_boleta"));
+        terminalInsertFailure = new DuplicateKeyException("violates unique constraint uk_terminal_pos_serie_boleta");
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA);
     }
@@ -540,8 +554,7 @@ class OrganizacionJpaWriteAdapterTest {
     void returnsDuplicateSerieFacturaWhenInsertViolatesTheFacturaIndex() {
         var terminal = terminal(UUID.randomUUID());
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
-        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
-                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_serie_factura"));
+        terminalInsertFailure = new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_serie_factura");
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA);
     }

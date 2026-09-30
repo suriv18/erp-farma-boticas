@@ -1,5 +1,6 @@
 package com.softprimesolutions.organizacion.api;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -18,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -351,6 +353,43 @@ class OrganizacionApiIntegrationTest {
         postAlmacen(sedeId, "ALM003", "REFRIGERADO", true, "8", "2").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("La temperatura mínima no puede ser mayor que la máxima."));
         postAlmacen(sedeId, "ALM004", "REFRIGERADO", true, "2", "8").andExpect(status().isCreated());
+    }
+
+    @Test
+    void rejectsTerminalesWithLowercaseSeriesOnCreateAndUpdate() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var sedeId = createEstablecimiento(empresaId, "EST001", null);
+
+        postTerminal(sedeId, "POS001", "b001", "F001").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        "La serie de boleta debe iniciar con B y tener 4 caracteres alfanuméricos en mayúscula."));
+
+        var terminalId = createTerminal(sedeId);
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", bearer())
+                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombre":"Caja 1","serieBoletaDefecto":"b001","serieFacturaDefecto":"F001",
+                                 "storeEdgeHabilitado":false,"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        "La serie de boleta debe iniciar con B y tener 4 caracteres alfanuméricos en mayúscula."));
+    }
+
+    @Test
+    void theDatabaseRejectsARepeatedBoletaSerieWithTheIndexNameTheAdapterMapsOn() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var sedeId = createEstablecimiento(empresaId, "EST001", null);
+        var terminalId = createTerminal(sedeId);
+
+        assertThatThrownBy(() -> jdbcClient.sql("""
+                        INSERT INTO sch_organizacion.terminal_pos
+                            (tenant_id, empresa_id, establecimiento_id, codigo, nombre, serie_boleta_defecto)
+                        SELECT tenant_id, empresa_id, establecimiento_id, 'POS999', 'Caja duplicada', serie_boleta_defecto
+                          FROM sch_organizacion.terminal_pos WHERE uuid_publico = :terminalId
+                        """).param("terminalId", terminalId).update())
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("uk_terminal_pos_serie_boleta");
     }
 
     private org.springframework.test.web.servlet.ResultActions patchEstado(String path, UUID id, String estado)
