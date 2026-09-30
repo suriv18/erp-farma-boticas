@@ -156,6 +156,10 @@ describe('EstablecimientoDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
     await user.selectOptions(screen.getByLabelText('Estado'), 'CLAUSURADO');
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Mientras esté clausurado, el establecimiento no admite almacenes ni terminales POS nuevos.'
+    );
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
     await user.click(screen.getByRole('button', { name: 'Guardar estado' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -205,5 +209,17 @@ describe('EstablecimientoDetailPage', () => {
       'href',
       'tel:014445566'
     );
+  });
+
+  it('nombra el establecimiento en el título del cambio de estado', async () => {
+    mockDefaultHandlers();
+    const { user } = renderPage();
+    await screen.findByRole('heading', { name: 'Botica Central' });
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Cambiar estado de Botica Central' })
+    ).toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@ import { DatoItem } from '../components/DatoItem';
 import { EmpresaForm } from '../components/EmpresaForm';
 import { EstablecimientosSection } from '../components/EstablecimientosSection';
 import { FormError } from '../components/FormError';
+import { CONSECUENCIAS_ESTADO_EMPRESA } from '../lib/consecuencias-estado';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEmpresaFormValues } from '../lib/form-defaults';
 import { toActualizarEmpresaPayload } from '../lib/form-payloads';
@@ -115,9 +116,10 @@ export function EmpresaDetailPage() {
 
       {stateOpen ? (
         <CambiarEstadoDialog
-          title="Cambiar estado de la empresa"
+          title={`Cambiar estado de ${empresa.razonSocial}`}
           estados={ESTADOS_EMPRESA}
           current={empresa.estado}
+          consecuencias={CONSECUENCIAS_ESTADO_EMPRESA}
           isSubmitting={stateMutation.isPending}
           error={stateMutation.isError ? describeApiError(stateMutation.error) : null}
           onSubmit={(estado) => stateMutation.mutate(estado)}

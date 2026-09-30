@@ -69,4 +69,49 @@ describe('CambiarEstadoDialog', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('muestra el aviso de consecuencias y exige confirmarlas antes de guardar', async () => {
+    const { onSubmit, user } = renderDialog({
+      consecuencias: { SUSPENDIDO: 'No admitirá altas nuevas.' }
+    });
+
+    await user.selectOptions(screen.getByLabelText('Estado'), 'SUSPENDIDO');
+
+    expect(screen.getByRole('note')).toHaveTextContent('No admitirá altas nuevas.');
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Guardar estado' }));
+
+    expect(onSubmit).toHaveBeenCalledWith('SUSPENDIDO');
+  });
+
+  it('no pide confirmación para un estado sin consecuencias', async () => {
+    const { user } = renderDialog({ consecuencias: { SUSPENDIDO: 'No admitirá altas nuevas.' } });
+
+    await user.selectOptions(screen.getByLabelText('Estado'), 'BLOQUEADO');
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeEnabled();
+  });
+
+  it('reinicia la confirmación al cambiar de estado', async () => {
+    const { user } = renderDialog({
+      consecuencias: { SUSPENDIDO: 'Aviso uno.', BLOQUEADO: 'Aviso dos.' }
+    });
+
+    await user.selectOptions(screen.getByLabelText('Estado'), 'SUSPENDIDO');
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
+    await user.selectOptions(screen.getByLabelText('Estado'), 'BLOQUEADO');
+
+    expect(screen.getByRole('note')).toHaveTextContent('Aviso dos.');
+    expect(screen.getByLabelText('Entiendo las consecuencias')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
+  });
+
+  it('no muestra el aviso del estado actual', () => {
+    renderDialog({ consecuencias: { ACTIVO: 'No debería verse.' } });
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
 });

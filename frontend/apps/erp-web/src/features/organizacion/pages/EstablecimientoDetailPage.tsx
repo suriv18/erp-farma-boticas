@@ -17,6 +17,7 @@ import { DatoItem } from '../components/DatoItem';
 import { EstablecimientoForm } from '../components/EstablecimientoForm';
 import { FormError } from '../components/FormError';
 import { TerminalesSection } from '../components/TerminalesSection';
+import { CONSECUENCIAS_ESTADO_ESTABLECIMIENTO } from '../lib/consecuencias-estado';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEstablecimientoFormValues } from '../lib/form-defaults';
 import { toActualizarEstablecimientoPayload } from '../lib/form-payloads';
@@ -145,9 +146,10 @@ export function EstablecimientoDetailPage() {
 
       {stateOpen ? (
         <CambiarEstadoDialog
-          title="Cambiar estado del establecimiento"
+          title={`Cambiar estado de ${establecimiento.nombre}`}
           estados={ESTADOS_ESTABLECIMIENTO}
           current={establecimiento.estadoOperativo}
+          consecuencias={CONSECUENCIAS_ESTADO_ESTABLECIMIENTO}
           isSubmitting={stateMutation.isPending}
           error={stateMutation.isError ? describeApiError(stateMutation.error) : null}
           onSubmit={(estado) => stateMutation.mutate(estado)}

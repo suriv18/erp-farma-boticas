@@ -133,6 +133,10 @@ describe('EmpresaDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
     await user.selectOptions(screen.getByLabelText('Estado'), 'SUSPENDIDO');
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Mientras esté suspendida, la empresa no admite establecimientos nuevos.'
+    );
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
     await user.click(screen.getByRole('button', { name: 'Guardar estado' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -149,6 +153,7 @@ describe('EmpresaDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
     await user.selectOptions(screen.getByLabelText('Estado'), 'BLOQUEADO');
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
     await user.click(screen.getByRole('button', { name: 'Guardar estado' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -186,5 +191,17 @@ describe('EmpresaDetailPage', () => {
       'href',
       'https://boticas.pe'
     );
+  });
+
+  it('nombra la empresa en el título del cambio de estado', async () => {
+    mockDefaultHandlers();
+    const { user } = renderPage();
+    await screen.findByRole('heading', { name: 'Boticas SAC' });
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar estado' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Cambiar estado de Boticas SAC' })
+    ).toBeInTheDocument();
   });
 });
