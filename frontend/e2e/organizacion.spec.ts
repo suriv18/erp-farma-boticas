@@ -105,21 +105,24 @@ test.describe('Organización', () => {
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('UI Boticas', { exact: true })).toBeVisible();
 
+    const aviso = page.getByRole('status').filter({ hasText: 'no admite' });
     await page.getByRole('button', { name: 'Cambiar estado' }).click();
     await page.getByRole('dialog').getByLabel('Estado').selectOption('SUSPENDIDO');
     await expect(page.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
-    await page.getByLabel('Entiendo las consecuencias').check();
+    await page.getByRole('dialog').getByLabel('Entiendo las consecuencias').check();
     await page.getByRole('button', { name: 'Guardar estado' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('SUSPENDIDO', { exact: true })).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('no admite establecimientos nuevos');
+    await expect(aviso).toContainText(
+      'La empresa está suspendida; no admite establecimientos nuevos.'
+    );
     await expect(page.getByRole('button', { name: 'Nuevo establecimiento' })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Cambiar estado' }).click();
     await page.getByRole('dialog').getByLabel('Estado').selectOption('ACTIVO');
     await page.getByRole('button', { name: 'Guardar estado' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
-    await expect(page.getByRole('status')).toBeHidden();
+    await expect(aviso).toBeHidden();
 
     await page.getByRole('button', { name: 'Nuevo establecimiento' }).click();
     const nuevoEstablecimiento = page.getByRole('dialog');

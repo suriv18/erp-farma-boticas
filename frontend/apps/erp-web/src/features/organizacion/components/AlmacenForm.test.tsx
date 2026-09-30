@@ -92,9 +92,12 @@ describe('AlmacenForm', () => {
     await user.click(screen.getByLabelText('Controla temperatura'));
     await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
 
-    expect(
-      await screen.findByText('Un almacén refrigerado debe controlar temperatura.')
-    ).toBeInTheDocument();
+    const alerta = await screen.findByText('Un almacén refrigerado debe controlar temperatura.');
+    expect(alerta).toBeInTheDocument();
+    expect(alerta).toHaveAttribute('role', 'alert');
+    const casilla = screen.getByLabelText('Controla temperatura');
+    expect(casilla).toHaveAttribute('aria-invalid', 'true');
+    expect(casilla.closest('div')).toContainElement(alerta);
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

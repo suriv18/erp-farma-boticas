@@ -14,11 +14,6 @@ const valid = {
   activo: true
 };
 
-function messages(overrides: Record<string, unknown>) {
-  const result = almacenSchema.safeParse({ ...valid, ...overrides });
-  return result.success ? [] : result.error.issues.map((issue) => issue.message);
-}
-
 const REQUIERE_AMBAS =
   'Indica la temperatura mínima y máxima cuando el almacén controla temperatura.';
 
@@ -27,6 +22,10 @@ function issues(overrides: Record<string, unknown>) {
   return result.success
     ? []
     : result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+}
+
+function messages(overrides: Record<string, unknown>) {
+  return issues(overrides).map((issue) => issue.slice(issue.indexOf(': ') + 2));
 }
 
 describe('almacenSchema', () => {

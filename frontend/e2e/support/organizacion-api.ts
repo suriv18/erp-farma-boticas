@@ -55,6 +55,7 @@ const collections: Record<string, Collection> = {
         rows.establecimientos?.find((establecimiento) => establecimiento.id === establecimientoId)
           ?.empresaId;
       const empresaId = empresaDe(body.establecimientoId);
+      if (empresaId === undefined) return null;
       const delaEmpresa = (rows['terminales-pos'] ?? []).filter(
         (terminal) => empresaDe(terminal.establecimientoId) === empresaId
       );

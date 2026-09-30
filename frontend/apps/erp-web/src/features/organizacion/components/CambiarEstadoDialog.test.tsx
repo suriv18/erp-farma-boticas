@@ -86,6 +86,17 @@ describe('CambiarEstadoDialog', () => {
     expect(onSubmit).toHaveBeenCalledWith('SUSPENDIDO');
   });
 
+  it('vuelve a deshabilitar guardar al desmarcar la confirmación', async () => {
+    const { user } = renderDialog({ consecuencias: { SUSPENDIDO: 'No admitirá altas nuevas.' } });
+
+    await user.selectOptions(screen.getByLabelText('Estado'), 'SUSPENDIDO');
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeEnabled();
+    await user.click(screen.getByLabelText('Entiendo las consecuencias'));
+
+    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
+  });
+
   it('no pide confirmación para un estado sin consecuencias', async () => {
     const { user } = renderDialog({ consecuencias: { SUSPENDIDO: 'No admitirá altas nuevas.' } });
 
