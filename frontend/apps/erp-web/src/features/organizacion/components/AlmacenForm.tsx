@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, type RegisterOptions } from 'react-hook-form';
 import { Button } from '@boticas/ui-web';
 import { TIPOS_ALMACEN } from '../api/almacenes.types';
 import { ALMACEN_FORM_VACIO } from '../lib/form-defaults';
@@ -27,13 +27,15 @@ const CAMPOS_TEMPERATURA: ReadonlyArray<CampoTexto<AlmacenFormValues>> = [
     name: 'temperaturaMinC',
     id: 'almacen-temperatura-min',
     label: 'Temperatura mínima (°C)',
-    inputMode: 'decimal'
+    inputMode: 'decimal',
+    deps: ['temperaturaMaxC']
   },
   {
     name: 'temperaturaMaxC',
     id: 'almacen-temperatura-max',
     label: 'Temperatura máxima (°C)',
-    inputMode: 'decimal'
+    inputMode: 'decimal',
+    deps: ['temperaturaMinC']
   }
 ];
 
@@ -84,6 +86,19 @@ export function AlmacenForm({
     resolver: zodResolver(almacenSchema)
   });
   const controlTemperatura = useWatch({ control, name: 'controlTemperatura' });
+  const opcionesIndicador: Partial<
+    Record<IndicadorAlmacen['name'], RegisterOptions<AlmacenFormValues, IndicadorAlmacen['name']>>
+  > = {
+    controlTemperatura: {
+      deps: ['tipo', 'temperaturaMinC', 'temperaturaMaxC'],
+      onChange: (event: { target: { checked: boolean } }) => {
+        if (!event.target.checked) {
+          setValue('temperaturaMinC', '');
+          setValue('temperaturaMaxC', '');
+        }
+      }
+    }
+  };
 
   return (
     <form
@@ -100,6 +115,7 @@ export function AlmacenForm({
           label="Tipo de almacén"
           error={errors.tipo?.message}
           {...register('tipo', {
+            deps: ['controlTemperatura'],
             onChange: (event: { target: { value: string } }) => {
               if (event.target.value === 'REFRIGERADO') {
                 setValue('controlTemperatura', true, { shouldDirty: true });
@@ -126,7 +142,7 @@ export function AlmacenForm({
             id={id}
             label={label}
             error={errors[name]?.message}
-            {...register(name)}
+            {...register(name, opcionesIndicador[name])}
           />
         ))}
         {isEdit ? (

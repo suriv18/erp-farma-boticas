@@ -10,6 +10,7 @@ export type CampoTexto<T extends FieldValues> = {
   inputMode?: 'decimal' | 'numeric' | 'text';
   readOnly?: boolean;
   mayusculas?: boolean;
+  deps?: ReadonlyArray<Path<T>>;
 };
 
 export type CamposTextoProps<T extends FieldValues> = {
@@ -23,7 +24,7 @@ export function CamposTexto<T extends FieldValues>({
   register,
   errors
 }: CamposTextoProps<T>) {
-  return fields.map(({ name, id, label, inputMode, readOnly, mayusculas }) => (
+  return fields.map(({ name, id, label, inputMode, readOnly, mayusculas, deps }) => (
     <TextField
       key={id}
       id={id}
@@ -32,7 +33,10 @@ export function CamposTexto<T extends FieldValues>({
       {...(inputMode ? { inputMode } : {})}
       {...(readOnly ? { readOnly } : {})}
       {...(mayusculas ? { className: 'uppercase' } : {})}
-      {...register(name, mayusculas ? { setValueAs: aMayusculasSinEspacios } : undefined)}
+      {...register(name, {
+        ...(mayusculas ? { setValueAs: aMayusculasSinEspacios } : {}),
+        ...(deps ? { deps: [...deps] } : {})
+      })}
     />
   ));
 }

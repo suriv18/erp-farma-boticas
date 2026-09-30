@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ALMACEN_FORM_VACIO } from '../lib/form-defaults';
 import { AlmacenForm } from './AlmacenForm';
@@ -112,6 +112,121 @@ describe('AlmacenForm', () => {
       await screen.findByText('La temperatura mínima no puede ser mayor que la máxima.')
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('quita el error de rango al corregir la máxima sin volver a enviar', async () => {
+    const { onSubmit, user } = renderForm();
+
+    await user.click(screen.getByLabelText('Controla temperatura'));
+    await user.type(screen.getByLabelText('Temperatura mínima (°C)'), '8');
+    await user.type(screen.getByLabelText('Temperatura máxima (°C)'), '2');
+    await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
+    expect(
+      await screen.findByText('La temperatura mínima no puede ser mayor que la máxima.')
+    ).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Temperatura máxima (°C)'));
+    await user.type(screen.getByLabelText('Temperatura máxima (°C)'), '9');
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('La temperatura mínima no puede ser mayor que la máxima.')
+      ).not.toBeInTheDocument()
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('quita el error de refrigerado al marcar controlar temperatura', async () => {
+    const { user } = renderForm();
+
+    await user.selectOptions(screen.getByLabelText('Tipo de almacén'), 'REFRIGERADO');
+    await user.click(screen.getByLabelText('Controla temperatura'));
+    await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
+    expect(
+      await screen.findByText('Un almacén refrigerado debe controlar temperatura.')
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Controla temperatura'));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Un almacén refrigerado debe controlar temperatura.')
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it('quita el error de refrigerado al cambiar a otro tipo', async () => {
+    const { user } = renderForm();
+
+    await user.selectOptions(screen.getByLabelText('Tipo de almacén'), 'REFRIGERADO');
+    await user.click(screen.getByLabelText('Controla temperatura'));
+    await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
+    expect(
+      await screen.findByText('Un almacén refrigerado debe controlar temperatura.')
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Tipo de almacén'), 'CUARENTENA');
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Un almacén refrigerado debe controlar temperatura.')
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it('quita el error de temperatura obligatoria al desmarcar controlar temperatura', async () => {
+    const { user } = renderForm();
+
+    await user.click(screen.getByLabelText('Controla temperatura'));
+    await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
+    expect(
+      (
+        await screen.findAllByText(
+          'Indica la temperatura mínima y máxima cuando el almacén controla temperatura.'
+        )
+      ).length
+    ).toBe(2);
+
+    await user.click(screen.getByLabelText('Controla temperatura'));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(
+          'Indica la temperatura mínima y máxima cuando el almacén controla temperatura.'
+        )
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it('no muestra errores de temperatura en un formulario sin tocar al marcar controlar temperatura', async () => {
+    const { user } = renderForm();
+
+    await user.click(screen.getByLabelText('Controla temperatura'));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('al desmarcar controlar temperatura vacía ambas temperaturas y envía vacíos', async () => {
+    const { onSubmit, user } = renderForm();
+
+    await user.type(screen.getByLabelText('Código'), 'ALM005');
+    await user.type(screen.getByLabelText('Nombre'), 'Sin control');
+    await user.click(screen.getByLabelText('Controla temperatura'));
+    await user.type(screen.getByLabelText('Temperatura mínima (°C)'), '2');
+    await user.type(screen.getByLabelText('Temperatura máxima (°C)'), '8');
+    await user.click(screen.getByLabelText('Controla temperatura'));
+
+    expect(screen.getByLabelText('Temperatura mínima (°C)')).toHaveValue('');
+    expect(screen.getByLabelText('Temperatura máxima (°C)')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Crear almacén' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        controlTemperatura: false,
+        temperaturaMinC: '',
+        temperaturaMaxC: ''
+      })
+    );
   });
 
   it('en creación no muestra el campo activo y el código es editable', () => {
