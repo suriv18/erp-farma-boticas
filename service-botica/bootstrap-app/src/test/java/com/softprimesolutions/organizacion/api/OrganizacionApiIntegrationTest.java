@@ -2,6 +2,7 @@ package com.softprimesolutions.organizacion.api;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -213,6 +214,50 @@ class OrganizacionApiIntegrationTest {
                         .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/estructura-corporativa")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changesTheStatusOfAnEmpresaAndAnEstablecimiento() throws Exception {
+        var empresaId = createEmpresa("20123456789");
+        var establecimientoId = createEstablecimiento(empresaId, "EST001", null);
+
+        patchEstado("/empresas/{id}/estado", empresaId, "SUSPENDIDO")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("SUSPENDIDO"));
+        patchEstado("/establecimientos/{id}/estado", establecimientoId, "CLAUSURADO")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estadoOperativo").value("CLAUSURADO"));
+
+        mockMvc.perform(get("/api/v1/estructura-corporativa").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.companies[0].status").value("INACTIVE"))
+                .andExpect(jsonPath("$.companies[0].establishments[0].status").value("INACTIVE"));
+    }
+
+    @Test
+    void rejectsInvalidStatusUnknownResourcesAndMissingPermission() throws Exception {
+        var empresaId = createEmpresa("20123456789");
+        var establecimientoId = createEstablecimiento(empresaId, "EST001", null);
+
+        patchEstado("/empresas/{id}/estado", empresaId, "FOO").andExpect(status().isBadRequest());
+        patchEstado("/empresas/{id}/estado", empresaId, "").andExpect(status().isBadRequest());
+        patchEstado("/establecimientos/{id}/estado", establecimientoId, "BLOQUEADO")
+                .andExpect(status().isBadRequest());
+        patchEstado("/empresas/{id}/estado", UUID.randomUUID(), "SUSPENDIDO").andExpect(status().isNotFound());
+        patchEstado("/establecimientos/{id}/estado", UUID.randomUUID(), "SUSPENDIDO")
+                .andExpect(status().isNotFound());
+        mockMvc.perform(patch(BASE + "/empresas/{id}/estado", empresaId).with(csrf())
+                        .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos"))
+                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"SUSPENDIDO\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions patchEstado(String path, UUID id, String estado)
+            throws Exception {
+        return mockMvc.perform(patch(BASE + path, id).header("Authorization", bearer())
+                .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"estado\":\"" + estado + "\"}"));
     }
 
     private UUID createEmpresa(String ruc) throws Exception {
