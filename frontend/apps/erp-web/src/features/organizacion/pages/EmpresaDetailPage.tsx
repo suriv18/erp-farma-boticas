@@ -1,0 +1,128 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { Button, Card, EstadoBadge, Modal, PageHeader } from '@boticas/ui-web';
+import { apiClient } from '../../../app/api';
+import { actualizarEmpresa, cambiarEstadoEmpresa, empresaQuery } from '../api/empresas.api';
+import { ESTADOS_EMPRESA, type EstadoEmpresa } from '../api/empresas.types';
+import { invalidateOrganizacion } from '../api/invalidate';
+import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
+import { DatoItem } from '../components/DatoItem';
+import { EmpresaForm } from '../components/EmpresaForm';
+import { EstablecimientosSection } from '../components/EstablecimientosSection';
+import { FormError } from '../components/FormError';
+import { describeApiError } from '../lib/describe-api-error';
+import { toEmpresaFormValues } from '../lib/form-defaults';
+import { toActualizarEmpresaPayload } from '../lib/form-payloads';
+import { valueOrDash, yesNo } from '../lib/format';
+import { useRouteParam } from '../lib/use-route-param';
+import { useTenantId } from '../lib/use-tenant-id';
+import type { EmpresaFormValues } from '../schemas/empresa.schema';
+
+export function EmpresaDetailPage() {
+  const empresaId = useRouteParam('empresaId');
+  const tenantId = useTenantId();
+  const queryClient = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
+
+  const result = useQuery({ ...empresaQuery(tenantId, empresaId), enabled: tenantId !== '' });
+
+  const updateMutation = useMutation({
+    mutationFn: (values: EmpresaFormValues) =>
+      actualizarEmpresa(apiClient, empresaId, tenantId, toActualizarEmpresaPayload(values)),
+    onSuccess: () => {
+      setEditOpen(false);
+      void invalidateOrganizacion(queryClient);
+    }
+  });
+
+  const stateMutation = useMutation({
+    mutationFn: (estado: EstadoEmpresa) =>
+      cambiarEstadoEmpresa(apiClient, empresaId, tenantId, estado),
+    onSuccess: () => {
+      setStateOpen(false);
+      void invalidateOrganizacion(queryClient);
+    }
+  });
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    updateMutation.reset();
+  };
+
+  const closeState = () => {
+    setStateOpen(false);
+    stateMutation.reset();
+  };
+
+  if (result.isPending) {
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando…</p>;
+  }
+  if (result.isError) return <FormError message={describeApiError(result.error)} />;
+
+  const empresa = result.data;
+
+  return (
+    <div className="mx-auto max-w-7xl">
+      <PageHeader
+        title={empresa.razonSocial}
+        context={<Link to="/organizacion/empresas">Organización / Empresas</Link>}
+        description={`RUC ${empresa.ruc}`}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setEditOpen(true)}>
+              Editar
+            </Button>
+            <Button variant="secondary" onClick={() => setStateOpen(true)}>
+              Cambiar estado
+            </Button>
+          </>
+        }
+      />
+
+      <Card className="mt-6 p-6">
+        <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <DatoItem label="Estado">
+            <EstadoBadge status={empresa.estado} />
+          </DatoItem>
+          <DatoItem label="RUC">{empresa.ruc}</DatoItem>
+          <DatoItem label="Nombre comercial">{valueOrDash(empresa.nombreComercial)}</DatoItem>
+          <DatoItem label="Dirección fiscal">{valueOrDash(empresa.direccionFiscal)}</DatoItem>
+          <DatoItem label="Ubigeo fiscal">{valueOrDash(empresa.ubigeoFiscal)}</DatoItem>
+          <DatoItem label="Teléfono">{valueOrDash(empresa.telefono)}</DatoItem>
+          <DatoItem label="Correo">{valueOrDash(empresa.email)}</DatoItem>
+          <DatoItem label="Sitio web">{valueOrDash(empresa.sitioWeb)}</DatoItem>
+          <DatoItem label="Moneda funcional">{empresa.monedaFuncional}</DatoItem>
+          <DatoItem label="Zona horaria">{empresa.zonaHoraria}</DatoItem>
+          <DatoItem label="Venta online">{yesNo(empresa.permiteVentaOnline)}</DatoItem>
+        </dl>
+      </Card>
+
+      <EstablecimientosSection empresaId={empresaId} />
+
+      <Modal open={editOpen} onClose={closeEdit} title="Editar empresa" size="lg">
+        <EmpresaForm
+          isEdit
+          defaultValues={toEmpresaFormValues(empresa)}
+          submitLabel="Guardar cambios"
+          isSubmitting={updateMutation.isPending}
+          error={updateMutation.isError ? describeApiError(updateMutation.error) : null}
+          onSubmit={(values) => updateMutation.mutate(values)}
+        />
+      </Modal>
+
+      {stateOpen ? (
+        <CambiarEstadoDialog
+          title="Cambiar estado de la empresa"
+          estados={ESTADOS_EMPRESA}
+          current={empresa.estado}
+          isSubmitting={stateMutation.isPending}
+          error={stateMutation.isError ? describeApiError(stateMutation.error) : null}
+          onSubmit={(estado) => stateMutation.mutate(estado)}
+          onClose={closeState}
+        />
+      ) : null}
+    </div>
+  );
+}
