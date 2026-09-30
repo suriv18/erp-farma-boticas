@@ -14,6 +14,7 @@ public final class EmpresaOperadora extends AggregateRoot {
 
     private static final Pattern RUC_PATTERN = Pattern.compile("(10|20)[0-9]{9}");
     private static final Pattern UBIGEO_PATTERN = Pattern.compile("[0-9]{6}");
+    private static final int[] RUC_WEIGHTS = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};
 
     private final EmpresaOperadoraId id;
     private final TenantId tenantId;
@@ -67,6 +68,9 @@ public final class EmpresaOperadora extends AggregateRoot {
         var normalizedRuc = normalize(ruc);
         if (normalizedRuc == null || !RUC_PATTERN.matcher(normalizedRuc).matches()) {
             return invalid("ruc", "El RUC debe tener 11 dígitos e iniciar con 10 o 20.");
+        }
+        if (!hasValidCheckDigit(normalizedRuc)) {
+            return invalid("ruc", "El RUC no es válido: el dígito verificador no coincide.");
         }
 
         var normalizedRazonSocial = normalizeSpaces(razonSocial);
@@ -164,6 +168,14 @@ public final class EmpresaOperadora extends AggregateRoot {
 
     private static <T> Result<T, ErrorDetail> invalid(String field, String message) {
         return Result.failure(new ErrorDetail("ORG_EMPRESA_INVALIDA", message, Map.of("field", field)));
+    }
+
+    private static boolean hasValidCheckDigit(String ruc) {
+        var sum = 0;
+        for (var index = 0; index < RUC_WEIGHTS.length; index++) {
+            sum += Character.digit(ruc.charAt(index), 10) * RUC_WEIGHTS[index];
+        }
+        return (11 - sum % 11) % 10 == Character.digit(ruc.charAt(10), 10);
     }
 
     private static String normalize(String value) {

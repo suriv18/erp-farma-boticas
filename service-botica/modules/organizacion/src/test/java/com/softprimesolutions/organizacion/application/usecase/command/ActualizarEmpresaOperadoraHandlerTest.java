@@ -30,7 +30,7 @@ class ActualizarEmpresaOperadoraHandlerTest {
 
     private EmpresaOperadoraResult existingEmpresa() {
         return new EmpresaOperadoraResult(
-                EMPRESA_ID, TENANT_ID, "20123456789", "Boticas SAC", null, null, null, null, null,
+                EMPRESA_ID, TENANT_ID, "20123456786", "Boticas SAC", null, null, null, null, null,
                 null, "PEN", "America/Lima", false, "ACTIVO", Instant.parse("2026-01-01T00:00:00Z"), null);
     }
 
@@ -50,7 +50,7 @@ class ActualizarEmpresaOperadoraHandlerTest {
         assertThat(result.isSuccess()).isTrue();
         result.fold(empresa -> {
             assertThat(empresa.razonSocial()).isEqualTo("Boticas del Peru SAC");
-            assertThat(empresa.ruc()).isEqualTo("20123456789");
+            assertThat(empresa.ruc()).isEqualTo("20123456786");
             return null;
         }, error -> { throw new AssertionError(error.message()); });
     }

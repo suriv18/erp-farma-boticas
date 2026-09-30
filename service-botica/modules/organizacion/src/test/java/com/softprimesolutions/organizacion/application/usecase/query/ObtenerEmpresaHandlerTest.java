@@ -23,7 +23,7 @@ class ObtenerEmpresaHandlerTest {
     @Test
     void returnsEmpresaWhenFound() {
         var empresaResult = new EmpresaOperadoraResult(
-                EMPRESA_ID, TENANT_ID, "20123456789", "Boticas SAC", null, null, null, null, null,
+                EMPRESA_ID, TENANT_ID, "20123456786", "Boticas SAC", null, null, null, null, null,
                 null, "PEN", "America/Lima", false, "ACTIVO", Instant.now(), null);
         when(readPort.findEmpresaById(TENANT_ID, EMPRESA_ID)).thenReturn(Optional.of(empresaResult));
 

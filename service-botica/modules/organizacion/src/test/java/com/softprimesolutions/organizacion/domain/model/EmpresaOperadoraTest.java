@@ -17,7 +17,7 @@ class EmpresaOperadoraTest {
     @Test
     void createsWithValidData() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", "Boticas",
+                ID, TENANT_ID, "20123456786", "Boticas SAC", "Boticas",
                 "Av. Siempre Viva 123", "150101", "014445566", "contacto@boticas.pe",
                 "https://boticas.pe", "PEN", "America/Lima", true, NOW);
 
@@ -27,7 +27,7 @@ class EmpresaOperadoraTest {
         });
         assertThat(empresa.id()).isEqualTo(ID);
         assertThat(empresa.tenantId()).isEqualTo(TENANT_ID);
-        assertThat(empresa.ruc()).isEqualTo("20123456789");
+        assertThat(empresa.ruc()).isEqualTo("20123456786");
         assertThat(empresa.razonSocial()).isEqualTo("Boticas SAC");
         assertThat(empresa.nombreComercial()).isEqualTo("Boticas");
         assertThat(empresa.direccionFiscal()).isEqualTo("Av. Siempre Viva 123");
@@ -46,7 +46,7 @@ class EmpresaOperadoraTest {
     @Test
     void createsWithOnlyRequiredFields() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "10123456789", "Juan Perez EIRL", null,
+                ID, TENANT_ID, "10123456781", "Juan Perez EIRL", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
 
         assertThat(result.isSuccess()).isTrue();
@@ -55,7 +55,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNullId() {
         var result = EmpresaOperadora.create(
-                null, TENANT_ID, "20123456789", "Boticas SAC", null,
+                null, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -63,7 +63,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNullTenantId() {
         var result = EmpresaOperadora.create(
-                ID, null, "20123456789", "Boticas SAC", null,
+                ID, null, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -100,7 +100,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsBlankRazonSocial() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", " ", null,
+                ID, TENANT_ID, "20123456786", " ", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -108,7 +108,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsRazonSocialTooShort() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "A", null,
+                ID, TENANT_ID, "20123456786", "A", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -116,7 +116,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsRazonSocialTooLong() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "R".repeat(301), null,
+                ID, TENANT_ID, "20123456786", "R".repeat(301), null,
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -124,7 +124,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNombreComercialTooLong() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", "N".repeat(301),
+                ID, TENANT_ID, "20123456786", "Boticas SAC", "N".repeat(301),
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -132,7 +132,7 @@ class EmpresaOperadoraTest {
     @Test
     void acceptsNombreComercialWithinLimit() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", "N".repeat(300),
+                ID, TENANT_ID, "20123456786", "Boticas SAC", "N".repeat(300),
                 null, null, null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isSuccess()).isTrue();
     }
@@ -140,7 +140,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsInvalidUbigeoFiscal() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, "15010", null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -148,7 +148,7 @@ class EmpresaOperadoraTest {
     @Test
     void acceptsValidUbigeoFiscal() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, "150101", null, null, null, "PEN", "America/Lima", false, NOW);
         assertThat(result.isSuccess()).isTrue();
     }
@@ -156,7 +156,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsMonedaFuncionalWithWrongLength() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "SOLES", "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -164,7 +164,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNullMonedaFuncional() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, null, "America/Lima", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -172,7 +172,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsBlankZonaHoraria() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "PEN", " ", false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -180,7 +180,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNullZonaHoraria() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "PEN", null, false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -188,7 +188,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsNullCreatedAt() {
         var result = EmpresaOperadora.create(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                 null, null, null, null, null, "PEN", "America/Lima", false, null);
         assertThat(result.isFailure()).isTrue();
     }
@@ -196,7 +196,7 @@ class EmpresaOperadoraTest {
     @Test
     void restoresWithoutValidation() {
         var empresa = EmpresaOperadora.restore(
-                ID, TENANT_ID, "20123456789", "Boticas SAC", "Boticas",
+                ID, TENANT_ID, "20123456786", "Boticas SAC", "Boticas",
                 "Av. Siempre Viva 123", "150101", "014445566", "contacto@boticas.pe",
                 "https://boticas.pe", "PEN", "America/Lima", true,
                 EstadoEmpresaOperadora.SUSPENDIDO, NOW, NOW.plusSeconds(60));
@@ -208,7 +208,7 @@ class EmpresaOperadoraTest {
     @Test
     void updatesDetailsKeepingRucAndId() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -218,7 +218,7 @@ class EmpresaOperadoraTest {
                         "America/Lima", true, NOW.plusSeconds(120))
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
-        assertThat(updated.ruc()).isEqualTo("20123456789");
+        assertThat(updated.ruc()).isEqualTo("20123456786");
         assertThat(updated.razonSocial()).isEqualTo("Boticas del Peru SAC");
         assertThat(updated.permiteVentaOnline()).isTrue();
         assertThat(updated.updatedAt()).isEqualTo(NOW.plusSeconds(120));
@@ -227,7 +227,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithBlankRazonSocial() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -241,7 +241,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithInvalidRazonSocial() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -255,7 +255,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithRazonSocialTooLong() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -269,7 +269,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithNombreComercialTooLong() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -283,7 +283,7 @@ class EmpresaOperadoraTest {
     @Test
     void acceptsUpdateWithNombreComercialWithinLimit() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -297,7 +297,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithInvalidUbigeoFiscal() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -311,7 +311,7 @@ class EmpresaOperadoraTest {
     @Test
     void acceptsUpdateWithValidUbigeoFiscal() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -325,7 +325,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithInvalidMonedaFuncional() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -339,7 +339,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithNullMonedaFuncional() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -353,7 +353,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithBlankZonaHoraria() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -367,7 +367,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithNullZonaHoraria() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -381,7 +381,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsUpdateWithNullUpdatedAt() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -395,7 +395,7 @@ class EmpresaOperadoraTest {
     @Test
     void changesEstado() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -411,7 +411,7 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsEstadoChangeWithNullValue() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
@@ -423,12 +423,39 @@ class EmpresaOperadoraTest {
     @Test
     void rejectsEstadoChangeWithNullUpdatedAt() {
         var empresa = EmpresaOperadora.create(
-                        ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                        ID, TENANT_ID, "20123456786", "Boticas SAC", null,
                         null, null, null, null, null, "PEN", "America/Lima", false, NOW)
                 .fold(e -> e, error -> { throw new AssertionError(error.message()); });
 
         var result = empresa.cambiarEstado(EstadoEmpresaOperadora.SUSPENDIDO, null);
 
         assertThat(result.isFailure()).isTrue();
+    }
+
+    @Test
+    void rejectsRucWithInvalidCheckDigit() {
+        var result = EmpresaOperadora.create(
+                ID, TENANT_ID, "20123456789", "Boticas SAC", null,
+                null, null, null, null, null, "PEN", "America/Lima", false, NOW);
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(empresa -> null, error -> {
+            assertThat(error.message()).isEqualTo("El RUC no es válido: el dígito verificador no coincide.");
+            assertThat(error.metadata()).containsEntry("field", "ruc");
+            return null;
+        });
+    }
+
+    @Test
+    void acceptsRucWhenTheCheckDigitIsZeroOrOne() {
+        var withZero = EmpresaOperadora.create(
+                ID, TENANT_ID, "20000000010", "Boticas SAC", null,
+                null, null, null, null, null, "PEN", "America/Lima", false, NOW);
+        var withOne = EmpresaOperadora.create(
+                ID, TENANT_ID, "20000000061", "Boticas SAC", null,
+                null, null, null, null, null, "PEN", "America/Lima", false, NOW);
+
+        assertThat(withZero.isSuccess()).isTrue();
+        assertThat(withOne.isSuccess()).isTrue();
     }
 }

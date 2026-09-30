@@ -34,7 +34,7 @@ class CambiarEstadoEmpresaHandlerTest {
 
     private EmpresaOperadoraResult existingEmpresa() {
         return new EmpresaOperadoraResult(
-                EMPRESA_ID, TENANT_ID, "20123456789", "Boticas SAC", null, null, null, null, null, null,
+                EMPRESA_ID, TENANT_ID, "20123456786", "Boticas SAC", null, null, null, null, null, null,
                 "PEN", "America/Lima", false, "ACTIVO", Instant.parse("2026-01-01T00:00:00Z"), null);
     }
 

@@ -17,7 +17,7 @@ class OrganizacionApplicationMapperTest {
     @Test
     void restoresAnEmpresaThatMapsBackToTheSameResult() {
         var result = new EmpresaOperadoraResult(
-                UUID.randomUUID(), UUID.randomUUID(), "20123456789", "Boticas SAC", "Boticas", "Av. 1",
+                UUID.randomUUID(), UUID.randomUUID(), "20123456786", "Boticas SAC", "Boticas", "Av. 1",
                 "150101", "01444", "a@b.pe", "https://b.pe", "PEN", "America/Lima", true, "SUSPENDIDO",
                 CREATED_AT, UPDATED_AT);
 

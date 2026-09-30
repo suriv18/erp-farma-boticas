@@ -99,7 +99,7 @@ class OrganizacionJpaWriteAdapterTest {
 
     private EmpresaOperadora empresa(UUID id) {
         return EmpresaOperadora.create(
-                        new EmpresaOperadoraId(id), new TenantId(TENANT_UUID), "20123456789", "Boticas SAC",
+                        new EmpresaOperadoraId(id), new TenantId(TENANT_UUID), "20123456786", "Boticas SAC",
                         "Boticas", "Av. Siempre Viva 123", "150101", "014445566", "contacto@boticas.pe",
                         "https://boticas.pe", "PEN", "America/Lima", false, NOW)
                 .fold(value -> value, error -> { throw new AssertionError(error.message()); });

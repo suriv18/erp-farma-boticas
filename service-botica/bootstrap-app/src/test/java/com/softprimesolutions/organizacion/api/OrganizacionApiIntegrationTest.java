@@ -113,7 +113,7 @@ class OrganizacionApiIntegrationTest {
 
     @Test
     void buildsTheWholeCorporateStructureAndReadsItBackFromTheToken() throws Exception {
-        var empresaId = createEmpresa("20123456789");
+        var empresaId = createEmpresa("20123456786");
         var establecimientoId = createEstablecimiento(empresaId, "EST001", "DIG001");
         var almacenId = createAlmacen(establecimientoId);
         var terminalId = createTerminal(establecimientoId);
@@ -123,7 +123,7 @@ class OrganizacionApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(empresaId.toString()))
-                .andExpect(jsonPath("$.items[0].ruc").value("20123456789"));
+                .andExpect(jsonPath("$.items[0].ruc").value("20123456786"));
         mockMvc.perform(get(BASE + "/establecimientos").header("Authorization", bearer())
                         .param("tenantId", TENANT_ID.toString()).param("empresaId", empresaId.toString()))
                 .andExpect(status().isOk())
@@ -156,7 +156,7 @@ class OrganizacionApiIntegrationTest {
 
     @Test
     void updatesAndDeactivatesWhatWasCreated() throws Exception {
-        var empresaId = createEmpresa("20123456780");
+        var empresaId = createEmpresa("20123456794");
         var establecimientoId = createEstablecimiento(empresaId, "EST010", null);
         var almacenId = createAlmacen(establecimientoId);
 
@@ -186,11 +186,11 @@ class OrganizacionApiIntegrationTest {
 
     @Test
     void rejectsDuplicatesAndUnknownParents() throws Exception {
-        var empresaId = createEmpresa("20123456789");
+        var empresaId = createEmpresa("20123456786");
         createEstablecimiento(empresaId, "EST001", "DIG001");
 
         mockMvc.perform(post(BASE + "/empresas").header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
-                        .content(empresaJson("20123456789")))
+                        .content(empresaJson("20123456786")))
                 .andExpect(status().isConflict());
         mockMvc.perform(post(BASE + "/establecimientos").header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON).content(establecimientoJson(empresaId, "EST001", null)))
@@ -208,7 +208,7 @@ class OrganizacionApiIntegrationTest {
     void deniesAccessWithoutTheRequiredPermissionOrToken() throws Exception {
         mockMvc.perform(post(BASE + "/empresas").with(csrf())
                         .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos"))
-                        .contentType(MediaType.APPLICATION_JSON).content(empresaJson("20123456789")))
+                        .contentType(MediaType.APPLICATION_JSON).content(empresaJson("20123456786")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/estructura-corporativa")
                         .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos")))
@@ -218,7 +218,7 @@ class OrganizacionApiIntegrationTest {
 
     @Test
     void changesTheStatusOfAnEmpresaAndAnEstablecimiento() throws Exception {
-        var empresaId = createEmpresa("20123456789");
+        var empresaId = createEmpresa("20123456786");
         var establecimientoId = createEstablecimiento(empresaId, "EST001", null);
 
         patchEstado("/empresas/{id}/estado", empresaId, "SUSPENDIDO")
@@ -236,7 +236,7 @@ class OrganizacionApiIntegrationTest {
 
     @Test
     void rejectsInvalidStatusUnknownResourcesAndMissingPermission() throws Exception {
-        var empresaId = createEmpresa("20123456789");
+        var empresaId = createEmpresa("20123456786");
         var establecimientoId = createEstablecimiento(empresaId, "EST001", null);
 
         patchEstado("/empresas/{id}/estado", empresaId, "FOO").andExpect(status().isBadRequest());

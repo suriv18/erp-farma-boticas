@@ -616,7 +616,7 @@ class IamApiIntegrationTest {
         jdbcClient.sql("""
                         INSERT INTO sch_organizacion.empresa_operadora
                             (uuid_publico, tenant_id, ruc, razon_social, created_by)
-                        SELECT :companyId, id, '20123456789', 'Empresa de prueba', 'test'
+                        SELECT :companyId, id, '20123456786', 'Empresa de prueba', 'test'
                           FROM sch_admin.tenant WHERE uuid_publico = :tenantId
                         """).param("companyId", COMPANY_ID).param("tenantId", TENANT_ID).update();
         jdbcClient.sql("""

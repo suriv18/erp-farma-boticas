@@ -47,7 +47,7 @@ public final class OrganizacionApiFixtures {
 
     public static CrearEmpresaOperadoraRequest crearEmpresaRequest() {
         return new CrearEmpresaOperadoraRequest(
-                TENANT, "20123456789", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
+                TENANT, "20123456786", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
                 "https://b.pe", "PEN", "America/Lima", true);
     }
 
@@ -59,7 +59,7 @@ public final class OrganizacionApiFixtures {
 
     public static EmpresaOperadoraResult empresaResult() {
         return new EmpresaOperadoraResult(
-                EMPRESA, TENANT, "20123456789", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
+                EMPRESA, TENANT, "20123456786", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
                 "https://b.pe", "PEN", "America/Lima", true, "ACTIVO", CREATED_AT, UPDATED_AT);
     }
 

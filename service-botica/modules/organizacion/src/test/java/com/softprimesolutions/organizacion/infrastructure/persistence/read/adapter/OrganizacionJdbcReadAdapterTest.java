@@ -31,7 +31,7 @@ class OrganizacionJdbcReadAdapterTest {
 
     private static EmpresaProjection empresa(UUID id, String razonSocial, String estado) {
         return new EmpresaProjection(
-                id, TENANT, "20123456789", razonSocial, "Comercial", "Av. 1", "150101", "01", "a@b.pe",
+                id, TENANT, "20123456786", razonSocial, "Comercial", "Av. 1", "150101", "01", "a@b.pe",
                 "https://b.pe", "PEN", "America/Lima", false, estado, NOW, null);
     }
 

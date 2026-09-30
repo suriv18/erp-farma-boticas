@@ -27,7 +27,7 @@ class CrearEmpresaOperadoraHandlerTest {
 
     private CrearEmpresaOperadoraCommand validCommand() {
         return new CrearEmpresaOperadoraCommand(
-                TENANT_ID, "20123456789", "Boticas SAC", "Boticas", null, null, null, null, null,
+                TENANT_ID, "20123456786", "Boticas SAC", "Boticas", null, null, null, null, null,
                 "PEN", "America/Lima", false);
     }
 
@@ -40,7 +40,7 @@ class CrearEmpresaOperadoraHandlerTest {
 
         assertThat(result.isSuccess()).isTrue();
         result.fold(empresa -> {
-            assertThat(empresa.ruc()).isEqualTo("20123456789");
+            assertThat(empresa.ruc()).isEqualTo("20123456786");
             assertThat(empresa.tenantId()).isEqualTo(TENANT_ID);
             return null;
         }, error -> { throw new AssertionError(error.message()); });
@@ -92,7 +92,7 @@ class CrearEmpresaOperadoraHandlerTest {
     @Test
     void returnsValidationErrorWhenTenantIdIsNull() {
         var command = new CrearEmpresaOperadoraCommand(
-                null, "20123456789", "Boticas SAC", "Boticas", null, null, null, null, null,
+                null, "20123456786", "Boticas SAC", "Boticas", null, null, null, null, null,
                 "PEN", "America/Lima", false);
 
         var result = handler.execute(command);
