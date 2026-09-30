@@ -3,5 +3,9 @@ package com.softprimesolutions.organizacion.domain.model;
 public enum EstadoEmpresaOperadora {
     ACTIVO,
     SUSPENDIDO,
-    BLOQUEADO
+    BLOQUEADO;
+
+    public boolean admiteAltasDeHijos() {
+        return this == ACTIVO;
+    }
 }

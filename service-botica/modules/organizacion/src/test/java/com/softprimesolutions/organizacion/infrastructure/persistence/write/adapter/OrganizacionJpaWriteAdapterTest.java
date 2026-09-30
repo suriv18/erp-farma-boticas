@@ -69,6 +69,8 @@ class OrganizacionJpaWriteAdapterTest {
     private Long resolvedEmpresaId = EMPRESA_ID;
     private Long resolvedEstablecimientoId = ESTABLECIMIENTO_ID;
     private Long resolvedParentEmpresaId = EMPRESA_ID;
+    private String resolvedEmpresaEstado = "ACTIVO";
+    private String resolvedEstablecimientoEstado = "ACTIVO";
 
     OrganizacionJpaWriteAdapterTest() {
         when(jdbcClient.sql(anyString())).thenAnswer(invocation -> statement(invocation.getArgument(0)));
@@ -88,6 +90,8 @@ class OrganizacionJpaWriteAdapterTest {
     }
 
     private Optional<?> lookup(String sql, Object queryArgument) throws SQLException {
+        if (sql.contains("SELECT e.estado")) return Optional.of(resolvedEmpresaEstado);
+        if (sql.contains("SELECT s.estado_operativo")) return Optional.of(resolvedEstablecimientoEstado);
         if (sql.contains("sch_admin.tenant WHERE")) return Optional.ofNullable(resolvedTenantId);
         if (sql.contains("empresa_operadora e")) return Optional.ofNullable(resolvedEmpresaId);
         if (resolvedEstablecimientoId == null) return Optional.empty();
@@ -389,6 +393,76 @@ class OrganizacionJpaWriteAdapterTest {
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.UPDATED);
         verify(terminalRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void returnsEmpresaNoOperativaWhenEmpresaIsSuspended() {
+        resolvedEmpresaEstado = "SUSPENDIDO";
+        var establecimiento = establecimiento(UUID.randomUUID(), "DIG001");
+        when(establecimientoRepository.findByUuidPublico(establecimiento.id().value()))
+                .thenReturn(Optional.empty());
+
+        assertThat(adapter.save(establecimiento)).isEqualTo(SaveEstablecimientoOutcome.EMPRESA_NO_OPERATIVA);
+        verify(establecimientoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void updatesEstablecimientoEvenWhenEmpresaIsBlocked() {
+        resolvedEmpresaEstado = "BLOQUEADO";
+        var establecimiento = establecimiento(UUID.randomUUID(), "DIG001");
+        when(establecimientoRepository.findByUuidPublico(establecimiento.id().value()))
+                .thenReturn(Optional.of(mock(EstablecimientoJpaEntity.class)));
+
+        assertThat(adapter.save(establecimiento)).isEqualTo(SaveEstablecimientoOutcome.UPDATED);
+    }
+
+    @Test
+    void returnsEstablecimientoNoOperativoForAlmacenWhenEstablecimientoIsSuspended() {
+        resolvedEstablecimientoEstado = "SUSPENDIDO";
+        var almacen = almacen(UUID.randomUUID());
+        when(almacenRepository.findByUuidPublico(almacen.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(almacen)).isEqualTo(SaveAlmacenOutcome.ESTABLECIMIENTO_NO_OPERATIVO);
+        verify(almacenRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void createsAlmacenWhenEstablecimientoIsInRemodelacion() {
+        resolvedEstablecimientoEstado = "REMODELACION";
+        var almacen = almacen(UUID.randomUUID());
+        when(almacenRepository.findByUuidPublico(almacen.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(almacen)).isEqualTo(SaveAlmacenOutcome.CREATED);
+    }
+
+    @Test
+    void updatesAlmacenEvenWhenEstablecimientoIsClosed() {
+        resolvedEstablecimientoEstado = "CLAUSURADO";
+        var almacen = almacen(UUID.randomUUID());
+        when(almacenRepository.findByUuidPublico(almacen.id().value()))
+                .thenReturn(Optional.of(mock(AlmacenJpaEntity.class)));
+
+        assertThat(adapter.save(almacen)).isEqualTo(SaveAlmacenOutcome.UPDATED);
+    }
+
+    @Test
+    void returnsEstablecimientoNoOperativoForTerminalWhenEstablecimientoIsClosed() {
+        resolvedEstablecimientoEstado = "CLAUSURADO";
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.ESTABLECIMIENTO_NO_OPERATIVO);
+        verify(terminalRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void updatesTerminalEvenWhenEstablecimientoIsSuspended() {
+        resolvedEstablecimientoEstado = "SUSPENDIDO";
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value()))
+                .thenReturn(Optional.of(mock(TerminalPosJpaEntity.class)));
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.UPDATED);
     }
 
     @Test

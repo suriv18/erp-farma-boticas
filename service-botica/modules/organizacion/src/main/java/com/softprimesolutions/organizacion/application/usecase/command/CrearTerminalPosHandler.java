@@ -51,6 +51,12 @@ public final class CrearTerminalPosHandler implements CrearTerminalPosUseCase {
                     "ORG_ESTABLECIMIENTO_NO_ENCONTRADO", "El establecimiento indicado no existe.",
                     ErrorCategory.NOT_FOUND));
         }
+        if (outcome == OrganizacionWritePort.SaveTerminalOutcome.ESTABLECIMIENTO_NO_OPERATIVO) {
+            return Result.failure(new StandardApplicationError(
+                    "ORG_ESTABLECIMIENTO_NO_OPERATIVO",
+                    "El establecimiento no está operativo (suspendido o clausurado); no admite terminales POS nuevos.",
+                    ErrorCategory.CONFLICT));
+        }
         if (outcome == OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_CODIGO) {
             return Result.failure(new StandardApplicationError(
                     "ORG_TERMINAL_CODIGO_DUPLICADO", "Ya existe un terminal con el código indicado.",

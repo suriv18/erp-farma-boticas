@@ -3,6 +3,8 @@ package com.softprimesolutions.organizacion.infrastructure.persistence.write.ada
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionWritePort;
 import com.softprimesolutions.organizacion.domain.model.Almacen;
 import com.softprimesolutions.organizacion.domain.model.EmpresaOperadora;
+import com.softprimesolutions.organizacion.domain.model.EstadoEmpresaOperadora;
+import com.softprimesolutions.organizacion.domain.model.EstadoEstablecimiento;
 import com.softprimesolutions.organizacion.domain.model.Establecimiento;
 import com.softprimesolutions.organizacion.domain.model.TerminalPos;
 import com.softprimesolutions.organizacion.infrastructure.persistence.write.mapper.OrganizacionWriteMapper;
@@ -95,6 +97,10 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
 
         var existing = establecimientoRepository.findByUuidPublico(establecimiento.id().value());
         if (existing.isEmpty()) {
+            if (!findEmpresaEstado(establecimiento.tenantId().value(), establecimiento.empresaId().value())
+                    .admiteAltasDeHijos()) {
+                return SaveEstablecimientoOutcome.EMPRESA_NO_OPERATIVA;
+            }
             if (establecimientoRepository.existsByTenantIdAndCodigo(tenantId.get(), establecimiento.codigo())) {
                 return SaveEstablecimientoOutcome.DUPLICATE_CODIGO;
             }
@@ -158,9 +164,15 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
         if (tenantId.isEmpty() || parent.isEmpty()) return SaveAlmacenOutcome.ESTABLECIMIENTO_NOT_FOUND;
 
         var existing = almacenRepository.findByUuidPublico(almacen.id().value());
-        if (existing.isEmpty() && almacenRepository.existsByTenantIdAndEstablecimientoIdAndCodigo(
-                tenantId.get(), parent.get().establecimientoId(), almacen.codigo())) {
-            return SaveAlmacenOutcome.DUPLICATE_CODIGO;
+        if (existing.isEmpty()) {
+            if (!findEstablecimientoEstado(almacen.tenantId().value(), almacen.establecimientoId().value())
+                    .admiteAltasDeHijos()) {
+                return SaveAlmacenOutcome.ESTABLECIMIENTO_NO_OPERATIVO;
+            }
+            if (almacenRepository.existsByTenantIdAndEstablecimientoIdAndCodigo(
+                    tenantId.get(), parent.get().establecimientoId(), almacen.codigo())) {
+                return SaveAlmacenOutcome.DUPLICATE_CODIGO;
+            }
         }
         try {
             if (existing.isPresent()) {
@@ -204,9 +216,15 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
         if (tenantId.isEmpty() || parent.isEmpty()) return SaveTerminalOutcome.ESTABLECIMIENTO_NOT_FOUND;
 
         var existing = terminalRepository.findByUuidPublico(terminal.id().value());
-        if (existing.isEmpty() && terminalRepository.existsByTenantIdAndEstablecimientoIdAndCodigo(
-                tenantId.get(), parent.get().establecimientoId(), terminal.codigo())) {
-            return SaveTerminalOutcome.DUPLICATE_CODIGO;
+        if (existing.isEmpty()) {
+            if (!findEstablecimientoEstado(terminal.tenantId().value(), terminal.establecimientoId().value())
+                    .admiteAltasDeHijos()) {
+                return SaveTerminalOutcome.ESTABLECIMIENTO_NO_OPERATIVO;
+            }
+            if (terminalRepository.existsByTenantIdAndEstablecimientoIdAndCodigo(
+                    tenantId.get(), parent.get().establecimientoId(), terminal.codigo())) {
+                return SaveTerminalOutcome.DUPLICATE_CODIGO;
+            }
         }
         try {
             if (existing.isPresent()) {
@@ -295,6 +313,36 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
                 .query((rs, rowNumber) -> new EstablecimientoConEmpresa(
                         rs.getLong("establecimiento_id"), rs.getLong("empresa_id")))
                 .optional();
+    }
+
+    private EstadoEmpresaOperadora findEmpresaEstado(UUID tenantUuid, UUID empresaUuid) {
+        return jdbcClient.sql("""
+                        SELECT e.estado
+                          FROM sch_organizacion.empresa_operadora e
+                          JOIN sch_admin.tenant t ON t.id = e.tenant_id
+                         WHERE t.uuid_publico = :tenantUuid AND e.uuid_publico = :empresaUuid
+                        """)
+                .param("tenantUuid", tenantUuid)
+                .param("empresaUuid", empresaUuid)
+                .query(String.class)
+                .optional()
+                .map(EstadoEmpresaOperadora::valueOf)
+                .orElseThrow();
+    }
+
+    private EstadoEstablecimiento findEstablecimientoEstado(UUID tenantUuid, UUID establecimientoUuid) {
+        return jdbcClient.sql("""
+                        SELECT s.estado_operativo
+                          FROM sch_organizacion.establecimiento_farmaceutico s
+                          JOIN sch_admin.tenant t ON t.id = s.tenant_id
+                         WHERE t.uuid_publico = :tenantUuid AND s.uuid_publico = :establecimientoUuid
+                        """)
+                .param("tenantUuid", tenantUuid)
+                .param("establecimientoUuid", establecimientoUuid)
+                .query(String.class)
+                .optional()
+                .map(EstadoEstablecimiento::valueOf)
+                .orElseThrow();
     }
 
     private static OffsetDateTime toOffsetDateTime(Instant value) {

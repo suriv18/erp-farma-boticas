@@ -114,4 +114,21 @@ class CrearTerminalPosHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenEstablecimientoNoOperativo() {
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.ESTABLECIMIENTO_NO_OPERATIVO);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_ESTABLECIMIENTO_NO_OPERATIVO");
+            assertThat(error.message()).isEqualTo(
+                    "El establecimiento no está operativo (suspendido o clausurado); no admite terminales POS nuevos.");
+            return null;
+        });
+    }
 }

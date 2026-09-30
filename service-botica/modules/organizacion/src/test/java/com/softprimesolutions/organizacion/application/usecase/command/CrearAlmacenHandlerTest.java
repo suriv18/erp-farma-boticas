@@ -128,4 +128,21 @@ class CrearAlmacenHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenEstablecimientoNoOperativo() {
+        when(writePort.save(any(com.softprimesolutions.organizacion.domain.model.Almacen.class)))
+                .thenReturn(OrganizacionWritePort.SaveAlmacenOutcome.ESTABLECIMIENTO_NO_OPERATIVO);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(almacen -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_ESTABLECIMIENTO_NO_OPERATIVO");
+            assertThat(error.message()).isEqualTo(
+                    "El establecimiento no está operativo (suspendido o clausurado); no admite almacenes nuevos.");
+            return null;
+        });
+    }
 }

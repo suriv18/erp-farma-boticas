@@ -52,6 +52,12 @@ public final class CrearAlmacenHandler implements CrearAlmacenUseCase {
                     "ORG_ESTABLECIMIENTO_NO_ENCONTRADO", "El establecimiento indicado no existe.",
                     ErrorCategory.NOT_FOUND));
         }
+        if (outcome == OrganizacionWritePort.SaveAlmacenOutcome.ESTABLECIMIENTO_NO_OPERATIVO) {
+            return Result.failure(new StandardApplicationError(
+                    "ORG_ESTABLECIMIENTO_NO_OPERATIVO",
+                    "El establecimiento no está operativo (suspendido o clausurado); no admite almacenes nuevos.",
+                    ErrorCategory.CONFLICT));
+        }
         if (outcome == OrganizacionWritePort.SaveAlmacenOutcome.DUPLICATE_CODIGO) {
             return Result.failure(new StandardApplicationError(
                     "ORG_ALMACEN_CODIGO_DUPLICADO", "Ya existe un almacén con el código indicado.",

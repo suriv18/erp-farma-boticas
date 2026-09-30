@@ -4,5 +4,9 @@ public enum EstadoEstablecimiento {
     ACTIVO,
     SUSPENDIDO,
     CLAUSURADO,
-    REMODELACION
+    REMODELACION;
+
+    public boolean admiteAltasDeHijos() {
+        return this == ACTIVO || this == REMODELACION;
+    }
 }

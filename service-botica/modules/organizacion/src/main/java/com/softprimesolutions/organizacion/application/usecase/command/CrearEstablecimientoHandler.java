@@ -55,6 +55,12 @@ public final class CrearEstablecimientoHandler implements CrearEstablecimientoUs
             return Result.failure(new StandardApplicationError(
                     "ORG_EMPRESA_NO_ENCONTRADA", "La empresa indicada no existe.", ErrorCategory.NOT_FOUND));
         }
+        if (outcome == OrganizacionWritePort.SaveEstablecimientoOutcome.EMPRESA_NO_OPERATIVA) {
+            return Result.failure(new StandardApplicationError(
+                    "ORG_EMPRESA_NO_OPERATIVA",
+                    "La empresa no está operativa (suspendida o bloqueada); no admite establecimientos nuevos.",
+                    ErrorCategory.CONFLICT));
+        }
         if (outcome == OrganizacionWritePort.SaveEstablecimientoOutcome.DUPLICATE_CODIGO) {
             return Result.failure(new StandardApplicationError(
                     "ORG_ESTABLECIMIENTO_CODIGO_DUPLICADO",

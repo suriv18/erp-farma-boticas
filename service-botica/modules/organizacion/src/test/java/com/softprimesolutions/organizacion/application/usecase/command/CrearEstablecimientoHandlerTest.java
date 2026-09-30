@@ -138,4 +138,21 @@ class CrearEstablecimientoHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenEmpresaNoOperativa() {
+        when(writePort.save(any(Establecimiento.class)))
+                .thenReturn(OrganizacionWritePort.SaveEstablecimientoOutcome.EMPRESA_NO_OPERATIVA);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(establecimiento -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_EMPRESA_NO_OPERATIVA");
+            assertThat(error.message()).isEqualTo(
+                    "La empresa no está operativa (suspendida o bloqueada); no admite establecimientos nuevos.");
+            return null;
+        });
+    }
 }
