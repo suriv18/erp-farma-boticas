@@ -485,6 +485,8 @@ class CatalogoComercialApiIntegrationTest {
         jdbcClient.sql("DELETE FROM sch_catalogo.categoria_producto").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.marca").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.unidad_medida").update();
-        jdbcClient.sql("DELETE FROM sch_admin.tenant").update();
+        jdbcClient.sql("DELETE FROM sch_admin.tenant WHERE uuid_publico = :tenantId")
+                .param("tenantId", TENANT_ID)
+                .update();
     }
 }

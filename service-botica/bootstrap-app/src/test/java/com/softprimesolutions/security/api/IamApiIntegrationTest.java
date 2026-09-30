@@ -384,7 +384,7 @@ class IamApiIntegrationTest {
 
         mockMvc.perform(get("/api/v1/permisos").with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("seguridad.usuarios.consultar"));
+                .andExpect(jsonPath("$.items[0].code").value("seguridad.usuarios.consultar"));
     }
 
     @Test
