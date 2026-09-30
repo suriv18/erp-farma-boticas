@@ -59,6 +59,35 @@ describe('EmpresaForm', () => {
     );
   });
 
+  it('en edición permite guardar una empresa cuyo RUC no cumple el dígito verificador', async () => {
+    const { onSubmit, user } = renderForm({
+      isEdit: true,
+      submitLabel: 'Guardar cambios',
+      defaultValues: { ...EMPRESA_FORM_VACIO, ruc: '20123456789', razonSocial: 'Boticas SAC' }
+    });
+
+    await user.clear(screen.getByLabelText('Razón social'));
+    await user.type(screen.getByLabelText('Razón social'), 'Boticas del Perú SAC');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ razonSocial: 'Boticas del Perú SAC' })
+    );
+  });
+
+  it('en creación rechaza un RUC con dígito verificador inválido', async () => {
+    const { onSubmit, user } = renderForm();
+
+    await user.type(screen.getByLabelText('RUC'), '20123456789');
+    await user.type(screen.getByLabelText('Razón social'), 'Boticas SAC');
+    await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
+
+    expect(
+      await screen.findByText('El RUC no es válido: el dígito verificador no coincide.')
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('en creación el RUC es editable', () => {
     renderForm();
 

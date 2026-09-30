@@ -1,4 +1,4 @@
-import { empresaSchema } from './empresa.schema';
+import { empresaEdicionSchema, empresaSchema } from './empresa.schema';
 
 const valid = {
   ruc: '20123456786',
@@ -60,5 +60,22 @@ describe('empresaSchema', () => {
     [{ zonaHoraria: 'x'.repeat(81) }, 'La zona horaria no debe exceder 80 caracteres.']
   ])('rechaza %j con "%s"', (overrides, message) => {
     expect(messages(overrides)).toContain(message);
+  });
+});
+
+describe('empresaEdicionSchema', () => {
+  const editar = (overrides: Record<string, unknown>) => {
+    const result = empresaEdicionSchema.safeParse({ ...valid, ...overrides });
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  };
+
+  it('acepta un RUC con formato válido aunque el dígito verificador no coincida', () => {
+    expect(editar({ ruc: '20123456789' })).toEqual([]);
+  });
+
+  it('rechaza un RUC con formato inválido', () => {
+    expect(editar({ ruc: '30123456789' })).toEqual([
+      'El RUC debe tener 11 dígitos e iniciar con 10 o 20.'
+    ]);
   });
 });

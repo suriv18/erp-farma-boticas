@@ -2,7 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Button } from '@boticas/ui-web';
 import { EMPRESA_FORM_VACIO } from '../lib/form-defaults';
-import { empresaSchema, type EmpresaFormValues } from '../schemas/empresa.schema';
+import {
+  empresaEdicionSchema,
+  empresaSchema,
+  type EmpresaFormValues
+} from '../schemas/empresa.schema';
 import { FormError } from './FormError';
 import { CamposTexto, type CampoTexto } from './CamposTexto';
 import { CheckboxField } from './FormFields';
@@ -49,7 +53,7 @@ export function EmpresaForm({
   } = useForm<EmpresaFormValues>({
     defaultValues: defaultValues ?? EMPRESA_FORM_VACIO,
     mode: 'onTouched',
-    resolver: zodResolver(empresaSchema)
+    resolver: zodResolver(isEdit ? empresaEdicionSchema : empresaSchema)
   });
 
   const campos = camposEmpresa(isEdit);

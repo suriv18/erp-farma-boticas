@@ -9,14 +9,11 @@ import {
   zonaHorariaRequerida
 } from './campos';
 
-export const empresaSchema = z.object({
-  ruc: z
-    .string()
-    .regex(RUC_FORMATO, 'El RUC debe tener 11 dígitos e iniciar con 10 o 20.')
-    .refine(
-      (ruc) => !RUC_FORMATO.test(ruc) || tieneDigitoVerificadorValido(ruc),
-      'El RUC no es válido: el dígito verificador no coincide.'
-    ),
+const MENSAJE_FORMATO_RUC = 'El RUC debe tener 11 dígitos e iniciar con 10 o 20.';
+
+const rucConFormato = z.string().regex(RUC_FORMATO, MENSAJE_FORMATO_RUC);
+
+const camposEmpresa = {
   razonSocial: z
     .string()
     .min(2, 'La razón social debe tener al menos 2 caracteres.')
@@ -30,6 +27,16 @@ export const empresaSchema = z.object({
   monedaFuncional: z.string().length(3, 'La moneda debe tener 3 caracteres (ISO 4217).'),
   zonaHoraria: zonaHorariaRequerida,
   permiteVentaOnline: z.boolean()
+};
+
+export const empresaSchema = z.object({
+  ruc: rucConFormato.refine(
+    (ruc) => !RUC_FORMATO.test(ruc) || tieneDigitoVerificadorValido(ruc),
+    'El RUC no es válido: el dígito verificador no coincide.'
+  ),
+  ...camposEmpresa
 });
+
+export const empresaEdicionSchema = z.object({ ruc: rucConFormato, ...camposEmpresa });
 
 export type EmpresaFormValues = z.infer<typeof empresaSchema>;
