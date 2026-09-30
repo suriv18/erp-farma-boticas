@@ -7,11 +7,39 @@ import com.softprimesolutions.organizacion.application.dto.result.TerminalPosRes
 import com.softprimesolutions.organizacion.domain.model.Almacen;
 import com.softprimesolutions.organizacion.domain.model.EmpresaOperadora;
 import com.softprimesolutions.organizacion.domain.model.Establecimiento;
+import com.softprimesolutions.organizacion.domain.model.EstadoEmpresaOperadora;
+import com.softprimesolutions.organizacion.domain.model.EstadoEstablecimiento;
+import com.softprimesolutions.organizacion.domain.model.PerfilOperacion;
 import com.softprimesolutions.organizacion.domain.model.TerminalPos;
+import com.softprimesolutions.organizacion.domain.model.TipoEstablecimiento;
+import com.softprimesolutions.organizacion.domain.valueobject.EmpresaOperadoraId;
+import com.softprimesolutions.organizacion.domain.valueobject.EstablecimientoId;
+import com.softprimesolutions.organizacion.domain.valueobject.TenantId;
 
 public final class OrganizacionApplicationMapper {
 
     private OrganizacionApplicationMapper() {
+    }
+
+    public static EmpresaOperadora toDomain(EmpresaOperadoraResult result) {
+        return EmpresaOperadora.restore(
+                new EmpresaOperadoraId(result.id()), new TenantId(result.tenantId()), result.ruc(),
+                result.razonSocial(), result.nombreComercial(), result.direccionFiscal(),
+                result.ubigeoFiscal(), result.telefono(), result.email(), result.sitioWeb(),
+                result.monedaFuncional(), result.zonaHoraria(), result.permiteVentaOnline(),
+                EstadoEmpresaOperadora.valueOf(result.estado()), result.createdAt(), result.updatedAt());
+    }
+
+    public static Establecimiento toDomain(EstablecimientoResult result) {
+        return Establecimiento.restore(
+                new EstablecimientoId(result.id()), new TenantId(result.tenantId()),
+                new EmpresaOperadoraId(result.empresaId()), result.codigo(), result.nombre(),
+                TipoEstablecimiento.valueOf(result.tipoEstablecimiento()), result.categoriaRegulatoriaCodigo(),
+                result.codigoAnexoSunat(), result.codigoDigemid(), result.direccion(), result.ubigeo(),
+                result.referencia(), result.latitud(), result.longitud(), result.telefono(), result.email(),
+                result.esPrincipal(), result.permiteVentaOnline(), result.permiteDelivery(),
+                PerfilOperacion.valueOf(result.perfilOperacion()), result.zonaHoraria(),
+                EstadoEstablecimiento.valueOf(result.estadoOperativo()), result.createdAt(), result.updatedAt());
     }
 
     public static EmpresaOperadoraResult toResult(EmpresaOperadora empresa) {

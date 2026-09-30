@@ -7,9 +7,6 @@ import com.softprimesolutions.organizacion.application.port.in.ActualizarEmpresa
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionReadPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionWritePort;
 import com.softprimesolutions.organizacion.domain.model.EmpresaOperadora;
-import com.softprimesolutions.organizacion.domain.model.EstadoEmpresaOperadora;
-import com.softprimesolutions.organizacion.domain.valueobject.EmpresaOperadoraId;
-import com.softprimesolutions.organizacion.domain.valueobject.TenantId;
 import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import com.softprimesolutions.shared.application.error.StandardApplicationError;
@@ -39,15 +36,8 @@ public final class ActualizarEmpresaOperadoraHandler implements ActualizarEmpres
             return Result.failure(new StandardApplicationError(
                     "ORG_EMPRESA_NO_ENCONTRADA", "La empresa indicada no existe.", ErrorCategory.NOT_FOUND));
         }
-        var current = existing.get();
-        var empresa = EmpresaOperadora.restore(
-                new EmpresaOperadoraId(current.id()), new TenantId(current.tenantId()), current.ruc(),
-                current.razonSocial(), current.nombreComercial(), current.direccionFiscal(),
-                current.ubigeoFiscal(), current.telefono(), current.email(), current.sitioWeb(),
-                current.monedaFuncional(), current.zonaHoraria(), current.permiteVentaOnline(),
-                EstadoEmpresaOperadora.valueOf(current.estado()), current.createdAt(), current.updatedAt());
 
-        var updated = empresa.updateDetails(
+        var updated = OrganizacionApplicationMapper.toDomain(existing.get()).updateDetails(
                 command.razonSocial(), command.nombreComercial(), command.direccionFiscal(),
                 command.ubigeoFiscal(), command.telefono(), command.email(), command.sitioWeb(),
                 command.monedaFuncional(), command.zonaHoraria(), command.permiteVentaOnline(), clock.now());

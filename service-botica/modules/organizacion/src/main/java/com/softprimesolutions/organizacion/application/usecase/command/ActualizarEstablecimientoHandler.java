@@ -6,13 +6,7 @@ import com.softprimesolutions.organizacion.application.mapper.OrganizacionApplic
 import com.softprimesolutions.organizacion.application.port.in.ActualizarEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionReadPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionWritePort;
-import com.softprimesolutions.organizacion.domain.model.EstadoEstablecimiento;
 import com.softprimesolutions.organizacion.domain.model.Establecimiento;
-import com.softprimesolutions.organizacion.domain.model.PerfilOperacion;
-import com.softprimesolutions.organizacion.domain.model.TipoEstablecimiento;
-import com.softprimesolutions.organizacion.domain.valueobject.EmpresaOperadoraId;
-import com.softprimesolutions.organizacion.domain.valueobject.EstablecimientoId;
-import com.softprimesolutions.organizacion.domain.valueobject.TenantId;
 import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import com.softprimesolutions.shared.application.error.StandardApplicationError;
@@ -43,19 +37,8 @@ public final class ActualizarEstablecimientoHandler implements ActualizarEstable
                     "ORG_ESTABLECIMIENTO_NO_ENCONTRADO", "El establecimiento indicado no existe.",
                     ErrorCategory.NOT_FOUND));
         }
-        var current = existing.get();
-        var establecimiento = Establecimiento.restore(
-                new EstablecimientoId(current.id()), new TenantId(current.tenantId()),
-                new EmpresaOperadoraId(current.empresaId()), current.codigo(), current.nombre(),
-                TipoEstablecimiento.valueOf(current.tipoEstablecimiento()), current.categoriaRegulatoriaCodigo(),
-                current.codigoAnexoSunat(), current.codigoDigemid(), current.direccion(), current.ubigeo(),
-                current.referencia(), current.latitud(), current.longitud(), current.telefono(),
-                current.email(), current.esPrincipal(), current.permiteVentaOnline(), current.permiteDelivery(),
-                PerfilOperacion.valueOf(current.perfilOperacion()), current.zonaHoraria(),
-                EstadoEstablecimiento.valueOf(current.estadoOperativo()), current.createdAt(),
-                current.updatedAt());
 
-        var updated = establecimiento.updateDetails(
+        var updated = OrganizacionApplicationMapper.toDomain(existing.get()).updateDetails(
                 command.nombre(), EstablecimientoEnums.tipoEstablecimiento(command.tipoEstablecimiento()),
                 command.categoriaRegulatoriaCodigo(), command.codigoAnexoSunat(), command.codigoDigemid(),
                 command.direccion(), command.ubigeo(), command.referencia(), command.latitud(),
