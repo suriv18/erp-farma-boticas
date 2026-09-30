@@ -67,9 +67,10 @@ public final class ActualizarTerminalPosHandler implements ActualizarTerminalPos
 
     private Result<TerminalPosResult, ApplicationError> persist(TerminalPos terminal) {
         var outcome = writePort.save(terminal);
-        var seriesConflict = TerminalSaveErrors.seriesConflict(outcome, terminal);
-        if (seriesConflict.isPresent()) return Result.failure(seriesConflict.get());
-        return Result.success(OrganizacionApplicationMapper.toResult(terminal));
+        if (outcome == OrganizacionWritePort.SaveTerminalOutcome.UPDATED) {
+            return Result.success(OrganizacionApplicationMapper.toResult(terminal));
+        }
+        return Result.failure(TerminalSaveErrors.conflict(outcome, terminal).orElseGet(TerminalSaveErrors::notSaved));
     }
 
     private Result<TerminalPosResult, ApplicationError> validationFailure(ErrorDetail error) {

@@ -162,4 +162,19 @@ class CrearTerminalPosHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenTheDatabaseRejectsTheTerminal() {
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.INTEGRITY_VIOLATION);
+
+        var result = handler.execute(validCommand());
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_NO_GUARDADO");
+            return null;
+        });
+    }
 }

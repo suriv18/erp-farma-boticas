@@ -298,7 +298,8 @@ public class OrganizacionJpaWriteAdapter implements OrganizacionWritePort {
         var message = String.valueOf(exception.getMessage());
         if (message.contains("uk_terminal_pos_serie_boleta")) return SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA;
         if (message.contains("uk_terminal_pos_serie_factura")) return SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA;
-        return SaveTerminalOutcome.DUPLICATE_CODIGO;
+        if (message.contains("uk_terminal_pos_codigo")) return SaveTerminalOutcome.DUPLICATE_CODIGO;
+        return SaveTerminalOutcome.INTEGRITY_VIOLATION;
     }
 
     @Override

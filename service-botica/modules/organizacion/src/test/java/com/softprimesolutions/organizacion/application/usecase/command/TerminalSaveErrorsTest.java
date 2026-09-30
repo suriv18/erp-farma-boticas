@@ -22,7 +22,7 @@ class TerminalSaveErrorsTest {
 
     @Test
     void translatesADuplicateBoletaSerie() {
-        var error = TerminalSaveErrors.seriesConflict(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA, TERMINAL);
+        var error = TerminalSaveErrors.conflict(SaveTerminalOutcome.DUPLICATE_SERIE_BOLETA, TERMINAL);
 
         assertThat(error).isPresent();
         assertThat(error.get().code()).isEqualTo("ORG_TERMINAL_SERIE_BOLETA_DUPLICADA");
@@ -32,7 +32,7 @@ class TerminalSaveErrorsTest {
 
     @Test
     void translatesADuplicateFacturaSerie() {
-        var error = TerminalSaveErrors.seriesConflict(SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA, TERMINAL);
+        var error = TerminalSaveErrors.conflict(SaveTerminalOutcome.DUPLICATE_SERIE_FACTURA, TERMINAL);
 
         assertThat(error).isPresent();
         assertThat(error.get().code()).isEqualTo("ORG_TERMINAL_SERIE_FACTURA_DUPLICADA");
@@ -41,7 +41,23 @@ class TerminalSaveErrorsTest {
     }
 
     @Test
-    void ignoresOutcomesThatAreNotSerieConflicts() {
-        assertThat(TerminalSaveErrors.seriesConflict(SaveTerminalOutcome.CREATED, TERMINAL)).isEmpty();
+    void translatesAnIntegrityViolation() {
+        var error = TerminalSaveErrors.conflict(SaveTerminalOutcome.INTEGRITY_VIOLATION, TERMINAL);
+
+        assertThat(error).isPresent();
+        assertThat(error.get().code()).isEqualTo("ORG_TERMINAL_NO_GUARDADO");
+        assertThat(error.get().message()).isEqualTo(
+                "No se pudo guardar el terminal: los datos violan una restricción de la base de datos.");
+        assertThat(error.get().category()).isEqualTo(ErrorCategory.CONFLICT);
+    }
+
+    @Test
+    void exposesTheNotSavedErrorDirectly() {
+        assertThat(TerminalSaveErrors.notSaved().code()).isEqualTo("ORG_TERMINAL_NO_GUARDADO");
+    }
+
+    @Test
+    void ignoresOutcomesThatAreNotConflicts() {
+        assertThat(TerminalSaveErrors.conflict(SaveTerminalOutcome.CREATED, TERMINAL)).isEmpty();
     }
 }

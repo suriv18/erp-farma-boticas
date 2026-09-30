@@ -391,9 +391,19 @@ class OrganizacionJpaWriteAdapterTest {
         var terminal = terminal(UUID.randomUUID());
         when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
         when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate"));
+                .thenThrow(new DataIntegrityViolationException("violates unique constraint uk_terminal_pos_codigo"));
 
         assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.DUPLICATE_CODIGO);
+    }
+
+    @Test
+    void returnsIntegrityViolationWhenTerminalInsertViolatesAnUnknownConstraint() {
+        var terminal = terminal(UUID.randomUUID());
+        when(terminalRepository.findByUuidPublico(terminal.id().value())).thenReturn(Optional.empty());
+        when(terminalRepository.saveAndFlush(any(TerminalPosJpaEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("value too long for column nombre"));
+
+        assertThat(adapter.save(terminal)).isEqualTo(SaveTerminalOutcome.INTEGRITY_VIOLATION);
     }
 
     @Test

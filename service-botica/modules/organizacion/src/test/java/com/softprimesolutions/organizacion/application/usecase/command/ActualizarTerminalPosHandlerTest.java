@@ -149,4 +149,36 @@ class ActualizarTerminalPosHandlerTest {
             return null;
         });
     }
+
+    @Test
+    void returnsConflictWhenTheDatabaseRejectsTheUpdate() {
+        when(readPort.findTerminalById(TENANT_ID, TERMINAL_ID)).thenReturn(Optional.of(existingTerminal("ACTIVO")));
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.INTEGRITY_VIOLATION);
+
+        var result = handler.execute(validCommand("ACTIVO"));
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_NO_GUARDADO");
+            return null;
+        });
+    }
+
+    @Test
+    void returnsConflictWhenTheWriteOutcomeIsNotAnUpdate() {
+        when(readPort.findTerminalById(TENANT_ID, TERMINAL_ID)).thenReturn(Optional.of(existingTerminal("ACTIVO")));
+        when(writePort.save(any(TerminalPos.class)))
+                .thenReturn(OrganizacionWritePort.SaveTerminalOutcome.DUPLICATE_CODIGO);
+
+        var result = handler.execute(validCommand("ACTIVO"));
+
+        assertThat(result.isFailure()).isTrue();
+        result.fold(terminal -> null, error -> {
+            assertThat(error.category()).isEqualTo(ErrorCategory.CONFLICT);
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_NO_GUARDADO");
+            return null;
+        });
+    }
 }

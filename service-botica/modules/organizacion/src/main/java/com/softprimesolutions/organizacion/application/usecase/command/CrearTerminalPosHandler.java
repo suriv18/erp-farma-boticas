@@ -62,8 +62,8 @@ public final class CrearTerminalPosHandler implements CrearTerminalPosUseCase {
                     "ORG_TERMINAL_CODIGO_DUPLICADO", "Ya existe un terminal con el código indicado.",
                     ErrorCategory.CONFLICT));
         }
-        var seriesConflict = TerminalSaveErrors.seriesConflict(outcome, terminal);
-        if (seriesConflict.isPresent()) return Result.failure(seriesConflict.get());
+        var conflict = TerminalSaveErrors.conflict(outcome, terminal);
+        if (conflict.isPresent()) return Result.failure(conflict.get());
         return Result.success(OrganizacionApplicationMapper.toResult(terminal));
     }
 
