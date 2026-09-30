@@ -13,9 +13,13 @@ export const terminalSchema = z.object({
     .regex(/^(F[A-Z0-9]{3})?$/, 'La serie de factura debe iniciar con F y tener 4 caracteres.'),
   numeroSerieEquipo: textoOpcional(120, 'El número de serie'),
   hostname: textoOpcional(150, 'El hostname'),
-  ipEquipo: z.union([z.literal(''), z.ipv4(), z.ipv6()], {
-    error: 'La dirección IP no es válida.'
-  }),
+  ipEquipo: z
+    .string()
+    .refine(
+      (valor) =>
+        valor === '' || z.ipv4().safeParse(valor).success || z.ipv6().safeParse(valor).success,
+      'La dirección IP no es válida.'
+    ),
   impresoraCodigo: textoOpcional(100, 'El código de impresora'),
   storeEdgeHabilitado: z.boolean(),
   estado: z.enum(ESTADOS_TERMINAL, { error: 'Selecciona un estado.' })
