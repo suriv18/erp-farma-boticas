@@ -71,6 +71,19 @@ test.describe('Organización', () => {
     await expect(page.getByText('Aún no hay empresas registradas.')).toBeVisible();
   });
 
+  test('rechaza un RUC con dígito verificador inválido sin cerrar el formulario', async ({
+    page
+  }) => {
+    await abrirSesionEn(page, '/organizacion/empresas');
+
+    await crearEmpresa(page, '20123456789', 'Empresa con RUC inválido');
+
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
+      'El RUC no es válido: el dígito verificador no coincide.'
+    );
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
   test('gestiona empresa, establecimiento, almacén y terminal de punta a punta', async ({
     page
   }) => {
@@ -94,9 +107,19 @@ test.describe('Organización', () => {
 
     await page.getByRole('button', { name: 'Cambiar estado' }).click();
     await page.getByRole('dialog').getByLabel('Estado').selectOption('SUSPENDIDO');
+    await expect(page.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
+    await page.getByLabel('Entiendo las consecuencias').check();
     await page.getByRole('button', { name: 'Guardar estado' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('SUSPENDIDO', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status')).toContainText('no admite establecimientos nuevos');
+    await expect(page.getByRole('button', { name: 'Nuevo establecimiento' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Cambiar estado' }).click();
+    await page.getByRole('dialog').getByLabel('Estado').selectOption('ACTIVO');
+    await page.getByRole('button', { name: 'Guardar estado' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('status')).toBeHidden();
 
     await page.getByRole('button', { name: 'Nuevo establecimiento' }).click();
     const nuevoEstablecimiento = page.getByRole('dialog');
@@ -122,6 +145,7 @@ test.describe('Organización', () => {
     await nuevoAlmacen.getByLabel('Código', { exact: true }).fill('UI-ALM');
     await nuevoAlmacen.getByLabel('Nombre', { exact: true }).fill('Almacén UI');
     await nuevoAlmacen.getByLabel('Tipo de almacén').selectOption('REFRIGERADO');
+    await expect(nuevoAlmacen.getByLabel('Controla temperatura')).toBeChecked();
     await nuevoAlmacen.getByLabel('Temperatura mínima (°C)').fill('2');
     await nuevoAlmacen.getByLabel('Temperatura máxima (°C)').fill('8');
     await nuevoAlmacen.getByRole('button', { name: 'Crear almacén' }).click();
@@ -155,6 +179,19 @@ test.describe('Organización', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.getByText('MANTENIMIENTO', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Nuevo terminal' }).click();
+    const terminalRepetido = page.getByRole('dialog');
+    await terminalRepetido.getByLabel('Código', { exact: true }).fill('UI-POS2');
+    await terminalRepetido.getByLabel('Nombre', { exact: true }).fill('Caja UI 2');
+    await terminalRepetido.getByLabel('Serie de boleta').fill('b001');
+    await terminalRepetido.getByLabel('Serie de factura').fill('f002');
+    await terminalRepetido.getByRole('button', { name: 'Crear terminal' }).click();
+    await expect(terminalRepetido.getByRole('alert')).toContainText(
+      'La serie B001 ya está asignada a otra caja de esta empresa.'
+    );
+    await terminalRepetido.getByRole('button', { name: 'Cerrar' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
     await expectNoHorizontalOverflow(page);
   });
 

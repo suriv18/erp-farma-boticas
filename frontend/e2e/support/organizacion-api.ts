@@ -16,6 +16,7 @@ type Collection = {
   stateField: string;
   searchFields: string[];
   parentField?: string;
+  conflict?: (body: Row, rows: Record<string, Row[]>) => string | null;
 };
 
 const collections: Record<string, Collection> = {
@@ -48,7 +49,27 @@ const collections: Record<string, Collection> = {
     duplicateMessage: 'Ya existe un terminal con el código indicado.',
     stateField: 'estado',
     searchFields: ['codigo', 'nombre'],
-    parentField: 'establecimientoId'
+    parentField: 'establecimientoId',
+    conflict: (body, rows) => {
+      const empresaDe = (establecimientoId: unknown) =>
+        rows.establecimientos?.find((establecimiento) => establecimiento.id === establecimientoId)
+          ?.empresaId;
+      const empresaId = empresaDe(body.establecimientoId);
+      const delaEmpresa = (rows['terminales-pos'] ?? []).filter(
+        (terminal) => empresaDe(terminal.establecimientoId) === empresaId
+      );
+      const repetida = [body.serieBoletaDefecto, body.serieFacturaDefecto].find(
+        (serie) =>
+          Boolean(serie) &&
+          delaEmpresa.some(
+            (terminal) =>
+              terminal.serieBoletaDefecto === serie || terminal.serieFacturaDefecto === serie
+          )
+      );
+      return repetida
+        ? `La serie ${String(repetida)} ya está asignada a otra caja de esta empresa.`
+        : null;
+    }
   }
 };
 
@@ -95,6 +116,8 @@ export async function mockOrganizacionApi(page: Page) {
       if (items.some((row) => row[collection.uniqueKey] === body[collection.uniqueKey])) {
         return json(route, 409, { title: 'Conflict', detail: collection.duplicateMessage });
       }
+      const conflicto = collection.conflict?.(body, rows);
+      if (conflicto) return json(route, 409, { title: 'Conflict', detail: conflicto });
       const created: Row = {
         ...collection.template,
         ...body,
