@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Button } from '@boticas/ui-web';
 import { TIPOS_ALMACEN } from '../api/almacenes.types';
 import { ALMACEN_FORM_VACIO } from '../lib/form-defaults';
@@ -61,6 +61,9 @@ const camposIdentificacion = (isEdit: boolean) =>
     campo.name === 'codigo' ? { ...campo, readOnly: isEdit } : campo
   );
 
+const camposTemperatura = (editable: boolean) =>
+  CAMPOS_TEMPERATURA.map((campo) => ({ ...campo, readOnly: !editable }));
+
 export function AlmacenForm({
   defaultValues,
   isEdit = false,
@@ -72,12 +75,15 @@ export function AlmacenForm({
   const {
     formState: { errors },
     handleSubmit,
-    register
+    register,
+    setValue,
+    control
   } = useForm<AlmacenFormValues>({
     defaultValues: defaultValues ?? ALMACEN_FORM_VACIO,
     mode: 'onTouched',
     resolver: zodResolver(almacenSchema)
   });
+  const controlTemperatura = useWatch({ control, name: 'controlTemperatura' });
 
   return (
     <form
@@ -93,7 +99,13 @@ export function AlmacenForm({
           id="almacen-tipo"
           label="Tipo de almacén"
           error={errors.tipo?.message}
-          {...register('tipo')}
+          {...register('tipo', {
+            onChange: (event: { target: { value: string } }) => {
+              if (event.target.value === 'REFRIGERADO') {
+                setValue('controlTemperatura', true, { shouldDirty: true });
+              }
+            }
+          })}
         >
           {TIPOS_ALMACEN.map((tipo) => (
             <option key={tipo} value={tipo}>
@@ -101,11 +113,21 @@ export function AlmacenForm({
             </option>
           ))}
         </SelectField>
-        <CamposTexto fields={CAMPOS_TEMPERATURA} register={register} errors={errors} />
+        <CamposTexto
+          fields={camposTemperatura(controlTemperatura)}
+          register={register}
+          errors={errors}
+        />
       </div>
       <div className="flex flex-wrap gap-6">
         {INDICADORES.map(({ name, id, label }) => (
-          <CheckboxField key={id} id={id} label={label} {...register(name)} />
+          <CheckboxField
+            key={id}
+            id={id}
+            label={label}
+            error={errors[name]?.message}
+            {...register(name)}
+          />
         ))}
         {isEdit ? (
           <CheckboxField id="almacen-activo" label="Almacén activo" {...register('activo')} />

@@ -73,4 +73,16 @@ describe('CheckboxField', () => {
 
     expect(screen.getByLabelText('Activo')).toBeChecked();
   });
+
+  it('muestra el error debajo de la casilla', () => {
+    render(<CheckboxField id="activo" label="Activo" error="Es obligatorio." />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Es obligatorio.');
+  });
+
+  it('no muestra error cuando no se recibe', () => {
+    render(<CheckboxField id="activo" label="Activo" />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

@@ -35,20 +35,33 @@ export function SelectField({
 export function CheckboxField({
   id,
   label,
+  error,
   ...props
-}: { id: string; label: string } & Omit<ComponentPropsWithRef<'input'>, 'id' | 'type'>) {
+}: {
+  id: string;
+  label: string;
+  error?: string | undefined;
+} & Omit<ComponentPropsWithRef<'input'>, 'id' | 'type'>) {
   return (
-    <label
-      htmlFor={id}
-      className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-200"
-    >
-      <input
-        id={id}
-        type="checkbox"
-        className="text-primary-600 size-4 rounded border-neutral-300"
-        {...props}
-      />
-      {label}
-    </label>
+    <div>
+      <label
+        htmlFor={id}
+        className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-200"
+      >
+        <input
+          id={id}
+          type="checkbox"
+          aria-invalid={error ? true : undefined}
+          className="text-primary-600 size-4 rounded border-neutral-300"
+          {...props}
+        />
+        {label}
+      </label>
+      {error ? (
+        <p role="alert" className="text-danger-600 dark:text-danger-400 mt-1 text-xs font-medium">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
