@@ -7,3 +7,11 @@ export function toNumberOrUndefined(value: string): number | undefined {
   const trimmed = value.trim();
   return trimmed === '' ? undefined : Number(trimmed);
 }
+
+export function orEmpty(value: string | null): string {
+  return value ?? '';
+}
+
+export function numberOrEmpty(value: number | null): string {
+  return value === null ? '' : String(value);
+}

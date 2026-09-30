@@ -1,4 +1,4 @@
-import { emptyToUndefined, toNumberOrUndefined } from './form-values';
+import { emptyToUndefined, numberOrEmpty, orEmpty, toNumberOrUndefined } from './form-values';
 
 describe('form-values', () => {
   it('emptyToUndefined recorta y convierte vacíos en undefined', () => {
@@ -12,5 +12,13 @@ describe('form-values', () => {
     expect(toNumberOrUndefined(' 4 ')).toBe(4);
     expect(toNumberOrUndefined('')).toBeUndefined();
     expect(toNumberOrUndefined('  ')).toBeUndefined();
+  });
+
+  it('orEmpty y numberOrEmpty convierten null en cadena vacía', () => {
+    expect(orEmpty('Av. 1')).toBe('Av. 1');
+    expect(orEmpty(null)).toBe('');
+    expect(numberOrEmpty(-12.5)).toBe('-12.5');
+    expect(numberOrEmpty(0)).toBe('0');
+    expect(numberOrEmpty(null)).toBe('');
   });
 });
