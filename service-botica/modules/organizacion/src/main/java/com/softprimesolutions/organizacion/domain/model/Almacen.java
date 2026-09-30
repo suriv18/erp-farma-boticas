@@ -75,6 +75,9 @@ public final class Almacen extends AggregateRoot {
             return invalid("nombre", "El nombre debe tener entre 2 y 250 caracteres.");
         }
 
+        var temperaturaError = temperaturaError(tipo, controlTemperatura, temperaturaMinC, temperaturaMaxC);
+        if (temperaturaError != null) return Result.failure(temperaturaError);
+
         return Result.success(new Almacen(
                 id, tenantId, establecimientoId, normalizedCodigo, normalizedNombre, tipo,
                 permiteLotes, permiteVencimiento, permiteVenta, permiteDespacho, controlTemperatura,
@@ -105,6 +108,9 @@ public final class Almacen extends AggregateRoot {
             return invalid("nombre", "El nombre debe tener entre 2 y 250 caracteres.");
         }
 
+        var temperaturaError = temperaturaError(tipo, controlTemperatura, temperaturaMinC, temperaturaMaxC);
+        if (temperaturaError != null) return Result.failure(temperaturaError);
+
         return Result.success(new Almacen(
                 id, tenantId, establecimientoId, codigo, normalizedNombre, tipo, permiteLotes,
                 permiteVencimiento, permiteVenta, permiteDespacho, controlTemperatura,
@@ -128,7 +134,26 @@ public final class Almacen extends AggregateRoot {
     }
 
     private static <T> Result<T, ErrorDetail> invalid(String field, String message) {
-        return Result.failure(new ErrorDetail("ORG_ALMACEN_INVALIDO", message, Map.of("field", field)));
+        return Result.failure(error(field, message));
+    }
+
+    private static ErrorDetail error(String field, String message) {
+        return new ErrorDetail("ORG_ALMACEN_INVALIDO", message, Map.of("field", field));
+    }
+
+    private static ErrorDetail temperaturaError(
+            TipoAlmacen tipo, boolean controlTemperatura, BigDecimal temperaturaMinC, BigDecimal temperaturaMaxC) {
+        if (tipo == TipoAlmacen.REFRIGERADO && !controlTemperatura) {
+            return error("controlTemperatura", "Un almacén refrigerado debe controlar temperatura.");
+        }
+        if (controlTemperatura && (temperaturaMinC == null || temperaturaMaxC == null)) {
+            return error("temperaturaMinC",
+                    "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
+        }
+        if (temperaturaMinC != null && temperaturaMaxC != null && temperaturaMinC.compareTo(temperaturaMaxC) > 0) {
+            return error("temperaturaMinC", "La temperatura mínima no puede ser mayor que la máxima.");
+        }
+        return null;
     }
 
     private static String normalize(String value) {

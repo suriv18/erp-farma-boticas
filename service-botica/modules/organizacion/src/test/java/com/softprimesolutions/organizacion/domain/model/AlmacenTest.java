@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.softprimesolutions.organizacion.domain.valueobject.AlmacenId;
 import com.softprimesolutions.organizacion.domain.valueobject.EstablecimientoId;
 import com.softprimesolutions.organizacion.domain.valueobject.TenantId;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -272,5 +274,98 @@ class AlmacenTest {
                 .fold(a -> a, error -> { throw new AssertionError(error.message()); });
 
         assertThat(almacen.desactivar(null).isFailure()).isTrue();
+    }
+
+    private static Almacen baseAlmacen() {
+        return Almacen.create(
+                        ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-09", "Almacén base", TipoAlmacen.GENERAL,
+                        true, true, true, true, false, null, null, NOW)
+                .fold(almacen -> almacen, error -> { throw new AssertionError(error.message()); });
+    }
+
+    private static void assertRejected(Result<Almacen, ErrorDetail> result, String field, String message) {
+        assertThat(result.isFailure()).isTrue();
+        result.fold(almacen -> null, error -> {
+            assertThat(error.message()).isEqualTo(message);
+            assertThat(error.metadata()).containsEntry("field", field);
+            return null;
+        });
+    }
+
+    @Test
+    void rejectsRefrigeradoWithoutTemperatureControl() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-10", "Cámara fría", TipoAlmacen.REFRIGERADO,
+                true, true, true, true, false, new BigDecimal("2"), new BigDecimal("8"), NOW);
+
+        assertRejected(result, "controlTemperatura", "Un almacén refrigerado debe controlar temperatura.");
+    }
+
+    @Test
+    void rejectsTemperatureControlWithoutMinimum() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-11", "Sin mínima", TipoAlmacen.GENERAL,
+                true, true, true, true, true, null, new BigDecimal("8"), NOW);
+
+        assertRejected(result, "temperaturaMinC",
+                "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
+    }
+
+    @Test
+    void rejectsTemperatureControlWithoutMaximum() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-12", "Sin máxima", TipoAlmacen.GENERAL,
+                true, true, true, true, true, new BigDecimal("2"), null, NOW);
+
+        assertRejected(result, "temperaturaMinC",
+                "Indica la temperatura mínima y máxima cuando el almacén controla temperatura.");
+    }
+
+    @Test
+    void rejectsMinimumGreaterThanMaximum() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-13", "Rango invertido", TipoAlmacen.GENERAL,
+                true, true, true, true, true, new BigDecimal("8"), new BigDecimal("2"), NOW);
+
+        assertRejected(result, "temperaturaMinC", "La temperatura mínima no puede ser mayor que la máxima.");
+    }
+
+    @Test
+    void acceptsEqualMinimumAndMaximum() {
+        var result = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-14", "Rango puntual", TipoAlmacen.GENERAL,
+                true, true, true, true, true, new BigDecimal("5"), new BigDecimal("5"), NOW);
+
+        assertThat(result.isSuccess()).isTrue();
+    }
+
+    @Test
+    void acceptsASingleTemperatureWhenControlIsOff() {
+        var onlyMaximum = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-15", "Solo máxima", TipoAlmacen.GENERAL,
+                true, true, true, true, false, null, new BigDecimal("8"), NOW);
+        var onlyMinimum = Almacen.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "WH-16", "Solo mínima", TipoAlmacen.GENERAL,
+                true, true, true, true, false, new BigDecimal("2"), null, NOW);
+
+        assertThat(onlyMaximum.isSuccess()).isTrue();
+        assertThat(onlyMinimum.isSuccess()).isTrue();
+    }
+
+    @Test
+    void updateDetailsRejectsRefrigeradoWithoutTemperatureControl() {
+        var result = baseAlmacen().updateDetails(
+                "Cámara fría", TipoAlmacen.REFRIGERADO, true, true, true, true, false, null, null, NOW);
+
+        assertRejected(result, "controlTemperatura", "Un almacén refrigerado debe controlar temperatura.");
+    }
+
+    @Test
+    void updateDetailsAcceptsACoherentTemperatureRange() {
+        var result = baseAlmacen().updateDetails(
+                "Cámara fría", TipoAlmacen.REFRIGERADO, true, true, true, true, true,
+                new BigDecimal("2"), new BigDecimal("8"), NOW);
+
+        assertThat(result.isSuccess()).isTrue();
     }
 }
