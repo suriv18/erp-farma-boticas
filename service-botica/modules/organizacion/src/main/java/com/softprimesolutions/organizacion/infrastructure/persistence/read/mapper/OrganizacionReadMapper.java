@@ -52,4 +52,16 @@ public final class OrganizacionReadMapper {
                 projection.ipEquipo(), projection.impresoraCodigo(), projection.storeEdgeHabilitado(),
                 projection.estado(), projection.createdAt(), projection.updatedAt());
     }
+
+    public static String activeOrInactive(boolean active) {
+        return active ? "ACTIVE" : "INACTIVE";
+    }
+
+    public static String activeOrInactive(String estado) {
+        return activeOrInactive("ACTIVO".equals(estado));
+    }
+
+    public static String establishmentStatus(String estadoOperativo) {
+        return "SUSPENDIDO".equals(estadoOperativo) ? "SUSPENDED" : activeOrInactive(estadoOperativo);
+    }
 }

@@ -109,22 +109,25 @@ public class OrganizacionJdbcReadAdapter implements OrganizacionReadPort {
                 repository.findAllAlmacenes(tenantId), AlmacenProjection::establecimientoUuid,
                 almacen -> new NodoResult(
                         almacen.uuidPublico(), almacen.codigo(), almacen.nombre(),
-                        almacen.activo() ? "ACTIVE" : "INACTIVE"));
+                        OrganizacionReadMapper.activeOrInactive(almacen.activo())));
         var terminales = groupedBy(
                 repository.findAllTerminalesActivos(tenantId), TerminalProjection::establecimientoUuid,
                 terminal -> new NodoResult(
-                        terminal.uuidPublico(), terminal.codigo(), terminal.nombre(), terminal.estado()));
+                        terminal.uuidPublico(), terminal.codigo(), terminal.nombre(),
+                        OrganizacionReadMapper.activeOrInactive(terminal.estado())));
         var establecimientos = groupedBy(
                 repository.findAllEstablecimientosActivos(tenantId), EstablecimientoProjection::empresaUuid,
                 establecimiento -> new EstablecimientoNodoResult(
                         establecimiento.uuidPublico(), establecimiento.codigo(), establecimiento.nombre(),
-                        establecimiento.estadoOperativo(), establecimiento.zonaHoraria(),
+                        OrganizacionReadMapper.establishmentStatus(establecimiento.estadoOperativo()),
+                        establecimiento.zonaHoraria(),
                         almacenes.getOrDefault(establecimiento.uuidPublico(), List.of()),
                         terminales.getOrDefault(establecimiento.uuidPublico(), List.of())));
 
         var companies = repository.findAllEmpresasActivas(tenantId).stream()
                 .map(empresa -> new EmpresaNodoResult(
-                        empresa.uuidPublico(), empresa.razonSocial(), empresa.nombreComercial(), empresa.estado(),
+                        empresa.uuidPublico(), empresa.razonSocial(), empresa.nombreComercial(),
+                        OrganizacionReadMapper.activeOrInactive(empresa.estado()),
                         establecimientos.getOrDefault(empresa.uuidPublico(), List.of())))
                 .toList();
         return new EstructuraCorporativaResult(Instant.now(), companies);

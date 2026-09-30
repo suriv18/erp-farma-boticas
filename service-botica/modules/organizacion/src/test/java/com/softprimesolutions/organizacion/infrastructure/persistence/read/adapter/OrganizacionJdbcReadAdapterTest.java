@@ -26,16 +26,25 @@ class OrganizacionJdbcReadAdapterTest {
     private final OrganizacionJdbcReadAdapter adapter = new OrganizacionJdbcReadAdapter(repository);
 
     private static EmpresaProjection empresa(UUID id, String razonSocial) {
+        return empresa(id, razonSocial, "ACTIVO");
+    }
+
+    private static EmpresaProjection empresa(UUID id, String razonSocial, String estado) {
         return new EmpresaProjection(
                 id, TENANT, "20123456789", razonSocial, "Comercial", "Av. 1", "150101", "01", "a@b.pe",
-                "https://b.pe", "PEN", "America/Lima", false, "ACTIVO", NOW, null);
+                "https://b.pe", "PEN", "America/Lima", false, estado, NOW, null);
     }
 
     private static EstablecimientoProjection establecimiento(UUID id, UUID empresaId, String nombre) {
+        return establecimiento(id, empresaId, nombre, "ACTIVO");
+    }
+
+    private static EstablecimientoProjection establecimiento(
+            UUID id, UUID empresaId, String nombre, String estadoOperativo) {
         return new EstablecimientoProjection(
                 id, TENANT, empresaId, "COD-" + nombre, nombre, "BOTICA", null, "0001", null, "Av. 2", "150101",
                 null, BigDecimal.ONE, BigDecimal.TEN, "01", "e@b.pe", true, false, false, "ONLINE",
-                "America/Lima", "ACTIVO", NOW, NOW);
+                "America/Lima", estadoOperativo, NOW, NOW);
     }
 
     private static AlmacenProjection almacen(UUID id, UUID establecimientoId, String nombre, boolean activo) {
@@ -45,9 +54,13 @@ class OrganizacionJdbcReadAdapterTest {
     }
 
     private static TerminalProjection terminal(UUID id, UUID establecimientoId, String nombre) {
+        return terminal(id, establecimientoId, nombre, "ACTIVO");
+    }
+
+    private static TerminalProjection terminal(UUID id, UUID establecimientoId, String nombre, String estado) {
         return new TerminalProjection(
                 id, TENANT, establecimientoId, "POS-" + nombre, nombre, "B001", "F001", "SN", "host", "10.0.0.1",
-                "IMP", true, "ACTIVO", NOW, null);
+                "IMP", true, estado, NOW, null);
     }
 
     @Test
@@ -160,16 +173,18 @@ class OrganizacionJdbcReadAdapterTest {
         var almacenDeB = UUID.randomUUID();
         var terminalA1 = UUID.randomUUID();
         var terminalB1 = UUID.randomUUID();
+        var terminalBloqueado = UUID.randomUUID();
         when(repository.findAllEmpresasActivas(TENANT)).thenReturn(List.of(
-                empresa(empresaA, "A SAC"), empresa(empresaB, "B SAC"), empresa(empresaVacia, "C SAC")));
+                empresa(empresaA, "A SAC"), empresa(empresaB, "B SAC"), empresa(empresaVacia, "C SAC", "BLOQUEADO")));
         when(repository.findAllEstablecimientosActivos(TENANT)).thenReturn(List.of(
-                establecimiento(estA1, empresaA, "A1"), establecimiento(estA2, empresaA, "A2"),
-                establecimiento(estB1, empresaB, "B1")));
+                establecimiento(estA1, empresaA, "A1"), establecimiento(estA2, empresaA, "A2", "SUSPENDIDO"),
+                establecimiento(estB1, empresaB, "B1", "CLAUSURADO")));
         when(repository.findAllAlmacenes(TENANT)).thenReturn(List.of(
                 almacen(almacenActivo, estA1, "Activo", true), almacen(almacenInactivo, estA1, "Inactivo", false),
                 almacen(almacenDeB, estB1, "DeB", true)));
         when(repository.findAllTerminalesActivos(TENANT)).thenReturn(List.of(
-                terminal(terminalA1, estA1, "Caja A1"), terminal(terminalB1, estB1, "Caja B1")));
+                terminal(terminalA1, estA1, "Caja A1"), terminal(terminalB1, estB1, "Caja B1"),
+                terminal(terminalBloqueado, estB1, "Caja B2", "BLOQUEADO")));
 
         var structure = adapter.findEstructuraCorporativa(TENANT);
 
@@ -184,15 +199,23 @@ class OrganizacionJdbcReadAdapterTest {
         assertThat(establishmentA1.warehouses()).extracting(node -> node.status())
                 .containsExactly("ACTIVE", "INACTIVE");
         assertThat(establishmentA1.cashRegisters()).extracting(node -> node.id()).containsExactly(terminalA1);
-        assertThat(establishmentA1.cashRegisters().get(0).status()).isEqualTo("ACTIVO");
+        assertThat(establishmentA1.cashRegisters().get(0).status()).isEqualTo("ACTIVE");
+        assertThat(establishmentA1.status()).isEqualTo("ACTIVE");
+        assertThat(companyA.status()).isEqualTo("ACTIVE");
         var establishmentA2 = companyA.establishments().get(1);
+        assertThat(establishmentA2.status()).isEqualTo("SUSPENDED");
         assertThat(establishmentA2.warehouses()).isEmpty();
         assertThat(establishmentA2.cashRegisters()).isEmpty();
         var companyB = structure.companies().get(1);
         assertThat(companyB.establishments()).singleElement().satisfies(establishment -> {
             assertThat(establishment.warehouses()).extracting(node -> node.id()).containsExactly(almacenDeB);
-            assertThat(establishment.cashRegisters()).extracting(node -> node.id()).containsExactly(terminalB1);
+            assertThat(establishment.status()).isEqualTo("INACTIVE");
+            assertThat(establishment.cashRegisters()).extracting(node -> node.id())
+                    .containsExactly(terminalB1, terminalBloqueado);
+            assertThat(establishment.cashRegisters()).extracting(node -> node.status())
+                    .containsExactly("ACTIVE", "INACTIVE");
         });
         assertThat(structure.companies().get(2).establishments()).isEmpty();
+        assertThat(structure.companies().get(2).status()).isEqualTo("INACTIVE");
     }
 }
