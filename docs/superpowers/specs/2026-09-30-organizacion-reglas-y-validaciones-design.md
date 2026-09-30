@@ -49,8 +49,8 @@ Los enums `EstadoEmpresaOperadora` y `EstadoEstablecimiento` ganan el método `a
 | Establecimiento | `ACTIVO`, `REMODELACION` | Sí |
 | Establecimiento | `SUSPENDIDO`, `CLAUSURADO` | No (almacenes y cajas nuevos) |
 
-- El adaptador ya carga al padre al guardar un hijo, así que aplica la regla ahí y devuelve `409`. Se añaden los resultados `EMPRESA_NO_OPERATIVA` y `ESTABLECIMIENTO_NO_OPERATIVO`.
-- Mensaje: «El establecimiento está CLAUSURADO; no admite almacenes nuevos.»
+- El adaptador consulta el estado del padre al crear un hijo y devuelve `409`. Se añaden los resultados `EMPRESA_NO_OPERATIVA` y `ESTABLECIMIENTO_NO_OPERATIVO`.
+- Mensaje: «El establecimiento no está operativo (suspendido o clausurado); no admite almacenes nuevos.» (sin nombrar el estado concreto).
 - Editar elementos ya existentes sigue permitido.
 
 ### A4. Almacén coherente

@@ -253,6 +253,106 @@ class OrganizacionApiIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void rejectsAnEmpresaWhoseRucHasAnInvalidCheckDigit() throws Exception {
+        mockMvc.perform(post(BASE + "/empresas").header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON).content(empresaJson("20123456789")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("El RUC no es válido: el dígito verificador no coincide."));
+    }
+
+    @Test
+    void rejectsRepeatedSeriesWithinAnEmpresaButAllowsThemInAnotherOne() throws Exception {
+        var empresaA = createEmpresa("20123456786");
+        var sedeUno = createEstablecimiento(empresaA, "EST001", null);
+        var sedeDos = createEstablecimiento(empresaA, "EST002", null);
+        var empresaB = createEmpresa("20123456794");
+        var sedeTres = createEstablecimiento(empresaB, "EST003", null);
+
+        postTerminal(sedeUno, "POS001", "B001", "F001").andExpect(status().isCreated());
+
+        postTerminal(sedeDos, "POS002", "B001", "F002").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("La serie B001 ya está asignada a otra caja de esta empresa."));
+        postTerminal(sedeDos, "POS002", "B002", "F001").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("La serie F001 ya está asignada a otra caja de esta empresa."));
+        postTerminal(sedeTres, "POS001", "B001", "F001").andExpect(status().isCreated());
+    }
+
+    @Test
+    void rejectsEditingATerminalToASerieUsedByAnotherTerminalOfTheEmpresa() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var sedeId = createEstablecimiento(empresaId, "EST001", null);
+        postTerminal(sedeId, "POS001", "B001", "F001").andExpect(status().isCreated());
+        var segundaCaja = UUID.fromString(JsonPath.read(
+                postTerminal(sedeId, "POS002", "B002", "F002").andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString(), "$.id"));
+
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer())
+                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombre":"Caja 2","serieBoletaDefecto":"B001","serieFacturaDefecto":"F002",
+                                 "storeEdgeHabilitado":false,"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("La serie B001 ya está asignada a otra caja de esta empresa."));
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer())
+                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombre":"Caja 2","serieBoletaDefecto":"B002","serieFacturaDefecto":"F002",
+                                 "storeEdgeHabilitado":false,"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void blocksNewEstablecimientosWhenTheEmpresaIsNotOperational() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        patchEstado("/empresas/{id}/estado", empresaId, "SUSPENDIDO").andExpect(status().isOk());
+
+        mockMvc.perform(post(BASE + "/establecimientos").header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON).content(establecimientoJson(empresaId, "EST001", null)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "La empresa no está operativa (suspendida o bloqueada); no admite establecimientos nuevos."));
+
+        patchEstado("/empresas/{id}/estado", empresaId, "ACTIVO").andExpect(status().isOk());
+        createEstablecimiento(empresaId, "EST001", null);
+    }
+
+    @Test
+    void blocksNewAlmacenesAndTerminalesWhenTheEstablecimientoIsClosedButAllowsThemInRemodelacion()
+            throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var sedeId = createEstablecimiento(empresaId, "EST001", null);
+
+        patchEstado("/establecimientos/{id}/estado", sedeId, "CLAUSURADO").andExpect(status().isOk());
+        postAlmacen(sedeId, "ALM001", "GENERAL", false, "null", "null").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "El establecimiento no está operativo (suspendido o clausurado); no admite almacenes nuevos."));
+        postTerminal(sedeId, "POS001", "B001", "F001").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "El establecimiento no está operativo (suspendido o clausurado); no admite terminales POS nuevos."));
+
+        patchEstado("/establecimientos/{id}/estado", sedeId, "REMODELACION").andExpect(status().isOk());
+        postAlmacen(sedeId, "ALM001", "GENERAL", false, "null", "null").andExpect(status().isCreated());
+        postTerminal(sedeId, "POS001", "B001", "F001").andExpect(status().isCreated());
+    }
+
+    @Test
+    void rejectsAlmacenesWithIncoherentTemperatures() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var sedeId = createEstablecimiento(empresaId, "EST001", null);
+
+        postAlmacen(sedeId, "ALM001", "REFRIGERADO", false, "2", "8").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Un almacén refrigerado debe controlar temperatura."));
+        postAlmacen(sedeId, "ALM002", "GENERAL", true, "null", "8").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        "Indica la temperatura mínima y máxima cuando el almacén controla temperatura."));
+        postAlmacen(sedeId, "ALM003", "REFRIGERADO", true, "8", "2").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("La temperatura mínima no puede ser mayor que la máxima."));
+        postAlmacen(sedeId, "ALM004", "REFRIGERADO", true, "2", "8").andExpect(status().isCreated());
+    }
+
     private org.springframework.test.web.servlet.ResultActions patchEstado(String path, UUID id, String estado)
             throws Exception {
         return mockMvc.perform(patch(BASE + path, id).header("Authorization", bearer())
@@ -282,6 +382,27 @@ class OrganizacionApiIntegrationTest {
                  "serieBoletaDefecto":"B001","serieFacturaDefecto":"F001","numeroSerieEquipo":"SN-001",
                  "hostname":"caja-1","ipEquipo":"10.0.0.15","impresoraCodigo":"IMP01","storeEdgeHabilitado":true}
                 """.formatted(TENANT_ID, establecimientoId)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postTerminal(
+            UUID establecimientoId, String codigo, String serieBoleta, String serieFactura) throws Exception {
+        return mockMvc.perform(post(BASE + "/terminales-pos").header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"tenantId":"%s","establecimientoId":"%s","codigo":"%s","nombre":"Caja",
+                         "serieBoletaDefecto":"%s","serieFacturaDefecto":"%s","storeEdgeHabilitado":false}
+                        """.formatted(TENANT_ID, establecimientoId, codigo, serieBoleta, serieFactura)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postAlmacen(
+            UUID establecimientoId, String codigo, String tipo, boolean controlTemperatura, String min, String max)
+            throws Exception {
+        return mockMvc.perform(post(BASE + "/almacenes").header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"tenantId":"%s","establecimientoId":"%s","codigo":"%s","nombre":"Almacen",
+                         "tipo":"%s","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
+                         "permiteDespacho":true,"controlTemperatura":%s,"temperaturaMinC":%s,
+                         "temperaturaMaxC":%s}
+                        """.formatted(TENANT_ID, establecimientoId, codigo, tipo, controlTemperatura, min, max)));
     }
 
     private UUID created(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request)
