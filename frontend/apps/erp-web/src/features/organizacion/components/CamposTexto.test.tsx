@@ -11,7 +11,13 @@ const CAMPOS: ReadonlyArray<CampoTexto<Valores>> = [
   { name: 'monto', id: 'f-monto', label: 'Monto', inputMode: 'decimal' }
 ];
 
-function Prueba({ onSubmit }: { onSubmit: (v: Valores) => void }) {
+function Prueba({
+  onSubmit,
+  campos = CAMPOS
+}: {
+  onSubmit: (v: Valores) => void;
+  campos?: ReadonlyArray<CampoTexto<Valores>>;
+}) {
   const {
     register,
     handleSubmit,
@@ -31,7 +37,7 @@ function Prueba({ onSubmit }: { onSubmit: (v: Valores) => void }) {
         void handleSubmit(onSubmit)(event);
       }}
     >
-      <CamposTexto fields={CAMPOS} register={register} errors={errors} />
+      <CamposTexto fields={campos} register={register} errors={errors} />
       <button type="submit">Enviar</button>
     </form>
   );
@@ -74,5 +80,21 @@ describe('CamposTexto', () => {
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({ codigo: 'C-1', monto: '12.5' });
     expect(screen.queryByText('Monto requerido')).not.toBeInTheDocument();
+  });
+
+  it('con mayusculas muestra el texto en mayúsculas y envía el valor normalizado', async () => {
+    const onSubmit = vi.fn();
+    const campos: ReadonlyArray<CampoTexto<Valores>> = [
+      { name: 'monto', id: 'f-monto', label: 'Monto', mayusculas: true }
+    ];
+    render(<Prueba onSubmit={onSubmit} campos={campos} />);
+
+    const monto = screen.getByLabelText('Monto');
+    await userEvent.type(monto, ' b0 01 ');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+
+    expect(monto).toHaveClass('uppercase');
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ codigo: 'C-1', monto: 'B001' });
   });
 });

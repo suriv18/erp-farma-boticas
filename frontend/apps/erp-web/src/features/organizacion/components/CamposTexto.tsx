@@ -1,5 +1,6 @@
 import { get } from 'react-hook-form';
 import type { FieldErrors, FieldValues, Path, UseFormRegister } from 'react-hook-form';
+import { aMayusculasSinEspacios } from '../lib/form-values';
 import { TextField } from './FormFields';
 
 export type CampoTexto<T extends FieldValues> = {
@@ -8,6 +9,7 @@ export type CampoTexto<T extends FieldValues> = {
   label: string;
   inputMode?: 'decimal' | 'numeric' | 'text';
   readOnly?: boolean;
+  mayusculas?: boolean;
 };
 
 export type CamposTextoProps<T extends FieldValues> = {
@@ -21,7 +23,7 @@ export function CamposTexto<T extends FieldValues>({
   register,
   errors
 }: CamposTextoProps<T>) {
-  return fields.map(({ name, id, label, inputMode, readOnly }) => (
+  return fields.map(({ name, id, label, inputMode, readOnly, mayusculas }) => (
     <TextField
       key={id}
       id={id}
@@ -29,7 +31,8 @@ export function CamposTexto<T extends FieldValues>({
       error={(get(errors, name) as { message?: string } | undefined)?.message}
       {...(inputMode ? { inputMode } : {})}
       {...(readOnly ? { readOnly } : {})}
-      {...register(name)}
+      {...(mayusculas ? { className: 'uppercase' } : {})}
+      {...register(name, mayusculas ? { setValueAs: aMayusculasSinEspacios } : undefined)}
     />
   ));
 }

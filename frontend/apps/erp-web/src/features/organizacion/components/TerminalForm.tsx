@@ -20,8 +20,18 @@ export type TerminalFormProps = {
 const CAMPOS_TERMINAL: ReadonlyArray<CampoTexto<TerminalFormValues>> = [
   { name: 'codigo', id: 'terminal-codigo', label: 'Código' },
   { name: 'nombre', id: 'terminal-nombre', label: 'Nombre' },
-  { name: 'serieBoletaDefecto', id: 'terminal-serie-boleta', label: 'Serie de boleta' },
-  { name: 'serieFacturaDefecto', id: 'terminal-serie-factura', label: 'Serie de factura' },
+  {
+    name: 'serieBoletaDefecto',
+    id: 'terminal-serie-boleta',
+    label: 'Serie de boleta',
+    mayusculas: true
+  },
+  {
+    name: 'serieFacturaDefecto',
+    id: 'terminal-serie-factura',
+    label: 'Serie de factura',
+    mayusculas: true
+  },
   { name: 'numeroSerieEquipo', id: 'terminal-numero-serie', label: 'Número de serie del equipo' },
   { name: 'hostname', id: 'terminal-hostname', label: 'Hostname' },
   { name: 'ipEquipo', id: 'terminal-ip', label: 'Dirección IP' },

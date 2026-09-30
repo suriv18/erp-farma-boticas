@@ -97,4 +97,18 @@ describe('TerminalForm', () => {
     );
     expect(screen.getByRole('button', { name: 'Crear terminal' })).toBeDisabled();
   });
+
+  it('convierte las series a mayúscula al enviar', async () => {
+    const { onSubmit, user } = renderForm();
+
+    await user.type(screen.getByLabelText('Código'), 'POS003');
+    await user.type(screen.getByLabelText('Nombre'), 'Caja 3');
+    await user.type(screen.getByLabelText('Serie de boleta'), 'b003');
+    await user.type(screen.getByLabelText('Serie de factura'), 'f003');
+    await user.click(screen.getByRole('button', { name: 'Crear terminal' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ serieBoletaDefecto: 'B003', serieFacturaDefecto: 'F003' })
+    );
+  });
 });
