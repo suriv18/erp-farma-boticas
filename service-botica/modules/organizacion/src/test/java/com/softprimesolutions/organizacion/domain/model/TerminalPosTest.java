@@ -5,9 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.softprimesolutions.organizacion.domain.valueobject.EstablecimientoId;
 import com.softprimesolutions.organizacion.domain.valueobject.TenantId;
 import com.softprimesolutions.organizacion.domain.valueobject.TerminalPosId;
+import com.softprimesolutions.shared.kernel.error.ErrorDetail;
+import com.softprimesolutions.shared.kernel.result.Result;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TerminalPosTest {
 
@@ -121,7 +125,7 @@ class TerminalPosTest {
     @Test
     void rejectsNombreTooLong() {
         var result = TerminalPos.create(
-                ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "A".repeat(251), null, null,
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "A".repeat(121), null, null,
                 null, null, null, null, false, NOW);
         assertThat(result.isFailure()).isTrue();
     }
@@ -208,7 +212,7 @@ class TerminalPosTest {
                 .fold(t -> t, error -> { throw new AssertionError(error.message()); });
 
         var result = terminal.updateDetails(
-                "A".repeat(251), null, null, null, null, null, null, false, NOW.plusSeconds(60));
+                "A".repeat(121), null, null, null, null, null, null, false, NOW.plusSeconds(60));
 
         assertThat(result.isFailure()).isTrue();
     }
@@ -260,5 +264,90 @@ class TerminalPosTest {
                 .fold(t -> t, error -> { throw new AssertionError(error.message()); });
 
         assertThat(terminal.cambiarEstado(EstadoTerminalPos.BLOQUEADO, null).isFailure()).isTrue();
+    }
+
+    private static final String BOLETA_MESSAGE =
+            "La serie de boleta debe iniciar con B y tener 4 caracteres alfanuméricos en mayúscula.";
+    private static final String FACTURA_MESSAGE =
+            "La serie de factura debe iniciar con F y tener 4 caracteres alfanuméricos en mayúscula.";
+
+    private static TerminalPos baseTerminal() {
+        return TerminalPos.create(
+                        ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "Caja 1", null, null,
+                        null, null, null, null, false, NOW)
+                .fold(t -> t, error -> { throw new AssertionError(error.message()); });
+    }
+
+    private static void assertRejected(
+            Result<TerminalPos, ErrorDetail> result,
+            String field, String message) {
+        assertThat(result.isFailure()).isTrue();
+        result.fold(t -> null, error -> {
+            assertThat(error.code()).isEqualTo("ORG_TERMINAL_INVALIDO");
+            assertThat(error.message()).isEqualTo(message);
+            assertThat(error.metadata()).containsEntry("field", field);
+            return null;
+        });
+    }
+
+    private static Result<TerminalPos, ErrorDetail> createWithSeries(
+            String boleta, String factura) {
+        return TerminalPos.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "Caja 1", boleta, factura,
+                null, null, null, null, false, NOW);
+    }
+
+    private static Result<TerminalPos, ErrorDetail> updateWithSeries(
+            String boleta, String factura) {
+        return baseTerminal().updateDetails(
+                "Caja 1", boleta, factura, null, null, null, null, false, NOW.plusSeconds(60));
+    }
+
+    @Test
+    void acceptsAlphanumericSeries() {
+        assertThat(createWithSeries("B001", "FA1Z").isSuccess()).isTrue();
+        assertThat(updateWithSeries("BZ9A", "F001").isSuccess()).isTrue();
+    }
+
+    @Test
+    void acceptsNullAndBlankSeries() {
+        assertThat(createWithSeries(null, null).isSuccess()).isTrue();
+        assertThat(createWithSeries(" ", " ").isSuccess()).isTrue();
+        assertThat(updateWithSeries(null, null).isSuccess()).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"b001", "F001", "B01", "B0011", "B0 1"})
+    void rejectsInvalidBoletaSeries(String serie) {
+        assertRejected(createWithSeries(serie, null), "serieBoletaDefecto", BOLETA_MESSAGE);
+        assertRejected(updateWithSeries(serie, null), "serieBoletaDefecto", BOLETA_MESSAGE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"f001", "B001", "F01", "F0011", "F0 1"})
+    void rejectsInvalidFacturaSeries(String serie) {
+        assertRejected(createWithSeries(null, serie), "serieFacturaDefecto", FACTURA_MESSAGE);
+        assertRejected(updateWithSeries(null, serie), "serieFacturaDefecto", FACTURA_MESSAGE);
+    }
+
+    @Test
+    void acceptsNombreOfMaximumLength() {
+        assertThat(TerminalPos.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "A".repeat(120), null, null,
+                null, null, null, null, false, NOW).isSuccess()).isTrue();
+        assertThat(baseTerminal().updateDetails(
+                "A".repeat(120), null, null, null, null, null, null, false, NOW.plusSeconds(60)).isSuccess())
+                .isTrue();
+    }
+
+    @Test
+    void rejectsNombreLongerThanMaximumWithDatabaseAlignedMessage() {
+        assertRejected(TerminalPos.create(
+                ID, TENANT_ID, ESTABLECIMIENTO_ID, "CR-01", "A".repeat(121), null, null,
+                null, null, null, null, false, NOW),
+                "nombre", "El nombre debe tener entre 2 y 120 caracteres.");
+        assertRejected(baseTerminal().updateDetails(
+                "A".repeat(121), null, null, null, null, null, null, false, NOW.plusSeconds(60)),
+                "nombre", "El nombre debe tener entre 2 y 120 caracteres.");
     }
 }

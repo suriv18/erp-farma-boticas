@@ -8,9 +8,13 @@ import com.softprimesolutions.shared.kernel.error.ErrorDetail;
 import com.softprimesolutions.shared.kernel.result.Result;
 import java.time.Instant;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /** Terminal de punto de venta (caja) asociado a un establecimiento. */
 public final class TerminalPos extends AggregateRoot {
+
+    private static final Pattern BOLETA_PATTERN = Pattern.compile("^B[A-Z0-9]{3}$");
+    private static final Pattern FACTURA_PATTERN = Pattern.compile("^F[A-Z0-9]{3}$");
 
     private final TerminalPosId id;
     private final TenantId tenantId;
@@ -66,13 +70,14 @@ public final class TerminalPos extends AggregateRoot {
         }
 
         var normalizedNombre = normalizeSpaces(nombre);
-        if (normalizedNombre == null || normalizedNombre.length() < 2 || normalizedNombre.length() > 250) {
-            return invalid("nombre", "El nombre debe tener entre 2 y 250 caracteres.");
-        }
+        var normalizedBoleta = normalize(serieBoletaDefecto);
+        var normalizedFactura = normalize(serieFacturaDefecto);
+        var detailsError = detailsError(normalizedNombre, normalizedBoleta, normalizedFactura);
+        if (detailsError != null) return Result.failure(detailsError);
 
         return Result.success(new TerminalPos(
                 id, tenantId, establecimientoId, normalizedCodigo, normalizedNombre,
-                normalize(serieBoletaDefecto), normalize(serieFacturaDefecto), normalize(numeroSerieEquipo),
+                normalizedBoleta, normalizedFactura, normalize(numeroSerieEquipo),
                 normalize(hostname), normalize(ipEquipo), normalize(impresoraCodigo), storeEdgeHabilitado,
                 EstadoTerminalPos.ACTIVO, createdAt, null));
     }
@@ -95,13 +100,14 @@ public final class TerminalPos extends AggregateRoot {
         if (updatedAt == null) return invalid("updatedAt", "El instante del cambio es obligatorio.");
 
         var normalizedNombre = normalizeSpaces(nombre);
-        if (normalizedNombre == null || normalizedNombre.length() < 2 || normalizedNombre.length() > 250) {
-            return invalid("nombre", "El nombre debe tener entre 2 y 250 caracteres.");
-        }
+        var normalizedBoleta = normalize(serieBoletaDefecto);
+        var normalizedFactura = normalize(serieFacturaDefecto);
+        var detailsError = detailsError(normalizedNombre, normalizedBoleta, normalizedFactura);
+        if (detailsError != null) return Result.failure(detailsError);
 
         return Result.success(new TerminalPos(
-                id, tenantId, establecimientoId, codigo, normalizedNombre, normalize(serieBoletaDefecto),
-                normalize(serieFacturaDefecto), normalize(numeroSerieEquipo), normalize(hostname),
+                id, tenantId, establecimientoId, codigo, normalizedNombre, normalizedBoleta,
+                normalizedFactura, normalize(numeroSerieEquipo), normalize(hostname),
                 normalize(ipEquipo), normalize(impresoraCodigo), storeEdgeHabilitado, estado,
                 createdAt, updatedAt));
     }
@@ -116,7 +122,26 @@ public final class TerminalPos extends AggregateRoot {
     }
 
     private static <T> Result<T, ErrorDetail> invalid(String field, String message) {
-        return Result.failure(new ErrorDetail("ORG_TERMINAL_INVALIDO", message, Map.of("field", field)));
+        return Result.failure(error(field, message));
+    }
+
+    private static ErrorDetail error(String field, String message) {
+        return new ErrorDetail("ORG_TERMINAL_INVALIDO", message, Map.of("field", field));
+    }
+
+    private static ErrorDetail detailsError(String nombre, String serieBoleta, String serieFactura) {
+        if (nombre == null || nombre.length() < 2 || nombre.length() > 120) {
+            return error("nombre", "El nombre debe tener entre 2 y 120 caracteres.");
+        }
+        if (serieBoleta != null && !BOLETA_PATTERN.matcher(serieBoleta).matches()) {
+            return error("serieBoletaDefecto",
+                    "La serie de boleta debe iniciar con B y tener 4 caracteres alfanuméricos en mayúscula.");
+        }
+        if (serieFactura != null && !FACTURA_PATTERN.matcher(serieFactura).matches()) {
+            return error("serieFacturaDefecto",
+                    "La serie de factura debe iniciar con F y tener 4 caracteres alfanuméricos en mayúscula.");
+        }
+        return null;
     }
 
     private static String normalize(String value) {
