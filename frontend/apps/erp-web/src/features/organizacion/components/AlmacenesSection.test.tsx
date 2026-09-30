@@ -177,7 +177,7 @@ describe('AlmacenesSection', () => {
       () => (
         <AlmacenesSection
           establecimientoId="est-1"
-          motivoSinAltas="El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos."
+          motivoSinAltas="El establecimiento está clausurado; no admite almacenes ni terminales POS nuevos."
         />
       ),
       '/establecimiento'
@@ -188,7 +188,7 @@ describe('AlmacenesSection', () => {
     expect(boton).toBeDisabled();
     expect(boton).toHaveAttribute(
       'title',
-      'El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos.'
+      'El establecimiento está clausurado; no admite almacenes ni terminales POS nuevos.'
     );
   });
 });

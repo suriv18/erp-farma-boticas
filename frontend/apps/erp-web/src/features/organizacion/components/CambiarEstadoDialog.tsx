@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, FormField, Modal, Select } from '@boticas/ui-web';
 import { FormError } from './FormError';
+import { ESTILO_AVISO } from './estilo-aviso';
 import { CheckboxField } from './FormFields';
 
 export type CambiarEstadoDialogProps<T extends string> = {
@@ -55,10 +56,7 @@ export function CambiarEstadoDialog<T extends string>({
           </Select>
         </FormField>
         {consecuencia ? (
-          <div
-            role="note"
-            className="border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-800 dark:bg-warning-900/30 dark:text-warning-300 space-y-3 rounded-lg border px-3 py-3 text-sm"
-          >
+          <div role="note" className={`${ESTILO_AVISO} space-y-3 px-3`}>
             <p>{consecuencia}</p>
             <CheckboxField
               id="confirmar-consecuencias"

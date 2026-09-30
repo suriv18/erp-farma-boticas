@@ -235,7 +235,7 @@ describe('EstablecimientoDetailPage', () => {
     renderPage();
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'El establecimiento está CLAUSURADO; no admite almacenes ni terminales POS nuevos.'
+      'El establecimiento está clausurado; no admite almacenes ni terminales POS nuevos.'
     );
     expect(screen.getByRole('button', { name: 'Nuevo almacén' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Nuevo terminal' })).toBeDisabled();

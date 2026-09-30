@@ -175,7 +175,7 @@ describe('TerminalesSection', () => {
       () => (
         <TerminalesSection
           establecimientoId="est-1"
-          motivoSinAltas="El establecimiento está SUSPENDIDO; no admite almacenes ni terminales POS nuevos."
+          motivoSinAltas="El establecimiento está suspendido; no admite almacenes ni terminales POS nuevos."
         />
       ),
       '/establecimiento'
@@ -186,7 +186,7 @@ describe('TerminalesSection', () => {
     expect(boton).toBeDisabled();
     expect(boton).toHaveAttribute(
       'title',
-      'El establecimiento está SUSPENDIDO; no admite almacenes ni terminales POS nuevos.'
+      'El establecimiento está suspendido; no admite almacenes ni terminales POS nuevos.'
     );
   });
 });

@@ -111,7 +111,7 @@ describe('EstablecimientosSection', () => {
       () => (
         <EstablecimientosSection
           empresaId="empresa-1"
-          motivoSinAltas="La empresa está SUSPENDIDO; no admite establecimientos nuevos."
+          motivoSinAltas="La empresa está suspendida; no admite establecimientos nuevos."
         />
       ),
       '/empresa'
@@ -122,7 +122,7 @@ describe('EstablecimientosSection', () => {
     expect(boton).toBeDisabled();
     expect(boton).toHaveAttribute(
       'title',
-      'La empresa está SUSPENDIDO; no admite establecimientos nuevos.'
+      'La empresa está suspendida; no admite establecimientos nuevos.'
     );
   });
 });

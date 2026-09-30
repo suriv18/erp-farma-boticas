@@ -214,7 +214,7 @@ describe('EmpresaDetailPage', () => {
     renderPage();
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'La empresa está SUSPENDIDO; no admite establecimientos nuevos.'
+      'La empresa está suspendida; no admite establecimientos nuevos.'
     );
     expect(screen.getByRole('button', { name: 'Nuevo establecimiento' })).toBeDisabled();
   });
