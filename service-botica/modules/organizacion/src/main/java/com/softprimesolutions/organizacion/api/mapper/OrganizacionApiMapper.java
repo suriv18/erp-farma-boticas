@@ -4,6 +4,7 @@ import com.softprimesolutions.organizacion.api.dto.request.ActualizarAlmacenRequ
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEstablecimientoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarTerminalPosRequest;
+import com.softprimesolutions.organizacion.api.dto.request.CambiarEstadoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearAlmacenRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEstablecimientoRequest;
@@ -21,6 +22,8 @@ import com.softprimesolutions.organizacion.application.dto.command.ActualizarAlm
 import com.softprimesolutions.organizacion.application.dto.command.ActualizarEmpresaOperadoraCommand;
 import com.softprimesolutions.organizacion.application.dto.command.ActualizarEstablecimientoCommand;
 import com.softprimesolutions.organizacion.application.dto.command.ActualizarTerminalPosCommand;
+import com.softprimesolutions.organizacion.application.dto.command.CambiarEstadoEmpresaCommand;
+import com.softprimesolutions.organizacion.application.dto.command.CambiarEstadoEstablecimientoCommand;
 import com.softprimesolutions.organizacion.application.dto.command.CrearAlmacenCommand;
 import com.softprimesolutions.organizacion.application.dto.command.CrearEmpresaOperadoraCommand;
 import com.softprimesolutions.organizacion.application.dto.command.CrearEstablecimientoCommand;
@@ -168,6 +171,16 @@ public final class OrganizacionApiMapper {
     public static EstructuraCorporativaResponse toResponse(EstructuraCorporativaResult result) {
         return new EstructuraCorporativaResponse(
                 result.asOf(), result.companies().stream().map(OrganizacionApiMapper::toResponse).toList());
+    }
+
+    public static CambiarEstadoEmpresaCommand toCambiarEstadoEmpresaCommand(
+            UUID empresaId, UUID tenantId, CambiarEstadoRequest request) {
+        return new CambiarEstadoEmpresaCommand(empresaId, tenantId, request.estado());
+    }
+
+    public static CambiarEstadoEstablecimientoCommand toCambiarEstadoEstablecimientoCommand(
+            UUID establecimientoId, UUID tenantId, CambiarEstadoRequest request) {
+        return new CambiarEstadoEstablecimientoCommand(establecimientoId, tenantId, request.estado());
     }
 
     private static <S, T> PaginaResponse<T> toPage(PaginaResult<S> result, Function<S, T> mapper) {

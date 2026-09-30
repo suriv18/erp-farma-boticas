@@ -1,11 +1,13 @@
 package com.softprimesolutions.organizacion.api.controller;
 
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEmpresaOperadoraRequest;
+import com.softprimesolutions.organizacion.api.dto.request.CambiarEstadoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.mapper.OrganizacionApiMapper;
 import com.softprimesolutions.organizacion.application.dto.query.ListarEmpresasQuery;
 import com.softprimesolutions.organizacion.application.dto.query.ObtenerEmpresaQuery;
 import com.softprimesolutions.organizacion.application.port.in.ActualizarEmpresaOperadoraUseCase;
+import com.softprimesolutions.organizacion.application.port.in.CambiarEstadoEmpresaUseCase;
 import com.softprimesolutions.organizacion.application.port.in.CrearEmpresaOperadoraUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ListarEmpresasUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ObtenerEmpresaUseCase;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -36,16 +39,19 @@ public class EmpresaOperadoraController {
     private final ActualizarEmpresaOperadoraUseCase updateEmpresa;
     private final ListarEmpresasUseCase listEmpresas;
     private final ObtenerEmpresaUseCase getEmpresa;
+    private final CambiarEstadoEmpresaUseCase changeEmpresaStatus;
 
     public EmpresaOperadoraController(
             CrearEmpresaOperadoraUseCase createEmpresa,
             ActualizarEmpresaOperadoraUseCase updateEmpresa,
             ListarEmpresasUseCase listEmpresas,
-            ObtenerEmpresaUseCase getEmpresa) {
+            ObtenerEmpresaUseCase getEmpresa,
+            CambiarEstadoEmpresaUseCase changeEmpresaStatus) {
         this.createEmpresa = createEmpresa;
         this.updateEmpresa = updateEmpresa;
         this.listEmpresas = listEmpresas;
         this.getEmpresa = getEmpresa;
+        this.changeEmpresaStatus = changeEmpresaStatus;
     }
 
     @PostMapping
@@ -84,6 +90,18 @@ public class EmpresaOperadoraController {
             @RequestParam UUID tenantId,
             @Valid @RequestBody ActualizarEmpresaOperadoraRequest request) {
         return updateEmpresa.execute(OrganizacionApiMapper.toCommand(empresaId, tenantId, request)).fold(
+                result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
+                OrganizacionControllerSupport::problem);
+    }
+
+    @PatchMapping("/{empresaId}/estado")
+    @PreAuthorize("hasAuthority('organizacion.empresas.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID empresaId,
+            @RequestParam UUID tenantId,
+            @Valid @RequestBody CambiarEstadoRequest request) {
+        return changeEmpresaStatus.execute(
+                OrganizacionApiMapper.toCambiarEstadoEmpresaCommand(empresaId, tenantId, request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }

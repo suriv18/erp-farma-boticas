@@ -1,11 +1,13 @@
 package com.softprimesolutions.organizacion.api.controller;
 
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEstablecimientoRequest;
+import com.softprimesolutions.organizacion.api.dto.request.CambiarEstadoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEstablecimientoRequest;
 import com.softprimesolutions.organizacion.api.mapper.OrganizacionApiMapper;
 import com.softprimesolutions.organizacion.application.dto.query.ListarEstablecimientosQuery;
 import com.softprimesolutions.organizacion.application.dto.query.ObtenerEstablecimientoQuery;
 import com.softprimesolutions.organizacion.application.port.in.ActualizarEstablecimientoUseCase;
+import com.softprimesolutions.organizacion.application.port.in.CambiarEstadoEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.in.CrearEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ListarEstablecimientosUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ObtenerEstablecimientoUseCase;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -36,16 +39,19 @@ public class EstablecimientoController {
     private final ActualizarEstablecimientoUseCase updateEstablecimiento;
     private final ListarEstablecimientosUseCase listEstablecimientos;
     private final ObtenerEstablecimientoUseCase getEstablecimiento;
+    private final CambiarEstadoEstablecimientoUseCase changeEstablecimientoStatus;
 
     public EstablecimientoController(
             CrearEstablecimientoUseCase createEstablecimiento,
             ActualizarEstablecimientoUseCase updateEstablecimiento,
             ListarEstablecimientosUseCase listEstablecimientos,
-            ObtenerEstablecimientoUseCase getEstablecimiento) {
+            ObtenerEstablecimientoUseCase getEstablecimiento,
+            CambiarEstadoEstablecimientoUseCase changeEstablecimientoStatus) {
         this.createEstablecimiento = createEstablecimiento;
         this.updateEstablecimiento = updateEstablecimiento;
         this.listEstablecimientos = listEstablecimientos;
         this.getEstablecimiento = getEstablecimiento;
+        this.changeEstablecimientoStatus = changeEstablecimientoStatus;
     }
 
     @PostMapping
@@ -87,6 +93,19 @@ public class EstablecimientoController {
             @Valid @RequestBody ActualizarEstablecimientoRequest request) {
         return updateEstablecimiento.execute(
                 OrganizacionApiMapper.toCommand(establecimientoId, tenantId, request)).fold(
+                result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
+                OrganizacionControllerSupport::problem);
+    }
+
+    @PatchMapping("/{establecimientoId}/estado")
+    @PreAuthorize("hasAuthority('organizacion.establecimientos.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID establecimientoId,
+            @RequestParam UUID tenantId,
+            @Valid @RequestBody CambiarEstadoRequest request) {
+        return changeEstablecimientoStatus.execute(
+                OrganizacionApiMapper.toCambiarEstadoEstablecimientoCommand(
+                        establecimientoId, tenantId, request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }

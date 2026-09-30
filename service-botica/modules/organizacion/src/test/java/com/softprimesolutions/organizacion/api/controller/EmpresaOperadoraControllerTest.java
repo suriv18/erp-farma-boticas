@@ -3,6 +3,7 @@ package com.softprimesolutions.organizacion.api.controller;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.EMPRESA;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TENANT;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarEmpresaRequest;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.cambiarEstadoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearEmpresaRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.empresaResult;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.page;
@@ -19,9 +20,11 @@ class EmpresaOperadoraControllerTest {
 
     private final EmpresaOperadoraController succeeding = new EmpresaOperadoraController(
             command -> ok(empresaResult()), command -> ok(empresaResult()),
-            query -> ok(page(empresaResult())), query -> ok(empresaResult()));
+            query -> ok(page(empresaResult())), query -> ok(empresaResult()),
+            command -> ok(empresaResult()));
     private final EmpresaOperadoraController failing = new EmpresaOperadoraController(
-            command -> conflict(), command -> conflict(), query -> conflict(), query -> conflict());
+            command -> conflict(), command -> conflict(), query -> conflict(), query -> conflict(),
+            command -> conflict());
 
     @Test
     void createsAnEmpresaAndReturnsItsLocation() {
@@ -63,5 +66,16 @@ class EmpresaOperadoraControllerTest {
     @Test
     void mapsUpdateFailuresToProblemDetails() {
         assertConflict(failing.update(EMPRESA, TENANT, actualizarEmpresaRequest()));
+    }
+
+    @Test
+    void changesTheStatusOfAnEmpresa() {
+        assertOk(succeeding.changeStatus(EMPRESA, TENANT, cambiarEstadoRequest("SUSPENDIDO")),
+                OrganizacionApiMapper.toResponse(empresaResult()));
+    }
+
+    @Test
+    void mapsStatusChangeFailuresToProblemDetails() {
+        assertConflict(failing.changeStatus(EMPRESA, TENANT, cambiarEstadoRequest("SUSPENDIDO")));
     }
 }

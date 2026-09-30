@@ -10,6 +10,7 @@ import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.ac
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarEstablecimientoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarTerminalRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.almacenResult;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.cambiarEstadoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearAlmacenRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearEmpresaRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearEstablecimientoRequest;
@@ -20,6 +21,8 @@ import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.pa
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.terminalResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.softprimesolutions.organizacion.application.dto.command.CambiarEstadoEmpresaCommand;
+import com.softprimesolutions.organizacion.application.dto.command.CambiarEstadoEstablecimientoCommand;
 import com.softprimesolutions.organizacion.application.dto.result.EmpresaNodoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoNodoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstructuraCorporativaResult;
@@ -109,5 +112,17 @@ class OrganizacionApiMapperTest {
 
         assertThat(response).usingRecursiveComparison().isEqualTo(structure);
         assertThat(response.companies().get(0).establishments().get(0).cashRegisters()).hasSize(1);
+    }
+
+    @Test
+    void mapsTheStatusChangeRequestToTheCommandOfEachEntity() {
+        var empresa = OrganizacionApiMapper.toCambiarEstadoEmpresaCommand(
+                EMPRESA, TENANT, cambiarEstadoRequest("SUSPENDIDO"));
+        var establecimiento = OrganizacionApiMapper.toCambiarEstadoEstablecimientoCommand(
+                ESTABLECIMIENTO, TENANT, cambiarEstadoRequest("CLAUSURADO"));
+
+        assertThat(empresa).isEqualTo(new CambiarEstadoEmpresaCommand(EMPRESA, TENANT, "SUSPENDIDO"));
+        assertThat(establecimiento)
+                .isEqualTo(new CambiarEstadoEstablecimientoCommand(ESTABLECIMIENTO, TENANT, "CLAUSURADO"));
     }
 }

@@ -4,6 +4,7 @@ import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.EM
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.ESTABLECIMIENTO;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TENANT;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarEstablecimientoRequest;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.cambiarEstadoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearEstablecimientoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.establecimientoResult;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.page;
@@ -20,9 +21,11 @@ class EstablecimientoControllerTest {
 
     private final EstablecimientoController succeeding = new EstablecimientoController(
             command -> ok(establecimientoResult()), command -> ok(establecimientoResult()),
-            query -> ok(page(establecimientoResult())), query -> ok(establecimientoResult()));
+            query -> ok(page(establecimientoResult())), query -> ok(establecimientoResult()),
+            command -> ok(establecimientoResult()));
     private final EstablecimientoController failing = new EstablecimientoController(
-            command -> conflict(), command -> conflict(), query -> conflict(), query -> conflict());
+            command -> conflict(), command -> conflict(), query -> conflict(), query -> conflict(),
+            command -> conflict());
 
     @Test
     void createsAnEstablecimientoAndReturnsItsLocation() {
@@ -66,5 +69,16 @@ class EstablecimientoControllerTest {
     @Test
     void mapsUpdateFailuresToProblemDetails() {
         assertConflict(failing.update(ESTABLECIMIENTO, TENANT, actualizarEstablecimientoRequest()));
+    }
+
+    @Test
+    void changesTheStatusOfAnEstablecimiento() {
+        assertOk(succeeding.changeStatus(ESTABLECIMIENTO, TENANT, cambiarEstadoRequest("CLAUSURADO")),
+                OrganizacionApiMapper.toResponse(establecimientoResult()));
+    }
+
+    @Test
+    void mapsStatusChangeFailuresToProblemDetails() {
+        assertConflict(failing.changeStatus(ESTABLECIMIENTO, TENANT, cambiarEstadoRequest("CLAUSURADO")));
     }
 }

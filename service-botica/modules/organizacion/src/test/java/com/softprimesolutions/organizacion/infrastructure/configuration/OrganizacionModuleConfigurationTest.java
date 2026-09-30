@@ -35,6 +35,8 @@ class OrganizacionModuleConfigurationTest {
         assertThat(configuration.actualizarAlmacenUseCase(readPort, writePort, clock)).isNotNull();
         assertThat(configuration.crearTerminalPosUseCase(writePort, identifiers, clock)).isNotNull();
         assertThat(configuration.actualizarTerminalPosUseCase(readPort, writePort, clock)).isNotNull();
+        assertThat(configuration.cambiarEstadoEmpresaUseCase(readPort, writePort, clock)).isNotNull();
+        assertThat(configuration.cambiarEstadoEstablecimientoUseCase(readPort, writePort, clock)).isNotNull();
     }
 
     @Test

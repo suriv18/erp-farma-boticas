@@ -4,6 +4,8 @@ import com.softprimesolutions.organizacion.application.port.in.ActualizarAlmacen
 import com.softprimesolutions.organizacion.application.port.in.ActualizarEmpresaOperadoraUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ActualizarEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ActualizarTerminalPosUseCase;
+import com.softprimesolutions.organizacion.application.port.in.CambiarEstadoEmpresaUseCase;
+import com.softprimesolutions.organizacion.application.port.in.CambiarEstadoEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.in.CrearAlmacenUseCase;
 import com.softprimesolutions.organizacion.application.port.in.CrearEmpresaOperadoraUseCase;
 import com.softprimesolutions.organizacion.application.port.in.CrearEstablecimientoUseCase;
@@ -23,6 +25,8 @@ import com.softprimesolutions.organizacion.application.usecase.command.Actualiza
 import com.softprimesolutions.organizacion.application.usecase.command.ActualizarEmpresaOperadoraHandler;
 import com.softprimesolutions.organizacion.application.usecase.command.ActualizarEstablecimientoHandler;
 import com.softprimesolutions.organizacion.application.usecase.command.ActualizarTerminalPosHandler;
+import com.softprimesolutions.organizacion.application.usecase.command.CambiarEstadoEmpresaHandler;
+import com.softprimesolutions.organizacion.application.usecase.command.CambiarEstadoEstablecimientoHandler;
 import com.softprimesolutions.organizacion.application.usecase.command.CrearAlmacenHandler;
 import com.softprimesolutions.organizacion.application.usecase.command.CrearEmpresaOperadoraHandler;
 import com.softprimesolutions.organizacion.application.usecase.command.CrearEstablecimientoHandler;
@@ -73,6 +77,18 @@ public class OrganizacionModuleConfiguration {
     ActualizarEmpresaOperadoraUseCase actualizarEmpresaOperadoraUseCase(
             OrganizacionReadPort readPort, OrganizacionWritePort writePort, ClockPort organizacionClockPort) {
         return new ActualizarEmpresaOperadoraHandler(readPort, writePort, organizacionClockPort);
+    }
+
+    @Bean
+    CambiarEstadoEmpresaUseCase cambiarEstadoEmpresaUseCase(
+            OrganizacionReadPort readPort, OrganizacionWritePort writePort, ClockPort organizacionClockPort) {
+        return new CambiarEstadoEmpresaHandler(readPort, writePort, organizacionClockPort);
+    }
+
+    @Bean
+    CambiarEstadoEstablecimientoUseCase cambiarEstadoEstablecimientoUseCase(
+            OrganizacionReadPort readPort, OrganizacionWritePort writePort, ClockPort organizacionClockPort) {
+        return new CambiarEstadoEstablecimientoHandler(readPort, writePort, organizacionClockPort);
     }
 
     @Bean

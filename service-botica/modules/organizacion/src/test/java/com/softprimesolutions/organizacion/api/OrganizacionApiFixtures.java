@@ -4,6 +4,7 @@ import com.softprimesolutions.organizacion.api.dto.request.ActualizarAlmacenRequ
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEstablecimientoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarTerminalPosRequest;
+import com.softprimesolutions.organizacion.api.dto.request.CambiarEstadoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearAlmacenRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEstablecimientoRequest;
@@ -34,6 +35,10 @@ public final class OrganizacionApiFixtures {
             "ORG_CONFLICTO", "Conflicto de prueba.", ErrorCategory.CONFLICT);
 
     private OrganizacionApiFixtures() {
+    }
+
+    public static CambiarEstadoRequest cambiarEstadoRequest(String estado) {
+        return new CambiarEstadoRequest(estado);
     }
 
     public static <T> PaginaResult<T> page(T item) {
