@@ -9,6 +9,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "almacen", schema = "sch_organizacion")
@@ -36,7 +38,7 @@ public class AlmacenJpaEntity {
     @Column(nullable = false, length = 150)
     private String nombre;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private String tipo;
 
     @Column(name = "permite_lotes", nullable = false)
@@ -54,13 +56,14 @@ public class AlmacenJpaEntity {
     @Column(name = "control_temperatura", nullable = false)
     private boolean controlTemperatura;
 
-    @Column(name = "temperatura_min_c", precision = 5, scale = 2)
+    @Column(name = "temperatura_min_c", precision = 6, scale = 2)
     private BigDecimal temperaturaMinC;
 
-    @Column(name = "temperatura_max_c", precision = 5, scale = 2)
+    @Column(name = "temperatura_max_c", precision = 6, scale = 2)
     private BigDecimal temperaturaMaxC;
 
-    @Column(name = "es_activo", nullable = false, length = 1)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "es_activo", nullable = false, length = 1, columnDefinition = "CHAR(1)")
     private String esActivo;
 
     @Column(name = "created_at", nullable = false)

@@ -10,7 +10,7 @@ public record CrearAlmacenRequest(
         @NotNull UUID tenantId,
         @NotNull UUID establecimientoId,
         @NotBlank @Size(min = 1, max = 40) String codigo,
-        @NotBlank @Size(min = 2, max = 250) String nombre,
+        @NotBlank @Size(min = 2, max = 150) String nombre,
         @NotBlank String tipo,
         boolean permiteLotes,
         boolean permiteVencimiento,

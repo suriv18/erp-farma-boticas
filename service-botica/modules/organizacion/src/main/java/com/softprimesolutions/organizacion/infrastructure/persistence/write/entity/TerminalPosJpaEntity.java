@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Table(name = "terminal_pos", schema = "sch_organizacion")
@@ -32,25 +33,26 @@ public class TerminalPosJpaEntity {
     @Column(nullable = false, length = 40)
     private String codigo;
 
-    @Column(nullable = false, length = 150)
+    @Column(nullable = false, length = 120)
     private String nombre;
 
-    @Column(name = "serie_boleta_defecto", length = 10)
+    @Column(name = "serie_boleta_defecto", length = 4)
     private String serieBoletaDefecto;
 
-    @Column(name = "serie_factura_defecto", length = 10)
+    @Column(name = "serie_factura_defecto", length = 4)
     private String serieFacturaDefecto;
 
-    @Column(name = "numero_serie_equipo", length = 100)
+    @Column(name = "numero_serie_equipo", length = 120)
     private String numeroSerieEquipo;
 
     @Column(length = 150)
     private String hostname;
 
-    @Column(name = "ip_equipo")
+    @ColumnTransformer(read = "CAST(ip_equipo AS text)", write = "CAST(? AS inet)")
+    @Column(name = "ip_equipo", columnDefinition = "inet")
     private String ipEquipo;
 
-    @Column(name = "impresora_codigo", length = 60)
+    @Column(name = "impresora_codigo", length = 100)
     private String impresoraCodigo;
 
     @Column(name = "store_edge_habilitado", nullable = false)

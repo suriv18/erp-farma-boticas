@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 public record ActualizarAlmacenRequest(
-        @NotBlank @Size(min = 2, max = 250) String nombre,
+        @NotBlank @Size(min = 2, max = 150) String nombre,
         @NotBlank String tipo,
         boolean permiteLotes,
         boolean permiteVencimiento,

@@ -63,7 +63,7 @@ public class EstablecimientoJpaEntity {
     @Column(length = 40)
     private String telefono;
 
-    @Column
+    @Column(columnDefinition = "citext")
     private String email;
 
     @Column(name = "es_principal", nullable = false)

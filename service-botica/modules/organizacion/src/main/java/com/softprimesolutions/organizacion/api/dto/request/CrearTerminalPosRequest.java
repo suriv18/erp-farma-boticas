@@ -9,12 +9,12 @@ public record CrearTerminalPosRequest(
         @NotNull UUID tenantId,
         @NotNull UUID establecimientoId,
         @NotBlank @Size(min = 1, max = 40) String codigo,
-        @NotBlank @Size(min = 2, max = 250) String nombre,
-        @Size(max = 10) String serieBoletaDefecto,
-        @Size(max = 10) String serieFacturaDefecto,
-        @Size(max = 100) String numeroSerieEquipo,
+        @NotBlank @Size(min = 2, max = 120) String nombre,
+        @Size(max = 4) String serieBoletaDefecto,
+        @Size(max = 4) String serieFacturaDefecto,
+        @Size(max = 120) String numeroSerieEquipo,
         @Size(max = 150) String hostname,
         String ipEquipo,
-        @Size(max = 60) String impresoraCodigo,
+        @Size(max = 100) String impresoraCodigo,
         boolean storeEdgeHabilitado) {
 }

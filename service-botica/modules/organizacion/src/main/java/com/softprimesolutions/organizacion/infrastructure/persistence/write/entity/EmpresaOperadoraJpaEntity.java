@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "empresa_operadora", schema = "sch_organizacion")
@@ -41,13 +43,14 @@ public class EmpresaOperadoraJpaEntity {
     @Column(length = 40)
     private String telefono;
 
-    @Column
+    @Column(columnDefinition = "citext")
     private String email;
 
     @Column(name = "sitio_web", length = 300)
     private String sitioWeb;
 
-    @Column(name = "moneda_funcional", nullable = false, length = 3)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "moneda_funcional", nullable = false, length = 3, columnDefinition = "CHAR(3)")
     private String monedaFuncional;
 
     @Column(name = "zona_horaria", nullable = false, length = 80)
