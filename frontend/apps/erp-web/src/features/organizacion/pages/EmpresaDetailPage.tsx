@@ -1,27 +1,24 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button, Card, EstadoBadge, Modal, PageHeader } from '@boticas/ui-web';
+import { Button, Card, EstadoBadge, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import { actualizarEmpresa, cambiarEstadoEmpresa, empresaQuery } from '../api/empresas.api';
+import { cambiarEstadoEmpresa, empresaQuery } from '../api/empresas.api';
 import { ESTADOS_EMPRESA, type EstadoEmpresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
 import { Aviso } from '../components/Aviso';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
-import { EmpresaForm } from '../components/EmpresaForm';
+import { EmpresaEditarDialog } from '../components/EmpresaEditarDialog';
 import { EstablecimientosSection } from '../components/EstablecimientosSection';
 import { FormError } from '../components/FormError';
 import { motivoSinAltasEmpresa } from '../lib/altas';
 import { CONSECUENCIAS_ESTADO_EMPRESA } from '../lib/consecuencias-estado';
 import { describeApiError } from '../lib/describe-api-error';
-import { toEmpresaFormValues } from '../lib/form-defaults';
-import { toActualizarEmpresaPayload } from '../lib/form-payloads';
 import { valueOrDash, yesNo } from '../lib/format';
 import { useRouteParam } from '../lib/use-route-param';
 import { useTenantId } from '../lib/use-tenant-id';
-import type { EmpresaFormValues } from '../schemas/empresa.schema';
 
 export function EmpresaDetailPage() {
   const empresaId = useRouteParam('empresaId');
@@ -32,15 +29,6 @@ export function EmpresaDetailPage() {
 
   const result = useQuery({ ...empresaQuery(tenantId, empresaId), enabled: tenantId !== '' });
 
-  const updateMutation = useMutation({
-    mutationFn: (values: EmpresaFormValues) =>
-      actualizarEmpresa(apiClient, empresaId, tenantId, toActualizarEmpresaPayload(values)),
-    onSuccess: () => {
-      setEditOpen(false);
-      void invalidateOrganizacion(queryClient);
-    }
-  });
-
   const stateMutation = useMutation({
     mutationFn: (estado: EstadoEmpresa) =>
       cambiarEstadoEmpresa(apiClient, empresaId, tenantId, estado),
@@ -49,11 +37,6 @@ export function EmpresaDetailPage() {
       void invalidateOrganizacion(queryClient);
     }
   });
-
-  const closeEdit = () => {
-    setEditOpen(false);
-    updateMutation.reset();
-  };
 
   const closeState = () => {
     setStateOpen(false);
@@ -108,16 +91,9 @@ export function EmpresaDetailPage() {
 
       <EstablecimientosSection empresaId={empresaId} motivoSinAltas={motivoSinAltas} />
 
-      <Modal open={editOpen} onClose={closeEdit} title="Editar empresa" size="lg">
-        <EmpresaForm
-          isEdit
-          defaultValues={toEmpresaFormValues(empresa)}
-          submitLabel="Guardar cambios"
-          isSubmitting={updateMutation.isPending}
-          error={updateMutation.isError ? describeApiError(updateMutation.error) : null}
-          onSubmit={(values) => updateMutation.mutate(values)}
-        />
-      </Modal>
+      {editOpen ? (
+        <EmpresaEditarDialog empresa={empresa} onClose={() => setEditOpen(false)} />
+      ) : null}
 
       {stateOpen ? (
         <CambiarEstadoDialog
