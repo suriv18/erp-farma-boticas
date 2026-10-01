@@ -16,7 +16,7 @@ function renderSection() {
 }
 
 describe('EstablecimientosSection', () => {
-  it('lista los establecimientos de la empresa con enlace al detalle', async () => {
+  it('lista los establecimientos de la empresa con acciones', async () => {
     let received = new URLSearchParams();
     server.use(
       http.get(listUrl, ({ request }) => {
@@ -27,8 +27,13 @@ describe('EstablecimientosSection', () => {
 
     renderSection();
 
-    const link = await screen.findByRole('link', { name: 'Botica Central' });
-    expect(link).toHaveAttribute('href', '/organizacion/establecimientos/est-1');
+    expect(await screen.findByText('Botica Central')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Botica Central' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver detalle de Botica Central' })).toHaveAttribute(
+      'href',
+      '/organizacion/establecimientos/est-1'
+    );
+    expect(screen.getByRole('button', { name: 'Editar Botica Central' })).toBeInTheDocument();
     expect(screen.getByText('EST001')).toBeInTheDocument();
     expect(screen.getByText('ONLINE')).toBeInTheDocument();
     expect(screen.getByText('ACTIVO')).toBeInTheDocument();
@@ -67,7 +72,7 @@ describe('EstablecimientosSection', () => {
     await user.type(screen.getByLabelText('Nombre'), 'Botica Central');
     await user.click(screen.getByRole('button', { name: 'Crear establecimiento' }));
 
-    expect(await screen.findByRole('link', { name: 'Botica Central' })).toBeInTheDocument();
+    expect(await screen.findByText('Botica Central')).toBeInTheDocument();
     expect(created).toMatchObject({
       tenantId: 'tenant-1',
       empresaId: 'empresa-1',
@@ -102,6 +107,45 @@ describe('EstablecimientosSection', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
     await user.click(screen.getByRole('button', { name: 'Nuevo establecimiento' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('edita un establecimiento desde la lista sin salir de la página', async () => {
+    let nombre = 'Botica Central';
+    let body: Record<string, unknown> = {};
+    server.use(
+      http.get(listUrl, () => HttpResponse.json(pagina([{ ...sampleEstablecimiento, nombre }]))),
+      http.put(`${listUrl}/est-1`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        nombre = String(body.nombre);
+        return HttpResponse.json({ ...sampleEstablecimiento, nombre });
+      })
+    );
+    const { user, router } = renderSection();
+    await screen.findByText('Botica Central');
+
+    await user.click(screen.getByRole('button', { name: 'Editar Botica Central' }));
+    expect(screen.getByRole('heading', { name: 'Editar establecimiento' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Código', { exact: true })).toHaveAttribute('readonly');
+    const campoNombre = screen.getByLabelText('Nombre', { exact: true });
+    await user.clear(campoNombre);
+    await user.type(campoNombre, 'Botica Principal');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Botica Principal')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(body).toMatchObject({ nombre: 'Botica Principal' });
+    expect(router.state.location.pathname).toBe('/empresa');
+  });
+
+  it('cierra el modal de edición con Cerrar sin guardar', async () => {
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([sampleEstablecimiento]))));
+    const { user } = renderSection();
+    await screen.findByText('Botica Central');
+
+    await user.click(screen.getByRole('button', { name: 'Editar Botica Central' }));
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('deshabilita el alta y explica el motivo cuando la empresa no admite altas', async () => {

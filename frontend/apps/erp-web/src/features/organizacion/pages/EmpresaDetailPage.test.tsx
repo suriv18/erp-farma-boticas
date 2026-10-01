@@ -42,7 +42,7 @@ describe('EmpresaDetailPage', () => {
       'href',
       '/organizacion/empresas'
     );
-    expect(await screen.findByRole('link', { name: 'Botica Central' })).toBeInTheDocument();
+    expect(await screen.findByText('Botica Central')).toBeInTheDocument();
   });
 
   it('muestra el estado de carga inicial', () => {
