@@ -1,13 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button, Card, EstadoBadge, Modal, PageHeader } from '@boticas/ui-web';
+import { Button, Card, EstadoBadge, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import {
-  actualizarEstablecimiento,
-  cambiarEstadoEstablecimiento,
-  establecimientoQuery
-} from '../api/establecimientos.api';
+import { cambiarEstadoEstablecimiento, establecimientoQuery } from '../api/establecimientos.api';
 import { ESTADOS_ESTABLECIMIENTO, type EstadoEstablecimiento } from '../api/establecimientos.types';
 import { invalidateOrganizacion } from '../api/invalidate';
 import { AlmacenesSection } from '../components/AlmacenesSection';
@@ -15,19 +11,16 @@ import { Aviso } from '../components/Aviso';
 import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
-import { EstablecimientoForm } from '../components/EstablecimientoForm';
+import { EstablecimientoEditarDialog } from '../components/EstablecimientoEditarDialog';
 import { FormError } from '../components/FormError';
 import { TerminalesSection } from '../components/TerminalesSection';
 import { motivoSinAltasEstablecimiento } from '../lib/altas';
 import { CONSECUENCIAS_ESTADO_ESTABLECIMIENTO } from '../lib/consecuencias-estado';
 import { describeApiError } from '../lib/describe-api-error';
-import { toEstablecimientoFormValues } from '../lib/form-defaults';
-import { toActualizarEstablecimientoPayload } from '../lib/form-payloads';
 import { numberOrEmpty } from '../lib/form-values';
 import { valueOrDash, yesNo } from '../lib/format';
 import { useRouteParam } from '../lib/use-route-param';
 import { useTenantId } from '../lib/use-tenant-id';
-import type { EstablecimientoFormValues } from '../schemas/establecimiento.schema';
 
 export function EstablecimientoDetailPage() {
   const establecimientoId = useRouteParam('establecimientoId');
@@ -41,20 +34,6 @@ export function EstablecimientoDetailPage() {
     enabled: tenantId !== ''
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (values: EstablecimientoFormValues) =>
-      actualizarEstablecimiento(
-        apiClient,
-        establecimientoId,
-        tenantId,
-        toActualizarEstablecimientoPayload(values)
-      ),
-    onSuccess: () => {
-      setEditOpen(false);
-      void invalidateOrganizacion(queryClient);
-    }
-  });
-
   const stateMutation = useMutation({
     mutationFn: (estado: EstadoEstablecimiento) =>
       cambiarEstadoEstablecimiento(apiClient, establecimientoId, tenantId, estado),
@@ -63,11 +42,6 @@ export function EstablecimientoDetailPage() {
       void invalidateOrganizacion(queryClient);
     }
   });
-
-  const closeEdit = () => {
-    setEditOpen(false);
-    updateMutation.reset();
-  };
 
   const closeState = () => {
     setStateOpen(false);
@@ -138,16 +112,12 @@ export function EstablecimientoDetailPage() {
       <AlmacenesSection establecimientoId={establecimientoId} motivoSinAltas={motivoSinAltas} />
       <TerminalesSection establecimientoId={establecimientoId} motivoSinAltas={motivoSinAltas} />
 
-      <Modal open={editOpen} onClose={closeEdit} title="Editar establecimiento" size="lg">
-        <EstablecimientoForm
-          isEdit
-          defaultValues={toEstablecimientoFormValues(establecimiento)}
-          submitLabel="Guardar cambios"
-          isSubmitting={updateMutation.isPending}
-          error={updateMutation.isError ? describeApiError(updateMutation.error) : null}
-          onSubmit={(values) => updateMutation.mutate(values)}
+      {editOpen ? (
+        <EstablecimientoEditarDialog
+          establecimiento={establecimiento}
+          onClose={() => setEditOpen(false)}
         />
-      </Modal>
+      ) : null}
 
       {stateOpen ? (
         <CambiarEstadoDialog
