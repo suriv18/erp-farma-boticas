@@ -12,7 +12,7 @@ function renderPage() {
 }
 
 describe('EmpresasPage', () => {
-  it('lista las empresas con enlace al detalle, nombre comercial y estado', async () => {
+  it('lista las empresas con acciones, nombre comercial y estado', async () => {
     server.use(
       http.get(listUrl, () =>
         HttpResponse.json(
@@ -32,12 +32,16 @@ describe('EmpresasPage', () => {
 
     renderPage();
 
-    const link = await screen.findByRole('link', { name: 'Boticas SAC' });
-    expect(link).toHaveAttribute('href', '/organizacion/empresas/empresa-1');
-    expect(screen.getByRole('link', { name: 'Inversiones Andinas SAC' })).toHaveAttribute(
+    expect(await screen.findByText('Boticas SAC')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Boticas SAC' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver detalle de Boticas SAC' })).toHaveAttribute(
       'href',
-      '/organizacion/empresas/empresa-2'
+      '/organizacion/empresas/empresa-1'
     );
+    expect(
+      screen.getByRole('link', { name: 'Ver detalle de Inversiones Andinas SAC' })
+    ).toHaveAttribute('href', '/organizacion/empresas/empresa-2');
+    expect(screen.getByRole('button', { name: 'Editar Boticas SAC' })).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(screen.getByText('Andinas')).toBeInTheDocument();
     expect(screen.getByText('ACTIVO')).toBeInTheDocument();
@@ -110,13 +114,52 @@ describe('EmpresasPage', () => {
     await user.type(screen.getByLabelText('Razón social'), 'Boticas SAC');
     await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
 
-    expect(await screen.findByRole('link', { name: 'Boticas SAC' })).toBeInTheDocument();
+    expect(await screen.findByText('Boticas SAC')).toBeInTheDocument();
     expect(created).toMatchObject({
       tenantId: 'tenant-1',
       ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN'
     });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('edita una empresa desde la lista sin salir de la página', async () => {
+    let razonSocial = 'Boticas SAC';
+    let body: Record<string, unknown> = {};
+    server.use(
+      http.get(listUrl, () => HttpResponse.json(pagina([{ ...sampleEmpresa, razonSocial }]))),
+      http.put(`${listUrl}/empresa-1`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        razonSocial = String(body.razonSocial);
+        return HttpResponse.json({ ...sampleEmpresa, razonSocial });
+      })
+    );
+    const { user, router } = renderPage();
+    await screen.findByText('Boticas SAC');
+
+    await user.click(screen.getByRole('button', { name: 'Editar Boticas SAC' }));
+    expect(screen.getByRole('heading', { name: 'Editar empresa' })).toBeInTheDocument();
+    expect(screen.getByLabelText('RUC')).toHaveAttribute('readonly');
+    const razon = screen.getByLabelText('Razón social');
+    await user.clear(razon);
+    await user.type(razon, 'Boticas del Perú SAC');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Boticas del Perú SAC')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(body).toMatchObject({ razonSocial: 'Boticas del Perú SAC' });
+    expect(router.state.location.pathname).toBe('/organizacion/empresas');
+  });
+
+  it('cierra el modal de edición con Cerrar sin guardar', async () => {
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([sampleEmpresa]))));
+    const { user } = renderPage();
+    await screen.findByText('Boticas SAC');
+
+    await user.click(screen.getByRole('button', { name: 'Editar Boticas SAC' }));
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

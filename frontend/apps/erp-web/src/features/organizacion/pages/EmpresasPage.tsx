@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import { Button, DataTable, EstadoBadge, ListFilters, Modal, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { crearEmpresa, empresasQuery } from '../api/empresas.api';
 import type { Empresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
+import { AccionesFila } from '../components/AccionesFila';
+import { EmpresaEditarDialog } from '../components/EmpresaEditarDialog';
 import { EmpresaForm } from '../components/EmpresaForm';
 import { describeApiError } from '../lib/describe-api-error';
 import { valueOrDash } from '../lib/format';
@@ -17,6 +18,7 @@ export function EmpresasPage() {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<Empresa | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -63,19 +65,19 @@ export function EmpresasPage() {
         <DataTable<Empresa>
           columns={[
             { header: 'RUC', cell: (row) => row.ruc },
-            {
-              header: 'Razón social',
-              cell: (row) => (
-                <Link
-                  className="text-primary-700 dark:text-primary-400 font-semibold hover:underline"
-                  to={`/organizacion/empresas/${row.id}`}
-                >
-                  {row.razonSocial}
-                </Link>
-              )
-            },
+            { header: 'Razón social', cell: (row) => row.razonSocial },
             { header: 'Nombre comercial', cell: (row) => valueOrDash(row.nombreComercial) },
-            { header: 'Estado', cell: (row) => <EstadoBadge status={row.estado} /> }
+            { header: 'Estado', cell: (row) => <EstadoBadge status={row.estado} /> },
+            {
+              header: 'Acciones',
+              cell: (row) => (
+                <AccionesFila
+                  nombre={row.razonSocial}
+                  detalleHref={`/organizacion/empresas/${row.id}`}
+                  onEditar={() => setEditing(row)}
+                />
+              )
+            }
           ]}
           rows={data?.items ?? []}
           rowKey={(row) => row.id}
@@ -102,6 +104,8 @@ export function EmpresasPage() {
           error={createMutation.isError ? describeApiError(createMutation.error) : null}
         />
       </Modal>
+
+      {editing ? <EmpresaEditarDialog empresa={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }
