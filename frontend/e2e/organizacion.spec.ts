@@ -34,13 +34,17 @@ test.describe('Organización', () => {
     await crearEmpresa(page, '20999999990', 'PRUEBA UI Boticas SAC');
 
     await expect(page.getByRole('dialog')).toBeHidden();
-    await expect(page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Ver detalle de PRUEBA UI Boticas SAC' })
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.getByLabel('Buscar empresa').fill('no-existe');
     await expect(page.getByText('Aún no hay empresas registradas.')).toBeVisible();
     await page.getByLabel('Buscar empresa').fill('PRUEBA');
-    await expect(page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Ver detalle de PRUEBA UI Boticas SAC' })
+    ).toBeVisible();
 
     await crearEmpresa(page, '20999999990', 'Otra razón social');
 
@@ -71,6 +75,24 @@ test.describe('Organización', () => {
     await expect(page.getByText('Aún no hay empresas registradas.')).toBeVisible();
   });
 
+  test('edita una empresa desde la lista sin salir de la página', async ({ page }) => {
+    await abrirSesionEn(page, '/organizacion/empresas');
+    await crearEmpresa(page, '20999999990', 'PRUEBA UI Boticas SAC');
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    await page.getByRole('button', { name: 'Editar PRUEBA UI Boticas SAC' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'Editar empresa' })).toBeVisible();
+    await expect(dialog.getByLabel('RUC')).toHaveAttribute('readonly', '');
+    await dialog.getByLabel('Nombre comercial').fill('UI Boticas');
+    await dialog.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByText('UI Boticas', { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/organizacion\/empresas$/);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test('rechaza un RUC con dígito verificador inválido sin cerrar el formulario', async ({
     page
   }) => {
@@ -90,7 +112,7 @@ test.describe('Organización', () => {
     test.setTimeout(90_000);
     await abrirSesionEn(page, '/organizacion/empresas');
     await crearEmpresa(page, '20999999990', 'PRUEBA UI Boticas SAC');
-    await page.getByRole('link', { name: 'PRUEBA UI Boticas SAC' }).click();
+    await page.getByRole('link', { name: 'Ver detalle de PRUEBA UI Boticas SAC' }).click();
 
     await expect(
       page.getByRole('heading', { name: 'PRUEBA UI Boticas SAC', exact: true })
@@ -130,7 +152,20 @@ test.describe('Organización', () => {
     await nuevoEstablecimiento.getByLabel('Nombre', { exact: true }).fill('Botica UI Central');
     await nuevoEstablecimiento.getByRole('button', { name: 'Crear establecimiento' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
-    await page.getByRole('link', { name: 'Botica UI Central' }).click();
+    await page.getByRole('button', { name: 'Editar Botica UI Central' }).click();
+    const editarEstablecimiento = page.getByRole('dialog');
+    await expect(
+      editarEstablecimiento.getByRole('heading', { name: 'Editar establecimiento' })
+    ).toBeVisible();
+    await expect(editarEstablecimiento.getByLabel('Código', { exact: true })).toHaveAttribute(
+      'readonly',
+      ''
+    );
+    await editarEstablecimiento.getByLabel('Referencia').fill('Frente al parque');
+    await editarEstablecimiento.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page).toHaveURL(/\/organizacion\/empresas\/[^/]+$/);
+    await page.getByRole('link', { name: 'Ver detalle de Botica UI Central' }).click();
 
     await expect(
       page.getByRole('heading', { name: 'Botica UI Central', exact: true })
