@@ -12,6 +12,7 @@ dependencies {
     implementation 'org.springframework.data:spring-data-jpa'
     implementation 'org.springframework.security:spring-security-core'
     implementation 'org.springframework.security:spring-security-web'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
     implementation 'jakarta.persistence:jakarta.persistence-api'
     compileOnly 'jakarta.servlet:jakarta.servlet-api'
     compileOnly 'org.hibernate.orm:hibernate-core'

@@ -145,6 +145,9 @@ public final class SKUComercial extends AggregateRoot {
         }
 
         var normalizedUnidadVentaCodigo = normalizeUpper(unidadVentaCodigo);
+        if (normalizedUnidadVentaCodigo == null) {
+            return invalid("unidadVentaCodigo", "La unidad de venta es obligatoria.");
+        }
         if (!withinLength(normalizedUnidadVentaCodigo, CODIGO_REFERENCIA_MAX_LENGTH)) {
             return invalid("unidadVentaCodigo", "El código de unidad de venta no debe exceder 30 caracteres.");
         }
@@ -250,6 +253,16 @@ public final class SKUComercial extends AggregateRoot {
                         existing.vigenteHasta(), existing.estado()))
                 .toList();
         return copyWithCodigosBarra(new ArrayList<>(nuevaLista));
+    }
+
+    public SKUComercial conActualizacion(String actor, Instant at) {
+        return new SKUComercial(
+                id, tenantId, productoReguladoId, categoriaId, marcaId, tipoSku, codigoInterno,
+                descripcionComercial, nombreCorto, presentacionComercial, unidadVentaCodigo, contenido,
+                unidadContenidoCodigo, pesoGramos, altoCm, anchoCm, largoCm, permiteVentaFraccion,
+                factorFraccion, unidadFraccionCodigo, requiereLote, requiereVencimiento, afectoIgv,
+                stockMinimoDefault, stockMaximoDefault, imagenUri, codigosBarra, estado, createdBy, createdAt,
+                actor, at);
     }
 
     private SKUComercial copyWithCodigosBarra(List<CodigoBarraSku> nuevaLista) {

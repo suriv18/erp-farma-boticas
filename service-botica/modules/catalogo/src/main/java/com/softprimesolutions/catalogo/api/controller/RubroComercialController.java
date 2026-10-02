@@ -1,6 +1,6 @@
 package com.softprimesolutions.catalogo.api.controller;
 
-import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.RubroComercialRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
 import com.softprimesolutions.catalogo.application.dto.query.ConsultarRubroComercialQuery;
@@ -16,6 +16,8 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -53,8 +55,10 @@ public class RubroComercialController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('catalogo.rubros-comerciales.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody RubroComercialRequest request) {
-        return createRubroComercial.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+    public ResponseEntity<?> create(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RubroComercialRequest request) {
+        return createRubroComercial.execute(
+                        CatalogoApiMapper.toCreateCommand(CatalogoControllerSupport.tenantOf(jwt), request)).fold(
                 result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -62,8 +66,10 @@ public class RubroComercialController {
     @PutMapping("/{rubroComercialId}")
     @PreAuthorize("hasAuthority('catalogo.rubros-comerciales.gestionar')")
     public ResponseEntity<?> update(
-            @PathVariable UUID rubroComercialId, @Valid @RequestBody RubroComercialRequest request) {
-        return updateRubroComercial.execute(CatalogoApiMapper.toUpdateCommand(rubroComercialId, request)).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID rubroComercialId,
+            @Valid @RequestBody RubroComercialRequest request) {
+        return updateRubroComercial.execute(CatalogoApiMapper.toUpdateCommand(
+                        CatalogoControllerSupport.tenantOf(jwt), rubroComercialId, request)).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -71,15 +77,16 @@ public class RubroComercialController {
     @PatchMapping("/{rubroComercialId}/estado")
     @PreAuthorize("hasAuthority('catalogo.rubros-comerciales.gestionar')")
     public ResponseEntity<?> changeStatus(
-            @PathVariable UUID rubroComercialId, @Valid @RequestBody CambiarEstadoTenantRequest request) {
-        return control.changeRubroComercialStatus(request.tenantId(), rubroComercialId, request.status()).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID rubroComercialId, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeRubroComercialStatus(CatalogoControllerSupport.tenantOf(jwt), rubroComercialId, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
     }
 
     @GetMapping("/{rubroComercialId}")
     @PreAuthorize("hasAuthority('catalogo.rubros-comerciales.consultar')")
-    public ResponseEntity<?> get(@PathVariable UUID rubroComercialId, @RequestParam UUID tenantId) {
-        return getRubroComercial.execute(new ConsultarRubroComercialQuery(tenantId, rubroComercialId)).fold(
+    public ResponseEntity<?> get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID rubroComercialId) {
+        return getRubroComercial.execute(
+                        new ConsultarRubroComercialQuery(CatalogoControllerSupport.tenantOf(jwt), rubroComercialId)).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -87,14 +94,14 @@ public class RubroComercialController {
     @GetMapping
     @PreAuthorize("hasAuthority('catalogo.rubros-comerciales.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean esFarmaceutico,
             @RequestParam(required = false) String estado,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return listRubrosComerciales.execute(
-                        new ListarRubrosComercialesQuery(tenantId, q, esFarmaceutico, estado, page, size))
+                        new ListarRubrosComercialesQuery(CatalogoControllerSupport.tenantOf(jwt), q, esFarmaceutico, estado, page, size))
                 .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toRubroComercialPage(result)),
                         CatalogoControllerSupport::problem);
     }

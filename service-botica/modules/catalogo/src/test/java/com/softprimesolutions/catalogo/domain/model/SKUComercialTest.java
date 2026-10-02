@@ -24,7 +24,7 @@ class SKUComercialTest {
     void createsANoRegulatedSkuWithoutProductoRegulado() {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-001",
-                "Alcohol en gel 250ml", null, null, null, null, null, null, null, null, null,
+                "Alcohol en gel 250ml", null, null, "UND", null, null, null, null, null, null,
                 false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isSuccess());
@@ -37,7 +37,7 @@ class SKUComercialTest {
     void rejectsARegulatedSkuWithoutProductoRegulado() {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.REGULADO, "SKU-002",
-                "Paracetamol 500mg", null, null, null, null, null, null, null, null, null,
+                "Paracetamol 500mg", null, null, "UND", null, null, null, null, null, null,
                 false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isFailure());
@@ -49,7 +49,7 @@ class SKUComercialTest {
         var productoReguladoId = new ProductoReguladoId(UUID.randomUUID());
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, productoReguladoId, null, null, TipoSku.REGULADO, "SKU-003",
-                "Paracetamol 500mg", null, null, null, null, null, null, null, null, null,
+                "Paracetamol 500mg", null, null, "UND", null, null, null, null, null, null,
                 false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
 
         assertTrue(result.isSuccess());
@@ -59,7 +59,7 @@ class SKUComercialTest {
     void rejectsAFactorFraccionWhenVentaFraccionIsDisabled() {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-004",
-                "Producto fraccionable", null, null, null, null, null, null, null, null, null,
+                "Producto fraccionable", null, null, "UND", null, null, null, null, null, null,
                 false, new BigDecimal("0.5"), null, true, true, true, BigDecimal.ZERO, null, null, "test",
                 CREATED_AT);
 
@@ -71,7 +71,7 @@ class SKUComercialTest {
     void rejectsStockMaximoBelowStockMinimo() {
         var result = SKUComercial.create(
                 SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-005",
-                "Producto con stock", null, null, null, null, null, null, null, null, null,
+                "Producto con stock", null, null, "UND", null, null, null, null, null, null,
                 false, null, null, true, true, true, new BigDecimal("10"), new BigDecimal("5"), null, "test",
                 CREATED_AT);
 
@@ -83,7 +83,7 @@ class SKUComercialTest {
     void managesBarcodesAsAnImmutableCollection() {
         var sku = SKUComercial.create(
                         SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-006",
-                        "Alcohol en gel", null, null, null, null, null, null, null, null, null,
+                        "Alcohol en gel", null, null, "UND", null, null, null, null, null, null,
                         false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT)
                 .getOrElse(error -> null);
 
@@ -100,5 +100,37 @@ class SKUComercialTest {
 
         var sinCodigoUno = conPrincipalCambiado.sinCodigoBarra("7501234567890");
         assertEquals(1, sinCodigoUno.codigosBarra().size());
+    }
+
+    @Test
+    void requiresTheUnidadVentaCodigo() {
+        for (var unidad : new String[] {null, "   "}) {
+            var result = SKUComercial.create(
+                    SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-007",
+                    "Alcohol en gel", null, null, unidad, null, null, null, null, null, null,
+                    false, null, null, true, true, true, BigDecimal.ZERO, null, null, "test", CREATED_AT);
+
+            assertTrue(result.isFailure());
+            assertEquals("CAT_SKU_INVALIDO", result.fold(value -> null, error -> error.code()));
+            assertEquals("La unidad de venta es obligatoria.", result.fold(value -> null, error -> error.message()));
+        }
+    }
+
+    @Test
+    void recordsWhoAndWhenUpdatedItKeepingTheCreationData() {
+        var sku = SKUComercial.create(
+                        SKU_ID, TENANT_ID, null, null, null, TipoSku.NO_REGULADO, "SKU-008",
+                        "Alcohol en gel", null, null, "UND", null, null, null, null, null, null,
+                        false, null, null, true, true, true, BigDecimal.ZERO, null, null, "creador", CREATED_AT)
+                .getOrElse(error -> null);
+        var at = Instant.parse("2026-09-08T10:00:00Z");
+
+        var updated = sku.conActualizacion("7b1d9c3e-4f2a-4e8b-9c6d-5a3f1e2d4c7b", at);
+
+        assertEquals("7b1d9c3e-4f2a-4e8b-9c6d-5a3f1e2d4c7b", updated.updatedBy());
+        assertEquals(at, updated.updatedAt());
+        assertEquals("creador", updated.createdBy());
+        assertEquals(CREATED_AT, updated.createdAt());
+        assertEquals("SKU-008", updated.codigoInterno());
     }
 }

@@ -9,7 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.softprimesolutions.security.application.port.out.PasswordHashPort;
 import com.softprimesolutions.testsupport.PostgresTestContainerConfiguration;
+import com.softprimesolutions.testsupport.RealLogin;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +21,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,20 +39,39 @@ class CatalogoSoporteApiIntegrationTest {
     @Autowired
     private JdbcClient jdbcClient;
 
+    @Autowired
+    private PasswordHashPort passwordHash;
+
+    private RealLogin realLogin;
+    private String noPermissions;
+    private String soporteAdmin;
+    private String principiosActivosAdmin;
+    private String viewer;
+
     @BeforeEach
-    void resetCanonicalFixtures() {
+    void resetCanonicalFixturesAndLogIn() throws Exception {
         jdbcClient.sql("DELETE FROM sch_catalogo.principio_activo").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.clasificacion_controlada").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.condicion_venta").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.forma_farmaceutica").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.via_administracion").update();
         jdbcClient.sql("DELETE FROM sch_catalogo.unidad_medida").update();
+        var tenantId = UUID.fromString("c3a5e7f9-1b2d-4c6e-8a0b-4d6f8a0c2e4f");
+        jdbcClient.sql("""
+                        INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
+                        VALUES (:tenantId, 'CATSOP', 'Tenant soporte', 'tenant-soporte', 'test')
+                        """).param("tenantId", tenantId).update();
+        realLogin = new RealLogin(jdbcClient, mockMvc, passwordHash);
+        soporteAdmin = realLogin.login(tenantId, "soporte.admin", "^catalogo\\.soporte\\.").bearer();
+        principiosActivosAdmin = realLogin.login(
+                tenantId, "principios.admin", "^catalogo\\.principios-activos\\.").bearer();
+        viewer = realLogin.login(tenantId, "soporte.sin.permisos", null).bearer();
     }
 
     @Test
     void managesCondicionVentaCreateUpdateStatusAndList() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/condiciones-venta")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -71,7 +92,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.estado").value("ACTIVO"));
 
         mockMvc.perform(put("/api/v1/catalogo/condiciones-venta/{codigo}", "VENTA_LIBRE")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -90,13 +111,13 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.requiereRetencion").value(true));
 
         mockMvc.perform(patch("/api/v1/catalogo/condiciones-venta/{codigo}/estado", "VENTA_LIBRE")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/catalogo/condiciones-venta").with(soporteAdmin()))
+        mockMvc.perform(get("/api/v1/catalogo/condiciones-venta").header("Authorization", soporteAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].codigo").value("VENTA_LIBRE"))
                 .andExpect(jsonPath("$[0].estado").value("INACTIVO"));
@@ -105,7 +126,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void managesFormaFarmaceuticaCreateUpdateStatusAndList() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/formas-farmaceuticas")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -117,7 +138,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.estado").value("ACTIVO"));
 
         mockMvc.perform(put("/api/v1/catalogo/formas-farmaceuticas/{codigo}", "TABLETA")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -127,13 +148,13 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.denominacion").value("Tableta recubierta"));
 
         mockMvc.perform(patch("/api/v1/catalogo/formas-farmaceuticas/{codigo}/estado", "TABLETA")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/catalogo/formas-farmaceuticas").with(soporteAdmin()))
+        mockMvc.perform(get("/api/v1/catalogo/formas-farmaceuticas").header("Authorization", soporteAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].codigo").value("TABLETA"))
                 .andExpect(jsonPath("$[0].estado").value("INACTIVO"));
@@ -142,7 +163,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void managesViaAdministracionCreateUpdateStatusAndList() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/vias-administracion")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -154,7 +175,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.estado").value("ACTIVO"));
 
         mockMvc.perform(put("/api/v1/catalogo/vias-administracion/{codigo}", "ORAL")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -164,13 +185,13 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.denominacion").value("Via oral actualizada"));
 
         mockMvc.perform(patch("/api/v1/catalogo/vias-administracion/{codigo}/estado", "ORAL")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/catalogo/vias-administracion").with(soporteAdmin()))
+        mockMvc.perform(get("/api/v1/catalogo/vias-administracion").header("Authorization", soporteAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].codigo").value("ORAL"))
                 .andExpect(jsonPath("$[0].estado").value("INACTIVO"));
@@ -179,7 +200,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void managesUnidadMedidaCreateUpdateStatusAndList() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/unidades-medida")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -198,7 +219,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.estado").value("ACTIVO"));
 
         mockMvc.perform(put("/api/v1/catalogo/unidades-medida/{codigo}", "MG")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -215,13 +236,13 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.permiteDecimal").value(false));
 
         mockMvc.perform(patch("/api/v1/catalogo/unidades-medida/{codigo}/estado", "MG")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/catalogo/unidades-medida").with(soporteAdmin()))
+        mockMvc.perform(get("/api/v1/catalogo/unidades-medida").header("Authorization", soporteAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].codigo").value("MG"))
                 .andExpect(jsonPath("$[0].estado").value("INACTIVO"));
@@ -230,7 +251,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void managesClasificacionControladaCreateUpdateStatusAndList() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/clasificaciones-controladas")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -251,7 +272,7 @@ class CatalogoSoporteApiIntegrationTest {
 
         // El PUT de este controller toma el codigo del BODY (no del path variable).
         mockMvc.perform(put("/api/v1/catalogo/clasificaciones-controladas/{codigo}", "LISTA_II")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -270,13 +291,13 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.vigenciaRecetaDias").value(15));
 
         mockMvc.perform(patch("/api/v1/catalogo/clasificaciones-controladas/{codigo}/estado", "LISTA_II")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/catalogo/clasificaciones-controladas").with(soporteAdmin()))
+        mockMvc.perform(get("/api/v1/catalogo/clasificaciones-controladas").header("Authorization", soporteAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].codigo").value("LISTA_II"))
                 .andExpect(jsonPath("$[0].estado").value("INACTIVO"));
@@ -285,7 +306,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void managesPrincipioActivoCreateUpdateStatusListAndRejectsDuplicateDenomination() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/principios-activos")
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -303,7 +324,7 @@ class CatalogoSoporteApiIntegrationTest {
         String principioActivoId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(put("/api/v1/catalogo/principios-activos/{principioActivoId}", principioActivoId)
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -318,14 +339,14 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.denominacion").value("Paracetamol 500mg"));
 
         mockMvc.perform(patch("/api/v1/catalogo/principios-activos/{principioActivoId}/estado", principioActivoId)
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"INACTIVO\"}"))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/catalogo/principios-activos")
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .param("texto", "Paracetamol"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(principioActivoId))
@@ -334,7 +355,7 @@ class CatalogoSoporteApiIntegrationTest {
         // La denominacion "Paracetamol 500mg" ya existe (indice unico uk_principio_activo_nombre):
         // el handler de creacion traduce la violacion de integridad a un ApplicationError de conflicto.
         mockMvc.perform(post("/api/v1/catalogo/principios-activos")
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -352,7 +373,7 @@ class CatalogoSoporteApiIntegrationTest {
     @Test
     void deniesCatalogoSoporteAdministrationWithoutTheRequiredPermission() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/condiciones-venta")
-                        .with(SecurityMockMvcRequestPostProcessors.user("viewer"))
+                        .header("Authorization", viewer)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -366,7 +387,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/v1/catalogo/principios-activos")
-                        .with(SecurityMockMvcRequestPostProcessors.user("viewer"))
+                        .header("Authorization", viewer)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -375,14 +396,14 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/v1/catalogo/condiciones-venta")
-                        .with(SecurityMockMvcRequestPostProcessors.user("viewer")))
+                        .header("Authorization", viewer))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void returnsProblemDetailsForInvalidHttpInput() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/condiciones-venta")
-                        .with(soporteAdmin())
+                        .header("Authorization", soporteAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -397,7 +418,7 @@ class CatalogoSoporteApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
 
         mockMvc.perform(post("/api/v1/catalogo/principios-activos")
-                        .with(principiosActivosAdmin())
+                        .header("Authorization", principiosActivosAdmin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -405,17 +426,5 @@ class CatalogoSoporteApiIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
-    }
-
-    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor soporteAdmin() {
-        return SecurityMockMvcRequestPostProcessors.user("catalogo-soporte-admin").authorities(
-                new SimpleGrantedAuthority("catalogo.soporte.gestionar"),
-                new SimpleGrantedAuthority("catalogo.soporte.consultar"));
-    }
-
-    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor principiosActivosAdmin() {
-        return SecurityMockMvcRequestPostProcessors.user("catalogo-principios-activos-admin").authorities(
-                new SimpleGrantedAuthority("catalogo.principios-activos.gestionar"),
-                new SimpleGrantedAuthority("catalogo.principios-activos.consultar"));
     }
 }

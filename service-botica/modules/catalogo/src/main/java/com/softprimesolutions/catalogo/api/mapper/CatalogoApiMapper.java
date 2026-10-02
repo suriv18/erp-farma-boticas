@@ -199,13 +199,13 @@ public final class CatalogoApiMapper {
                 result.fuente(), result.estado());
     }
 
-    public static CrearMarcaCommand toCreateCommand(MarcaRequest request) {
-        return new CrearMarcaCommand(request.tenantId(), request.codigo(), request.nombre(), request.descripcion());
+    public static CrearMarcaCommand toCreateCommand(UUID tenantId, MarcaRequest request) {
+        return new CrearMarcaCommand(tenantId, request.codigo(), request.nombre(), request.descripcion());
     }
 
-    public static ActualizarMarcaCommand toUpdateCommand(UUID marcaId, MarcaRequest request) {
+    public static ActualizarMarcaCommand toUpdateCommand(UUID tenantId, UUID marcaId, MarcaRequest request) {
         return new ActualizarMarcaCommand(
-                request.tenantId(), marcaId, request.codigo(), request.nombre(), request.descripcion());
+                tenantId, marcaId, request.codigo(), request.nombre(), request.descripcion());
     }
 
     public static MarcaResponse toResponse(MarcaResult result) {
@@ -220,15 +220,16 @@ public final class CatalogoApiMapper {
                 result.page(), result.size(), result.totalElements());
     }
 
-    public static CrearCategoriaProductoCommand toCreateCommand(CategoriaProductoRequest request) {
+    public static CrearCategoriaProductoCommand toCreateCommand(UUID tenantId, CategoriaProductoRequest request) {
         return new CrearCategoriaProductoCommand(
-                request.tenantId(), request.categoriaPadreId(), request.codigo(), request.nombre(),
+                tenantId, request.categoriaPadreId(), request.codigo(), request.nombre(),
                 request.descripcion(), request.nivel(), request.orden());
     }
 
-    public static ActualizarCategoriaProductoCommand toUpdateCommand(UUID categoriaId, CategoriaProductoRequest request) {
+    public static ActualizarCategoriaProductoCommand toUpdateCommand(
+            UUID tenantId, UUID categoriaId, CategoriaProductoRequest request) {
         return new ActualizarCategoriaProductoCommand(
-                request.tenantId(), categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
+                tenantId, categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
                 request.descripcion(), request.nivel(), request.orden());
     }
 
@@ -245,16 +246,16 @@ public final class CatalogoApiMapper {
                 result.page(), result.size(), result.totalElements());
     }
 
-    public static CrearRubroComercialCommand toCreateCommand(RubroComercialRequest request) {
+    public static CrearRubroComercialCommand toCreateCommand(UUID tenantId, RubroComercialRequest request) {
         return new CrearRubroComercialCommand(
-                request.tenantId(), request.codigo(), request.nombre(), request.descripcion(),
+                tenantId, request.codigo(), request.nombre(), request.descripcion(),
                 request.esFarmaceutico(), request.orden());
     }
 
     public static ActualizarRubroComercialCommand toUpdateCommand(
-            UUID rubroComercialId, RubroComercialRequest request) {
+            UUID tenantId, UUID rubroComercialId, RubroComercialRequest request) {
         return new ActualizarRubroComercialCommand(
-                request.tenantId(), rubroComercialId, request.codigo(), request.nombre(), request.descripcion(),
+                tenantId, rubroComercialId, request.codigo(), request.nombre(), request.descripcion(),
                 request.esFarmaceutico(), request.orden());
     }
 
@@ -333,9 +334,9 @@ public final class CatalogoApiMapper {
                 result.page(), result.size(), result.totalElements());
     }
 
-    public static CrearSkuCommand toCreateCommand(SkuRequest request, String createdBy) {
+    public static CrearSkuCommand toCreateCommand(UUID tenantId, SkuRequest request, String createdBy) {
         return new CrearSkuCommand(
-                request.tenantId(), request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                tenantId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
                 request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
@@ -345,9 +346,10 @@ public final class CatalogoApiMapper {
                 request.imagenUri(), createdBy);
     }
 
-    public static ActualizarSkuCommand toUpdateCommand(UUID skuId, SkuRequest request, String updatedBy) {
+    public static ActualizarSkuCommand toUpdateCommand(
+            UUID tenantId, UUID skuId, SkuRequest request, String updatedBy) {
         return new ActualizarSkuCommand(
-                request.tenantId(), skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                tenantId, skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
                 request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),

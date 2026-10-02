@@ -44,13 +44,13 @@ public class RubroComercialJpaEntity {
     @Column(name = "es_activo", nullable = false, length = 1, columnDefinition = "CHAR(1)")
     private String esActivo;
 
-    @Column(name = "created_by", nullable = false, length = 15)
+    @Column(name = "created_by", nullable = false, length = 36)
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_by", length = 15)
+    @Column(name = "updated_by", length = 36)
     private String updatedBy;
 
     @Column(name = "updated_at")

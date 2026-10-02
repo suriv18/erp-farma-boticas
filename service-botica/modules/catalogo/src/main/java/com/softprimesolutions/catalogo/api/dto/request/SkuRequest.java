@@ -1,13 +1,11 @@
 package com.softprimesolutions.catalogo.api.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.UUID;
 
 public record SkuRequest(
-        @NotNull UUID tenantId,
         UUID productoReguladoId,
         UUID categoriaId,
         UUID marcaId,
@@ -16,7 +14,7 @@ public record SkuRequest(
         @NotBlank @Size(min = 2, max = 500) String descripcionComercial,
         @Size(max = 200) String nombreCorto,
         @Size(max = 300) String presentacionComercial,
-        String unidadVentaCodigo,
+        @NotBlank(message = "La unidad de venta es obligatoria.") @Size(max = 30) String unidadVentaCodigo,
         BigDecimal contenido,
         String unidadContenidoCodigo,
         BigDecimal pesoGramos,

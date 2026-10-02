@@ -10,7 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.softprimesolutions.security.application.port.out.PasswordHashPort;
 import com.softprimesolutions.testsupport.PostgresTestContainerConfiguration;
+import com.softprimesolutions.testsupport.RealLogin;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -43,8 +44,18 @@ class CatalogoComercialApiIntegrationTest {
     @Autowired
     private JdbcClient jdbcClient;
 
+    @Autowired
+    private PasswordHashPort passwordHash;
+
+    private RealLogin realLogin;
+    private String noPermissions;
+    private String gestor;
+    private String consultor;
+    private String viewer;
+    private UUID actorId;
+
     @BeforeEach
-    void prepareCanonicalSchemaDependencies() {
+    void prepareCanonicalSchemaDependencies() throws Exception {
         resetCanonicalFixtures();
         jdbcClient.sql("""
                         INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
@@ -56,17 +67,23 @@ class CatalogoComercialApiIntegrationTest {
                         INSERT INTO sch_catalogo.unidad_medida (codigo, denominacion, simbolo)
                         VALUES ('UND', 'Unidad', 'und')
                         """).update();
+        realLogin = new RealLogin(jdbcClient, mockMvc, passwordHash);
+        var gestorSession = realLogin.login(TENANT_ID, "catalogo.gestor", "^catalogo\\.");
+        gestor = gestorSession.bearer();
+        actorId = gestorSession.userId();
+        consultor = realLogin.login(TENANT_ID, "catalogo.consultor", "^catalogo\\..*\\.consultar$").bearer();
+        viewer = realLogin.login(TENANT_ID, "catalogo.viewer", "^catalogo\\..*\\.consultar$").bearer();
     }
 
     @Test
     void managesCategoriaProductoLifecycleAndListing() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/categorias")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"MEDICAMENTOS","nombre":"Medicamentos",
+                                {"codigo":"MEDICAMENTOS","nombre":"Medicamentos",
                                  "descripcion":"Categoria raiz","nivel":1,"orden":1}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.codigo").value("MEDICAMENTOS"))
                 .andExpect(jsonPath("$.estado").value("ACTIVO"))
@@ -74,46 +91,44 @@ class CatalogoComercialApiIntegrationTest {
         String categoriaId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(put("/api/v1/catalogo/categorias/{categoriaId}", categoriaId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"MEDICAMENTOS","nombre":"Medicamentos actualizados",
+                                {"codigo":"MEDICAMENTOS","nombre":"Medicamentos actualizados",
                                  "descripcion":"Categoria raiz actualizada","nivel":1,"orden":1}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Medicamentos actualizados"));
 
         var subCategoriaResponse = mockMvc.perform(post("/api/v1/catalogo/categorias")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","categoriaPadreId":"%s","codigo":"ANALGESICOS",
+                                {"categoriaPadreId":"%s","codigo":"ANALGESICOS",
                                  "nombre":"Analgesicos","nivel":2,"orden":1}
-                                """.formatted(TENANT_ID, categoriaId)))
+                                """.formatted(categoriaId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.categoriaPadreId").value(categoriaId))
                 .andReturn().getResponse().getContentAsString();
         String subCategoriaId = JsonPath.read(subCategoriaResponse, "$.id");
 
         mockMvc.perform(patch("/api/v1/catalogo/categorias/{categoriaId}/estado", categoriaId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","status":"INACTIVO"}
-                                """.formatted(TENANT_ID)))
+                                {"status":"INACTIVO"}
+                                """))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/catalogo/categorias")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", consultor)
                         .param("categoriaPadreId", categoriaId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
 
         // Sin categoriaPadreId (filtro UUID opcional omitido): confirma el fix del bind NULL sin tipo.
         mockMvc.perform(get("/api/v1/catalogo/categorias")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(categoriaId)).exists())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(subCategoriaId)).exists());
@@ -122,11 +137,11 @@ class CatalogoComercialApiIntegrationTest {
     @Test
     void managesMarcaLifecycleAndListing() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/marcas")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"GENFAR","nombre":"Genfar","descripcion":"Marca generica"}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"GENFAR","nombre":"Genfar","descripcion":"Marca generica"}
+                                """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.codigo").value("GENFAR"))
                 .andExpect(jsonPath("$.estado").value("ACTIVO"))
@@ -134,26 +149,25 @@ class CatalogoComercialApiIntegrationTest {
         String marcaId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(put("/api/v1/catalogo/marcas/{marcaId}", marcaId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"GENFAR","nombre":"Genfar actualizada",
+                                {"codigo":"GENFAR","nombre":"Genfar actualizada",
                                  "descripcion":"Marca generica actualizada"}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Genfar actualizada"));
 
         mockMvc.perform(patch("/api/v1/catalogo/marcas/{marcaId}/estado", marcaId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","status":"INACTIVO"}
-                                """.formatted(TENANT_ID)))
+                                {"status":"INACTIVO"}
+                                """))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/catalogo/marcas")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')].estado".formatted(marcaId)).value("INACTIVO"));
     }
@@ -165,8 +179,7 @@ class CatalogoComercialApiIntegrationTest {
         crearMarca("ROCHE", "Roche");
 
         mockMvc.perform(get("/api/v1/catalogo/marcas")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", consultor)
                         .param("q", "pfi"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
@@ -174,8 +187,7 @@ class CatalogoComercialApiIntegrationTest {
                 .andExpect(jsonPath("$.totalElements").value(1));
 
         mockMvc.perform(get("/api/v1/catalogo/marcas")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", consultor)
                         .param("page", "0")
                         .param("size", "2"))
                 .andExpect(status().isOk())
@@ -185,8 +197,7 @@ class CatalogoComercialApiIntegrationTest {
                 .andExpect(jsonPath("$.totalElements").value(3));
 
         mockMvc.perform(get("/api/v1/catalogo/marcas")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", consultor)
                         .param("page", "1")
                         .param("size", "2"))
                 .andExpect(status().isOk())
@@ -196,11 +207,11 @@ class CatalogoComercialApiIntegrationTest {
 
     private void crearMarca(String codigo, String nombre) throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/marcas")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"%s","nombre":"%s"}
-                                """.formatted(TENANT_ID, codigo, nombre)))
+                                {"codigo":"%s","nombre":"%s"}
+                                """.formatted(codigo, nombre)))
                 .andExpect(status().isCreated());
     }
 
@@ -213,7 +224,7 @@ class CatalogoComercialApiIntegrationTest {
                         """).param("id", principioActivoId).update();
 
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/productos-regulados")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"tipoProducto":"MEDICAMENTO","denominacion":"Paracetamol 500mg"}
@@ -225,12 +236,12 @@ class CatalogoComercialApiIntegrationTest {
         String productoReguladoId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(get("/api/v1/catalogo/productos-regulados/{productoReguladoId}", productoReguladoId)
-                        .with(consultor()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(productoReguladoId));
 
         mockMvc.perform(put("/api/v1/catalogo/productos-regulados/{productoReguladoId}", productoReguladoId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"tipoProducto":"MEDICAMENTO","denominacion":"Paracetamol 500mg actualizado"}
@@ -239,7 +250,7 @@ class CatalogoComercialApiIntegrationTest {
                 .andExpect(jsonPath("$.denominacion").value("Paracetamol 500mg actualizado"));
 
         mockMvc.perform(patch("/api/v1/catalogo/productos-regulados/{productoReguladoId}/estado", productoReguladoId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"status":"SUSPENDIDO"}
@@ -247,12 +258,12 @@ class CatalogoComercialApiIntegrationTest {
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/catalogo/productos-regulados/{productoReguladoId}", productoReguladoId)
-                        .with(consultor()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estadoRegulatorio").value("SUSPENDIDO"));
 
         mockMvc.perform(get("/api/v1/catalogo/productos-regulados")
-                        .with(consultor())
+                        .header("Authorization", consultor)
                         .param("q", "Paracetamol"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(productoReguladoId)).exists());
@@ -260,7 +271,7 @@ class CatalogoComercialApiIntegrationTest {
         mockMvc.perform(post(
                         "/api/v1/catalogo/productos-regulados/{productoReguladoId}/principios-activos",
                         productoReguladoId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"principioActivoId":"%s","concentracionTexto":"500 mg","esPrincipal":true,"orden":1}
@@ -271,7 +282,7 @@ class CatalogoComercialApiIntegrationTest {
         mockMvc.perform(delete(
                         "/api/v1/catalogo/productos-regulados/{productoReguladoId}/principios-activos/{principioActivoId}",
                         productoReguladoId, principioActivoId)
-                        .with(gestor()).with(csrf()))
+                        .header("Authorization", gestor).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.principiosActivos").isEmpty());
     }
@@ -279,14 +290,14 @@ class CatalogoComercialApiIntegrationTest {
     @Test
     void managesSkuLifecycleAndFractionSale() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/skus")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
+                                {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
                                  "descripcionComercial":"Producto sin receta","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
                                  "afectoIgv":true,"stockMinimoDefault":0}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.codigoInterno").value("SKU-001"))
                 .andExpect(jsonPath("$.estado").value("ACTIVO"))
@@ -294,58 +305,56 @@ class CatalogoComercialApiIntegrationTest {
         String skuId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(put("/api/v1/catalogo/skus/{skuId}", skuId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
+                                {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
                                  "descripcionComercial":"Producto sin receta actualizado","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
                                  "afectoIgv":true,"stockMinimoDefault":0}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.descripcionComercial").value("Producto sin receta actualizado"));
 
         mockMvc.perform(patch("/api/v1/catalogo/skus/{skuId}/estado", skuId)
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","status":"BLOQUEADO"}
-                                """.formatted(TENANT_ID)))
+                                {"status":"BLOQUEADO"}
+                                """))
                 .andExpect(status().isNoContent());
 
         // Confirma que el GET refleja el nuevo estado dentro de la misma transaccion de prueba:
         // changeSkuStatus(...) limpia el EntityManager tras el UPDATE JDBC directo para que
         // findSkuById(...) (JPA) no sirva la entidad obsoleta desde el cache de primer nivel.
         mockMvc.perform(get("/api/v1/catalogo/skus/{skuId}", skuId)
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(skuId))
                 .andExpect(jsonPath("$.estado").value("BLOQUEADO"));
 
         var categoriaParaFiltroResponse = mockMvc.perform(post("/api/v1/catalogo/categorias")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"FILTRO-SKU","nombre":"Filtro SKU","nivel":1,"orden":1}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"FILTRO-SKU","nombre":"Filtro SKU","nivel":1,"orden":1}
+                                """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String categoriaParaFiltroId = JsonPath.read(categoriaParaFiltroResponse, "$.id");
 
         var marcaParaFiltroResponse = mockMvc.perform(post("/api/v1/catalogo/marcas")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"FILTRO-SKU","nombre":"Filtro SKU"}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"FILTRO-SKU","nombre":"Filtro SKU"}
+                                """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String marcaParaFiltroId = JsonPath.read(marcaParaFiltroResponse, "$.id");
 
         mockMvc.perform(get("/api/v1/catalogo/skus")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", consultor)
                         .param("categoriaId", categoriaParaFiltroId)
                         .param("marcaId", marcaParaFiltroId))
                 .andExpect(status().isOk())
@@ -353,21 +362,20 @@ class CatalogoComercialApiIntegrationTest {
 
         // Sin categoriaId/marcaId (filtros UUID opcionales omitidos): confirma el fix del bind NULL sin tipo.
         mockMvc.perform(get("/api/v1/catalogo/skus")
-                        .with(consultor())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(skuId)).exists());
 
         mockMvc.perform(post("/api/v1/catalogo/skus")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","tipoSku":"NO_REGULADO","codigoInterno":"SKU-002",
+                                {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-002",
                                  "descripcionComercial":"Producto con venta por fraccion","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":true,"factorFraccion":0.5,"unidadFraccionCodigo":"UND",
                                  "requiereLote":false,"requiereVencimiento":false,"afectoIgv":true,
                                  "stockMinimoDefault":0}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.permiteVentaFraccion").value(true))
                 .andExpect(jsonPath("$.factorFraccion").value(0.5));
@@ -376,21 +384,20 @@ class CatalogoComercialApiIntegrationTest {
     @Test
     void managesSkuBarcodesLifecycle() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/skus")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","tipoSku":"NO_REGULADO","codigoInterno":"SKU-BARRA",
+                                {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-BARRA",
                                  "descripcionComercial":"Producto con codigos de barra","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
                                  "afectoIgv":true,"stockMinimoDefault":0}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String skuId = JsonPath.read(createResponse, "$.id");
 
         mockMvc.perform(post("/api/v1/catalogo/skus/{skuId}/codigos-barra", skuId)
-                        .with(gestor()).with(csrf())
-                        .param("tenantId", TENANT_ID.toString())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"codigoBarra":"7750001234567"}
@@ -400,80 +407,94 @@ class CatalogoComercialApiIntegrationTest {
 
         mockMvc.perform(patch("/api/v1/catalogo/skus/{skuId}/codigos-barra/{codigoBarra}/principal",
                         skuId, "7750001234567")
-                        .with(gestor()).with(csrf())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", gestor).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigosBarra[0].codigoBarra").value("7750001234567"))
                 .andExpect(jsonPath("$.codigosBarra[0].esPrincipal").value(true));
 
         mockMvc.perform(delete("/api/v1/catalogo/skus/{skuId}/codigos-barra/{codigoBarra}", skuId, "7750001234567")
-                        .with(gestor()).with(csrf())
-                        .param("tenantId", TENANT_ID.toString()))
+                        .header("Authorization", gestor).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigosBarra").isEmpty());
     }
 
     @Test
+    void storesTheFullActorOfTheTokenAndRequiresTheUnidadDeVenta() throws Exception {
+        var body = """
+                {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-ACTOR","descripcionComercial":"Producto con actor",
+                 "unidadVentaCodigo":"UND","permiteVentaFraccion":false,"requiereLote":false,
+                 "requiereVencimiento":false,"afectoIgv":true,"stockMinimoDefault":0}
+                """;
+        var created = mockMvc.perform(post("/api/v1/catalogo/skus").header("Authorization", gestor).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tenantId").value(TENANT_ID.toString()))
+                .andExpect(jsonPath("$.createdBy").value(actorId.toString()))
+                .andReturn().getResponse().getContentAsString();
+        String skuId = JsonPath.read(created, "$.id");
+
+        mockMvc.perform(put("/api/v1/catalogo/skus/{skuId}", skuId).header("Authorization", gestor).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updatedBy").value(actorId.toString()));
+
+        var actors = jdbcClient.sql("SELECT created_by, updated_by FROM sch_catalogo.sku_comercial "
+                        + "WHERE uuid_publico = :id")
+                .param("id", UUID.fromString(skuId)).query().singleRow();
+        org.assertj.core.api.Assertions.assertThat(actors)
+                .containsEntry("created_by", actorId.toString()).containsEntry("updated_by", actorId.toString());
+
+        mockMvc.perform(post("/api/v1/catalogo/skus").header("Authorization", gestor).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("\"unidadVentaCodigo\":\"UND\",", "")
+                                .replace("SKU-ACTOR", "SKU-SIN-UNIDAD")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("unidadVentaCodigo"))
+                .andExpect(jsonPath("$.errors[0].message").value("La unidad de venta es obligatoria."));
+    }
+
+    @Test
     void deniesCatalogoAdministrationWithoutTheRequiredPermission() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/categorias")
-                        .with(SecurityMockMvcRequestPostProcessors.user("viewer")).with(csrf())
+                        .header("Authorization", viewer).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"SIN_PERMISO","nombre":"Sin permiso","nivel":1,"orden":1}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"SIN_PERMISO","nombre":"Sin permiso","nivel":1,"orden":1}
+                                """))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/v1/catalogo/skus")
-                        .with(SecurityMockMvcRequestPostProcessors.user("viewer")).with(csrf())
+                        .header("Authorization", viewer).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","tipoSku":"NO_REGULADO","codigoInterno":"SIN-PERMISO",
+                                {"tipoSku":"NO_REGULADO","codigoInterno":"SIN-PERMISO",
                                  "descripcionComercial":"Sin permiso","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
                                  "afectoIgv":true,"stockMinimoDefault":0}
-                                """.formatted(TENANT_ID)))
+                                """))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void returnsProblemDetailsForInvalidHttpInput() throws Exception {
         mockMvc.perform(post("/api/v1/catalogo/categorias")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"","nombre":"Nombre valido","nivel":1,"orden":1}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"","nombre":"Nombre valido","nivel":1,"orden":1}
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
 
         mockMvc.perform(post("/api/v1/catalogo/marcas")
-                        .with(gestor()).with(csrf())
+                        .header("Authorization", gestor).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantId":"%s","codigo":"","nombre":"Nombre valido"}
-                                """.formatted(TENANT_ID)))
+                                {"codigo":"","nombre":"Nombre valido"}
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
-    }
-
-    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor gestor() {
-        return SecurityMockMvcRequestPostProcessors.user("admin").authorities(
-                new SimpleGrantedAuthority("catalogo.categorias.gestionar"),
-                new SimpleGrantedAuthority("catalogo.categorias.consultar"),
-                new SimpleGrantedAuthority("catalogo.marcas.gestionar"),
-                new SimpleGrantedAuthority("catalogo.marcas.consultar"),
-                new SimpleGrantedAuthority("catalogo.productos-regulados.gestionar"),
-                new SimpleGrantedAuthority("catalogo.productos-regulados.consultar"),
-                new SimpleGrantedAuthority("catalogo.skus.gestionar"),
-                new SimpleGrantedAuthority("catalogo.skus.consultar"));
-    }
-
-    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor consultor() {
-        return SecurityMockMvcRequestPostProcessors.user("consultor").authorities(
-                new SimpleGrantedAuthority("catalogo.categorias.consultar"),
-                new SimpleGrantedAuthority("catalogo.marcas.consultar"),
-                new SimpleGrantedAuthority("catalogo.productos-regulados.consultar"),
-                new SimpleGrantedAuthority("catalogo.skus.consultar"));
     }
 
     private void resetCanonicalFixtures() {

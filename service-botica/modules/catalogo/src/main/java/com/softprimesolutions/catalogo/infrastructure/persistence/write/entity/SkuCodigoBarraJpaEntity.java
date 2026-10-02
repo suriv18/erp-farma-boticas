@@ -41,13 +41,13 @@ public class SkuCodigoBarraJpaEntity {
     @Column(nullable = false, length = 20)
     private String estado;
 
-    @Column(name = "created_by", nullable = false, length = 15)
+    @Column(name = "created_by", nullable = false, length = 36)
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_by", length = 15)
+    @Column(name = "updated_by", length = 36)
     private String updatedBy;
 
     @Column(name = "updated_at")
