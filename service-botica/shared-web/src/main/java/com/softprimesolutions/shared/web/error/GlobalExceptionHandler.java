@@ -1,5 +1,6 @@
 package com.softprimesolutions.shared.web.error;
 
+import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -29,8 +30,8 @@ public class GlobalExceptionHandler {
         return response(problem);
     }
 
-    @ExceptionHandler(HandlerMethodValidationException.class)
-    public ResponseEntity<ProblemDetail> handleParameterValidation(HandlerMethodValidationException exception) {
+    @ExceptionHandler({HandlerMethodValidationException.class, ConstraintViolationException.class})
+    public ResponseEntity<ProblemDetail> handleParameterValidation(Exception exception) {
         return response(badRequest(
                 "REQUEST_PARAMETER_INVALID", "Uno o más parámetros de la solicitud no son válidos."));
     }
