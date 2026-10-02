@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.softprimesolutions.security.application.port.out.PasswordHashPort;
 import com.softprimesolutions.testsupport.PostgresTestContainerConfiguration;
+import com.softprimesolutions.testsupport.RealLogin;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 class OrganizacionApiIntegrationTest {
 
     private static final UUID TENANT_ID = UUID.fromString("0f6d4c2e-3b1a-4c8e-9a51-7d2b6e4f1a90");
-    private static final String PASSWORD = "OrgAdmin2026!Valid";
+    private static final UUID OTHER_TENANT_ID = UUID.fromString("6b8e1f3a-9c2d-4e7f-8a1b-3d5c7e9f0a2b");
     private static final String BASE = "/api/v1/organizacion";
 
     @Autowired
@@ -45,72 +46,27 @@ class OrganizacionApiIntegrationTest {
     @Autowired
     private JdbcClient jdbcClient;
 
+    @Autowired
+    private PasswordHashPort passwordHash;
+
+    private RealLogin realLogin;
+    private String noPermissions;
+
     private String accessToken;
 
     @BeforeEach
     void createTenantWithAnOrganizationAdministratorAndLogIn() throws Exception {
-        var userId = UUID.randomUUID();
-        var identidadId = UUID.randomUUID();
+        realLogin = new RealLogin(jdbcClient, mockMvc, passwordHash);
+        accessToken = provisionAdmin(TENANT_ID, "ORGTEST", "org.admin");
+        noPermissions = realLogin.login(TENANT_ID, "sin.permisos", null).bearer();
+    }
+
+    private String provisionAdmin(UUID tenantId, String codigo, String username) throws Exception {
         jdbcClient.sql("""
                         INSERT INTO sch_admin.tenant (uuid_publico, codigo, nombre, slug, created_by)
-                        VALUES (:tenantId, 'ORGTEST', 'Tenant organizacion', 'tenant-organizacion', 'test')
-                        """).param("tenantId", TENANT_ID).update();
-        jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.identidad (uuid_publico, email, username, nombres, created_at)
-                        VALUES (:identidadId, 'org.admin@example.test', 'org.admin', 'Admin organizacion',
-                                CURRENT_TIMESTAMP)
-                        """).param("identidadId", identidadId).update();
-        jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.membership
-                            (uuid_publico, tenant_id, identidad_id, nombre_mostrar, requiere_cambio_credencial,
-                             mfa_requerido, estado, created_at)
-                        SELECT :userId, t.id, i.id, 'Admin organizacion', FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_admin.tenant t, sch_seguridad.identidad i
-                         WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
-                        """).param("userId", userId).param("tenantId", TENANT_ID)
-                .param("identidadId", identidadId).update();
-        jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.rol
-                            (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
-                        SELECT :roleId, id, 'ORG_ADMIN', 'Administrador de organizacion', 'GLOBAL', FALSE,
-                               'ACTIVO', CURRENT_TIMESTAMP
-                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
-                        """).param("roleId", UUID.randomUUID()).param("tenantId", TENANT_ID).update();
-        jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.rol_permiso
-                            (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
-                        SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
-                          FROM sch_admin.tenant t
-                          JOIN sch_seguridad.rol r ON r.tenant_id = t.id AND r.codigo = 'ORG_ADMIN'
-                          JOIN sch_seguridad.permiso p ON p.codigo LIKE 'organizacion.%' AND p.es_activo = '1'
-                         WHERE t.uuid_publico = :tenantId
-                        """).param("tenantId", TENANT_ID).update();
-        jdbcClient.sql("""
-                        INSERT INTO sch_seguridad.usuario_rol_ambito
-                            (uuid_publico, tenant_id, membership_id, rol_id, tipo_ambito,
-                             vigente_desde, estado, created_by, created_at)
-                        SELECT :assignmentId, t.id, m.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP,
-                               'ACTIVO', 'test', CURRENT_TIMESTAMP
-                          FROM sch_admin.tenant t
-                          JOIN sch_seguridad.membership m ON m.tenant_id = t.id AND m.uuid_publico = :userId
-                          JOIN sch_seguridad.rol r ON r.tenant_id = t.id AND r.codigo = 'ORG_ADMIN'
-                         WHERE t.uuid_publico = :tenantId
-                        """).param("assignmentId", UUID.randomUUID()).param("tenantId", TENANT_ID)
-                .param("userId", userId).update();
-
-        mockMvc.perform(post("/api/v1/usuarios/{userId}/credencial-local", userId)
-                        .with(credentialAdmin()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"tenantId":"%s","password":"%s","requireChange":false}
-                                """.formatted(TENANT_ID, PASSWORD)))
-                .andExpect(status().isNoContent());
-        var login = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"login":"org.admin","password":"%s","channel":"WEB"}
-                                """.formatted(PASSWORD)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        accessToken = JsonPath.read(login, "$.accessToken");
+                        VALUES (:tenantId, :codigo, 'Tenant organizacion', LOWER(:codigo), 'test')
+                        """).param("tenantId", tenantId).param("codigo", codigo).update();
+        return realLogin.login(tenantId, username, "^organizacion\\.").bearer();
     }
 
     @Test
@@ -120,22 +76,18 @@ class OrganizacionApiIntegrationTest {
         var almacenId = createAlmacen(establecimientoId);
         var terminalId = createTerminal(establecimientoId);
 
-        mockMvc.perform(get(BASE + "/empresas").header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()))
+        mockMvc.perform(get(BASE + "/empresas").header("Authorization", bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(empresaId.toString()))
                 .andExpect(jsonPath("$.items[0].ruc").value("20123456786"));
-        mockMvc.perform(get(BASE + "/establecimientos").header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).param("empresaId", empresaId.toString()))
+        mockMvc.perform(get(BASE + "/establecimientos").header("Authorization", bearer()).param("empresaId", empresaId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].id").value(establecimientoId.toString()));
-        mockMvc.perform(get(BASE + "/almacenes/{id}", almacenId).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()))
+        mockMvc.perform(get(BASE + "/almacenes/{id}", almacenId).header("Authorization", bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activo").value(true));
-        mockMvc.perform(get(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()))
+        mockMvc.perform(get(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ipEquipo").value("10.0.0.15"));
 
@@ -162,8 +114,7 @@ class OrganizacionApiIntegrationTest {
         var establecimientoId = createEstablecimiento(empresaId, "EST010", null);
         var almacenId = createAlmacen(establecimientoId);
 
-        mockMvc.perform(put(BASE + "/empresas/{id}", empresaId).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(BASE + "/empresas/{id}", empresaId).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"razonSocial":"Boticas Renombradas SAC","monedaFuncional":"PEN",
                                  "zonaHoraria":"America/Lima","permiteVentaOnline":true}
@@ -171,8 +122,7 @@ class OrganizacionApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.razonSocial").value("Boticas Renombradas SAC"))
                 .andExpect(jsonPath("$.permiteVentaOnline").value(true));
-        mockMvc.perform(put(BASE + "/almacenes/{id}", almacenId).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(BASE + "/almacenes/{id}", almacenId).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nombre":"Almacen Inactivo","tipo":"GENERAL","permiteLotes":true,
                                  "permiteVencimiento":true,"permiteVenta":true,"permiteDespacho":true,
@@ -202,18 +152,104 @@ class OrganizacionApiIntegrationTest {
                         .content(establecimientoJson(UUID.randomUUID(), "EST002", null)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(post(BASE + "/empresas").header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"tenantId\":\"%s\",\"ruc\":\"123\"}".formatted(TENANT_ID)))
+                        .content("{\"ruc\":\"123\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsListingsWithAnOutOfRangePageSizeAsABadRequest() throws Exception {
+        for (var resource : new String[] {"/empresas", "/establecimientos", "/almacenes", "/terminales-pos"}) {
+            for (var size : new String[] {"101", "0"}) {
+                mockMvc.perform(get(BASE + resource).header("Authorization", bearer()).param("size", size))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.code").value("REQUEST_PARAMETER_INVALID"));
+            }
+        }
+    }
+
+    @Test
+    void aTenantCannotReadOrModifyTheResourcesOfAnotherTenant() throws Exception {
+        var empresaId = createEmpresa("20123456786");
+        var establecimientoId = createEstablecimiento(empresaId, "EST001", "DIG001");
+        var almacenId = createAlmacen(establecimientoId);
+        var terminalId = createTerminal(establecimientoId);
+        var otherToken = provisionAdmin(OTHER_TENANT_ID, "ORGOTRO", "otro.admin");
+
+        for (var path : new String[] {
+                "/empresas/" + empresaId, "/establecimientos/" + establecimientoId, "/almacenes/" + almacenId,
+                "/terminales-pos/" + terminalId}) {
+            mockMvc.perform(get(BASE + path).header("Authorization", otherToken)
+                            .param("tenantId", TENANT_ID.toString()))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(get(BASE + path).header("Authorization", bearer())).andExpect(status().isOk());
+        }
+        for (var path : new String[] {"/empresas", "/establecimientos", "/almacenes", "/terminales-pos"}) {
+            mockMvc.perform(get(BASE + path).header("Authorization", otherToken)
+                            .param("tenantId", TENANT_ID.toString()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+            mockMvc.perform(get(BASE + path).header("Authorization", bearer()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        }
+
+        mockMvc.perform(put(BASE + "/empresas/{id}", empresaId).header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"razonSocial\":\"Intruso SAC\",\"monedaFuncional\":\"PEN\","
+                                + "\"zonaHoraria\":\"America/Lima\",\"permiteVentaOnline\":false}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put(BASE + "/establecimientos/{id}", establecimientoId)
+                        .header("Authorization", otherToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Intruso\",\"tipoEstablecimiento\":\"BOTICA\","
+                                + "\"codigoAnexoSunat\":\"0001\",\"esPrincipal\":true,"
+                                + "\"permiteVentaOnline\":false,\"permiteDelivery\":false,"
+                                + "\"perfilOperacion\":\"ONLINE\",\"zonaHoraria\":\"America/Lima\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put(BASE + "/almacenes/{id}", almacenId).header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Intruso\",\"tipo\":\"GENERAL\",\"permiteLotes\":true,"
+                                + "\"permiteVencimiento\":true,\"permiteVenta\":true,\"permiteDespacho\":true,"
+                                + "\"controlTemperatura\":false,\"activo\":false}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Intruso\",\"serieBoletaDefecto\":\"B009\","
+                                + "\"serieFacturaDefecto\":\"F009\",\"storeEdgeHabilitado\":false,"
+                                + "\"estado\":\"ACTIVO\"}"))
+                .andExpect(status().isNotFound());
+        for (var path : new String[] {"/empresas/" + empresaId, "/establecimientos/" + establecimientoId}) {
+            mockMvc.perform(patch(BASE + path + "/estado").header("Authorization", otherToken)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"SUSPENDIDO\"}"))
+                    .andExpect(status().isNotFound());
+        }
+
+        mockMvc.perform(post(BASE + "/establecimientos").header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(establecimientoJson(empresaId, "EST777", null)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post(BASE + "/almacenes").header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(almacenJson(establecimientoId, "ALM777")))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post(BASE + "/terminales-pos").header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"establecimientoId\":\"%s\",\"codigo\":\"POS777\",\"nombre\":\"Caja\","
+                                .formatted(establecimientoId)
+                                + "\"serieBoletaDefecto\":\"B777\",\"serieFacturaDefecto\":\"F777\","
+                                + "\"storeEdgeHabilitado\":false}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get(BASE + "/empresas/{id}", empresaId).header("Authorization", bearer()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.razonSocial").value("Boticas Integracion SAC"));
+        mockMvc.perform(get("/api/v1/estructura-corporativa").header("Authorization", otherToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.companies").isEmpty());
     }
 
     @Test
     void deniesAccessWithoutTheRequiredPermissionOrToken() throws Exception {
         mockMvc.perform(post(BASE + "/empresas").with(csrf())
-                        .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos"))
+                        .header("Authorization", noPermissions)
                         .contentType(MediaType.APPLICATION_JSON).content(empresaJson("20123456786")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/estructura-corporativa")
-                        .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos")))
+                        .header("Authorization", noPermissions))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/estructura-corporativa")).andExpect(status().isUnauthorized());
     }
@@ -249,8 +285,7 @@ class OrganizacionApiIntegrationTest {
         patchEstado("/establecimientos/{id}/estado", UUID.randomUUID(), "SUSPENDIDO")
                 .andExpect(status().isNotFound());
         mockMvc.perform(patch(BASE + "/empresas/{id}/estado", empresaId).with(csrf())
-                        .with(SecurityMockMvcRequestPostProcessors.user("sin-permisos"))
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", noPermissions).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"estado\":\"SUSPENDIDO\"}"))
                 .andExpect(status().isForbidden());
     }
@@ -289,16 +324,14 @@ class OrganizacionApiIntegrationTest {
                 postTerminal(sedeId, "POS002", "B002", "F002").andExpect(status().isCreated())
                         .andReturn().getResponse().getContentAsString(), "$.id"));
 
-        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nombre":"Caja 2","serieBoletaDefecto":"B001","serieFacturaDefecto":"F002",
                                  "storeEdgeHabilitado":false,"estado":"ACTIVO"}
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("La serie B001 ya está asignada a otra caja de esta empresa."));
-        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", segundaCaja).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nombre":"Caja 2","serieBoletaDefecto":"B002","serieFacturaDefecto":"F002",
                                  "storeEdgeHabilitado":false,"estado":"ACTIVO"}
@@ -365,8 +398,7 @@ class OrganizacionApiIntegrationTest {
                         "La serie de boleta debe iniciar con B y tener 4 caracteres alfanuméricos en mayúscula."));
 
         var terminalId = createTerminal(sedeId);
-        mockMvc.perform(put(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", bearer())
-                        .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(BASE + "/terminales-pos/{id}", terminalId).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nombre":"Caja 1","serieBoletaDefecto":"b001","serieFacturaDefecto":"F001",
                                  "storeEdgeHabilitado":false,"estado":"ACTIVO"}
@@ -394,8 +426,7 @@ class OrganizacionApiIntegrationTest {
 
     private org.springframework.test.web.servlet.ResultActions patchEstado(String path, UUID id, String estado)
             throws Exception {
-        return mockMvc.perform(patch(BASE + path, id).header("Authorization", bearer())
-                .param("tenantId", TENANT_ID.toString()).contentType(MediaType.APPLICATION_JSON)
+        return mockMvc.perform(patch(BASE + path, id).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"" + estado + "\"}"));
     }
 
@@ -409,27 +440,27 @@ class OrganizacionApiIntegrationTest {
 
     private UUID createAlmacen(UUID establecimientoId) throws Exception {
         return created(post(BASE + "/almacenes").content("""
-                {"tenantId":"%s","establecimientoId":"%s","codigo":"ALM001","nombre":"Almacen Central",
+                {"establecimientoId":"%s","codigo":"ALM001","nombre":"Almacen Central",
                  "tipo":"GENERAL","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
                  "permiteDespacho":true,"controlTemperatura":false}
-                """.formatted(TENANT_ID, establecimientoId)));
+                """.formatted(establecimientoId)));
     }
 
     private UUID createTerminal(UUID establecimientoId) throws Exception {
         return created(post(BASE + "/terminales-pos").content("""
-                {"tenantId":"%s","establecimientoId":"%s","codigo":"POS001","nombre":"Caja 1",
+                {"establecimientoId":"%s","codigo":"POS001","nombre":"Caja 1",
                  "serieBoletaDefecto":"B001","serieFacturaDefecto":"F001","numeroSerieEquipo":"SN-001",
                  "hostname":"caja-1","ipEquipo":"10.0.0.15","impresoraCodigo":"IMP01","storeEdgeHabilitado":true}
-                """.formatted(TENANT_ID, establecimientoId)));
+                """.formatted(establecimientoId)));
     }
 
     private org.springframework.test.web.servlet.ResultActions postTerminal(
             UUID establecimientoId, String codigo, String serieBoleta, String serieFactura) throws Exception {
         return mockMvc.perform(post(BASE + "/terminales-pos").header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                        {"tenantId":"%s","establecimientoId":"%s","codigo":"%s","nombre":"Caja",
+                        {"establecimientoId":"%s","codigo":"%s","nombre":"Caja",
                          "serieBoletaDefecto":"%s","serieFacturaDefecto":"%s","storeEdgeHabilitado":false}
-                        """.formatted(TENANT_ID, establecimientoId, codigo, serieBoleta, serieFactura)));
+                        """.formatted(establecimientoId, codigo, serieBoleta, serieFactura)));
     }
 
     private org.springframework.test.web.servlet.ResultActions postAlmacen(
@@ -437,11 +468,11 @@ class OrganizacionApiIntegrationTest {
             throws Exception {
         return mockMvc.perform(post(BASE + "/almacenes").header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                        {"tenantId":"%s","establecimientoId":"%s","codigo":"%s","nombre":"Almacen",
+                        {"establecimientoId":"%s","codigo":"%s","nombre":"Almacen",
                          "tipo":"%s","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
                          "permiteDespacho":true,"controlTemperatura":%s,"temperaturaMinC":%s,
                          "temperaturaMaxC":%s}
-                        """.formatted(TENANT_ID, establecimientoId, codigo, tipo, controlTemperatura, min, max)));
+                        """.formatted(establecimientoId, codigo, tipo, controlTemperatura, min, max)));
     }
 
     private UUID created(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request)
@@ -453,31 +484,32 @@ class OrganizacionApiIntegrationTest {
         return UUID.fromString(JsonPath.read(body, "$.id"));
     }
 
+    private String almacenJson(UUID establecimientoId, String codigo) {
+        return """
+                {"establecimientoId":"%s","codigo":"%s","nombre":"Almacen","tipo":"GENERAL","permiteLotes":true,
+                 "permiteVencimiento":true,"permiteVenta":true,"permiteDespacho":true,"controlTemperatura":false}
+                """.formatted(establecimientoId, codigo);
+    }
+
     private String empresaJson(String ruc) {
         return """
-                {"tenantId":"%s","ruc":"%s","razonSocial":"Boticas Integracion SAC","nombreComercial":"Boticas",
+                {"ruc":"%s","razonSocial":"Boticas Integracion SAC","nombreComercial":"Boticas",
                  "direccionFiscal":"Av. Principal 100","ubigeoFiscal":"150101","monedaFuncional":"PEN",
                  "zonaHoraria":"America/Lima","permiteVentaOnline":false}
-                """.formatted(TENANT_ID, ruc);
+                """.formatted(ruc);
     }
 
     private String establecimientoJson(UUID empresaId, String codigo, String digemid) {
         var digemidField = digemid == null ? "" : ",\"codigoDigemid\":\"" + digemid + "\"";
         return """
-                {"tenantId":"%s","empresaId":"%s","codigo":"%s","nombre":"Botica Central",
+                {"empresaId":"%s","codigo":"%s","nombre":"Botica Central",
                  "tipoEstablecimiento":"BOTICA","codigoAnexoSunat":"0001","direccion":"Av. Principal 100",
                  "ubigeo":"150101","esPrincipal":true,"permiteVentaOnline":false,"permiteDelivery":false,
                  "perfilOperacion":"ONLINE","zonaHoraria":"America/Lima"%s}
-                """.formatted(TENANT_ID, empresaId, codigo, digemidField);
+                """.formatted(empresaId, codigo, digemidField);
     }
 
     private String bearer() {
-        return "Bearer " + accessToken;
-    }
-
-    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor credentialAdmin() {
-        return SecurityMockMvcRequestPostProcessors.user("credential-admin").authorities(
-                new SimpleGrantedAuthority("seguridad.credenciales.gestionar"),
-                new SimpleGrantedAuthority("seguridad.usuarios.gestionar"));
+        return accessToken;
     }
 }

@@ -1,7 +1,7 @@
 package com.softprimesolutions.organizacion.api.controller;
 
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.ESTABLECIMIENTO;
-import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TENANT;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.JWT;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TERMINAL;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarTerminalRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearTerminalRequest;
@@ -26,44 +26,44 @@ class TerminalPosControllerTest {
 
     @Test
     void createsATerminalAndReturnsItsLocation() {
-        assertCreated(succeeding.create(crearTerminalRequest()), TerminalPosController.BASE_PATH, TERMINAL,
+        assertCreated(succeeding.create(JWT, crearTerminalRequest()), TerminalPosController.BASE_PATH, TERMINAL,
                 OrganizacionApiMapper.toResponse(terminalResult()));
     }
 
     @Test
     void mapsCreateFailuresToProblemDetails() {
-        assertConflict(failing.create(crearTerminalRequest()));
+        assertConflict(failing.create(JWT, crearTerminalRequest()));
     }
 
     @Test
     void listsTerminalesAsAPage() {
-        assertOk(succeeding.list(TENANT, ESTABLECIMIENTO, "caj", 0, 20),
+        assertOk(succeeding.list(JWT, ESTABLECIMIENTO, "caj", 0, 20),
                 OrganizacionApiMapper.toTerminalPage(page(terminalResult())));
     }
 
     @Test
     void mapsListFailuresToProblemDetails() {
-        assertConflict(failing.list(TENANT, null, null, 0, 20));
+        assertConflict(failing.list(JWT, null, null, 0, 20));
     }
 
     @Test
     void getsATerminalById() {
-        assertOk(succeeding.getById(TERMINAL, TENANT), OrganizacionApiMapper.toResponse(terminalResult()));
+        assertOk(succeeding.getById(TERMINAL, JWT), OrganizacionApiMapper.toResponse(terminalResult()));
     }
 
     @Test
     void mapsGetFailuresToProblemDetails() {
-        assertConflict(failing.getById(TERMINAL, TENANT));
+        assertConflict(failing.getById(TERMINAL, JWT));
     }
 
     @Test
     void updatesATerminal() {
-        assertOk(succeeding.update(TERMINAL, TENANT, actualizarTerminalRequest()),
+        assertOk(succeeding.update(TERMINAL, JWT, actualizarTerminalRequest()),
                 OrganizacionApiMapper.toResponse(terminalResult()));
     }
 
     @Test
     void mapsUpdateFailuresToProblemDetails() {
-        assertConflict(failing.update(TERMINAL, TENANT, actualizarTerminalRequest()));
+        assertConflict(failing.update(TERMINAL, JWT, actualizarTerminalRequest()));
     }
 }

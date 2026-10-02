@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record CrearAlmacenRequest(
-        @NotNull UUID tenantId,
         @NotNull UUID establecimientoId,
         @NotBlank @Size(min = 1, max = 40) String codigo,
         @NotBlank @Size(min = 2, max = 150) String nombre,

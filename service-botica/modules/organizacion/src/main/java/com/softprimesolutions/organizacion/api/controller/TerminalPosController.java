@@ -1,5 +1,7 @@
 package com.softprimesolutions.organizacion.api.controller;
 
+import static com.softprimesolutions.organizacion.api.controller.OrganizacionControllerSupport.tenantOf;
+
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarTerminalPosRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearTerminalPosRequest;
 import com.softprimesolutions.organizacion.api.mapper.OrganizacionApiMapper;
@@ -15,6 +17,8 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,8 +54,9 @@ public class TerminalPosController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('organizacion.terminales-pos.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody CrearTerminalPosRequest request) {
-        return createTerminal.execute(OrganizacionApiMapper.toCommand(request)).fold(
+    public ResponseEntity<?> create(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CrearTerminalPosRequest request) {
+        return createTerminal.execute(OrganizacionApiMapper.toCommand(tenantOf(jwt), request)).fold(
                 result -> OrganizacionControllerSupport.created(
                         BASE_PATH, result.id(), OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
@@ -60,20 +65,21 @@ public class TerminalPosController {
     @GetMapping
     @PreAuthorize("hasAuthority('organizacion.terminales-pos.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) UUID establecimientoId,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return listTerminales.execute(new ListarTerminalesQuery(tenantId, establecimientoId, search, page, size)).fold(
+        return listTerminales.execute(
+                new ListarTerminalesQuery(tenantOf(jwt), establecimientoId, search, page, size)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toTerminalPage(result)),
                 OrganizacionControllerSupport::problem);
     }
 
     @GetMapping("/{terminalId}")
     @PreAuthorize("hasAuthority('organizacion.terminales-pos.consultar')")
-    public ResponseEntity<?> getById(@PathVariable UUID terminalId, @RequestParam UUID tenantId) {
-        return getTerminal.execute(new ObtenerTerminalQuery(tenantId, terminalId)).fold(
+    public ResponseEntity<?> getById(@PathVariable UUID terminalId, @AuthenticationPrincipal Jwt jwt) {
+        return getTerminal.execute(new ObtenerTerminalQuery(tenantOf(jwt), terminalId)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }
@@ -82,9 +88,9 @@ public class TerminalPosController {
     @PreAuthorize("hasAuthority('organizacion.terminales-pos.gestionar')")
     public ResponseEntity<?> update(
             @PathVariable UUID terminalId,
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ActualizarTerminalPosRequest request) {
-        return updateTerminal.execute(OrganizacionApiMapper.toCommand(terminalId, tenantId, request)).fold(
+        return updateTerminal.execute(OrganizacionApiMapper.toCommand(terminalId, tenantOf(jwt), request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }

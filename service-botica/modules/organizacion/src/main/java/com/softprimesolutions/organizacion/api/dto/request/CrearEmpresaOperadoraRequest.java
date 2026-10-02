@@ -1,12 +1,9 @@
 package com.softprimesolutions.organizacion.api.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.util.UUID;
 
 public record CrearEmpresaOperadoraRequest(
-        @NotNull UUID tenantId,
         @NotBlank @Size(min = 11, max = 11) String ruc,
         @NotBlank @Size(min = 2, max = 300) String razonSocial,
         @Size(max = 300) String nombreComercial,

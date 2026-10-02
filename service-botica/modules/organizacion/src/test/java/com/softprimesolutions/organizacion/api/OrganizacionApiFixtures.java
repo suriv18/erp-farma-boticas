@@ -21,10 +21,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 public final class OrganizacionApiFixtures {
 
     public static final UUID TENANT = UUID.randomUUID();
+    public static final Jwt JWT = Jwt.withTokenValue("token").header("alg", "none")
+            .claim("tid", TENANT.toString()).build();
     public static final UUID EMPRESA = UUID.randomUUID();
     public static final UUID ESTABLECIMIENTO = UUID.randomUUID();
     public static final UUID ALMACEN = UUID.randomUUID();
@@ -47,7 +50,7 @@ public final class OrganizacionApiFixtures {
 
     public static CrearEmpresaOperadoraRequest crearEmpresaRequest() {
         return new CrearEmpresaOperadoraRequest(
-                TENANT, "20123456786", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
+                "20123456786", "Boticas SAC", "Boticas", "Av. 1", "150101", "01444", "a@b.pe",
                 "https://b.pe", "PEN", "America/Lima", true);
     }
 
@@ -65,7 +68,7 @@ public final class OrganizacionApiFixtures {
 
     public static CrearEstablecimientoRequest crearEstablecimientoRequest() {
         return new CrearEstablecimientoRequest(
-                TENANT, EMPRESA, "EST001", "Botica Central", "BOTICA", "CAT", "0001", "DIG001", "Av. 2",
+                EMPRESA, "EST001", "Botica Central", "BOTICA", "CAT", "0001", "DIG001", "Av. 2",
                 "150101", "Frente al parque", BigDecimal.ONE, BigDecimal.TEN, "01444", "e@b.pe", true, true,
                 true, "ONLINE", "America/Lima");
     }
@@ -85,7 +88,7 @@ public final class OrganizacionApiFixtures {
 
     public static CrearAlmacenRequest crearAlmacenRequest() {
         return new CrearAlmacenRequest(
-                TENANT, ESTABLECIMIENTO, "ALM001", "Almacén Central", "GENERAL", true, true, true, true, true,
+                ESTABLECIMIENTO, "ALM001", "Almacén Central", "GENERAL", true, true, true, true, true,
                 BigDecimal.ONE, BigDecimal.TEN);
     }
 
@@ -102,7 +105,7 @@ public final class OrganizacionApiFixtures {
 
     public static CrearTerminalPosRequest crearTerminalRequest() {
         return new CrearTerminalPosRequest(
-                TENANT, ESTABLECIMIENTO, "POS001", "Caja 1", "B001", "F001", "SN-1", "host-1", "10.0.0.1",
+                ESTABLECIMIENTO, "POS001", "Caja 1", "B001", "F001", "SN-1", "host-1", "10.0.0.1",
                 "IMP01", true);
     }
 

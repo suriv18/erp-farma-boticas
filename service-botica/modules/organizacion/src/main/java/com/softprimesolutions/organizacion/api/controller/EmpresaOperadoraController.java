@@ -1,5 +1,7 @@
 package com.softprimesolutions.organizacion.api.controller;
 
+import static com.softprimesolutions.organizacion.api.controller.OrganizacionControllerSupport.tenantOf;
+
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarEmpresaOperadoraRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CambiarEstadoRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearEmpresaOperadoraRequest;
@@ -17,6 +19,8 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -56,8 +60,9 @@ public class EmpresaOperadoraController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('organizacion.empresas.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody CrearEmpresaOperadoraRequest request) {
-        return createEmpresa.execute(OrganizacionApiMapper.toCommand(request)).fold(
+    public ResponseEntity<?> create(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CrearEmpresaOperadoraRequest request) {
+        return createEmpresa.execute(OrganizacionApiMapper.toCommand(tenantOf(jwt), request)).fold(
                 result -> OrganizacionControllerSupport.created(
                         BASE_PATH, result.id(), OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
@@ -66,19 +71,19 @@ public class EmpresaOperadoraController {
     @GetMapping
     @PreAuthorize("hasAuthority('organizacion.empresas.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return listEmpresas.execute(new ListarEmpresasQuery(tenantId, search, page, size)).fold(
+        return listEmpresas.execute(new ListarEmpresasQuery(tenantOf(jwt), search, page, size)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toEmpresaPage(result)),
                 OrganizacionControllerSupport::problem);
     }
 
     @GetMapping("/{empresaId}")
     @PreAuthorize("hasAuthority('organizacion.empresas.consultar')")
-    public ResponseEntity<?> getById(@PathVariable UUID empresaId, @RequestParam UUID tenantId) {
-        return getEmpresa.execute(new ObtenerEmpresaQuery(tenantId, empresaId)).fold(
+    public ResponseEntity<?> getById(@PathVariable UUID empresaId, @AuthenticationPrincipal Jwt jwt) {
+        return getEmpresa.execute(new ObtenerEmpresaQuery(tenantOf(jwt), empresaId)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }
@@ -87,9 +92,9 @@ public class EmpresaOperadoraController {
     @PreAuthorize("hasAuthority('organizacion.empresas.gestionar')")
     public ResponseEntity<?> update(
             @PathVariable UUID empresaId,
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ActualizarEmpresaOperadoraRequest request) {
-        return updateEmpresa.execute(OrganizacionApiMapper.toCommand(empresaId, tenantId, request)).fold(
+        return updateEmpresa.execute(OrganizacionApiMapper.toCommand(empresaId, tenantOf(jwt), request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }
@@ -98,10 +103,10 @@ public class EmpresaOperadoraController {
     @PreAuthorize("hasAuthority('organizacion.empresas.gestionar')")
     public ResponseEntity<?> changeStatus(
             @PathVariable UUID empresaId,
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CambiarEstadoRequest request) {
         return changeEmpresaStatus.execute(
-                OrganizacionApiMapper.toCambiarEstadoEmpresaCommand(empresaId, tenantId, request)).fold(
+                OrganizacionApiMapper.toCambiarEstadoEmpresaCommand(empresaId, tenantOf(jwt), request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }

@@ -36,10 +36,11 @@ class OrganizacionApiMapperTest {
 
     @Test
     void mapsEmpresaRequestsToCommandsAndResultsToResponses() {
-        var create = OrganizacionApiMapper.toCommand(crearEmpresaRequest());
+        var create = OrganizacionApiMapper.toCommand(TENANT, crearEmpresaRequest());
         var update = OrganizacionApiMapper.toCommand(EMPRESA, TENANT, actualizarEmpresaRequest());
 
-        assertThat(create).usingRecursiveComparison().isEqualTo(crearEmpresaRequest());
+        assertThat(create).usingRecursiveComparison().ignoringFields("tenantId").isEqualTo(crearEmpresaRequest());
+        assertThat(create.tenantId()).isEqualTo(TENANT);
         assertThat(update).usingRecursiveComparison().ignoringFields("empresaId", "tenantId")
                 .isEqualTo(actualizarEmpresaRequest());
         assertThat(update.empresaId()).isEqualTo(EMPRESA);
@@ -55,10 +56,11 @@ class OrganizacionApiMapperTest {
 
     @Test
     void mapsEstablecimientoRequestsToCommandsAndResultsToResponses() {
-        var create = OrganizacionApiMapper.toCommand(crearEstablecimientoRequest());
+        var create = OrganizacionApiMapper.toCommand(TENANT, crearEstablecimientoRequest());
         var update = OrganizacionApiMapper.toCommand(ESTABLECIMIENTO, TENANT, actualizarEstablecimientoRequest());
 
-        assertThat(create).usingRecursiveComparison().isEqualTo(crearEstablecimientoRequest());
+        assertThat(create).usingRecursiveComparison().ignoringFields("tenantId").isEqualTo(crearEstablecimientoRequest());
+        assertThat(create.tenantId()).isEqualTo(TENANT);
         assertThat(update).usingRecursiveComparison().ignoringFields("establecimientoId", "tenantId")
                 .isEqualTo(actualizarEstablecimientoRequest());
         assertThat(update.establecimientoId()).isEqualTo(ESTABLECIMIENTO);
@@ -70,10 +72,11 @@ class OrganizacionApiMapperTest {
 
     @Test
     void mapsAlmacenRequestsToCommandsAndResultsToResponses() {
-        var create = OrganizacionApiMapper.toCommand(crearAlmacenRequest());
+        var create = OrganizacionApiMapper.toCommand(TENANT, crearAlmacenRequest());
         var update = OrganizacionApiMapper.toCommand(ALMACEN, TENANT, actualizarAlmacenRequest());
 
-        assertThat(create).usingRecursiveComparison().isEqualTo(crearAlmacenRequest());
+        assertThat(create).usingRecursiveComparison().ignoringFields("tenantId").isEqualTo(crearAlmacenRequest());
+        assertThat(create.tenantId()).isEqualTo(TENANT);
         assertThat(update).usingRecursiveComparison().ignoringFields("almacenId", "tenantId")
                 .isEqualTo(actualizarAlmacenRequest());
         assertThat(update.almacenId()).isEqualTo(ALMACEN);
@@ -85,10 +88,11 @@ class OrganizacionApiMapperTest {
 
     @Test
     void mapsTerminalRequestsToCommandsAndResultsToResponses() {
-        var create = OrganizacionApiMapper.toCommand(crearTerminalRequest());
+        var create = OrganizacionApiMapper.toCommand(TENANT, crearTerminalRequest());
         var update = OrganizacionApiMapper.toCommand(TERMINAL, TENANT, actualizarTerminalRequest());
 
-        assertThat(create).usingRecursiveComparison().isEqualTo(crearTerminalRequest());
+        assertThat(create).usingRecursiveComparison().ignoringFields("tenantId").isEqualTo(crearTerminalRequest());
+        assertThat(create.tenantId()).isEqualTo(TENANT);
         assertThat(update).usingRecursiveComparison().ignoringFields("terminalId", "tenantId")
                 .isEqualTo(actualizarTerminalRequest());
         assertThat(update.terminalId()).isEqualTo(TERMINAL);

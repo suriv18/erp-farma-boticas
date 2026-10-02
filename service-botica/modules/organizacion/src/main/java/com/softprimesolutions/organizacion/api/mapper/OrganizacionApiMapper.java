@@ -45,9 +45,9 @@ public final class OrganizacionApiMapper {
     private OrganizacionApiMapper() {
     }
 
-    public static CrearEmpresaOperadoraCommand toCommand(CrearEmpresaOperadoraRequest request) {
+    public static CrearEmpresaOperadoraCommand toCommand(UUID tenantId, CrearEmpresaOperadoraRequest request) {
         return new CrearEmpresaOperadoraCommand(
-                request.tenantId(), request.ruc(), request.razonSocial(), request.nombreComercial(),
+                tenantId, request.ruc(), request.razonSocial(), request.nombreComercial(),
                 request.direccionFiscal(), request.ubigeoFiscal(), request.telefono(), request.email(),
                 request.sitioWeb(), request.monedaFuncional(), request.zonaHoraria(),
                 request.permiteVentaOnline());
@@ -74,9 +74,9 @@ public final class OrganizacionApiMapper {
         return toPage(result, OrganizacionApiMapper::toResponse);
     }
 
-    public static CrearEstablecimientoCommand toCommand(CrearEstablecimientoRequest request) {
+    public static CrearEstablecimientoCommand toCommand(UUID tenantId, CrearEstablecimientoRequest request) {
         return new CrearEstablecimientoCommand(
-                request.tenantId(), request.empresaId(), request.codigo(), request.nombre(),
+                tenantId, request.empresaId(), request.codigo(), request.nombre(),
                 request.tipoEstablecimiento(), request.categoriaRegulatoriaCodigo(),
                 request.codigoAnexoSunat(), request.codigoDigemid(), request.direccion(), request.ubigeo(),
                 request.referencia(), request.latitud(), request.longitud(), request.telefono(),
@@ -110,9 +110,9 @@ public final class OrganizacionApiMapper {
         return toPage(result, OrganizacionApiMapper::toResponse);
     }
 
-    public static CrearAlmacenCommand toCommand(CrearAlmacenRequest request) {
+    public static CrearAlmacenCommand toCommand(UUID tenantId, CrearAlmacenRequest request) {
         return new CrearAlmacenCommand(
-                request.tenantId(), request.establecimientoId(), request.codigo(), request.nombre(),
+                tenantId, request.establecimientoId(), request.codigo(), request.nombre(),
                 request.tipo(), request.permiteLotes(), request.permiteVencimiento(), request.permiteVenta(),
                 request.permiteDespacho(), request.controlTemperatura(), request.temperaturaMinC(),
                 request.temperaturaMaxC());
@@ -139,9 +139,9 @@ public final class OrganizacionApiMapper {
         return toPage(result, OrganizacionApiMapper::toResponse);
     }
 
-    public static CrearTerminalPosCommand toCommand(CrearTerminalPosRequest request) {
+    public static CrearTerminalPosCommand toCommand(UUID tenantId, CrearTerminalPosRequest request) {
         return new CrearTerminalPosCommand(
-                request.tenantId(), request.establecimientoId(), request.codigo(), request.nombre(),
+                tenantId, request.establecimientoId(), request.codigo(), request.nombre(),
                 request.serieBoletaDefecto(), request.serieFacturaDefecto(), request.numeroSerieEquipo(),
                 request.hostname(), request.ipEquipo(), request.impresoraCodigo(),
                 request.storeEdgeHabilitado());

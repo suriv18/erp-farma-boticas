@@ -1,7 +1,7 @@
 package com.softprimesolutions.organizacion.api.controller;
 
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.EMPRESA;
-import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TENANT;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.JWT;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarEmpresaRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.cambiarEstadoRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearEmpresaRequest;
@@ -28,54 +28,54 @@ class EmpresaOperadoraControllerTest {
 
     @Test
     void createsAnEmpresaAndReturnsItsLocation() {
-        assertCreated(succeeding.create(crearEmpresaRequest()), EmpresaOperadoraController.BASE_PATH, EMPRESA,
+        assertCreated(succeeding.create(JWT, crearEmpresaRequest()), EmpresaOperadoraController.BASE_PATH, EMPRESA,
                 OrganizacionApiMapper.toResponse(empresaResult()));
     }
 
     @Test
     void mapsCreateFailuresToProblemDetails() {
-        assertConflict(failing.create(crearEmpresaRequest()));
+        assertConflict(failing.create(JWT, crearEmpresaRequest()));
     }
 
     @Test
     void listsEmpresasAsAPage() {
-        assertOk(succeeding.list(TENANT, "bot", 1, 10), OrganizacionApiMapper.toEmpresaPage(page(empresaResult())));
+        assertOk(succeeding.list(JWT, "bot", 1, 10), OrganizacionApiMapper.toEmpresaPage(page(empresaResult())));
     }
 
     @Test
     void mapsListFailuresToProblemDetails() {
-        assertConflict(failing.list(TENANT, null, 0, 20));
+        assertConflict(failing.list(JWT, null, 0, 20));
     }
 
     @Test
     void getsAnEmpresaById() {
-        assertOk(succeeding.getById(EMPRESA, TENANT), OrganizacionApiMapper.toResponse(empresaResult()));
+        assertOk(succeeding.getById(EMPRESA, JWT), OrganizacionApiMapper.toResponse(empresaResult()));
     }
 
     @Test
     void mapsGetFailuresToProblemDetails() {
-        assertConflict(failing.getById(EMPRESA, TENANT));
+        assertConflict(failing.getById(EMPRESA, JWT));
     }
 
     @Test
     void updatesAnEmpresa() {
-        assertOk(succeeding.update(EMPRESA, TENANT, actualizarEmpresaRequest()),
+        assertOk(succeeding.update(EMPRESA, JWT, actualizarEmpresaRequest()),
                 OrganizacionApiMapper.toResponse(empresaResult()));
     }
 
     @Test
     void mapsUpdateFailuresToProblemDetails() {
-        assertConflict(failing.update(EMPRESA, TENANT, actualizarEmpresaRequest()));
+        assertConflict(failing.update(EMPRESA, JWT, actualizarEmpresaRequest()));
     }
 
     @Test
     void changesTheStatusOfAnEmpresa() {
-        assertOk(succeeding.changeStatus(EMPRESA, TENANT, cambiarEstadoRequest("SUSPENDIDO")),
+        assertOk(succeeding.changeStatus(EMPRESA, JWT, cambiarEstadoRequest("SUSPENDIDO")),
                 OrganizacionApiMapper.toResponse(empresaResult()));
     }
 
     @Test
     void mapsStatusChangeFailuresToProblemDetails() {
-        assertConflict(failing.changeStatus(EMPRESA, TENANT, cambiarEstadoRequest("SUSPENDIDO")));
+        assertConflict(failing.changeStatus(EMPRESA, JWT, cambiarEstadoRequest("SUSPENDIDO")));
     }
 }

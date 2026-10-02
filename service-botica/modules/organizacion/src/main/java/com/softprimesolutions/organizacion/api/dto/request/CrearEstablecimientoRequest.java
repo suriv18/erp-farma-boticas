@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record CrearEstablecimientoRequest(
-        @NotNull UUID tenantId,
         @NotNull UUID empresaId,
         @NotBlank @Size(min = 1, max = 40) String codigo,
         @NotBlank @Size(min = 2, max = 250) String nombre,

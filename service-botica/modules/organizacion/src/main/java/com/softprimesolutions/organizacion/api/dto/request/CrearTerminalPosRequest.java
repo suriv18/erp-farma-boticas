@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record CrearTerminalPosRequest(
-        @NotNull UUID tenantId,
         @NotNull UUID establecimientoId,
         @NotBlank @Size(min = 1, max = 40) String codigo,
         @NotBlank @Size(min = 2, max = 120) String nombre,

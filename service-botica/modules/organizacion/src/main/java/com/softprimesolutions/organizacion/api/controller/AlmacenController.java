@@ -1,5 +1,7 @@
 package com.softprimesolutions.organizacion.api.controller;
 
+import static com.softprimesolutions.organizacion.api.controller.OrganizacionControllerSupport.tenantOf;
+
 import com.softprimesolutions.organizacion.api.dto.request.ActualizarAlmacenRequest;
 import com.softprimesolutions.organizacion.api.dto.request.CrearAlmacenRequest;
 import com.softprimesolutions.organizacion.api.mapper.OrganizacionApiMapper;
@@ -15,6 +17,8 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,8 +54,9 @@ public class AlmacenController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('organizacion.almacenes.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody CrearAlmacenRequest request) {
-        return createAlmacen.execute(OrganizacionApiMapper.toCommand(request)).fold(
+    public ResponseEntity<?> create(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CrearAlmacenRequest request) {
+        return createAlmacen.execute(OrganizacionApiMapper.toCommand(tenantOf(jwt), request)).fold(
                 result -> OrganizacionControllerSupport.created(
                         BASE_PATH, result.id(), OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
@@ -60,20 +65,21 @@ public class AlmacenController {
     @GetMapping
     @PreAuthorize("hasAuthority('organizacion.almacenes.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) UUID establecimientoId,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return listAlmacenes.execute(new ListarAlmacenesQuery(tenantId, establecimientoId, search, page, size)).fold(
+        return listAlmacenes.execute(
+                new ListarAlmacenesQuery(tenantOf(jwt), establecimientoId, search, page, size)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toAlmacenPage(result)),
                 OrganizacionControllerSupport::problem);
     }
 
     @GetMapping("/{almacenId}")
     @PreAuthorize("hasAuthority('organizacion.almacenes.consultar')")
-    public ResponseEntity<?> getById(@PathVariable UUID almacenId, @RequestParam UUID tenantId) {
-        return getAlmacen.execute(new ObtenerAlmacenQuery(tenantId, almacenId)).fold(
+    public ResponseEntity<?> getById(@PathVariable UUID almacenId, @AuthenticationPrincipal Jwt jwt) {
+        return getAlmacen.execute(new ObtenerAlmacenQuery(tenantOf(jwt), almacenId)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }
@@ -82,9 +88,9 @@ public class AlmacenController {
     @PreAuthorize("hasAuthority('organizacion.almacenes.gestionar')")
     public ResponseEntity<?> update(
             @PathVariable UUID almacenId,
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ActualizarAlmacenRequest request) {
-        return updateAlmacen.execute(OrganizacionApiMapper.toCommand(almacenId, tenantId, request)).fold(
+        return updateAlmacen.execute(OrganizacionApiMapper.toCommand(almacenId, tenantOf(jwt), request)).fold(
                 result -> ResponseEntity.ok(OrganizacionApiMapper.toResponse(result)),
                 OrganizacionControllerSupport::problem);
     }

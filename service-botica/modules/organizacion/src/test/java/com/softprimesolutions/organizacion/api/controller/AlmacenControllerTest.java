@@ -2,7 +2,7 @@ package com.softprimesolutions.organizacion.api.controller;
 
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.ALMACEN;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.ESTABLECIMIENTO;
-import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.TENANT;
+import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.JWT;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.actualizarAlmacenRequest;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.almacenResult;
 import static com.softprimesolutions.organizacion.api.OrganizacionApiFixtures.crearAlmacenRequest;
@@ -26,44 +26,44 @@ class AlmacenControllerTest {
 
     @Test
     void createsAnAlmacenAndReturnsItsLocation() {
-        assertCreated(succeeding.create(crearAlmacenRequest()), AlmacenController.BASE_PATH, ALMACEN,
+        assertCreated(succeeding.create(JWT, crearAlmacenRequest()), AlmacenController.BASE_PATH, ALMACEN,
                 OrganizacionApiMapper.toResponse(almacenResult()));
     }
 
     @Test
     void mapsCreateFailuresToProblemDetails() {
-        assertConflict(failing.create(crearAlmacenRequest()));
+        assertConflict(failing.create(JWT, crearAlmacenRequest()));
     }
 
     @Test
     void listsAlmacenesAsAPage() {
-        assertOk(succeeding.list(TENANT, ESTABLECIMIENTO, "alm", 0, 20),
+        assertOk(succeeding.list(JWT, ESTABLECIMIENTO, "alm", 0, 20),
                 OrganizacionApiMapper.toAlmacenPage(page(almacenResult())));
     }
 
     @Test
     void mapsListFailuresToProblemDetails() {
-        assertConflict(failing.list(TENANT, null, null, 0, 20));
+        assertConflict(failing.list(JWT, null, null, 0, 20));
     }
 
     @Test
     void getsAnAlmacenById() {
-        assertOk(succeeding.getById(ALMACEN, TENANT), OrganizacionApiMapper.toResponse(almacenResult()));
+        assertOk(succeeding.getById(ALMACEN, JWT), OrganizacionApiMapper.toResponse(almacenResult()));
     }
 
     @Test
     void mapsGetFailuresToProblemDetails() {
-        assertConflict(failing.getById(ALMACEN, TENANT));
+        assertConflict(failing.getById(ALMACEN, JWT));
     }
 
     @Test
     void updatesAnAlmacen() {
-        assertOk(succeeding.update(ALMACEN, TENANT, actualizarAlmacenRequest()),
+        assertOk(succeeding.update(ALMACEN, JWT, actualizarAlmacenRequest()),
                 OrganizacionApiMapper.toResponse(almacenResult()));
     }
 
     @Test
     void mapsUpdateFailuresToProblemDetails() {
-        assertConflict(failing.update(ALMACEN, TENANT, actualizarAlmacenRequest()));
+        assertConflict(failing.update(ALMACEN, JWT, actualizarAlmacenRequest()));
     }
 }
