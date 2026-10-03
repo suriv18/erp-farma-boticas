@@ -1,5 +1,7 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.write.adapter;
 
+import java.util.Map;
+import java.util.Collection;
 import com.softprimesolutions.ventas.application.port.out.ReferenciasVentasPort;
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcColumns;
 import java.util.Optional;
@@ -37,5 +39,15 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
                         JdbcColumns.uuid(rs, "uuid_publico"), JdbcColumns.uuid(rs, "establecimiento_uuid"),
                         rs.getString("codigo"), rs.getBoolean("operable")))
                 .optional();
+    }
+
+    @Override
+    public Optional<AlmacenRef> almacen(UUID tenantId, UUID almacenId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<UUID, SkuVentaRef> skus(UUID tenantId, Collection<UUID> skuIds) {
+        throw new UnsupportedOperationException();
     }
 }

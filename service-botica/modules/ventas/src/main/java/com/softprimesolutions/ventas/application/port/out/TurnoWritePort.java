@@ -12,6 +12,8 @@ public interface TurnoWritePort {
 
     Optional<TurnoCaja> findPorIdParaActualizar(UUID tenantId, UUID turnoId);
 
+    Optional<TurnoCaja> bloquearTurnoAbierto(UUID tenantId, UUID terminalId);
+
     BigDecimal totalVentasEfectivo(UUID tenantId, UUID turnoId);
 
     boolean actualizarCierre(TurnoCaja turno, Actor actor);

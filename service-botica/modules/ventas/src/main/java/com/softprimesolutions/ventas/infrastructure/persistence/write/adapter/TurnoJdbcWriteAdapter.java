@@ -125,4 +125,9 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
             super(null, null, false, false);
         }
     }
+
+    @Override
+    public Optional<TurnoCaja> bloquearTurnoAbierto(UUID tenantId, UUID terminalId) {
+        throw new UnsupportedOperationException();
+    }
 }

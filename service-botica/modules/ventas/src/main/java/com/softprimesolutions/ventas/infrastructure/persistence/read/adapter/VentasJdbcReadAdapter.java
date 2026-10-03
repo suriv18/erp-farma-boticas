@@ -1,5 +1,9 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.read.adapter;
 
+import com.softprimesolutions.ventas.application.dto.result.VentaResumenResult;
+import com.softprimesolutions.ventas.application.dto.result.VentaResult;
+import com.softprimesolutions.ventas.application.dto.result.PaginaResult;
+import com.softprimesolutions.ventas.application.dto.query.ListarVentasQuery;
 import com.softprimesolutions.ventas.application.dto.result.TurnoResult;
 import com.softprimesolutions.ventas.application.mapper.VentasApplicationMapper;
 import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
@@ -37,5 +41,15 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
                 .param("terminalId", terminalId)
                 .query((rs, rowNumber) -> VentasApplicationMapper.toResult(TurnoRows.map(rs, tenantId)))
                 .optional();
+    }
+
+    @Override
+    public Optional<VentaResult> findVenta(UUID tenantId, UUID ventaId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public PaginaResult<VentaResumenResult> listarVentas(ListarVentasQuery query) {
+        throw new UnsupportedOperationException();
     }
 }
