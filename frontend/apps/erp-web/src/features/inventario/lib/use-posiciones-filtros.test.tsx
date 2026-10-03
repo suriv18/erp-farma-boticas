@@ -79,7 +79,7 @@ describe('usePosicionesFiltros', () => {
   it('resincroniza los parámetros tras una navegación externa', () => {
     const { result } = renderFiltros('/inventario?skuId=sku-1');
 
-    act(() => result.current.navigate('/inventario?almacenId=alm-9'));
+    act(() => void result.current.navigate('/inventario?almacenId=alm-9'));
     act(() => result.current.setPage(1));
 
     expect(result.current.location.search).toBe('?almacenId=alm-9&page=1');
