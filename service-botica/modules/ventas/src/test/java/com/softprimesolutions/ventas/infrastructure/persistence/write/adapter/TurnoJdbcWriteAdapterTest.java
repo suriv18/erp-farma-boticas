@@ -9,13 +9,16 @@ import static com.softprimesolutions.ventas.VentasFixtures.dec;
 import static com.softprimesolutions.ventas.VentasFixtures.turno;
 import static com.softprimesolutions.ventas.infrastructure.persistence.Rows.MOMENTO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.softprimesolutions.ventas.application.port.out.GuardadoOutcome;
 import com.softprimesolutions.ventas.domain.model.EstadoTurno;
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcClientStub;
 import com.softprimesolutions.ventas.infrastructure.persistence.Rows;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.JdbcUpdateAffectedIncorrectNumberOfRowsException;
 import org.springframework.transaction.support.TransactionOperations;
 
 class TurnoJdbcWriteAdapterTest {
@@ -40,13 +43,31 @@ class TurnoJdbcWriteAdapterTest {
     }
 
     @Test
-    void aUniqueViolationOrAnInsertThatTouchesNoRowIsReportedAsDuplicate() {
-        jdbc.failsWith(INSERT, new DuplicateKeyException("uk_turno_terminal_abierto"));
-        assertThat(adapter.insertar(turno(EstadoTurno.ABIERTO, "50.00"))).isEqualTo(GuardadoOutcome.DUPLICADO);
+    void onlyTheOpenTurnoPerTerminalUniqueViolationIsReportedAsDuplicate() {
+        jdbc.failsWith(INSERT, JdbcClientStub.unicidadViolada("uk_turno_terminal_abierto"));
 
+        assertThat(adapter.insertar(turno(EstadoTurno.ABIERTO, "50.00"))).isEqualTo(GuardadoOutcome.DUPLICADO);
+    }
+
+    @Test
+    void anyOtherIntegrityViolationPropagates() {
+        var otraUnicidad = JdbcClientStub.unicidadViolada("uk_turno_caja_uuid");
+        jdbc.failsWith(INSERT, otraUnicidad);
+        assertThatThrownBy(() -> adapter.insertar(turno(EstadoTurno.ABIERTO, "50.00"))).isSameAs(otraUnicidad);
+
+        var sinCajero = new DataIntegrityViolationException("null value in column \"cajero_usuario_id\"");
+        var conNulo = new JdbcClientStub().failsWith(INSERT, sinCajero);
+        var otro = new TurnoJdbcWriteAdapter(conNulo.client(), TransactionOperations.withoutTransaction());
+        assertThatThrownBy(() -> otro.insertar(turno(EstadoTurno.ABIERTO, "50.00"))).isSameAs(sinCajero);
+    }
+
+    @Test
+    void anInsertThatTouchesNoRowPropagatesInsteadOfLookingLikeADuplicate() {
         var sinFilas = new JdbcClientStub().updates(INSERT, 0);
         var otro = new TurnoJdbcWriteAdapter(sinFilas.client(), TransactionOperations.withoutTransaction());
-        assertThat(otro.insertar(turno(EstadoTurno.ABIERTO, "50.00"))).isEqualTo(GuardadoOutcome.DUPLICADO);
+
+        assertThatThrownBy(() -> otro.insertar(turno(EstadoTurno.ABIERTO, "50.00")))
+                .isInstanceOf(JdbcUpdateAffectedIncorrectNumberOfRowsException.class);
     }
 
     @Test

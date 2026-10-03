@@ -1,5 +1,8 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.write.adapter;
 
+import static com.softprimesolutions.ventas.infrastructure.persistence.JdbcEscrituras.exigirUnaFila;
+import static com.softprimesolutions.ventas.infrastructure.persistence.JdbcEscrituras.guardarUnico;
+
 import com.softprimesolutions.ventas.application.port.out.GuardadoOutcome;
 import com.softprimesolutions.ventas.application.port.out.TurnoWritePort;
 import com.softprimesolutions.ventas.domain.model.TurnoCaja;
@@ -9,7 +12,6 @@ import com.softprimesolutions.ventas.infrastructure.persistence.TurnoRows;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionOperations;
@@ -17,6 +19,7 @@ import org.springframework.transaction.support.TransactionOperations;
 @Repository
 public class TurnoJdbcWriteAdapter implements TurnoWritePort {
 
+    private static final String UK_TURNO_ABIERTO = "uk_turno_terminal_abierto";
     private static final String POR_ID_PARA_ACTUALIZAR = TurnoRows.POR_ID + " FOR UPDATE OF tc";
     private static final String ABIERTO_PARA_COMPARTIR = TurnoRows.SELECT
             + " AND tp.uuid_publico = :terminalId AND tc.estado = 'ABIERTO' FOR SHARE OF tc";
@@ -62,12 +65,8 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
 
     @Override
     public GuardadoOutcome insertar(TurnoCaja turno) {
-        try {
-            transaction.executeWithoutResult(status -> exigirUnaFila(insertarFila(turno)));
-            return GuardadoOutcome.GUARDADO;
-        } catch (DataIntegrityViolationException | FilaNoInsertada exception) {
-            return GuardadoOutcome.DUPLICADO;
-        }
+        return guardarUnico(UK_TURNO_ABIERTO, () -> transaction.executeWithoutResult(
+                status -> exigirUnaFila(INSERTAR, insertarFila(turno))));
     }
 
     @Override
@@ -122,18 +121,5 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
                 .param("fondoInicial", turno.fondoInicial())
                 .param("actor", turno.cajero().codigo())
                 .update();
-    }
-
-    private static void exigirUnaFila(int filas) {
-        if (filas != 1) throw new FilaNoInsertada();
-    }
-
-    private static final class FilaNoInsertada extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        FilaNoInsertada() {
-            super(null, null, false, false);
-        }
     }
 }

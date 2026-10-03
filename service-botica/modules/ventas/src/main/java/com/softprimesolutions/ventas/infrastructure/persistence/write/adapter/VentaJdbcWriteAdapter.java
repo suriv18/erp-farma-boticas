@@ -1,5 +1,8 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.write.adapter;
 
+import static com.softprimesolutions.ventas.infrastructure.persistence.JdbcEscrituras.exigirUnaFila;
+import static com.softprimesolutions.ventas.infrastructure.persistence.JdbcEscrituras.guardarUnico;
+
 import com.softprimesolutions.ventas.application.port.out.GuardadoOutcome;
 import com.softprimesolutions.ventas.application.port.out.VentaWritePort;
 import com.softprimesolutions.ventas.domain.model.LineaVenta;
@@ -9,7 +12,6 @@ import com.softprimesolutions.ventas.infrastructure.persistence.JdbcColumns;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionOperations;
@@ -17,6 +19,7 @@ import org.springframework.transaction.support.TransactionOperations;
 @Repository
 public class VentaJdbcWriteAdapter implements VentaWritePort {
 
+    private static final String UK_IDEMPOTENCIA = "uk_venta_idempotency";
     private static final String POR_IDEMPOTENCIA = """
             SELECT v.uuid_publico, v.huella_solicitud
               FROM sch_venta.venta v
@@ -96,17 +99,13 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
 
     @Override
     public GuardadoOutcome insertar(Venta venta, String idempotencyKey, String huella) {
-        try {
-            transaction.executeWithoutResult(status -> persistir(venta, idempotencyKey, huella));
-            return GuardadoOutcome.GUARDADO;
-        } catch (DataIntegrityViolationException | FilaNoInsertada exception) {
-            return GuardadoOutcome.DUPLICADO;
-        }
+        return guardarUnico(UK_IDEMPOTENCIA, () -> transaction.executeWithoutResult(
+                status -> persistir(venta, idempotencyKey, huella)));
     }
 
     @Override
     public void registrarLotes(UUID tenantId, UUID ventaLineaId, List<LoteConsumo> lotes) {
-        lotes.forEach(lote -> exigirUnaFila(jdbcClient.sql(INSERTAR_LOTE)
+        lotes.forEach(lote -> exigirUnaFila(INSERTAR_LOTE, jdbcClient.sql(INSERTAR_LOTE)
                 .param("tenantId", tenantId)
                 .param("lineaId", ventaLineaId)
                 .param("loteId", lote.loteId())
@@ -115,10 +114,10 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
     }
 
     private void persistir(Venta venta, String idempotencyKey, String huella) {
-        exigirUnaFila(insertarVenta(venta, idempotencyKey, huella));
-        venta.lineas().forEach(linea -> exigirUnaFila(insertarLinea(venta, linea)));
+        exigirUnaFila(INSERTAR_VENTA, insertarVenta(venta, idempotencyKey, huella));
+        venta.lineas().forEach(linea -> exigirUnaFila(INSERTAR_LINEA, insertarLinea(venta, linea)));
         asegurarEfectivo(venta);
-        exigirUnaFila(insertarPago(venta));
+        exigirUnaFila(INSERTAR_PAGO, insertarPago(venta));
     }
 
     private int insertarVenta(Venta venta, String idempotencyKey, String huella) {
@@ -169,18 +168,5 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
                 .param("vuelto", venta.pago().vuelto())
                 .param("fecha", JdbcColumns.offset(venta.fechaVenta()))
                 .update();
-    }
-
-    private static void exigirUnaFila(int filas) {
-        if (filas != 1) throw new FilaNoInsertada();
-    }
-
-    private static final class FilaNoInsertada extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        FilaNoInsertada() {
-            super(null, null, false, false);
-        }
     }
 }

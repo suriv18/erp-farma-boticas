@@ -20,7 +20,9 @@ import com.softprimesolutions.ventas.infrastructure.persistence.JdbcClientStub;
 import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.JdbcUpdateAffectedIncorrectNumberOfRowsException;
 import org.springframework.transaction.support.TransactionOperations;
 
 class VentaJdbcWriteAdapterTest {
@@ -80,13 +82,31 @@ class VentaJdbcWriteAdapterTest {
     }
 
     @Test
-    void aUniqueViolationOrASaleThatInsertsNoRowIsReportedAsDuplicate() {
-        jdbc.failsWith(INSERT_VENTA, new DuplicateKeyException("uk_venta_idempotency"));
-        assertThat(adapter.insertar(venta(), "clave-1", "huella-1")).isEqualTo(GuardadoOutcome.DUPLICADO);
+    void onlyTheIdempotencyKeyUniqueViolationIsReportedAsDuplicate() {
+        jdbc.failsWith(INSERT_VENTA, JdbcClientStub.unicidadViolada("uk_venta_idempotency"));
 
+        assertThat(adapter.insertar(venta(), "clave-1", "huella-1")).isEqualTo(GuardadoOutcome.DUPLICADO);
+    }
+
+    @Test
+    void anyOtherIntegrityViolationPropagates() {
+        var otraUnicidad = JdbcClientStub.unicidadViolada("uk_venta_uuid");
+        jdbc.failsWith(INSERT_VENTA, otraUnicidad);
+        assertThatThrownBy(() -> adapter.insertar(venta(), "clave-1", "huella-1")).isSameAs(otraUnicidad);
+
+        var sinVendedor = new DataIntegrityViolationException("null value in column \"vendedor_usuario_id\"");
+        var conNulo = new JdbcClientStub().failsWith(INSERT_VENTA, sinVendedor);
+        var otro = new VentaJdbcWriteAdapter(conNulo.client(), TransactionOperations.withoutTransaction());
+        assertThatThrownBy(() -> otro.insertar(venta(), "clave-1", "huella-1")).isSameAs(sinVendedor);
+    }
+
+    @Test
+    void aSaleThatInsertsNoRowPropagatesInsteadOfLookingLikeADuplicate() {
         var sinFilas = new JdbcClientStub().updates(INSERT_VENTA, 0);
         var otro = new VentaJdbcWriteAdapter(sinFilas.client(), TransactionOperations.withoutTransaction());
-        assertThat(otro.insertar(venta(), "clave-1", "huella-1")).isEqualTo(GuardadoOutcome.DUPLICADO);
+
+        assertThatThrownBy(() -> otro.insertar(venta(), "clave-1", "huella-1"))
+                .isInstanceOf(JdbcUpdateAffectedIncorrectNumberOfRowsException.class);
     }
 
     @Test
@@ -104,6 +124,6 @@ class VentaJdbcWriteAdapterTest {
         var otro = new VentaJdbcWriteAdapter(sinFilas.client(), TransactionOperations.withoutTransaction());
 
         assertThatThrownBy(() -> otro.registrarLotes(TENANT, LINEA, List.of(new LoteConsumo(LOTE, dec("5")))))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(JdbcUpdateAffectedIncorrectNumberOfRowsException.class);
     }
 }

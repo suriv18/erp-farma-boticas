@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -67,6 +68,11 @@ public final class JdbcClientStub {
     public JdbcClientStub failsWith(String fragment, RuntimeException failure) {
         rules.add(new Rule(fragment, List.of(), List.of(), 1, failure));
         return this;
+    }
+
+    public static DuplicateKeyException unicidadViolada(String restriccion) {
+        return new DuplicateKeyException(
+                "ERROR: duplicate key value violates unique constraint \"" + restriccion + "\"");
     }
 
     public static ResultSet resultSet(Map<String, Object> values) {
