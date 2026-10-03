@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class InventarioConcurrencyIntegrationTest {
 
     @Autowired
     private RegistrarMovimientoUseCase registrarMovimiento;
+
+    @Autowired
+    private SalidaInventarioApi salidaInventario;
 
     @Autowired
     private JdbcClient jdbcClient;
@@ -149,6 +153,84 @@ class InventarioConcurrencyIntegrationTest {
                 stock -> assertThat(stock).isEqualByComparingTo("7"));
         assertThat(physicalStock()).isEqualByComparingTo("7");
         assertThat(salidasInKardex()).isEqualTo(1);
+    }
+
+    @Test
+    void aSalidaVentaConsumesTheEarliestExpiryLoteFirstAndThenTheNext() {
+        var antiguo = registrarMovimiento.execute(new RegistrarMovimientoCommand(
+                TENANT_ID, almacenId, skuId, null, "L-ANT", LocalDate.now().plusMonths(6), "AJUSTE_INGRESO",
+                new BigDecimal("3"), "Lote por vencer", actor, null))
+                .fold(MovimientoResult::loteId, error -> { throw new AssertionError(error); });
+
+        var registrada = venta("5", "venta-fefo").fold(value -> value, error -> { throw new AssertionError(error); });
+
+        assertThat(registrada.lotes()).extracting(LoteConsumido::loteId).containsExactly(antiguo, loteId);
+        assertThat(registrada.lotes()).extracting(LoteConsumido::cantidad)
+                .usingComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .containsExactly(new BigDecimal("3"), new BigDecimal("2"));
+        assertThat(physicalStock()).isEqualByComparingTo("8");
+        assertThat(jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_inventario.movimiento_inventario
+                         WHERE tipo_movimiento = 'SALIDA_VENTA' AND documento_tipo = 'VENTA'
+                           AND tipo_operacion_sunat = '01' AND naturaleza = 'S'
+                        """).query(Long.class).single()).isEqualTo(2L);
+    }
+
+    @Test
+    void aSalidaVentaIgnoresBlockedLotesAndFailsWhenNothingSellableCoversTheQuantity() {
+        jdbcClient.sql("UPDATE sch_inventario.lote SET estado_lote = 'BLOQUEADO' WHERE uuid_publico = :loteId")
+                .param("loteId", loteId).update();
+
+        var error = venta("1", "venta-bloqueada").fold(value -> null, failure -> failure);
+
+        assertThat(error.code()).isEqualTo(SalidaInventarioApi.CODIGO_STOCK_INSUFICIENTE);
+        assertThat(physicalStock()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void retryingTheSameSalidaVentaReturnsTheSameLotesWithoutMovingStockAgain() {
+        var primera = venta("4", "venta-reintento").fold(value -> value, error -> { throw new AssertionError(error); });
+        var segunda = venta("4", "venta-reintento").fold(value -> value, error -> { throw new AssertionError(error); });
+
+        assertThat(segunda).usingRecursiveComparison()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class).isEqualTo(primera);
+        assertThat(physicalStock()).isEqualByComparingTo("6");
+        assertThat(salidasInKardex()).isEqualTo(1);
+    }
+
+    @Test
+    void twoSimultaneousSalidasVentaOfEightFromTenNeverOversell() throws Exception {
+        var start = new CountDownLatch(1);
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var futures = new ArrayList<Future<Result<SalidaVentaRegistrada, ApplicationError>>>();
+            for (var index = 0; index < 2; index++) {
+                var clave = "venta-concurrente-" + index;
+                Callable<Result<SalidaVentaRegistrada, ApplicationError>> tarea = () -> {
+                    start.await();
+                    return venta("8", clave);
+                };
+                futures.add(pool.submit(tarea));
+            }
+            start.countDown();
+            var results = new ArrayList<Result<SalidaVentaRegistrada, ApplicationError>>();
+            for (var future : futures) results.add(future.get());
+
+            assertThat(results.stream().filter(Result::isSuccess).count()).isEqualTo(1);
+            assertThat(results.stream().map(result -> result.fold(value -> "OK", ApplicationError::code))
+                    .filter(code -> !code.equals("OK")).toList())
+                    .containsExactly(SalidaInventarioApi.CODIGO_STOCK_INSUFICIENTE);
+            assertThat(physicalStock()).isEqualByComparingTo("2");
+            assertThat(salidasInKardex()).isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private Result<SalidaVentaRegistrada, ApplicationError> venta(String cantidad, String clave) {
+        return salidaInventario.registrarSalidaVenta(new SalidaVentaSolicitud(
+                TENANT_ID, almacenId, skuId, new BigDecimal(cantidad), UUID.randomUUID(), UUID.randomUUID(),
+                actor, clave));
     }
 
     private List<Result<MovimientoResult, ApplicationError>> runConcurrently(int threads, String cantidad)
