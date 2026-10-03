@@ -22,6 +22,7 @@ Spec: `docs/superpowers/specs/2026-10-03-ventas-turno-caja-venta-simple-design.m
 - Un fallo en cualquier línea revierte toda la venta, incluidos los descuentos de líneas anteriores (el rollback lo aplica `TransaccionPort`).
 - `INV_STOCK_INSUFICIENTE` se propaga con su código (409); `INV_MODIFICACION_CONCURRENTE` se traduce a `VEN_MODIFICACION_CONCURRENTE` y activa el reintento.
 - Rutas REST bajo `/api/v1/ventas/ventas`; permisos `ventas.ventas.registrar` y `ventas.ventas.consultar`.
+- Los beans de adapters cuyo nombre de clase ya existe en otro módulo (`NumeracionJdbcAdapter` de `compras`) deben llevar nombre explícito (`@Repository("ventasNumeracionAdapter")`) para no provocar `ConflictingBeanDefinitionException` al arrancar el contexto; `SpringTransaccionAdapter` ya quedó como `@Component("ventasTransaccionAdapter")`.
 - El medio de pago `EFECTIVO` se crea bajo demanda por tenant (`INSERT ... ON CONFLICT DO NOTHING`), en vez de sembrarlo para los tenants existentes.
 - Comandos desde `service-botica/` en PowerShell: `.\gradlew.bat :modules:ventas:test --tests "<clase>"`.
 - Commits terminan con `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
@@ -2353,7 +2354,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-@Repository
+@Repository("ventasNumeracionAdapter")
 public class NumeracionJdbcAdapter implements NumeracionPort {
 
     private static final String SIGUIENTE = """
