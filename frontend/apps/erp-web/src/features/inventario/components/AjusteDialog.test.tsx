@@ -88,4 +88,27 @@ describe('AjusteDialog', () => {
     );
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('no cierra con el botón Cerrar mientras la solicitud está en curso', async () => {
+    let liberar = () => undefined as void;
+    const liberada = new Promise<void>((resolver) => {
+      liberar = resolver;
+    });
+    server.use(
+      http.post(movimientosUrl, async () => {
+        await liberada;
+        return HttpResponse.json(sampleMovimiento, { status: 201 });
+      })
+    );
+    const { onClose, user } = renderDialog(samplePosicion);
+
+    await user.type(screen.getByLabelText('Cantidad'), '5');
+    await user.type(screen.getByLabelText('Motivo'), 'Conteo');
+    await user.click(screen.getByRole('button', { name: 'Registrar ajuste' }));
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    liberar();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
 });

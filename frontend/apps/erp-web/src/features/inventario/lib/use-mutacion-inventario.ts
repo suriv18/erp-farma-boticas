@@ -16,6 +16,11 @@ export function useMutacionInventario<TVariables, TData>(
   });
 
   return {
+    cerrar: () => {
+      if (!mutation.isPending) {
+        onClose();
+      }
+    },
     mutate: mutation.mutate,
     isPending: mutation.isPending,
     mensajeError: mutation.isError ? describeApiError(mutation.error) : null

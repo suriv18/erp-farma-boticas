@@ -87,4 +87,22 @@ describe('usePosicionesFiltros', () => {
 
     expect(result.current.location.search).toBe('?almacenId=alm-9&page=1');
   });
+
+  it.each([
+    ['página no numérica', '?page=abc', 0, 20],
+    ['página negativa', '?page=-1', 0, 20],
+    ['página fraccionaria', '?page=1.5', 0, 20],
+    ['página vacía', '?page=', 0, 20],
+    ['tamaño no numérico', '?size=abc', 0, 20],
+    ['tamaño cero', '?size=0', 0, 20],
+    ['tamaño sobre el máximo', '?size=101', 0, 20],
+    ['tamaño fraccionario', '?size=10.5', 0, 20],
+    ['valores válidos en los límites', '?page=0&size=100', 0, 100],
+    ['tamaño mínimo', '?page=7&size=1', 7, 1]
+  ])('con %s usa los valores válidos o los de por defecto', (_nombre, search, page, size) => {
+    const { result } = renderFiltros(`/inventario${search}`);
+
+    expect(result.current.filtros.page).toBe(page);
+    expect(result.current.filtros.size).toBe(size);
+  });
 });

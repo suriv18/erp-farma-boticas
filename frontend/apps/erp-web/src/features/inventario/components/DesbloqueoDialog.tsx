@@ -13,7 +13,7 @@ export function DesbloqueoDialog({ loteId, onClose }: DesbloqueoDialogProps) {
   const mutation = useMutacionInventario(() => desbloquearLote(apiClient, loteId), onClose);
 
   return (
-    <Modal open onClose={onClose} title="Desbloquear lote">
+    <Modal open onClose={mutation.cerrar} title="Desbloquear lote">
       <div className="space-y-4">
         <p className="text-sm text-neutral-600 dark:text-neutral-300">
           El lote volverá a estar habilitado. Un lote vencido no puede habilitarse.

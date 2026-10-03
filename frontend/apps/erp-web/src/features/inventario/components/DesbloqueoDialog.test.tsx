@@ -42,4 +42,25 @@ describe('DesbloqueoDialog', () => {
     );
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('no cierra con el botón Cerrar mientras la solicitud está en curso', async () => {
+    let liberar = () => undefined as void;
+    const liberada = new Promise<void>((resolver) => {
+      liberar = resolver;
+    });
+    server.use(
+      http.delete(url, async () => {
+        await liberada;
+        return HttpResponse.json(sampleLote);
+      })
+    );
+    const { onClose, user } = renderDialog();
+
+    await user.click(screen.getByRole('button', { name: 'Desbloquear lote' }));
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    liberar();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
 });

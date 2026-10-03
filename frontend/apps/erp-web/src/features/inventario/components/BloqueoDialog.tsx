@@ -30,7 +30,7 @@ export function BloqueoDialog({ loteId, onClose }: BloqueoDialogProps) {
   );
 
   return (
-    <Modal open onClose={onClose} title="Bloquear lote">
+    <Modal open onClose={mutation.cerrar} title="Bloquear lote">
       <form
         className="space-y-4"
         noValidate

@@ -9,6 +9,15 @@ export type FiltrosPosiciones = {
   size: number;
 };
 
+const PAGE_POR_DEFECTO = 0;
+const SIZE_POR_DEFECTO = 20;
+const SIZE_MAXIMO = 100;
+
+const enteroEnRango = (valor: string | null, minimo: number, maximo: number, defecto: number) => {
+  const numero = valor === null || valor === '' ? Number.NaN : Number(valor);
+  return Number.isInteger(numero) && numero >= minimo && numero <= maximo ? numero : defecto;
+};
+
 export function usePosicionesFiltros() {
   const [params, setParams] = useSearchParams();
 
@@ -16,8 +25,8 @@ export function usePosicionesFiltros() {
     establecimientoId: params.get('establecimientoId') ?? '',
     almacenId: params.get('almacenId') ?? '',
     skuId: params.get('skuId') ?? '',
-    page: Number(params.get('page') ?? 0),
-    size: Number(params.get('size') ?? 20)
+    page: enteroEnRango(params.get('page'), 0, Number.MAX_SAFE_INTEGER, PAGE_POR_DEFECTO),
+    size: enteroEnRango(params.get('size'), 1, SIZE_MAXIMO, SIZE_POR_DEFECTO)
   };
 
   const vigentes = useRef(params);

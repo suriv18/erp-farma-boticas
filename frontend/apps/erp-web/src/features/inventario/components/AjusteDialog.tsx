@@ -26,7 +26,7 @@ export function AjusteDialog({ posicion, onClose }: AjusteDialogProps) {
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={mutation.cerrar}
       title={posicion ? 'Ajustar stock del lote' : 'Registrar ingreso con lote nuevo'}
       size="lg"
     >

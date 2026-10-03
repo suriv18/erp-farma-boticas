@@ -48,4 +48,24 @@ describe('useMutacionInventario', () => {
     );
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('cerrar delega en onClose cuando no hay mutación en curso', () => {
+    const onClose = vi.fn();
+    const { result } = renderMutacion(() => Promise.resolve('ok'), onClose);
+
+    act(() => result.current.cerrar());
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('cerrar no hace nada mientras la mutación está en curso', async () => {
+    const onClose = vi.fn();
+    const { result } = renderMutacion(() => new Promise<string>(() => undefined), onClose);
+
+    act(() => result.current.mutate('x'));
+    await waitFor(() => expect(result.current.isPending).toBe(true));
+    act(() => result.current.cerrar());
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
