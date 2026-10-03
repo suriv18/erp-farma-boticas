@@ -36,7 +36,7 @@ Venta:
 
 1. Idempotencia por `Idempotency-Key` (`uk_venta_idempotency`): misma clave y huella devuelve la misma venta; huella distinta es conflicto.
 2. Validar turno, terminal, almacen, lineas y totales.
-3. Transaccion unica: insertar `venta` y `venta_linea`; por cada linea llamar a `SalidaInventarioApi.registrarSalidaVenta` (ventaId, ventaLineaId, clave `{Idempotency-Key}:{n linea}`) y guardar cada lote en `venta_linea_lote`; insertar `pago_venta` y avanzar el correlativo.
+3. Transaccion unica: insertar `venta` y `venta_linea`; por cada linea llamar a `SalidaInventarioApi.registrarSalidaVenta` (ventaId, ventaLineaId, clave `{Idempotency-Key}:{n linea}`, estable por linea entre reintentos) y guardar cada lote en `venta_linea_lote`; insertar `pago_venta` y avanzar el correlativo. Las lineas se envian a inventario en orden estable por `skuId` (inventario bloquea posiciones con `FOR UPDATE`; un orden fijo evita deadlocks entre ventas con varios SKU). Un fallo de inventario deja la transaccion marcada para rollback.
 4. `INV_STOCK_INSUFICIENTE` -> 409 y rollback completo.
 5. `INV_MODIFICACION_CONCURRENTE` -> reintentar la venta completa en transaccion nueva (maximo 3) mediante `TransaccionPort`, como `compras`.
 
