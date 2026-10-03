@@ -65,7 +65,7 @@ Cada función de `api/` sigue el estilo de `almacenes.api.ts`: función `fetchX(
 
 ### Limitación conocida del backend
 
-`PosicionResponse` trae `skuId` pero no nombre ni código del producto, y no existe un endpoint para resolver SKUs por lote de ids. Decisión para este slice: el nombre del producto se muestra solo cuando hay un SKU filtrado; en la tabla general se muestra el código corto del SKU (prefijo del id) junto al número de lote. La corrección de fondo es que el backend agregue `skuCodigo`/`skuNombre` a la posición en el read adapter; queda como cambio posterior, fuera de este slice.
+`PosicionResponse` trae `skuId` pero no nombre ni código del producto, y no existe un endpoint para resolver SKUs por lote de ids. Decisión para este slice: el nombre del producto no se muestra en ninguna pantalla. `PosicionesTable` siempre muestra el código corto del SKU (los primeros 8 caracteres del id) junto al número de lote y `LoteDetailPage` muestra el id completo del SKU. La corrección de fondo es un cambio de backend que agregue `skuCodigo`/`skuNombre` a `PosicionResponse` (read adapter); queda como seguimiento posterior, fuera de este slice.
 
 ## Pantallas
 
