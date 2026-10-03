@@ -41,7 +41,7 @@ public final class JdbcClientStub {
 
     public Statement statementContaining(String fragment) {
         return statements.stream().filter(statement -> statement.sql().contains(fragment)).findFirst()
-                .orElseThrow(() -> new AssertionError("No se ejecutÃ³ SQL con: " + fragment));
+                .orElseThrow(() -> new AssertionError("No se ejecutó SQL con: " + fragment));
     }
 
     public JdbcClientStub rows(String fragment, Map<String, Object> row) {

@@ -5,13 +5,20 @@ import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import com.softprimesolutions.ventas.application.port.in.AbrirTurnoUseCase;
 import com.softprimesolutions.ventas.application.port.in.CerrarTurnoUseCase;
 import com.softprimesolutions.ventas.application.port.in.ConsultarTurnosUseCase;
+import com.softprimesolutions.ventas.application.port.in.ConsultarVentasUseCase;
+import com.softprimesolutions.ventas.application.port.in.RegistrarVentaUseCase;
+import com.softprimesolutions.ventas.application.port.out.NumeracionPort;
 import com.softprimesolutions.ventas.application.port.out.ReferenciasVentasPort;
+import com.softprimesolutions.ventas.application.port.out.SalidaInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.TransaccionPort;
 import com.softprimesolutions.ventas.application.port.out.TurnoWritePort;
+import com.softprimesolutions.ventas.application.port.out.VentaWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
 import com.softprimesolutions.ventas.application.usecase.command.AbrirTurnoHandler;
 import com.softprimesolutions.ventas.application.usecase.command.CerrarTurnoHandler;
+import com.softprimesolutions.ventas.application.usecase.command.RegistrarVentaHandler;
 import com.softprimesolutions.ventas.application.usecase.query.ConsultarTurnosHandler;
+import com.softprimesolutions.ventas.application.usecase.query.ConsultarVentasHandler;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -49,5 +56,21 @@ public class VentasModuleConfiguration {
             TurnoWritePort turnos, ConsultarTurnosUseCase consultarTurnosUseCase, TransaccionPort transaccion,
             ClockPort ventasClockPort) {
         return new CerrarTurnoHandler(turnos, consultarTurnosUseCase, transaccion, ventasClockPort);
+    }
+
+    @Bean
+    ConsultarVentasUseCase consultarVentasUseCase(VentasReadPort readPort) {
+        return new ConsultarVentasHandler(readPort);
+    }
+
+    @Bean
+    RegistrarVentaUseCase registrarVentaUseCase(
+            VentaWritePort ventas, TurnoWritePort turnos, ReferenciasVentasPort referencias,
+            SalidaInventarioPort inventario, NumeracionPort numeracion,
+            ConsultarVentasUseCase consultarVentasUseCase, TransaccionPort transaccion,
+            IdentifierGenerator ventasIdentifierGenerator, ClockPort ventasClockPort) {
+        return new RegistrarVentaHandler(
+                ventas, turnos, referencias, inventario, numeracion, consultarVentasUseCase, transaccion,
+                ventasIdentifierGenerator, ventasClockPort);
     }
 }

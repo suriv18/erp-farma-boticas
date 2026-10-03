@@ -18,6 +18,8 @@ import org.springframework.transaction.support.TransactionOperations;
 public class TurnoJdbcWriteAdapter implements TurnoWritePort {
 
     private static final String POR_ID_PARA_ACTUALIZAR = TurnoRows.POR_ID + " FOR UPDATE OF tc";
+    private static final String ABIERTO_PARA_COMPARTIR = TurnoRows.SELECT
+            + " AND tp.uuid_publico = :terminalId AND tc.estado = 'ABIERTO' FOR SHARE OF tc";
     private static final String INSERTAR = """
             INSERT INTO sch_venta.turno_caja
                 (uuid_publico, tenant_id, empresa_id, establecimiento_id, terminal_id, cajero_usuario_id,
@@ -78,6 +80,15 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
     }
 
     @Override
+    public Optional<TurnoCaja> bloquearTurnoAbierto(UUID tenantId, UUID terminalId) {
+        return jdbcClient.sql(ABIERTO_PARA_COMPARTIR)
+                .param("tenantId", tenantId)
+                .param("terminalId", terminalId)
+                .query((rs, rowNumber) -> TurnoRows.map(rs, tenantId))
+                .optional();
+    }
+
+    @Override
     public BigDecimal totalVentasEfectivo(UUID tenantId, UUID turnoId) {
         return jdbcClient.sql(TOTAL_VENTAS)
                 .param("tenantId", tenantId)
@@ -124,10 +135,5 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
         FilaNoInsertada() {
             super(null, null, false, false);
         }
-    }
-
-    @Override
-    public Optional<TurnoCaja> bloquearTurnoAbierto(UUID tenantId, UUID terminalId) {
-        throw new UnsupportedOperationException();
     }
 }

@@ -104,4 +104,18 @@ class TurnoJdbcWriteAdapterTest {
 
         assertThat(adapter.actualizarCierre(cerrado, ACTOR)).isFalse();
     }
+
+    @Test
+    void locksTheOpenTurnoOfATerminalForShareSoACloseWaitsForInFlightSales() {
+        jdbc.rows("FOR SHARE OF tc", Rows.turno());
+
+        var turno = adapter.bloquearTurnoAbierto(TENANT, TERMINAL).orElseThrow();
+
+        assertThat(turno.id()).isEqualTo(TURNO);
+        var statement = jdbc.statementContaining("FOR SHARE OF tc");
+        assertThat(statement.sql()).contains("tc.estado = 'ABIERTO'");
+        assertThat(statement.params()).containsEntry("tenantId", TENANT).containsEntry("terminalId", TERMINAL);
+        assertThat(new TurnoJdbcWriteAdapter(new JdbcClientStub().client(), TransactionOperations.withoutTransaction())
+                .bloquearTurnoAbierto(TENANT, TERMINAL)).isEmpty();
+    }
 }
