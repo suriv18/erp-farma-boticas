@@ -1,6 +1,8 @@
 # Diseño: frontend de inventario (posiciones, ajustes y lotes)
 
-**Estado:** implementado (pendiente de verificación manual contra el backend real).
+**Estado:** implementado y verificado en navegador contra el backend real (ingreso con lote nuevo, ajuste de salida con error de stock insuficiente, filtros, bloqueo y desbloqueo de lote).
+
+**Hallazgos de la verificación manual (sin resolver, fuera de este slice):** `.env.development` apunta `DEV_API_TARGET` al contenedor `:8085` desactualizado; la tabla y el detalle muestran el UUID del SKU y no hay columna de almacén; los selects de almacén incluyen almacenes inactivos y de establecimientos clausurados o suspendidos; la búsqueda de SKU dispara una petición por tecla sin debounce; un lote `BLOQUEADO` muestra disponible igual al físico; `POST /catalogo/skus` con una unidad desconocida responde 500 en lugar de 400.
 
 **Contexto:** `features/inventario/` hoy es un fixture (`InventoryPage.tsx` con filas estáticas). El backend de `inventario` ya está commiteado y verificado (`check` completo en verde, tests de integración y concurrencia). Este slice reemplaza el fixture por una integración real contra `packages/api-client`, siguiendo el patrón de `features/organizacion/` y `features/catalogo/`.
 
