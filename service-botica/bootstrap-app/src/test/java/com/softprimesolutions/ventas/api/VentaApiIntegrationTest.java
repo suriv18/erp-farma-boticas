@@ -323,8 +323,9 @@ class VentaApiIntegrationTest {
 
         mockMvc.perform(get(INV + "/posiciones").header("Authorization", bearer)
                         .param("almacenId", almacenId.toString()).param("skuId", skuId.toString()))
-                .andExpect(jsonPath("$.items[?(@.numeroLote == 'L-ANT')].cantidadFisica").value(3.0))
-                .andExpect(jsonPath("$.items[?(@.numeroLote == 'L-NEW')].cantidadFisica").value(10.0));
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[?(@.loteId == '%s')].cantidadFisica", antiguo).value(3.0))
+                .andExpect(jsonPath("$.items[?(@.loteId == '%s')].cantidadFisica", nuevo).value(10.0));
         var kardex = jdbcClient.sql("""
                         SELECT m.tipo_operacion_sunat, m.naturaleza, m.documento_tipo, m.actor
                           FROM sch_inventario.movimiento_inventario m
@@ -341,7 +342,6 @@ class VentaApiIntegrationTest {
                         """).param("ventaId", ventaId).query().singleRow();
         assertThat(fila).containsEntry("estado", "ANULADA").containsEntry("pago_estado", "REVERSADO")
                 .containsEntry("motivo_anulacion", "Error de cobro").containsEntry("updated_by", userId.toString());
-        assertThat(antiguo).isNotEqualTo(nuevo);
     }
 
     @Test

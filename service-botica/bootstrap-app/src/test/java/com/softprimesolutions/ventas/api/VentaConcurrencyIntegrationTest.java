@@ -160,7 +160,7 @@ class VentaConcurrencyIntegrationTest {
         assertThat(count("sch_venta.venta_linea")).isZero();
         assertThat(count("sch_venta.pago_venta")).isZero();
         assertThat(count("sch_venta.secuencia_operacion")).isZero();
-        assertThat(salidasVentaEnKardex()).isZero();
+        assertThat(movimientosEnKardex("SALIDA_VENTA")).isZero();
     }
 
     @Test
@@ -184,7 +184,7 @@ class VentaConcurrencyIntegrationTest {
         assertThat(ids).hasSize(1);
         assertThat(stock(skuA)).isEqualByComparingTo("6");
         assertThat(count("sch_venta.venta")).isEqualTo(1L);
-        assertThat(salidasVentaEnKardex()).isEqualTo(1L);
+        assertThat(movimientosEnKardex("SALIDA_VENTA")).isEqualTo(1L);
     }
 
     @Test
@@ -217,7 +217,7 @@ class VentaConcurrencyIntegrationTest {
                 .filter(codigo -> !codigo.equals("OK")).toList()).containsExactly("INV_STOCK_INSUFICIENTE");
         assertThat(stock(skuA)).isEqualByComparingTo("2");
         assertThat(count("sch_venta.venta")).isEqualTo(1L);
-        assertThat(salidasVentaEnKardex()).isEqualTo(1L);
+        assertThat(movimientosEnKardex("SALIDA_VENTA")).isEqualTo(1L);
     }
 
     @Test
@@ -274,11 +274,7 @@ class VentaConcurrencyIntegrationTest {
                           JOIN sch_venta.venta v ON v.id = p.venta_id WHERE v.uuid_publico = :ventaId
                         """).param("ventaId", venta.id()).query(String.class).single()).isEqualTo("CONFIRMADO");
         assertThat(stock(skuA)).isEqualByComparingTo("7");
-        assertThat(jdbcClient.sql("""
-                        SELECT COUNT(*) FROM sch_inventario.movimiento_inventario m
-                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
-                         WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = 'ANULACION_VENTA'
-                        """).param("tenantId", TENANT_ID).query(Long.class).single()).isZero();
+        assertThat(movimientosEnKardex("ANULACION_VENTA")).isZero();
     }
 
     @Test
@@ -292,32 +288,28 @@ class VentaConcurrencyIntegrationTest {
         assertThat(resultados.stream().map(resultado -> resultado.fold(valor -> "OK", ApplicationError::code))
                 .filter(codigo -> !codigo.equals("OK")).toList()).containsExactly("VEN_VENTA_ESTADO_INVALIDO");
         assertThat(stock(skuA)).isEqualByComparingTo("10");
-        assertThat(salidasVentaEnKardex()).isEqualTo(1L);
+        assertThat(movimientosEnKardex("SALIDA_VENTA")).isEqualTo(1L);
+        assertThat(movimientosEnKardex("ANULACION_VENTA")).isEqualTo(1L);
     }
 
     @Test
     void anAnulacionRacingAgainstTheCloseOfTheTurnoNeverLeavesAnAnnulledSaleCountedInTheTotal() throws Exception {
         for (var ronda = 0; ronda < 5; ronda++) {
             var venta = value(vender("clave-ronda-" + ronda, linea(skuA, "1")));
-            var turno = jdbcClient.sql("""
-                            SELECT tc.uuid_publico FROM sch_venta.turno_caja tc
-                              JOIN sch_admin.tenant t ON t.id = tc.tenant_id
-                             WHERE t.uuid_publico = :tenantId AND tc.estado = 'ABIERTO'
-                            """).param("tenantId", TENANT_ID).query(UUID.class).single();
+            var turno = turnoAbierto();
 
-            var resultados = concurrently(List.<Callable<Result<VentaResult, ApplicationError>>>of(
-                    () -> anular(venta.id(), "Carrera"),
-                    () -> cerrarTurno.execute(new CerrarTurnoCommand(
-                                    TENANT_ID, actor, turno, new BigDecimal("1000"), null))
-                            .fold(cerrado -> Result.<VentaResult, ApplicationError>success(venta), Result::failure)));
+            var resultados = concurrently(List.<Callable<String>>of(
+                    () -> anular(venta.id(), "Carrera").fold(anulada -> "OK", ApplicationError::code),
+                    () -> cerrar(turno).fold(cerrado -> "OK", ApplicationError::code)));
 
-            assertThat(resultados.get(1).isSuccess()).isTrue();
-            var anulada = jdbcClient.sql("SELECT v.estado FROM sch_venta.venta v WHERE v.uuid_publico = :ventaId")
-                    .param("ventaId", venta.id()).query(String.class).single().equals("ANULADA");
-            var totalDelTurno = jdbcClient.sql("""
-                            SELECT tc.total_ventas_sistema FROM sch_venta.turno_caja tc WHERE tc.uuid_publico = :turnoId
-                            """).param("turnoId", turno).query(BigDecimal.class).single();
-            assertThat(totalDelTurno).isEqualByComparingTo(anulada ? "0" : "10");
+            assertThat(resultados.get(1)).isEqualTo("OK");
+            assertThat(resultados.get(0)).isIn("OK", "VEN_TURNO_NO_ABIERTO");
+            var estado = jdbcClient.sql("SELECT v.estado FROM sch_venta.venta v WHERE v.uuid_publico = :ventaId")
+                    .param("ventaId", venta.id()).query(String.class).single();
+            assertThat(estado).isEqualTo(resultados.get(0).equals("OK") ? "ANULADA" : "CONFIRMADA");
+            var esperado = estado.equals("ANULADA") ? "0.00" : "10.00";
+            assertThat(totalVentasDelTurno(turno)).isEqualByComparingTo(esperado);
+            assertThat(ventasConfirmadasDelTurno(turno)).isEqualByComparingTo(esperado);
             abrirTurno.execute(new AbrirTurnoCommand(TENANT_ID, actor, terminalId, new BigDecimal("100")))
                     .fold(abierto -> abierto, error -> { throw new AssertionError(error); });
         }
@@ -431,11 +423,11 @@ class VentaConcurrencyIntegrationTest {
                 .param("tenantId", TENANT_ID).query(Long.class).single();
     }
 
-    private long salidasVentaEnKardex() {
+    private long movimientosEnKardex(String tipo) {
         return jdbcClient.sql("""
                         SELECT COUNT(*) FROM sch_inventario.movimiento_inventario m
                           JOIN sch_admin.tenant t ON t.id = m.tenant_id
-                         WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = 'SALIDA_VENTA'
-                        """).param("tenantId", TENANT_ID).query(Long.class).single();
+                         WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = :tipo
+                        """).param("tenantId", TENANT_ID).param("tipo", tipo).query(Long.class).single();
     }
 }
