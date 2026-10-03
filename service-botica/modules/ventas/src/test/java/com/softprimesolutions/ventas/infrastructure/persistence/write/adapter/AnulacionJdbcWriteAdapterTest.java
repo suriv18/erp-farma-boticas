@@ -54,13 +54,16 @@ class AnulacionJdbcWriteAdapterTest {
 
         assertThat(marcada).isTrue();
         var venta = jdbc.statementContaining(MARCAR_VENTA);
-        assertThat(venta.sql()).contains("estado = 'ANULADA'").contains("AND estado = 'CONFIRMADA'");
+        assertThat(venta.sql()).contains("estado = 'ANULADA'").contains("AND estado = 'CONFIRMADA'")
+                .contains("AND es_activo = '1'");
         assertThat(venta.params())
                 .containsEntry("ventaId", VENTA).containsEntry("tenantId", TENANT)
                 .containsEntry("actorId", ACTOR_ID).containsEntry("actor", ACTOR.codigo())
                 .containsEntry("motivo", "Error de cobro").containsEntry("fecha", MOMENTO);
         var pago = jdbc.statementContaining(REVERSAR_PAGO);
-        assertThat(pago.sql()).contains("estado = 'REVERSADO'").contains("AND estado = 'CONFIRMADO'");
+        assertThat(pago.sql()).contains("estado = 'REVERSADO'")
+                .contains("p.tenant_id = v.tenant_id AND p.venta_id = v.id")
+                .contains("p.es_activo = '1' AND p.estado = 'CONFIRMADO'");
         assertThat(pago.params()).containsEntry("ventaId", VENTA).containsEntry("tenantId", TENANT);
     }
 

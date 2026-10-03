@@ -30,16 +30,17 @@ public class AnulacionJdbcWriteAdapter implements AnulacionWritePort {
                                               WHERE m.uuid_publico = :actorId AND m.tenant_id = venta.tenant_id),
                    motivo_anulacion = :motivo, version_lock = version_lock + 1, updated_at = :fecha,
                    updated_by = :actor
-             WHERE uuid_publico = :ventaId AND estado = 'CONFIRMADA'
+             WHERE uuid_publico = :ventaId AND estado = 'CONFIRMADA' AND es_activo = '1'
                AND tenant_id = (SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantId)
             """;
     private static final String REVERSAR_PAGO = """
-            UPDATE sch_venta.pago_venta
+            UPDATE sch_venta.pago_venta p
                SET estado = 'REVERSADO'
-             WHERE venta_id = (SELECT v.id FROM sch_venta.venta v
-                                 JOIN sch_admin.tenant t ON t.id = v.tenant_id
-                                WHERE t.uuid_publico = :tenantId AND v.uuid_publico = :ventaId)
-               AND estado = 'CONFIRMADO'
+              FROM sch_venta.venta v
+              JOIN sch_admin.tenant t ON t.id = v.tenant_id
+             WHERE t.uuid_publico = :tenantId AND v.uuid_publico = :ventaId
+               AND p.tenant_id = v.tenant_id AND p.venta_id = v.id
+               AND p.es_activo = '1' AND p.estado = 'CONFIRMADO'
             """;
 
     private final JdbcClient jdbcClient;
