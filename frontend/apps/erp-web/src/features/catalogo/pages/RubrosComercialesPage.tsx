@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Power } from 'lucide-react';
-import { Button, DataTable, EstadoBadge, IconButton, Modal, PageHeader, ListFilters } from '@boticas/ui-web';
-import { useAuthSession } from '../../auth';
+import {
+  Button,
+  DataTable,
+  EstadoBadge,
+  IconButton,
+  Modal,
+  PageHeader,
+  ListFilters
+} from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import {
   actualizarRubroComercial,
@@ -15,7 +22,6 @@ import type { RubroComercialFormValues } from '../schemas/rubro-comercial.schema
 import { RubroComercialForm } from '../components/RubroComercialForm';
 
 export function RubrosComercialesPage() {
-  const { tenantId } = useAuthSession();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<RubroComercial | null>(null);
@@ -23,15 +29,13 @@ export function RubrosComercialesPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
 
-  const { data, isPending, isError } = useQuery({
-    ...rubrosComercialesQuery({
-      tenantId: tenantId ?? '',
+  const { data, isPending, isError } = useQuery(
+    rubrosComercialesQuery({
       q: search || undefined,
       page,
       size: size
-    }),
-    enabled: Boolean(tenantId)
-  });
+    })
+  );
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['catalogo', 'rubros-comerciales'] });
@@ -39,7 +43,6 @@ export function RubrosComercialesPage() {
   const createMutation = useMutation({
     mutationFn: (values: RubroComercialFormValues) =>
       crearRubroComercial(apiClient, {
-        tenantId: tenantId ?? '',
         codigo: values.codigo,
         nombre: values.nombre,
         descripcion: values.descripcion || undefined,
@@ -55,7 +58,6 @@ export function RubrosComercialesPage() {
   const updateMutation = useMutation({
     mutationFn: (values: RubroComercialFormValues) =>
       actualizarRubroComercial(apiClient, editing!.id, {
-        tenantId: tenantId!,
         codigo: values.codigo,
         nombre: values.nombre,
         descripcion: values.descripcion || undefined,
@@ -73,7 +75,6 @@ export function RubrosComercialesPage() {
       cambiarEstadoRubroComercial(
         apiClient,
         rubro.id,
-        tenantId!,
         rubro.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
       ),
     onSuccess: () => invalidate()
@@ -110,10 +111,16 @@ export function RubrosComercialesPage() {
               header: 'Acciones',
               cell: (row) => (
                 <div className="flex items-center gap-1">
-                  <IconButton icon={Pencil} label={`Editar ${row.nombre}`} onClick={() => setEditing(row)} />
+                  <IconButton
+                    icon={Pencil}
+                    label={`Editar ${row.nombre}`}
+                    onClick={() => setEditing(row)}
+                  />
                   <IconButton
                     icon={Power}
-                    label={row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`}
+                    label={
+                      row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`
+                    }
                     tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
                     onClick={() => statusMutation.mutate(row)}
                   />

@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Power } from 'lucide-react';
-import { Button, DataTable, EstadoBadge, IconButton, Modal, PageHeader, ListFilters } from '@boticas/ui-web';
-import { useAuthSession } from '../../auth';
+import {
+  Button,
+  DataTable,
+  EstadoBadge,
+  IconButton,
+  Modal,
+  PageHeader,
+  ListFilters
+} from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { actualizarMarca, cambiarEstadoMarca, crearMarca, marcasQuery } from '../api/marcas.api';
 import type { Marca } from '../api/marcas.types';
@@ -10,7 +17,6 @@ import type { MarcaFormValues } from '../schemas/marca.schema';
 import { MarcaForm } from '../components/MarcaForm';
 
 export function MarcasPage() {
-  const { tenantId } = useAuthSession();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Marca | null>(null);
@@ -18,17 +24,15 @@ export function MarcasPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
 
-  const { data, isPending, isError } = useQuery({
-    ...marcasQuery({ tenantId: tenantId ?? '', q: search || undefined, page, size }),
-    enabled: Boolean(tenantId)
-  });
+  const { data, isPending, isError } = useQuery(
+    marcasQuery({ q: search || undefined, page, size })
+  );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['catalogo', 'marcas'] });
 
   const createMutation = useMutation({
     mutationFn: (values: MarcaFormValues) =>
       crearMarca(apiClient, {
-        tenantId: tenantId ?? '',
         codigo: values.codigo,
         nombre: values.nombre,
         descripcion: values.descripcion || undefined
@@ -42,7 +46,6 @@ export function MarcasPage() {
   const updateMutation = useMutation({
     mutationFn: (values: MarcaFormValues) =>
       actualizarMarca(apiClient, editing!.id, {
-        tenantId: tenantId ?? '',
         codigo: values.codigo,
         nombre: values.nombre,
         descripcion: values.descripcion || undefined
@@ -55,12 +58,7 @@ export function MarcasPage() {
 
   const statusMutation = useMutation({
     mutationFn: (marca: Marca) =>
-      cambiarEstadoMarca(
-        apiClient,
-        marca.id,
-        tenantId ?? '',
-        marca.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
-      ),
+      cambiarEstadoMarca(apiClient, marca.id, marca.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'),
     onSuccess: () => invalidate()
   });
 
@@ -95,10 +93,16 @@ export function MarcasPage() {
               header: 'Acciones',
               cell: (row) => (
                 <div className="flex items-center gap-1">
-                  <IconButton icon={Pencil} label={`Editar ${row.nombre}`} onClick={() => setEditing(row)} />
+                  <IconButton
+                    icon={Pencil}
+                    label={`Editar ${row.nombre}`}
+                    onClick={() => setEditing(row)}
+                  />
                   <IconButton
                     icon={Power}
-                    label={row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`}
+                    label={
+                      row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`
+                    }
                     tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
                     onClick={() => statusMutation.mutate(row)}
                   />

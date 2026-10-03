@@ -11,7 +11,6 @@ export type CategoriaProducto = {
 };
 
 export type CrearCategoriaPayload = {
-  tenantId: string;
   categoriaPadreId?: string | undefined;
   codigo: string;
   nombre: string;
@@ -21,7 +20,6 @@ export type CrearCategoriaPayload = {
 };
 
 export type ActualizarCategoriaPayload = {
-  tenantId: string;
   categoriaPadreId?: string | undefined;
   codigo: string;
   nombre: string;

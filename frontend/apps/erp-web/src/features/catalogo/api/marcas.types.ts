@@ -1,9 +1,4 @@
-export type PaginaResponse<T> = {
-  items: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-};
+export type { PaginaResponse } from '../../../shared/lib/pagina.types';
 
 export type Marca = {
   id: string;
@@ -15,14 +10,12 @@ export type Marca = {
 };
 
 export type CrearMarcaPayload = {
-  tenantId: string;
   codigo: string;
   nombre: string;
   descripcion?: string | undefined;
 };
 
 export type ActualizarMarcaPayload = {
-  tenantId: string;
   codigo: string;
   nombre: string;
   descripcion?: string | undefined;

@@ -9,7 +9,6 @@ import type {
 } from './rubros-comerciales.types';
 
 export type FetchRubrosComercialesParams = {
-  tenantId: string;
   q?: string | undefined;
   esFarmaceutico?: boolean | undefined;
   estado?: string | undefined;
@@ -21,13 +20,16 @@ export function fetchRubrosComerciales(
   client: ApiClient,
   params: FetchRubrosComercialesParams
 ): Promise<PaginaResponse<RubroComercial>> {
-  const query = new URLSearchParams({ tenantId: params.tenantId });
+  const query = new URLSearchParams();
   if (params.q) query.set('q', params.q);
-  if (params.esFarmaceutico !== undefined) query.set('esFarmaceutico', String(params.esFarmaceutico));
+  if (params.esFarmaceutico !== undefined)
+    query.set('esFarmaceutico', String(params.esFarmaceutico));
   if (params.estado) query.set('estado', params.estado);
   query.set('page', String(params.page ?? 0));
   query.set('size', String(params.size ?? 20));
-  return client.get<PaginaResponse<RubroComercial>>(`/catalogo/rubros-comerciales?${query.toString()}`);
+  return client.get<PaginaResponse<RubroComercial>>(
+    `/catalogo/rubros-comerciales?${query.toString()}`
+  );
 }
 
 export function rubrosComercialesQuery(params: FetchRubrosComercialesParams) {
@@ -35,7 +37,6 @@ export function rubrosComercialesQuery(params: FetchRubrosComercialesParams) {
     queryKey: [
       'catalogo',
       'rubros-comerciales',
-      params.tenantId,
       params.q ?? '',
       params.esFarmaceutico ?? '',
       params.estado ?? '',
@@ -50,7 +51,10 @@ export function crearRubroComercial(
   client: ApiClient,
   payload: CrearRubroComercialPayload
 ): Promise<RubroComercial> {
-  return client.post<RubroComercial, CrearRubroComercialPayload>('/catalogo/rubros-comerciales', payload);
+  return client.post<RubroComercial, CrearRubroComercialPayload>(
+    '/catalogo/rubros-comerciales',
+    payload
+  );
 }
 
 export function actualizarRubroComercial(
@@ -67,11 +71,10 @@ export function actualizarRubroComercial(
 export function cambiarEstadoRubroComercial(
   client: ApiClient,
   rubroComercialId: string,
-  tenantId: string,
   status: string
 ): Promise<void> {
-  return client.patch<void, { tenantId: string; status: string }>(
+  return client.patch<void, { status: string }>(
     `/catalogo/rubros-comerciales/${rubroComercialId}/estado`,
-    { tenantId, status }
+    { status }
   );
 }

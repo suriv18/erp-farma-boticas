@@ -4,19 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { AuthSessionContext } from '../../auth/model/auth-session.context';
 import { server } from '../../../test/mocks/server';
 import { CategoriasPage } from './CategoriasPage';
-
-const authenticatedSession = {
-  status: 'authenticated' as const,
-  authenticated: true,
-  accessToken: 'token',
-  tenantId: 'tenant-1',
-  userId: 'user-1',
-  authenticate: vi.fn(),
-  signOut: vi.fn()
-};
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -25,9 +14,7 @@ function renderPage() {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AuthSessionContext value={authenticatedSession}>
-          <RouterProvider router={router} />
-        </AuthSessionContext>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     )
   };
@@ -45,13 +32,20 @@ const sampleCategoria = {
   estado: 'ACTIVO'
 };
 
-function paginaResponse(items: unknown[], overrides: Partial<{ page: number; size: number; totalElements: number }> = {}) {
+function paginaResponse(
+  items: unknown[],
+  overrides: Partial<{ page: number; size: number; totalElements: number }> = {}
+) {
   return { items, page: 0, size: 20, totalElements: items.length, ...overrides };
 }
 
 describe('CategoriasPage', () => {
-  it('lista las categorias del tenant activo con columna N°', async () => {
-    server.use(http.get('*/api/v1/catalogo/categorias', () => HttpResponse.json(paginaResponse([sampleCategoria]))));
+  it('lista las categorias con columna N°', async () => {
+    server.use(
+      http.get('*/api/v1/catalogo/categorias', () =>
+        HttpResponse.json(paginaResponse([sampleCategoria]))
+      )
+    );
 
     renderPage();
 
@@ -125,7 +119,9 @@ describe('CategoriasPage', () => {
     await user.type(nombreInput, 'Analgésicos y antipiréticos');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    await waitFor(() => expect(screen.getByText('Analgésicos y antipiréticos')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Analgésicos y antipiréticos')).toBeInTheDocument()
+    );
   });
 
   it('cambia el estado de una categoria activa a inactiva', async () => {

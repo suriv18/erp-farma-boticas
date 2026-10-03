@@ -4,30 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { AuthSessionContext, type AuthSession } from '../../auth/model/auth-session.context';
 import { server } from '../../../test/mocks/server';
 import { RubrosComercialesPage } from './RubrosComercialesPage';
 
-const authenticatedSession: AuthSession = {
-  status: 'authenticated',
-  authenticated: true,
-  accessToken: 'token',
-  tenantId: 'tenant-1',
-  userId: 'user-1',
-  authenticate: vi.fn(),
-  signOut: vi.fn()
-};
-
-function renderPage(session = authenticatedSession) {
+function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter([{ path: '/', Component: RubrosComercialesPage }]);
   return {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AuthSessionContext value={session}>
-          <RouterProvider router={router} />
-        </AuthSessionContext>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     )
   };
@@ -44,48 +31,40 @@ const sampleRubro = {
   estado: 'ACTIVO'
 };
 
-function paginaResponse(items: unknown[], overrides: Partial<{ page: number; size: number; totalElements: number }> = {}) {
+function paginaResponse(
+  items: unknown[],
+  overrides: Partial<{ page: number; size: number; totalElements: number }> = {}
+) {
   return { items, page: 0, size: 20, totalElements: items.length, ...overrides };
 }
 
 describe('RubrosComercialesPage', () => {
-  it('no consulta el listado cuando no hay tenant activo', () => {
-    let requested = false;
-    server.use(
-      http.get('*/api/v1/catalogo/rubros-comerciales', () => {
-        requested = true;
-        return HttpResponse.json(paginaResponse([]));
-      })
-    );
-
-    renderPage({ ...authenticatedSession, tenantId: null });
-
-    expect(requested).toBe(false);
-  });
-
-  it('crea un rubro comercial con tenantId vacio cuando no hay tenant activo', async () => {
-    let receivedCreateBody: { tenantId: string } | undefined;
+  it('crea un rubro comercial sin enviar tenantId', async () => {
+    let receivedCreateBody: Record<string, unknown> | undefined;
     server.use(
       http.get('*/api/v1/catalogo/rubros-comerciales', () => HttpResponse.json(paginaResponse([]))),
       http.post('*/api/v1/catalogo/rubros-comerciales', async ({ request }) => {
-        receivedCreateBody = (await request.json()) as { tenantId: string };
+        receivedCreateBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(sampleRubro, { status: 201 });
       })
     );
 
-    const { user } = renderPage({ ...authenticatedSession, tenantId: null });
+    const { user } = renderPage();
 
     await user.click(screen.getByRole('button', { name: 'Nuevo rubro comercial' }));
     await user.type(screen.getByLabelText('Código'), 'FARMA');
     await user.type(screen.getByLabelText('Nombre'), 'Otro rubro');
     await user.click(screen.getByRole('button', { name: 'Crear rubro comercial' }));
 
-    await waitFor(() => expect(receivedCreateBody?.tenantId).toBe(''));
+    await waitFor(() => expect(receivedCreateBody).toMatchObject({ codigo: 'FARMA' }));
+    expect(receivedCreateBody).not.toHaveProperty('tenantId');
   });
 
-  it('lista los rubros comerciales del tenant activo', async () => {
+  it('lista los rubros comerciales', async () => {
     server.use(
-      http.get('*/api/v1/catalogo/rubros-comerciales', () => HttpResponse.json(paginaResponse([sampleRubro])))
+      http.get('*/api/v1/catalogo/rubros-comerciales', () =>
+        HttpResponse.json(paginaResponse([sampleRubro]))
+      )
     );
 
     renderPage();
@@ -166,7 +145,9 @@ describe('RubrosComercialesPage', () => {
     await user.type(nombreInput, 'Productos Farmacéuticos y afines');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    await waitFor(() => expect(screen.getByText('Productos Farmacéuticos y afines')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Productos Farmacéuticos y afines')).toBeInTheDocument()
+    );
   });
 
   it('busca por texto y envia el parametro q', async () => {
@@ -189,7 +170,9 @@ describe('RubrosComercialesPage', () => {
 
   it('cierra los modales de crear y editar sin guardar cambios', async () => {
     server.use(
-      http.get('*/api/v1/catalogo/rubros-comerciales', () => HttpResponse.json(paginaResponse([sampleRubro])))
+      http.get('*/api/v1/catalogo/rubros-comerciales', () =>
+        HttpResponse.json(paginaResponse([sampleRubro]))
+      )
     );
 
     const { user } = renderPage();

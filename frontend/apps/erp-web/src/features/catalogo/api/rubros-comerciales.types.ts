@@ -10,7 +10,6 @@ export type RubroComercial = {
 };
 
 export type CrearRubroComercialPayload = {
-  tenantId: string;
   codigo: string;
   nombre: string;
   descripcion?: string | undefined;
@@ -19,7 +18,6 @@ export type CrearRubroComercialPayload = {
 };
 
 export type ActualizarRubroComercialPayload = {
-  tenantId: string;
   codigo: string;
   nombre: string;
   descripcion?: string | undefined;

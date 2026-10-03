@@ -27,7 +27,7 @@ const sampleRubro = {
 };
 
 describe('rubros-comerciales.api', () => {
-  it('fetchRubrosComerciales consulta /catalogo/rubros-comerciales con tenantId, page y size por defecto', async () => {
+  it('fetchRubrosComerciales consulta /catalogo/rubros-comerciales con page y size por defecto', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/catalogo/rubros-comerciales', ({ request }) => {
@@ -37,9 +37,9 @@ describe('rubros-comerciales.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchRubrosComerciales(client, { tenantId: 'tenant-1' });
+    const result = await fetchRubrosComerciales(client, {});
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
     expect(result.items).toEqual([sampleRubro]);
@@ -56,7 +56,6 @@ describe('rubros-comerciales.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await fetchRubrosComerciales(client, {
-      tenantId: 'tenant-1',
       q: 'farma',
       esFarmaceutico: true,
       page: 1,
@@ -79,15 +78,15 @@ describe('rubros-comerciales.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    await fetchRubrosComerciales(client, { tenantId: 'tenant-1', estado: 'INACTIVO' });
+    await fetchRubrosComerciales(client, { estado: 'INACTIVO' });
 
     expect(receivedUrl?.searchParams.get('estado')).toBe('INACTIVO');
   });
 
   it('rubrosComercialesQuery arma una queryKey con los defaults de page y size', () => {
-    const options = rubrosComercialesQuery({ tenantId: 'tenant-1' });
+    const options = rubrosComercialesQuery({});
 
-    expect(options.queryKey).toEqual(['catalogo', 'rubros-comerciales', 'tenant-1', '', '', '', 0, 20]);
+    expect(options.queryKey).toEqual(['catalogo', 'rubros-comerciales', '', '', '', 0, 20]);
   });
 
   it('crearRubroComercial envia el payload y devuelve el rubro creado', async () => {
@@ -101,7 +100,6 @@ describe('rubros-comerciales.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await crearRubroComercial(client, {
-      tenantId: 'tenant-1',
       codigo: 'FARMA',
       nombre: 'Farmacéutico',
       esFarmaceutico: true,
@@ -109,7 +107,6 @@ describe('rubros-comerciales.api', () => {
     });
 
     expect(receivedBody).toEqual({
-      tenantId: 'tenant-1',
       codigo: 'FARMA',
       nombre: 'Farmacéutico',
       esFarmaceutico: true,
@@ -121,15 +118,17 @@ describe('rubros-comerciales.api', () => {
   it('actualizarRubroComercial envia PUT con el payload', async () => {
     let receivedBody: unknown;
     server.use(
-      http.put('http://localhost/api/v1/catalogo/rubros-comerciales/rubro-1', async ({ request }) => {
-        receivedBody = await request.json();
-        return HttpResponse.json({ ...sampleRubro, nombre: 'Farmacéutico y afines' });
-      })
+      http.put(
+        'http://localhost/api/v1/catalogo/rubros-comerciales/rubro-1',
+        async ({ request }) => {
+          receivedBody = await request.json();
+          return HttpResponse.json({ ...sampleRubro, nombre: 'Farmacéutico y afines' });
+        }
+      )
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await actualizarRubroComercial(client, 'rubro-1', {
-      tenantId: 'tenant-1',
       codigo: 'FARMA',
       nombre: 'Farmacéutico y afines',
       esFarmaceutico: true,
@@ -137,7 +136,6 @@ describe('rubros-comerciales.api', () => {
     });
 
     expect(receivedBody).toEqual({
-      tenantId: 'tenant-1',
       codigo: 'FARMA',
       nombre: 'Farmacéutico y afines',
       esFarmaceutico: true,
@@ -149,15 +147,18 @@ describe('rubros-comerciales.api', () => {
   it('cambiarEstadoRubroComercial envia PATCH con el nuevo estado', async () => {
     let receivedBody: unknown;
     server.use(
-      http.patch('http://localhost/api/v1/catalogo/rubros-comerciales/rubro-1/estado', async ({ request }) => {
-        receivedBody = await request.json();
-        return new HttpResponse(null, { status: 204 });
-      })
+      http.patch(
+        'http://localhost/api/v1/catalogo/rubros-comerciales/rubro-1/estado',
+        async ({ request }) => {
+          receivedBody = await request.json();
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    await cambiarEstadoRubroComercial(client, 'rubro-1', 'tenant-1', 'INACTIVO');
+    await cambiarEstadoRubroComercial(client, 'rubro-1', 'INACTIVO');
 
-    expect(receivedBody).toEqual({ tenantId: 'tenant-1', status: 'INACTIVO' });
+    expect(receivedBody).toEqual({ status: 'INACTIVO' });
   });
 });

@@ -4,19 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { AuthSessionContext } from '../../auth/model/auth-session.context';
 import { server } from '../../../test/mocks/server';
 import { MarcasPage } from './MarcasPage';
-
-const authenticatedSession = {
-  status: 'authenticated' as const,
-  authenticated: true,
-  accessToken: 'token',
-  tenantId: 'tenant-1',
-  userId: 'user-1',
-  authenticate: vi.fn(),
-  signOut: vi.fn()
-};
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -25,9 +14,7 @@ function renderPage() {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AuthSessionContext value={authenticatedSession}>
-          <RouterProvider router={router} />
-        </AuthSessionContext>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     )
   };
@@ -79,7 +66,7 @@ describe('MarcasPage', () => {
       expect(received.get('page')).toBe('0');
     });
   });
-  it('lista las marcas del tenant activo con columna N°', async () => {
+  it('lista las marcas con columna N°', async () => {
     server.use(
       http.get('*/api/v1/catalogo/marcas', () => HttpResponse.json(paginaResponse([sampleMarca])))
     );

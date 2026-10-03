@@ -1,7 +1,12 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { createApiClient } from '@boticas/api-client';
-import { actualizarCategoria, cambiarEstadoCategoria, crearCategoria, fetchCategorias } from './categorias.api';
+import {
+  actualizarCategoria,
+  cambiarEstadoCategoria,
+  crearCategoria,
+  fetchCategorias
+} from './categorias.api';
 
 const server = setupServer();
 
@@ -22,7 +27,7 @@ const sampleCategoria = {
 };
 
 describe('categorias.api', () => {
-  it('fetchCategorias consulta /catalogo/categorias con tenantId, page y size por defecto', async () => {
+  it('fetchCategorias consulta /catalogo/categorias con page y size por defecto', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/catalogo/categorias', ({ request }) => {
@@ -32,9 +37,9 @@ describe('categorias.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchCategorias(client, { tenantId: 'tenant-1' });
+    const result = await fetchCategorias(client, {});
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
     expect(result.items).toEqual([sampleCategoria]);
@@ -45,12 +50,21 @@ describe('categorias.api', () => {
     server.use(
       http.get('http://localhost/api/v1/catalogo/categorias', ({ request }) => {
         receivedUrl = new URL(request.url);
-        return HttpResponse.json({ items: [sampleCategoria], page: 1, size: 10, totalElements: 12 });
+        return HttpResponse.json({
+          items: [sampleCategoria],
+          page: 1,
+          size: 10,
+          totalElements: 12
+        });
       })
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchCategorias(client, { tenantId: 'tenant-1', q: 'analg', page: 1, size: 10 });
+    const result = await fetchCategorias(client, {
+      q: 'analg',
+      page: 1,
+      size: 10
+    });
 
     expect(receivedUrl?.searchParams.get('q')).toBe('analg');
     expect(receivedUrl?.searchParams.get('page')).toBe('1');
@@ -69,7 +83,6 @@ describe('categorias.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await crearCategoria(client, {
-      tenantId: 'tenant-1',
       codigo: 'ANALGESICOS',
       nombre: 'Analgésicos',
       nivel: 1,
@@ -77,7 +90,6 @@ describe('categorias.api', () => {
     });
 
     expect(receivedBody).toEqual({
-      tenantId: 'tenant-1',
       codigo: 'ANALGESICOS',
       nombre: 'Analgésicos',
       nivel: 1,
@@ -97,7 +109,6 @@ describe('categorias.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await actualizarCategoria(client, 'categoria-1', {
-      tenantId: 'tenant-1',
       codigo: 'ANALGESICOS',
       nombre: 'Analgésicos y antipiréticos',
       nivel: 1,
@@ -105,7 +116,6 @@ describe('categorias.api', () => {
     });
 
     expect(receivedBody).toEqual({
-      tenantId: 'tenant-1',
       codigo: 'ANALGESICOS',
       nombre: 'Analgésicos y antipiréticos',
       nivel: 1,
@@ -117,15 +127,18 @@ describe('categorias.api', () => {
   it('cambiarEstadoCategoria envia PATCH con el nuevo estado', async () => {
     let receivedBody: unknown;
     server.use(
-      http.patch('http://localhost/api/v1/catalogo/categorias/categoria-1/estado', async ({ request }) => {
-        receivedBody = await request.json();
-        return new HttpResponse(null, { status: 204 });
-      })
+      http.patch(
+        'http://localhost/api/v1/catalogo/categorias/categoria-1/estado',
+        async ({ request }) => {
+          receivedBody = await request.json();
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    await cambiarEstadoCategoria(client, 'categoria-1', 'tenant-1', 'INACTIVO');
+    await cambiarEstadoCategoria(client, 'categoria-1', 'INACTIVO');
 
-    expect(receivedBody).toEqual({ tenantId: 'tenant-1', status: 'INACTIVO' });
+    expect(receivedBody).toEqual({ status: 'INACTIVO' });
   });
 });

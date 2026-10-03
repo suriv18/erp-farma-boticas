@@ -2,10 +2,13 @@ import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from './marcas.types';
-import type { ActualizarCategoriaPayload, CategoriaProducto, CrearCategoriaPayload } from './categorias.types';
+import type {
+  ActualizarCategoriaPayload,
+  CategoriaProducto,
+  CrearCategoriaPayload
+} from './categorias.types';
 
 export type FetchCategoriasParams = {
-  tenantId: string;
   q?: string | undefined;
   categoriaPadreId?: string | undefined;
   estado?: string | undefined;
@@ -17,7 +20,7 @@ export function fetchCategorias(
   client: ApiClient,
   params: FetchCategoriasParams
 ): Promise<PaginaResponse<CategoriaProducto>> {
-  const query = new URLSearchParams({ tenantId: params.tenantId });
+  const query = new URLSearchParams();
   if (params.q) query.set('q', params.q);
   if (params.categoriaPadreId) query.set('categoriaPadreId', params.categoriaPadreId);
   if (params.estado) query.set('estado', params.estado);
@@ -31,7 +34,6 @@ export function categoriasQuery(params: FetchCategoriasParams) {
     queryKey: [
       'catalogo',
       'categorias',
-      params.tenantId,
       params.q ?? '',
       params.categoriaPadreId ?? '',
       params.estado ?? '',
@@ -63,11 +65,9 @@ export function actualizarCategoria(
 export function cambiarEstadoCategoria(
   client: ApiClient,
   categoriaId: string,
-  tenantId: string,
   status: string
 ): Promise<void> {
-  return client.patch<void, { tenantId: string; status: string }>(
-    `/catalogo/categorias/${categoriaId}/estado`,
-    { tenantId, status }
-  );
+  return client.patch<void, { status: string }>(`/catalogo/categorias/${categoriaId}/estado`, {
+    status
+  });
 }

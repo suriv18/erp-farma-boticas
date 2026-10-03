@@ -19,7 +19,7 @@ const sampleMarca = {
 };
 
 describe('marcas.api', () => {
-  it('fetchMarcas consulta /catalogo/marcas con tenantId, page y size por defecto', async () => {
+  it('fetchMarcas consulta /catalogo/marcas con page y size por defecto', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/catalogo/marcas', ({ request }) => {
@@ -29,9 +29,9 @@ describe('marcas.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchMarcas(client, { tenantId: 'tenant-1' });
+    const result = await fetchMarcas(client, {});
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
     expect(result.items).toEqual([sampleMarca]);
@@ -47,7 +47,7 @@ describe('marcas.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchMarcas(client, { tenantId: 'tenant-1', q: 'bay', page: 1, size: 10 });
+    const result = await fetchMarcas(client, { q: 'bay', page: 1, size: 10 });
 
     expect(receivedUrl?.searchParams.get('q')).toBe('bay');
     expect(receivedUrl?.searchParams.get('page')).toBe('1');
@@ -66,12 +66,11 @@ describe('marcas.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await crearMarca(client, {
-      tenantId: 'tenant-1',
       codigo: 'BAYER',
       nombre: 'Bayer'
     });
 
-    expect(receivedBody).toEqual({ tenantId: 'tenant-1', codigo: 'BAYER', nombre: 'Bayer' });
+    expect(receivedBody).toEqual({ codigo: 'BAYER', nombre: 'Bayer' });
     expect(result).toEqual(sampleMarca);
   });
 
@@ -86,12 +85,11 @@ describe('marcas.api', () => {
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
     const result = await actualizarMarca(client, 'marca-1', {
-      tenantId: 'tenant-1',
       codigo: 'BAYER',
       nombre: 'Bayer S.A.'
     });
 
-    expect(receivedBody).toEqual({ tenantId: 'tenant-1', codigo: 'BAYER', nombre: 'Bayer S.A.' });
+    expect(receivedBody).toEqual({ codigo: 'BAYER', nombre: 'Bayer S.A.' });
     expect(result.nombre).toBe('Bayer S.A.');
   });
 
@@ -105,8 +103,8 @@ describe('marcas.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    await cambiarEstadoMarca(client, 'marca-1', 'tenant-1', 'INACTIVO');
+    await cambiarEstadoMarca(client, 'marca-1', 'INACTIVO');
 
-    expect(receivedBody).toEqual({ tenantId: 'tenant-1', status: 'INACTIVO' });
+    expect(receivedBody).toEqual({ status: 'INACTIVO' });
   });
 });

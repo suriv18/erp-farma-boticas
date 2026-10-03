@@ -1,18 +1,25 @@
 import { queryOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
-import type { ActualizarMarcaPayload, CrearMarcaPayload, Marca, PaginaResponse } from './marcas.types';
+import type {
+  ActualizarMarcaPayload,
+  CrearMarcaPayload,
+  Marca,
+  PaginaResponse
+} from './marcas.types';
 
 export type FetchMarcasParams = {
-  tenantId: string;
   q?: string | undefined;
   estado?: string | undefined;
   page?: number | undefined;
   size?: number | undefined;
 };
 
-export function fetchMarcas(client: ApiClient, params: FetchMarcasParams): Promise<PaginaResponse<Marca>> {
-  const query = new URLSearchParams({ tenantId: params.tenantId });
+export function fetchMarcas(
+  client: ApiClient,
+  params: FetchMarcasParams
+): Promise<PaginaResponse<Marca>> {
+  const query = new URLSearchParams();
   if (params.q) query.set('q', params.q);
   if (params.estado) query.set('estado', params.estado);
   query.set('page', String(params.page ?? 0));
@@ -25,7 +32,6 @@ export function marcasQuery(params: FetchMarcasParams) {
     queryKey: [
       'catalogo',
       'marcas',
-      params.tenantId,
       params.q ?? '',
       params.estado ?? '',
       params.page ?? 0,
@@ -50,11 +56,9 @@ export function actualizarMarca(
 export function cambiarEstadoMarca(
   client: ApiClient,
   marcaId: string,
-  tenantId: string,
   status: string
 ): Promise<void> {
-  return client.patch<void, { tenantId: string; status: string }>(`/catalogo/marcas/${marcaId}/estado`, {
-    tenantId,
+  return client.patch<void, { status: string }>(`/catalogo/marcas/${marcaId}/estado`, {
     status
   });
 }
