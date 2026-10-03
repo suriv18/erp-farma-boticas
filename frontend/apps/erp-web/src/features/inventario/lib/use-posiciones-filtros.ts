@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 
 export type FiltrosPosiciones = {
@@ -19,14 +20,19 @@ export function usePosicionesFiltros() {
     size: Number(params.get('size') ?? 20)
   };
 
-  const actualizar = (cambios: Record<string, string>) =>
-    setParams((actuales) => {
-      const siguientes = new URLSearchParams(actuales);
-      Object.entries(cambios).forEach(([clave, valor]) =>
-        valor === '' ? siguientes.delete(clave) : siguientes.set(clave, valor)
-      );
-      return siguientes;
-    });
+  const vigentes = useRef(params);
+  useEffect(() => {
+    vigentes.current = params;
+  }, [params]);
+
+  const actualizar = (cambios: Record<string, string>) => {
+    const siguientes = new URLSearchParams(vigentes.current);
+    Object.entries(cambios).forEach(([clave, valor]) =>
+      valor === '' ? siguientes.delete(clave) : siguientes.set(clave, valor)
+    );
+    vigentes.current = siguientes;
+    setParams(siguientes);
+  };
 
   return {
     filtros,

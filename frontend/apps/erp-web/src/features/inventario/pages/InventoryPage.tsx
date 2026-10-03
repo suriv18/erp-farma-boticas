@@ -1,87 +1,101 @@
-import { Boxes, Filter, Plus, Search } from 'lucide-react';
-import { Badge, Button, Card } from '@boticas/ui-web';
-
-const inventoryRows = [
-  { product: 'Paracetamol 500 mg', sku: 'MED-00124', stock: 248, status: 'Disponible' },
-  { product: 'Ibuprofeno 400 mg', sku: 'MED-00316', stock: 84, status: 'Disponible' },
-  { product: 'Amoxicilina 500 mg', sku: 'MED-00642', stock: 12, status: 'Stock bajo' },
-  { product: 'Alcohol medicinal 96°', sku: 'HIG-00108', stock: 6, status: 'Stock bajo' }
-];
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Button, ListFilters, PageHeader } from '@boticas/ui-web';
+import { SelectField } from '../../../shared/components/FormFields';
+import { posicionesQuery } from '../api/posiciones.api';
+import type { Posicion } from '../api/inventario.types';
+import { AjusteDialog } from '../components/AjusteDialog';
+import { PosicionesTable } from '../components/PosicionesTable';
+import { SkuSelect } from '../components/SkuSelect';
+import { almacenesDe } from '../lib/estructura';
+import { useOpcionesEstablecimientos } from '../lib/use-opciones-establecimientos';
+import { usePosicionesFiltros } from '../lib/use-posiciones-filtros';
 
 export function InventoryPage() {
+  const [dialogo, setDialogo] = useState<{ posicion: Posicion | null } | null>(null);
+  const [busquedaSku, setBusquedaSku] = useState('');
+  const { filtros, setEstablecimiento, setAlmacen, setSku, setPage, setSize } =
+    usePosicionesFiltros();
+  const establecimientos = useOpcionesEstablecimientos();
+
+  const { data, isPending, isError } = useQuery(posicionesQuery(filtros));
+
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
-            Operaciones
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
-            Inventario
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Stock por producto, almacén, lote y vencimiento.
-          </p>
+      <PageHeader
+        title="Inventario"
+        context="Operaciones / Inventario"
+        description="Stock por almacén, lote y vencimiento."
+        actions={<Button onClick={() => setDialogo({ posicion: null })}>Registrar ingreso</Button>}
+      />
+
+      <ListFilters
+        label="Buscar SKU"
+        placeholder="Código o descripción"
+        value={busquedaSku}
+        onValueChange={setBusquedaSku}
+      >
+        <div className="w-full sm:w-56">
+          <SelectField
+            id="filtro-establecimiento"
+            label="Establecimiento"
+            value={filtros.establecimientoId}
+            onChange={(event) => setEstablecimiento(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {establecimientos.map((establecimiento) => (
+              <option key={establecimiento.id} value={establecimiento.id}>
+                {establecimiento.nombre}
+              </option>
+            ))}
+          </SelectField>
         </div>
-        <Button>
-          <Plus className="size-4" />
-          Registrar ajuste
-        </Button>
+        <div className="w-full sm:w-56">
+          <SelectField
+            id="filtro-almacen"
+            label="Almacén"
+            value={filtros.almacenId}
+            onChange={(event) => setAlmacen(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {almacenesDe(establecimientos, filtros.establecimientoId).map((almacen) => (
+              <option key={almacen.id} value={almacen.id}>
+                {almacen.nombre}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+        <div className="w-full sm:w-64">
+          <SkuSelect
+            id="filtro-sku"
+            label="SKU"
+            placeholder="Todos"
+            search={busquedaSku}
+            value={filtros.skuId}
+            onChange={setSku}
+          />
+        </div>
+      </ListFilters>
+
+      <div className="mt-6">
+        <PosicionesTable
+          rows={data?.items ?? []}
+          isLoading={isPending}
+          isError={isError}
+          pagination={{
+            page: filtros.page,
+            size: filtros.size,
+            totalElements: data?.totalElements ?? 0,
+            onPageChange: setPage,
+            onSizeChange: setSize
+          }}
+          onAjustar={(posicion) => setDialogo({ posicion })}
+        />
       </div>
 
-      <Card className="mt-7 overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
-          <div className="relative max-w-md flex-1">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="search"
-              placeholder="Buscar por producto o SKU"
-              className="focus:border-primary-600 focus:ring-primary-100 h-10 w-full rounded-xl border border-neutral-200 pr-3 pl-10 text-sm outline-none focus:ring-3 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500"
-            />
-          </div>
-          <Button variant="secondary" size="sm">
-            <Filter className="size-4" />
-            Filtros
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-neutral-50 text-xs font-semibold text-neutral-500 uppercase dark:bg-neutral-800/60 dark:text-neutral-400">
-              <tr>
-                <th className="px-6 py-3">Producto</th>
-                <th className="px-6 py-3">SKU</th>
-                <th className="px-6 py-3">Stock</th>
-                <th className="px-6 py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-              {inventoryRows.map((row) => (
-                <tr key={row.sku} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 grid size-9 place-items-center rounded-lg">
-                        <Boxes className="size-4" />
-                      </div>
-                      <span className="font-semibold text-neutral-800 dark:text-neutral-100">
-                        {row.product}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{row.sku}</td>
-                  <td className="px-6 py-4 font-semibold text-neutral-800 dark:text-neutral-100">
-                    {row.stock}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge tone={row.status === 'Disponible' ? 'success' : 'warning'}>
-                      {row.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {dialogo ? (
+        <AjusteDialog posicion={dialogo.posicion} onClose={() => setDialogo(null)} />
+      ) : null}
     </div>
   );
 }
