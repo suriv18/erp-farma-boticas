@@ -18,6 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntFunction;
 import org.junit.jupiter.api.AfterEach;
@@ -168,10 +169,7 @@ class InventarioConcurrencyIntegrationTest {
 
     @Test
     void aSalidaVentaConsumesTheEarliestExpiryLoteFirstAndThenTheNext() {
-        var antiguo = registrarMovimiento.execute(new RegistrarMovimientoCommand(
-                TENANT_ID, almacenId, skuId, null, "L-ANT", LocalDate.now().plusMonths(6), "AJUSTE_INGRESO",
-                new BigDecimal("3"), "Lote por vencer", actor, null))
-                .fold(MovimientoResult::loteId, error -> { throw new AssertionError(error); });
+        var antiguo = loteAntiguoDeTres();
 
         var registrada = venta("5", "venta-fefo").fold(value -> value, error -> { throw new AssertionError(error); });
 
@@ -250,10 +248,7 @@ class InventarioConcurrencyIntegrationTest {
 
     @Test
     void reintegratingASaleRestoresEveryConsumedLoteAndRecordsTheAnulacionInTheKardex() {
-        var antiguo = registrarMovimiento.execute(new RegistrarMovimientoCommand(
-                TENANT_ID, almacenId, skuId, null, "L-ANT", LocalDate.now().plusMonths(6), "AJUSTE_INGRESO",
-                new BigDecimal("3"), "Lote por vencer", actor, null))
-                .fold(MovimientoResult::loteId, error -> { throw new AssertionError(error); });
+        var antiguo = loteAntiguoDeTres();
         var ventaId = UUID.randomUUID();
         vender(ventaId, "5", "venta-anulable");
         assertThat(stockDe(antiguo)).isEqualByComparingTo("0");
@@ -275,15 +270,52 @@ class InventarioConcurrencyIntegrationTest {
 
     @Test
     void reintegratingTheSameSaleTwiceReturnsTheSameMovementsWithoutRestoringStockAgain() {
+        var antiguo = loteAntiguoDeTres();
         var ventaId = UUID.randomUUID();
-        vender(ventaId, "4", "venta-doble");
+        vender(ventaId, "5", "venta-doble");
 
         var primero = reintegrar(ventaId).fold(value -> value, error -> { throw new AssertionError(error); });
         var segundo = reintegrar(ventaId).fold(value -> value, error -> { throw new AssertionError(error); });
 
+        assertThat(primero.movimientos()).hasSize(2);
         assertThat(segundo.movimientos()).extracting(MovimientoReintegrado::movimientoId)
                 .containsExactlyElementsOf(primero.movimientos().stream().map(MovimientoReintegrado::movimientoId).toList());
         assertThat(physicalStock()).isEqualByComparingTo("10");
+        assertThat(stockDe(antiguo)).isEqualByComparingTo("3");
+        assertThat(anulacionesEnKardex(ventaId)).isEqualTo(2L);
+    }
+
+    @Test
+    void aReintegroWaitsForAnUncommittedMovementOnTheSameLoteInsteadOfFailingItsOuterTransaction()
+            throws Exception {
+        var ventaId = UUID.randomUUID();
+        vender(ventaId, "4", "venta-contra-ajuste");
+        var transaction = new TransactionTemplate(transactionManager);
+        var ajusteAplicado = new CountDownLatch(1);
+        var liberarAjuste = new CountDownLatch(1);
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var ajuste = pool.submit(() -> transaction.execute(status -> {
+                var resultado = registrarMovimiento.execute(new RegistrarMovimientoCommand(
+                        TENANT_ID, almacenId, skuId, loteId, null, null, "AJUSTE_SALIDA", new BigDecimal("1"),
+                        "Ajuste concurrente", actor, null));
+                ajusteAplicado.countDown();
+                esperar(liberarAjuste);
+                return resultado;
+            }));
+            esperar(ajusteAplicado);
+            var reintegro = pool.submit(() -> transaction.execute(status -> reintegrar(ventaId)));
+            esperarSesionBloqueada();
+            liberarAjuste.countDown();
+
+            assertThat(ajuste.get().isSuccess()).isTrue();
+            assertThat(reintegro.get().isSuccess()).isTrue();
+        } finally {
+            liberarAjuste.countDown();
+            pool.shutdownNow();
+        }
+        assertThat(physicalStock()).isEqualByComparingTo("9");
+        assertThat(anulacionesEnKardex(ventaId)).isEqualTo(1L);
     }
 
     @Test
@@ -307,6 +339,40 @@ class InventarioConcurrencyIntegrationTest {
 
         assertThat(error.code()).isEqualTo(AnulacionInventarioApi.CODIGO_SALIDAS_NO_ENCONTRADAS);
         assertThat(physicalStock()).isEqualByComparingTo("10");
+    }
+
+    private UUID loteAntiguoDeTres() {
+        return registrarMovimiento.execute(new RegistrarMovimientoCommand(
+                TENANT_ID, almacenId, skuId, null, "L-ANT", LocalDate.now().plusMonths(6), "AJUSTE_INGRESO",
+                new BigDecimal("3"), "Lote por vencer", actor, null))
+                .fold(MovimientoResult::loteId, error -> { throw new AssertionError(error); });
+    }
+
+    private long anulacionesEnKardex(UUID ventaId) {
+        return jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_inventario.movimiento_inventario
+                         WHERE tipo_movimiento = 'ANULACION_VENTA' AND documento_uuid = :ventaId
+                        """).param("ventaId", ventaId).query(Long.class).single();
+    }
+
+    private void esperarSesionBloqueada() throws InterruptedException {
+        var limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (jdbcClient.sql("""
+                        SELECT COUNT(*) FROM pg_stat_activity
+                         WHERE datname = current_database() AND wait_event_type = 'Lock'
+                        """).query(Long.class).single() == 0) {
+            assertThat(System.nanoTime()).as("una sesion esperando un bloqueo").isLessThan(limite);
+            Thread.sleep(20);
+        }
+    }
+
+    private static void esperar(CountDownLatch latch) {
+        try {
+            assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(exception);
+        }
     }
 
     private Result<SalidaVentaRegistrada, ApplicationError> vender(UUID ventaId, String cantidad, String clave) {

@@ -9,7 +9,12 @@ import static com.softprimesolutions.inventario.InventarioFixtures.SKU;
 import static com.softprimesolutions.inventario.InventarioFixtures.TENANT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.softprimesolutions.inventario.application.dto.command.ReintegrarSalidasDeVentaCommand;
@@ -25,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -35,11 +41,14 @@ class ReintegrarSalidasDeVentaHandlerTest {
     private static final UUID LOTE_A = UUID.fromString("c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
     private static final UUID LOTE_B = UUID.fromString("c2c2c2c2-c2c2-4c2c-8c2c-c2c2c2c2c2c2");
     private static final UUID LOTE_C = UUID.fromString("c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3");
+    private static final UUID OTRO_ALMACEN = UUID.fromString("48484848-4848-4848-8848-484848484848");
 
     private final InventarioWritePort writePort = mock(InventarioWritePort.class);
     private final List<RegistrarMovimientoCommand> enviados = new ArrayList<>();
+    private final List<String> eventos = new ArrayList<>();
     private final RegistrarMovimientoUseCase registrarMovimiento = command -> {
         enviados.add(command);
+        eventos.add("reverso " + command.loteId());
         return Result.success(new MovimientoResult(
                 UUID.randomUUID(), UUID.randomUUID(), command.loteId(), "ANULACION_VENTA", "E", command.cantidad(),
                 new BigDecimal("1"), new BigDecimal("9"), AHORA));
@@ -54,7 +63,12 @@ class ReintegrarSalidasDeVentaHandlerTest {
             new ReintegrarSalidasDeVentaHandler(writePort, registrarMovimiento, transaccion);
 
     private static SalidaDeVenta salida(UUID movimiento, UUID sku, UUID lote, String numeroLote, LocalDate vence, String cantidad) {
-        return new SalidaDeVenta(movimiento, ALMACEN, sku, lote, numeroLote, vence, new BigDecimal(cantidad));
+        return salida(ALMACEN, sku, lote, numeroLote, vence, movimiento, cantidad);
+    }
+
+    private static SalidaDeVenta salida(
+            UUID almacen, UUID sku, UUID lote, String numeroLote, LocalDate vence, UUID movimiento, String cantidad) {
+        return new SalidaDeVenta(movimiento, almacen, sku, lote, numeroLote, vence, new BigDecimal(cantidad));
     }
 
     private static ReintegrarSalidasDeVentaCommand command() {
@@ -111,9 +125,33 @@ class ReintegrarSalidasDeVentaHandlerTest {
     }
 
     @Test
+    void locksThePositionsOfEachWarehouseAndSkuInSkuOrderBeforeApplyingAnyReversal() {
+        doAnswer(invocation -> eventos.add("bloqueo " + invocation.getArgument(1) + " " + invocation.getArgument(2)
+                        + " " + invocation.getArgument(3)))
+                .when(writePort).bloquearPosiciones(any(), any(), any(), anyCollection());
+        when(writePort.findSalidasDeVenta(TENANT, VENTA)).thenReturn(List.of(
+                salida(ALMACEN, OTRO_SKU, LOTE_C, "L-C", LocalDate.of(2027, 1, 1), UUID.randomUUID(), "1"),
+                salida(OTRO_ALMACEN, SKU, LOTE_A, "L-A", LocalDate.of(2027, 6, 1), UUID.randomUUID(), "1"),
+                salida(ALMACEN, SKU, LOTE_B, "L-B", LocalDate.of(2027, 6, 1), UUID.randomUUID(), "1"),
+                salida(ALMACEN, SKU, LOTE_A, "L-A", LocalDate.of(2027, 1, 1), UUID.randomUUID(), "1"),
+                salida(ALMACEN, SKU, LOTE_B, "L-B", LocalDate.of(2027, 6, 1), UUID.randomUUID(), "2")));
+
+        value(handler.execute(command()));
+
+        assertThat(eventos).containsExactly(
+                "bloqueo " + ALMACEN + " " + SKU + " " + List.of(LOTE_A, LOTE_B),
+                "bloqueo " + OTRO_ALMACEN + " " + SKU + " " + List.of(LOTE_A),
+                "bloqueo " + ALMACEN + " " + OTRO_SKU + " " + List.of(LOTE_C),
+                "reverso " + LOTE_A, "reverso " + LOTE_A, "reverso " + LOTE_B, "reverso " + LOTE_B,
+                "reverso " + LOTE_C);
+        verify(writePort).bloquearPosiciones(TENANT, ALMACEN, SKU, Set.of(LOTE_A, LOTE_B));
+    }
+
+    @Test
     void aSaleWithoutSalidasIsNotFound() {
         assertThat(error(handler.execute(command())).code()).isEqualTo("INV_SALIDAS_NO_ENCONTRADAS");
         assertThat(enviados).isEmpty();
+        verify(writePort, never()).bloquearPosiciones(any(), any(), any(), anyCollection());
     }
 
     @Test

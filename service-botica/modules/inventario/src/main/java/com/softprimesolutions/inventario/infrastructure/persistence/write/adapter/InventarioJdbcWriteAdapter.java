@@ -16,6 +16,7 @@ import com.softprimesolutions.inventario.infrastructure.persistence.JdbcColumns;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,13 +57,18 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                AND p.estado_inventario = 'DISPONIBLE' AND p.ubicacion_id IS NULL AND p.es_activo = '1'
             """;
     private static final String POSICION_DISPONIBLE = POSICION_SELECT + " AND l.uuid_publico = :loteId";
+    private static final String EN_ORDEN_FEFO_BLOQUEADAS = """
+             ORDER BY l.fecha_vencimiento, l.numero_lote
+               FOR UPDATE OF p
+            """;
     private static final String POSICION_VENDIBLE_FEFO = POSICION_SELECT + """
                AND k.uuid_publico = :skuId AND l.estado_lote = 'HABILITADO' AND l.fecha_vencimiento >= :hoy
                AND l.es_activo = '1'
                AND p.cantidad_fisica > p.cantidad_reservada
-             ORDER BY l.fecha_vencimiento, l.numero_lote
-               FOR UPDATE OF p
-            """;
+            """ + EN_ORDEN_FEFO_BLOQUEADAS;
+    private static final String POSICIONES_A_BLOQUEAR = POSICION_SELECT + """
+               AND k.uuid_publico = :skuId AND l.uuid_publico IN (:loteIds)
+            """ + EN_ORDEN_FEFO_BLOQUEADAS;
     private static final String SALIDAS_DE_VENTA = """
             SELECT m.uuid_publico, a.uuid_publico AS almacen_uuid, k.uuid_publico AS sku_uuid,
                    l.uuid_publico AS lote_uuid, l.numero_lote, l.fecha_vencimiento, m.cantidad
@@ -214,6 +220,17 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                         JdbcColumns.uuid(rs, "sku_uuid"), JdbcColumns.uuid(rs, "lote_uuid"),
                         rs.getString("numero_lote"), JdbcColumns.date(rs, "fecha_vencimiento"),
                         rs.getBigDecimal("cantidad")))
+                .list();
+    }
+
+    @Override
+    public void bloquearPosiciones(UUID tenantId, UUID almacenId, UUID skuId, Collection<UUID> loteIds) {
+        jdbcClient.sql(POSICIONES_A_BLOQUEAR)
+                .param("tenantId", tenantId)
+                .param("almacenId", almacenId)
+                .param("skuId", skuId)
+                .param("loteIds", loteIds)
+                .query((rs, rowNumber) -> mapPosicion(rs))
                 .list();
     }
 

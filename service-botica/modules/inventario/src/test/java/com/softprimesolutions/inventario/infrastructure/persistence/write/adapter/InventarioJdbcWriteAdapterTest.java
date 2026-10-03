@@ -332,6 +332,25 @@ class InventarioJdbcWriteAdapterTest {
     }
 
     @Test
+    void locksThePositionsOfTheGivenLotesOfASkuInFefoOrder() {
+        jdbc.rows("IN (:loteIds)", posicionRow());
+        var lotes = List.of(LOTE, UUID.fromString("abababab-abab-4bab-8bab-abababababab"));
+
+        adapter.bloquearPosiciones(TENANT, ALMACEN, SKU, lotes);
+
+        var statement = jdbc.statementContaining("IN (:loteIds)");
+        assertThat(statement.params())
+                .containsEntry("tenantId", TENANT).containsEntry("almacenId", ALMACEN)
+                .containsEntry("skuId", SKU).containsEntry("loteIds", lotes);
+        assertThat(statement.sql())
+                .contains("p.estado_inventario = 'DISPONIBLE' AND p.ubicacion_id IS NULL AND p.es_activo = '1'")
+                .contains("k.uuid_publico = :skuId AND l.uuid_publico IN (:loteIds)")
+                .contains("ORDER BY l.fecha_vencimiento, l.numero_lote")
+                .contains("FOR UPDATE OF p")
+                .doesNotContain("l.estado_lote = 'HABILITADO'");
+    }
+
+    @Test
     void listsTheSalidasVentaOfASaleFromTheKardex() {
         var row = new HashMap<String, Object>();
         row.put("uuid_publico", UUID.fromString("abababab-abab-4bab-8bab-abababababab"));

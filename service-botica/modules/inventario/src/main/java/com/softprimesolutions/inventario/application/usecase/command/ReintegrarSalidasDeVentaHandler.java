@@ -14,8 +14,12 @@ import com.softprimesolutions.inventario.domain.model.TipoMovimiento;
 import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.kernel.result.Result;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class ReintegrarSalidasDeVentaHandler implements ReintegrarSalidasDeVentaUseCase {
@@ -27,6 +31,9 @@ public final class ReintegrarSalidasDeVentaHandler implements ReintegrarSalidasD
             .comparing(SalidaDeVenta::skuId)
             .thenComparing(SalidaDeVenta::fechaVencimiento)
             .thenComparing(SalidaDeVenta::numeroLote);
+    private static final Comparator<GrupoDeBloqueo> ORDEN_DE_GRUPOS = Comparator
+            .comparing(GrupoDeBloqueo::skuId)
+            .thenComparing(GrupoDeBloqueo::almacenId);
 
     private final InventarioWritePort writePort;
     private final RegistrarMovimientoUseCase registrarMovimiento;
@@ -51,12 +58,23 @@ public final class ReintegrarSalidasDeVentaHandler implements ReintegrarSalidasD
                 .sorted(ORDEN_DE_BLOQUEO)
                 .toList();
         if (salidas.isEmpty()) return Result.failure(InventarioErrors.salidasNoEncontradas());
+        bloquear(command.tenantId(), salidas);
         Result<List<MovimientoResult>, ApplicationError> acumulado = Result.success(List.of());
         for (var salida : salidas) {
             acumulado = acumulado.flatMap(previos -> registrarMovimiento.execute(movimiento(command, salida))
                     .map(registrado -> Stream.concat(previos.stream(), Stream.of(registrado)).toList()));
         }
         return acumulado;
+    }
+
+    private void bloquear(UUID tenantId, List<SalidaDeVenta> salidas) {
+        salidas.stream()
+                .collect(Collectors.groupingBy(
+                        salida -> new GrupoDeBloqueo(salida.almacenId(), salida.skuId()),
+                        () -> new TreeMap<>(ORDEN_DE_GRUPOS),
+                        Collectors.mapping(SalidaDeVenta::loteId, Collectors.toCollection(LinkedHashSet::new))))
+                .forEach((grupo, lotes) -> writePort.bloquearPosiciones(
+                        tenantId, grupo.almacenId(), grupo.skuId(), lotes));
     }
 
     private static RegistrarMovimientoCommand movimiento(
@@ -66,5 +84,8 @@ public final class ReintegrarSalidasDeVentaHandler implements ReintegrarSalidasD
                 command.tenantId(), salida.almacenId(), salida.skuId(), salida.loteId(), null, null,
                 TipoMovimiento.ANULACION_VENTA.name(), salida.cantidad(), MOTIVO_ANULACION, command.actorId(),
                 IdempotencyKeys.reverso(salida.movimientoId()), origen);
+    }
+
+    private record GrupoDeBloqueo(UUID almacenId, UUID skuId) {
     }
 }
