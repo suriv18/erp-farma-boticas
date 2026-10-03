@@ -26,7 +26,7 @@ class VentasMigrationsIntegrationTest {
                         """).query(String.class).list();
         assertThat(permisos).containsExactly(
                 "ventas.turnos.abrir", "ventas.turnos.cerrar", "ventas.turnos.consultar",
-                "ventas.ventas.consultar", "ventas.ventas.registrar");
+                "ventas.ventas.anular", "ventas.ventas.consultar", "ventas.ventas.registrar");
 
         var concedidos = jdbcClient.sql("""
                         SELECT COUNT(*) FROM sch_seguridad.rol_permiso rp
@@ -35,7 +35,7 @@ class VentasMigrationsIntegrationTest {
                           JOIN sch_seguridad.permiso p ON p.id = rp.permiso_id
                          WHERE r.codigo = 'ADMIN' AND p.codigo LIKE 'ventas.%'
                         """).query(Long.class).single();
-        assertThat(concedidos).isEqualTo(5L);
+        assertThat(concedidos).isEqualTo(6L);
     }
 
     @Test
@@ -64,6 +64,19 @@ class VentasMigrationsIntegrationTest {
                         SELECT COUNT(*) FROM information_schema.columns
                          WHERE table_schema = 'sch_venta' AND table_name = 'venta_linea'
                            AND column_name = 'uuid_publico'
+                        """).query(Long.class).single()).isEqualTo(1L);
+    }
+
+    @Test
+    void addsTheAnulacionColumnsAndTheirConsistencyConstraint() {
+        assertThat(jdbcClient.sql("""
+                        SELECT COUNT(*) FROM information_schema.columns
+                         WHERE table_schema = 'sch_venta' AND table_name = 'venta'
+                           AND column_name IN ('anulada_at', 'anulada_por_usuario_id', 'motivo_anulacion')
+                        """).query(Long.class).single()).isEqualTo(3L);
+        assertThat(jdbcClient.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE conname = 'ck_venta_anulacion'
                         """).query(Long.class).single()).isEqualTo(1L);
     }
 }
