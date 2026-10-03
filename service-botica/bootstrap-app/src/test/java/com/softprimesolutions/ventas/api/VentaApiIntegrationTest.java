@@ -40,6 +40,7 @@ class VentaApiIntegrationTest {
     private static final String INV = "/api/v1/inventario";
     private static final String VENTAS = "/api/v1/ventas/ventas";
     private static final String TURNOS = "/api/v1/ventas/turnos";
+    private static final String ANULAR = VENTAS + "/{id}/anulacion";
     private static final String UNIDAD = "UNDVEN";
 
     @Autowired
@@ -301,6 +302,117 @@ class VentaApiIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get(VENTAS).header("Authorization", noPermissions)).andExpect(status().isForbidden());
         mockMvc.perform(get(VENTAS)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void annulsASaleRestoringTheStockToTheOriginalLotesAndReversingThePayment() throws Exception {
+        var antiguo = ingresar("3", "L-ANT", LocalDate.now().plusMonths(6));
+        var nuevo = ingresar("10", "L-NEW", LocalDate.now().plusYears(1));
+        var cuerpo = vender("clave-anular", "5", "2.50", "20").andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        var ventaId = UUID.fromString(JsonPath.read(cuerpo, "$.id"));
+
+        mockMvc.perform(post(ANULAR, ventaId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"  Error de cobro  \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ventaId.toString()))
+                .andExpect(jsonPath("$.estado").value("ANULADA"))
+                .andExpect(jsonPath("$.anulacion.motivo").value("Error de cobro"))
+                .andExpect(jsonPath("$.anulacion.anuladaPorId").value(userId.toString()))
+                .andExpect(jsonPath("$.anulacion.anuladaAt").exists());
+
+        mockMvc.perform(get(INV + "/posiciones").header("Authorization", bearer)
+                        .param("almacenId", almacenId.toString()).param("skuId", skuId.toString()))
+                .andExpect(jsonPath("$.items[?(@.numeroLote == 'L-ANT')].cantidadFisica").value(3.0))
+                .andExpect(jsonPath("$.items[?(@.numeroLote == 'L-NEW')].cantidadFisica").value(10.0));
+        var kardex = jdbcClient.sql("""
+                        SELECT m.tipo_operacion_sunat, m.naturaleza, m.documento_tipo, m.actor
+                          FROM sch_inventario.movimiento_inventario m
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = 'ANULACION_VENTA'
+                        """).param("tenantId", TENANT_ID).query().listOfRows();
+        assertThat(kardex).hasSize(2).allSatisfy(fila -> assertThat(fila)
+                .containsEntry("tipo_operacion_sunat", "05").containsEntry("naturaleza", "E")
+                .containsEntry("documento_tipo", "ANULACION_VENTA").containsEntry("actor", userId.toString()));
+        var fila = jdbcClient.sql("""
+                        SELECT v.estado, v.motivo_anulacion, v.updated_by,
+                               (SELECT p.estado FROM sch_venta.pago_venta p WHERE p.venta_id = v.id) AS pago_estado
+                          FROM sch_venta.venta v WHERE v.uuid_publico = :ventaId
+                        """).param("ventaId", ventaId).query().singleRow();
+        assertThat(fila).containsEntry("estado", "ANULADA").containsEntry("pago_estado", "REVERSADO")
+                .containsEntry("motivo_anulacion", "Error de cobro").containsEntry("updated_by", userId.toString());
+        assertThat(antiguo).isNotEqualTo(nuevo);
+    }
+
+    @Test
+    void anAnnulledSaleIsNotCountedByTheTurnoAndCannotBeAnnulledAgain() throws Exception {
+        ingresar("20", "L-001", LocalDate.now().plusYears(1));
+        var anulada = vender("clave-1", "2", "5", "10").andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        vender("clave-2", "3", "5", "20").andExpect(status().isCreated());
+        var ventaId = UUID.fromString(JsonPath.read(anulada, "$.id"));
+        var anulacion = post(ANULAR, ventaId).header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Cliente se arrepintio\"}");
+
+        mockMvc.perform(anulacion).andExpect(status().isOk());
+        mockMvc.perform(anulacion).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VEN_VENTA_ESTADO_INVALIDO"));
+
+        mockMvc.perform(get(VENTAS + "/{id}", ventaId).header("Authorization", bearer))
+                .andExpect(jsonPath("$.estado").value("ANULADA"));
+        var turnoId = UUID.fromString(JsonPath.read(mockMvc.perform(get(TURNOS + "/actual")
+                        .header("Authorization", bearer).param("terminalId", terminalId.toString()))
+                .andReturn().getResponse().getContentAsString(), "$.id"));
+        mockMvc.perform(post(TURNOS + "/{id}/cierre", turnoId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"totalDeclarado\":115}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVentasSistema").value(15.0))
+                .andExpect(jsonPath("$.totalSistema").value(115.0))
+                .andExpect(jsonPath("$.diferencia").value(0.0));
+    }
+
+    @Test
+    void aSaleOfAClosedTurnoCannotBeAnnulled() throws Exception {
+        ingresar("10", "L-001", LocalDate.now().plusYears(1));
+        var cuerpo = vender("clave-1", "1", "5", "10").andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        var ventaId = UUID.fromString(JsonPath.read(cuerpo, "$.id"));
+        var turnoId = UUID.fromString(JsonPath.read(mockMvc.perform(get(TURNOS + "/actual")
+                        .header("Authorization", bearer).param("terminalId", terminalId.toString()))
+                .andReturn().getResponse().getContentAsString(), "$.id"));
+        mockMvc.perform(post(TURNOS + "/{id}/cierre", turnoId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"totalDeclarado\":105}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post(ANULAR, ventaId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Tarde\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VEN_TURNO_NO_ABIERTO"));
+    }
+
+    @Test
+    void validatesTheAnulacionRequestAndItsReferencesAndEnforcesThePermission() throws Exception {
+        ingresar("10", "L-001", LocalDate.now().plusYears(1));
+        var cuerpo = vender("clave-1", "1", "5", "10").andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        var ventaId = UUID.fromString(JsonPath.read(cuerpo, "$.id"));
+
+        mockMvc.perform(post(ANULAR, ventaId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post(ANULAR, ventaId).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post(ANULAR, UUID.randomUUID()).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Motivo\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("VEN_VENTA_NO_ENCONTRADA"));
+        mockMvc.perform(post(ANULAR, ventaId).with(csrf()).header("Authorization", noPermissions)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Motivo\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(ANULAR, ventaId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\":\"Motivo\"}"))
+                .andExpect(status().isUnauthorized());
     }
 
     private void abrirTurno(UUID terminal) throws Exception {

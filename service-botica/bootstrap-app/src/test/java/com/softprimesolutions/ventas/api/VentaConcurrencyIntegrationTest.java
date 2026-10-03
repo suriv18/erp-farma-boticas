@@ -9,12 +9,14 @@ import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.kernel.result.Result;
 import com.softprimesolutions.testsupport.PostgresTestContainerConfiguration;
 import com.softprimesolutions.ventas.application.dto.command.AbrirTurnoCommand;
+import com.softprimesolutions.ventas.application.dto.command.AnularVentaCommand;
 import com.softprimesolutions.ventas.application.dto.command.CerrarTurnoCommand;
 import com.softprimesolutions.ventas.application.dto.command.LineaVentaInput;
 import com.softprimesolutions.ventas.application.dto.command.RegistrarVentaCommand;
 import com.softprimesolutions.ventas.application.dto.result.TurnoResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResult;
 import com.softprimesolutions.ventas.application.port.in.AbrirTurnoUseCase;
+import com.softprimesolutions.ventas.application.port.in.AnularVentaUseCase;
 import com.softprimesolutions.ventas.application.port.in.CerrarTurnoUseCase;
 import com.softprimesolutions.ventas.application.port.in.RegistrarVentaUseCase;
 import java.math.BigDecimal;
@@ -52,6 +54,9 @@ class VentaConcurrencyIntegrationTest {
 
     @Autowired
     private CerrarTurnoUseCase cerrarTurno;
+
+    @Autowired
+    private AnularVentaUseCase anularVenta;
 
     @Autowired
     private RegistrarMovimientoUseCase registrarMovimiento;
@@ -249,6 +254,90 @@ class VentaConcurrencyIntegrationTest {
         assertThat(cerrado.diferencia()).isEqualByComparingTo("0.00");
         assertThat(vender("clave-3", linea(skuA, "1")).fold(venta -> "OK", ApplicationError::code))
                 .isEqualTo("VEN_TURNO_NO_ABIERTO");
+    }
+
+    @Test
+    void anAnulacionThatFailsInInventoryLeavesTheSaleConfirmedAndTheStockUntouched() {
+        var venta = value(vender("clave-1", linea(skuA, "3")));
+        assertThat(stock(skuA)).isEqualByComparingTo("7");
+        jdbcClient.sql("UPDATE sch_organizacion.almacen SET es_activo = '0' WHERE uuid_publico = :almacenId")
+                .param("almacenId", almacenId).update();
+
+        var resultado = anular(venta.id(), "Error de cobro");
+
+        assertThat(resultado.fold(valor -> "OK", ApplicationError::code)).isEqualTo("INV_ALMACEN_NO_OPERABLE");
+        assertThat(jdbcClient.sql("""
+                        SELECT v.estado FROM sch_venta.venta v WHERE v.uuid_publico = :ventaId
+                        """).param("ventaId", venta.id()).query(String.class).single()).isEqualTo("CONFIRMADA");
+        assertThat(jdbcClient.sql("""
+                        SELECT p.estado FROM sch_venta.pago_venta p
+                          JOIN sch_venta.venta v ON v.id = p.venta_id WHERE v.uuid_publico = :ventaId
+                        """).param("ventaId", venta.id()).query(String.class).single()).isEqualTo("CONFIRMADO");
+        assertThat(stock(skuA)).isEqualByComparingTo("7");
+        assertThat(jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_inventario.movimiento_inventario m
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = 'ANULACION_VENTA'
+                        """).param("tenantId", TENANT_ID).query(Long.class).single()).isZero();
+    }
+
+    @Test
+    void twoSimultaneousAnnulmentsOfTheSameSaleRestoreTheStockExactlyOnce() throws Exception {
+        var venta = value(vender("clave-1", linea(skuA, "4")));
+
+        var resultados = concurrently(List.<Callable<Result<VentaResult, ApplicationError>>>of(
+                () -> anular(venta.id(), "Primera"), () -> anular(venta.id(), "Segunda")));
+
+        assertThat(resultados.stream().filter(Result::isSuccess).count()).isEqualTo(1);
+        assertThat(resultados.stream().map(resultado -> resultado.fold(valor -> "OK", ApplicationError::code))
+                .filter(codigo -> !codigo.equals("OK")).toList()).containsExactly("VEN_VENTA_ESTADO_INVALIDO");
+        assertThat(stock(skuA)).isEqualByComparingTo("10");
+        assertThat(salidasVentaEnKardex()).isEqualTo(1L);
+    }
+
+    @Test
+    void anAnulacionRacingAgainstTheCloseOfTheTurnoNeverLeavesAnAnnulledSaleCountedInTheTotal() throws Exception {
+        for (var ronda = 0; ronda < 5; ronda++) {
+            var venta = value(vender("clave-ronda-" + ronda, linea(skuA, "1")));
+            var turno = jdbcClient.sql("""
+                            SELECT tc.uuid_publico FROM sch_venta.turno_caja tc
+                              JOIN sch_admin.tenant t ON t.id = tc.tenant_id
+                             WHERE t.uuid_publico = :tenantId AND tc.estado = 'ABIERTO'
+                            """).param("tenantId", TENANT_ID).query(UUID.class).single();
+
+            var resultados = concurrently(List.<Callable<Result<VentaResult, ApplicationError>>>of(
+                    () -> anular(venta.id(), "Carrera"),
+                    () -> cerrarTurno.execute(new CerrarTurnoCommand(
+                                    TENANT_ID, actor, turno, new BigDecimal("1000"), null))
+                            .fold(cerrado -> Result.<VentaResult, ApplicationError>success(venta), Result::failure)));
+
+            assertThat(resultados.get(1).isSuccess()).isTrue();
+            var anulada = jdbcClient.sql("SELECT v.estado FROM sch_venta.venta v WHERE v.uuid_publico = :ventaId")
+                    .param("ventaId", venta.id()).query(String.class).single().equals("ANULADA");
+            var totalDelTurno = jdbcClient.sql("""
+                            SELECT tc.total_ventas_sistema FROM sch_venta.turno_caja tc WHERE tc.uuid_publico = :turnoId
+                            """).param("turnoId", turno).query(BigDecimal.class).single();
+            assertThat(totalDelTurno).isEqualByComparingTo(anulada ? "0" : "10");
+            abrirTurno.execute(new AbrirTurnoCommand(TENANT_ID, actor, terminalId, new BigDecimal("100")))
+                    .fold(abierto -> abierto, error -> { throw new AssertionError(error); });
+        }
+    }
+
+    @Test
+    void annullingASaleWhileAnotherSellsTheSameLotesNeverDeadlocks() throws Exception {
+        var venta = value(vender("clave-base", linea(skuA, "4"), linea(skuB, "4")));
+
+        var resultados = concurrently(List.<Callable<Result<VentaResult, ApplicationError>>>of(
+                () -> anular(venta.id(), "Anular"),
+                () -> vender("clave-otra", linea(skuB, "2"), linea(skuA, "2"))));
+
+        assertThat(resultados).allSatisfy(resultado -> assertThat(resultado.isSuccess()).isTrue());
+        assertThat(stock(skuA)).isEqualByComparingTo("8");
+        assertThat(stock(skuB)).isEqualByComparingTo("8");
+    }
+
+    private Result<VentaResult, ApplicationError> anular(UUID ventaId, String motivo) {
+        return anularVenta.execute(new AnularVentaCommand(TENANT_ID, actor, ventaId, motivo));
     }
 
     private LineaVentaInput linea(UUID sku, String cantidad) {
