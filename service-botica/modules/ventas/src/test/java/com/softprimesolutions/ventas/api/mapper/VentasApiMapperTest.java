@@ -10,10 +10,12 @@ import static com.softprimesolutions.ventas.VentasFixtures.TURNO;
 import static com.softprimesolutions.ventas.VentasFixtures.VENTA;
 import static com.softprimesolutions.ventas.VentasFixtures.dec;
 import static com.softprimesolutions.ventas.VentasFixtures.turnoResult;
+import static com.softprimesolutions.ventas.VentasFixtures.ventaAnuladaResult;
 import static com.softprimesolutions.ventas.VentasFixtures.ventaResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.softprimesolutions.ventas.api.dto.request.AbrirTurnoRequest;
+import com.softprimesolutions.ventas.api.dto.request.AnularVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.CerrarTurnoRequest;
 import com.softprimesolutions.ventas.api.dto.request.LineaVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.PagoEfectivoRequest;
@@ -124,5 +126,30 @@ class VentasApiMapperTest {
         assertThat(response.items().getFirst().id()).isEqualTo(VENTA);
         assertThat(response.items().getFirst().numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(response.items().getFirst().total()).isEqualTo(dec("12.50"));
+    }
+
+    @Test
+    void mapsTheAnulacionRequestToACommand() {
+        var command = VentasApiMapper.toCommand(TENANT, ACTOR_ID, VENTA, new AnularVentaRequest("Error de cobro"));
+
+        assertThat(command.tenantId()).isEqualTo(TENANT);
+        assertThat(command.actorId()).isEqualTo(ACTOR_ID);
+        assertThat(command.ventaId()).isEqualTo(VENTA);
+        assertThat(command.motivo()).isEqualTo("Error de cobro");
+    }
+
+    @Test
+    void mapsTheAnulacionBlockOfAnAnnulledSale() {
+        var response = VentasApiMapper.toResponse(ventaAnuladaResult());
+
+        assertThat(response.estado()).isEqualTo("ANULADA");
+        assertThat(response.anulacion().anuladaAt()).isEqualTo(AHORA);
+        assertThat(response.anulacion().anuladaPorId()).isEqualTo(ACTOR_ID);
+        assertThat(response.anulacion().motivo()).isEqualTo("Error de cobro");
+    }
+
+    @Test
+    void aSaleThatWasNeverAnnulledHasNoAnulacionBlockInTheResponse() {
+        assertThat(VentasApiMapper.toResponse(ventaResult()).anulacion()).isNull();
     }
 }

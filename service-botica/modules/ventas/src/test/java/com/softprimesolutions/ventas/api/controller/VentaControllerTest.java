@@ -11,16 +11,19 @@ import static com.softprimesolutions.ventas.VentasFixtures.VENTA;
 import static com.softprimesolutions.ventas.VentasFixtures.conflict;
 import static com.softprimesolutions.ventas.VentasFixtures.dec;
 import static com.softprimesolutions.ventas.VentasFixtures.ok;
+import static com.softprimesolutions.ventas.VentasFixtures.ventaAnuladaResult;
 import static com.softprimesolutions.ventas.VentasFixtures.ventaResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.softprimesolutions.ventas.api.dto.request.LineaVentaRequest;
+import com.softprimesolutions.ventas.api.dto.request.AnularVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.PagoEfectivoRequest;
 import com.softprimesolutions.ventas.api.dto.request.VentaRequest;
 import com.softprimesolutions.ventas.api.dto.response.PaginaResponse;
 import com.softprimesolutions.ventas.api.dto.response.VentaResponse;
+import com.softprimesolutions.ventas.application.dto.command.AnularVentaCommand;
 import com.softprimesolutions.ventas.application.dto.command.RegistrarVentaCommand;
 import com.softprimesolutions.ventas.application.dto.query.ListarVentasQuery;
 import com.softprimesolutions.ventas.application.dto.query.ObtenerVentaQuery;
@@ -58,7 +61,7 @@ class VentaControllerTest {
         var controller = new VentaController(command -> {
             received.set(command);
             return ok(ventaResult());
-        }, consultas);
+        }, command -> conflict(), consultas);
 
         var response = controller.register(JWT, "clave-1", request());
 
@@ -76,7 +79,7 @@ class VentaControllerTest {
         var controller = new VentaController(command -> {
             received.set(command);
             return conflict();
-        }, consultas);
+        }, command -> conflict(), consultas);
 
         assertConflict(controller.register(JWT, null, request()));
         assertThat(received.get().idempotencyKey()).isNull();
@@ -85,7 +88,7 @@ class VentaControllerTest {
     @Test
     void getsASaleById() {
         when(consultas.obtener(new ObtenerVentaQuery(TENANT, VENTA))).thenReturn(ok(ventaResult()));
-        var controller = new VentaController(command -> conflict(), consultas);
+        var controller = new VentaController(command -> conflict(), command -> conflict(), consultas);
 
         var response = controller.getById(JWT, VENTA);
 
@@ -96,7 +99,7 @@ class VentaControllerTest {
     @Test
     void aMissingSaleBecomesAProblem() {
         when(consultas.obtener(new ObtenerVentaQuery(TENANT, VENTA))).thenReturn(conflict());
-        var controller = new VentaController(command -> conflict(), consultas);
+        var controller = new VentaController(command -> conflict(), command -> conflict(), consultas);
 
         assertConflict(controller.getById(JWT, VENTA));
     }
@@ -105,7 +108,7 @@ class VentaControllerTest {
     void listsSalesWithTheFiltersAndPagination() {
         var query = new ListarVentasQuery(TENANT, ESTABLECIMIENTO, AHORA, AHORA.plusSeconds(60), 1, 10);
         when(consultas.listar(query)).thenReturn(ok(new PaginaResult<>(List.of(), 1, 10, 0L)));
-        var controller = new VentaController(command -> conflict(), consultas);
+        var controller = new VentaController(command -> conflict(), command -> conflict(), consultas);
 
         var response = controller.list(JWT, ESTABLECIMIENTO, AHORA, AHORA.plusSeconds(60), 1, 10);
 
@@ -118,8 +121,33 @@ class VentaControllerTest {
     @Test
     void aListFailureBecomesAProblem() {
         when(consultas.listar(new ListarVentasQuery(TENANT, null, null, null, 0, 500))).thenReturn(conflict());
-        var controller = new VentaController(command -> conflict(), consultas);
+        var controller = new VentaController(command -> conflict(), command -> conflict(), consultas);
 
         assertConflict(controller.list(JWT, null, null, null, 0, 500));
+    }
+
+    @Test
+    void annulsASaleWithTheTenantAndActorOfTheTokenAndAnswersOk() {
+        var received = new AtomicReference<AnularVentaCommand>();
+        var controller = new VentaController(command -> conflict(), command -> {
+            received.set(command);
+            return ok(ventaAnuladaResult());
+        }, consultas);
+
+        var response = controller.annul(JWT, VENTA, new AnularVentaRequest("Error de cobro"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(((VentaResponse) response.getBody()).estado()).isEqualTo("ANULADA");
+        assertThat(received.get().tenantId()).isEqualTo(TENANT);
+        assertThat(received.get().actorId()).isEqualTo(ACTOR_ID);
+        assertThat(received.get().ventaId()).isEqualTo(VENTA);
+        assertThat(received.get().motivo()).isEqualTo("Error de cobro");
+    }
+
+    @Test
+    void anAnulacionFailureBecomesAProblem() {
+        var controller = new VentaController(command -> conflict(), command -> conflict(), consultas);
+
+        assertConflict(controller.annul(JWT, VENTA, new AnularVentaRequest("Error de cobro")));
     }
 }

@@ -1,9 +1,11 @@
 package com.softprimesolutions.ventas.api.mapper;
 
 import com.softprimesolutions.ventas.api.dto.request.AbrirTurnoRequest;
+import com.softprimesolutions.ventas.api.dto.request.AnularVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.CerrarTurnoRequest;
 import com.softprimesolutions.ventas.api.dto.request.LineaVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.VentaRequest;
+import com.softprimesolutions.ventas.api.dto.response.AnulacionResponse;
 import com.softprimesolutions.ventas.api.dto.response.LineaVentaResponse;
 import com.softprimesolutions.ventas.api.dto.response.LoteConsumidoResponse;
 import com.softprimesolutions.ventas.api.dto.response.PagoResponse;
@@ -12,9 +14,11 @@ import com.softprimesolutions.ventas.api.dto.response.TurnoResponse;
 import com.softprimesolutions.ventas.api.dto.response.VentaResponse;
 import com.softprimesolutions.ventas.api.dto.response.VentaResumenResponse;
 import com.softprimesolutions.ventas.application.dto.command.AbrirTurnoCommand;
+import com.softprimesolutions.ventas.application.dto.command.AnularVentaCommand;
 import com.softprimesolutions.ventas.application.dto.command.CerrarTurnoCommand;
 import com.softprimesolutions.ventas.application.dto.command.LineaVentaInput;
 import com.softprimesolutions.ventas.application.dto.command.RegistrarVentaCommand;
+import com.softprimesolutions.ventas.application.dto.result.AnulacionResult;
 import com.softprimesolutions.ventas.application.dto.result.LineaVentaResult;
 import com.softprimesolutions.ventas.application.dto.result.LoteConsumidoResult;
 import com.softprimesolutions.ventas.application.dto.result.PaginaResult;
@@ -22,6 +26,7 @@ import com.softprimesolutions.ventas.application.dto.result.PagoResult;
 import com.softprimesolutions.ventas.application.dto.result.TurnoResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResumenResult;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class VentasApiMapper {
@@ -47,6 +52,10 @@ public final class VentasApiMapper {
                 request.pago().montoRecibido());
     }
 
+    public static AnularVentaCommand toCommand(UUID tenantId, UUID actorId, UUID ventaId, AnularVentaRequest request) {
+        return new AnularVentaCommand(tenantId, actorId, ventaId, request.motivo());
+    }
+
     public static TurnoResponse toResponse(TurnoResult result) {
         return new TurnoResponse(
                 result.id(), result.terminalId(), result.establecimientoId(), result.cajeroId(),
@@ -60,7 +69,8 @@ public final class VentasApiMapper {
                 result.id(), result.numeroOperacion(), result.terminalId(), result.turnoId(),
                 result.establecimientoId(), result.vendedorId(), result.fechaVenta(), result.moneda(),
                 result.subtotal(), result.descuentoTotal(), result.impuestoTotal(), result.total(), result.estado(),
-                result.lineas().stream().map(VentasApiMapper::toResponse).toList(), toResponse(result.pago()));
+                result.lineas().stream().map(VentasApiMapper::toResponse).toList(), toResponse(result.pago()),
+                Optional.ofNullable(result.anulacion()).map(VentasApiMapper::toResponse).orElse(null));
     }
 
     public static PaginaResponse<VentaResumenResponse> toResponse(PaginaResult<VentaResumenResult> pagina) {
@@ -78,6 +88,10 @@ public final class VentasApiMapper {
                 result.numeroLinea(), result.skuId(), result.descripcion(), result.unidadVentaCodigo(),
                 result.cantidad(), result.precioUnitario(), result.totalLinea(),
                 result.lotes().stream().map(VentasApiMapper::toResponse).toList());
+    }
+
+    private static AnulacionResponse toResponse(AnulacionResult result) {
+        return new AnulacionResponse(result.anuladaAt(), result.anuladaPorId(), result.motivo());
     }
 
     private static LoteConsumidoResponse toResponse(LoteConsumidoResult result) {

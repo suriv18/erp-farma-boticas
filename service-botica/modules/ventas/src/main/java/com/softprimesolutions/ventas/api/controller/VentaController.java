@@ -1,9 +1,11 @@
 package com.softprimesolutions.ventas.api.controller;
 
+import com.softprimesolutions.ventas.api.dto.request.AnularVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.VentaRequest;
 import com.softprimesolutions.ventas.api.mapper.VentasApiMapper;
 import com.softprimesolutions.ventas.application.dto.query.ListarVentasQuery;
 import com.softprimesolutions.ventas.application.dto.query.ObtenerVentaQuery;
+import com.softprimesolutions.ventas.application.port.in.AnularVentaUseCase;
 import com.softprimesolutions.ventas.application.port.in.ConsultarVentasUseCase;
 import com.softprimesolutions.ventas.application.port.in.RegistrarVentaUseCase;
 import jakarta.validation.Valid;
@@ -31,10 +33,13 @@ public class VentaController {
     static final String BASE_PATH = "/api/v1/ventas/ventas";
 
     private final RegistrarVentaUseCase registerVenta;
+    private final AnularVentaUseCase annulVenta;
     private final ConsultarVentasUseCase queryVentas;
 
-    public VentaController(RegistrarVentaUseCase registerVenta, ConsultarVentasUseCase queryVentas) {
+    public VentaController(
+            RegistrarVentaUseCase registerVenta, AnularVentaUseCase annulVenta, ConsultarVentasUseCase queryVentas) {
         this.registerVenta = registerVenta;
+        this.annulVenta = annulVenta;
         this.queryVentas = queryVentas;
     }
 
@@ -49,6 +54,17 @@ public class VentaController {
         return registerVenta.execute(command).fold(
                 result -> ResponseEntity.status(HttpStatus.CREATED).body(VentasApiMapper.toResponse(result)),
                 VentasControllerSupport::problem);
+    }
+
+    @PostMapping("/{ventaId}/anulacion")
+    @PreAuthorize("hasAuthority('ventas.ventas.anular')")
+    public ResponseEntity<?> annul(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID ventaId,
+            @Valid @RequestBody AnularVentaRequest request) {
+        var command = VentasApiMapper.toCommand(
+                VentasControllerSupport.tenantOf(jwt), VentasControllerSupport.actorOf(jwt), ventaId, request);
+        return annulVenta.execute(command).fold(
+                result -> ResponseEntity.ok(VentasApiMapper.toResponse(result)), VentasControllerSupport::problem);
     }
 
     @GetMapping("/{ventaId}")
