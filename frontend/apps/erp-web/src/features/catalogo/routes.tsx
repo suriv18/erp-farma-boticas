@@ -60,7 +60,8 @@ export const catalogRoutes = [
   {
     path: 'catalogo/clasificaciones-controladas',
     lazy: async () => {
-      const { ClasificacionesControladasPage } = await import('./pages/ClasificacionesControladasPage');
+      const { ClasificacionesControladasPage } =
+        await import('./pages/ClasificacionesControladasPage');
       return { Component: ClasificacionesControladasPage };
     }
   },
@@ -69,6 +70,41 @@ export const catalogRoutes = [
     lazy: async () => {
       const { TiposDocumentoIdentidadPage } = await import('./pages/TiposDocumentoIdentidadPage');
       return { Component: TiposDocumentoIdentidadPage };
+    }
+  },
+  {
+    path: 'catalogo/principios-activos',
+    lazy: async () => {
+      const { PrincipiosActivosPage } = await import('./pages/PrincipiosActivosPage');
+      return { Component: PrincipiosActivosPage };
+    }
+  },
+  {
+    path: 'catalogo/productos-regulados',
+    lazy: async () => {
+      const { ProductosReguladosPage } = await import('./pages/ProductosReguladosPage');
+      return { Component: ProductosReguladosPage };
+    }
+  },
+  {
+    path: 'catalogo/productos-regulados/:productoReguladoId',
+    lazy: async () => {
+      const { ProductoReguladoDetailPage } = await import('./pages/ProductoReguladoDetailPage');
+      return { Component: ProductoReguladoDetailPage };
+    }
+  },
+  {
+    path: 'catalogo/skus',
+    lazy: async () => {
+      const { SkusPage } = await import('./pages/SkusPage');
+      return { Component: SkusPage };
+    }
+  },
+  {
+    path: 'catalogo/skus/:skuId',
+    lazy: async () => {
+      const { SkuDetailPage } = await import('./pages/SkuDetailPage');
+      return { Component: SkuDetailPage };
     }
   }
 ] satisfies RouteObject[];

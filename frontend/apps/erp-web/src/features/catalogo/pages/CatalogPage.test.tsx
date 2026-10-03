@@ -21,4 +21,17 @@ describe('CatalogPage', () => {
       '/catalogo/categorias'
     );
   });
+
+  it.each([
+    ['Principios activos', '/catalogo/principios-activos'],
+    ['Productos regulados', '/catalogo/productos-regulados'],
+    ['SKU comerciales', '/catalogo/skus']
+  ])('enlaza a %s', (titulo, href) => {
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: titulo }).closest('a')).toHaveAttribute(
+      'href',
+      href
+    );
+  });
 });

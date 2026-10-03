@@ -1,7 +1,10 @@
 import {
+  Barcode,
   ClipboardList,
+  FlaskConical,
   FolderTree,
   IdCard,
+  Package,
   Pill,
   Ruler,
   ShieldAlert,
@@ -66,6 +69,24 @@ const sections = [
     icon: IdCard,
     title: 'Tipos de documento de identidad',
     description: 'Administra el catálogo SUNAT de tipos de documento de identidad.'
+  },
+  {
+    to: '/catalogo/principios-activos',
+    icon: FlaskConical,
+    title: 'Principios activos',
+    description: 'Administra los principios activos de los productos regulados.'
+  },
+  {
+    to: '/catalogo/productos-regulados',
+    icon: Package,
+    title: 'Productos regulados',
+    description: 'Administra los productos con registro sanitario y sus principios activos.'
+  },
+  {
+    to: '/catalogo/skus',
+    icon: Barcode,
+    title: 'SKU comerciales',
+    description: 'Administra los SKU comerciales y sus códigos de barras.'
   }
 ];
 
