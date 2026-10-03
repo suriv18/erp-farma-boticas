@@ -12,6 +12,8 @@ import com.softprimesolutions.ventas.application.mapper.VentasApplicationMapper;
 import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcColumns;
 import com.softprimesolutions.ventas.infrastructure.persistence.TurnoRows;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -182,7 +184,9 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
                         rs.getString("medio_codigo"), rs.getBigDecimal("monto"), rs.getBigDecimal("monto_recibido"),
                         rs.getBigDecimal("vuelto")))
                 .list()
-                .getFirst();
+                .stream()
+                .findFirst()
+                .orElse(null);
         return new VentaResult(
                 cabecera.id(), cabecera.numeroOperacion(), cabecera.terminalId(), cabecera.turnoId(),
                 cabecera.establecimientoId(), cabecera.vendedorId(), cabecera.fechaVenta(), cabecera.moneda(),
@@ -192,8 +196,7 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
 
     private record Cabecera(
             UUID id, String numeroOperacion, UUID terminalId, UUID turnoId, UUID establecimientoId, UUID vendedorId,
-            java.time.Instant fechaVenta, String moneda, java.math.BigDecimal subtotal,
-            java.math.BigDecimal descuentoTotal, java.math.BigDecimal impuestoTotal, java.math.BigDecimal total,
-            String estado) {
+            Instant fechaVenta, String moneda, BigDecimal subtotal, BigDecimal descuentoTotal,
+            BigDecimal impuestoTotal, BigDecimal total, String estado) {
     }
 }

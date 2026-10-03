@@ -85,6 +85,7 @@ public final class VentasApiMapper {
     }
 
     private static PagoResponse toResponse(PagoResult result) {
+        if (result == null) return null;
         return new PagoResponse(result.medioPago(), result.monto(), result.montoRecibido(), result.vuelto());
     }
 

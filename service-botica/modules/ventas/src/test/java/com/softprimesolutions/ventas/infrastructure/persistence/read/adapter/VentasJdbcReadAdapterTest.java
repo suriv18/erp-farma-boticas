@@ -105,6 +105,17 @@ class VentasJdbcReadAdapterTest {
     }
 
     @Test
+    void aSaleWithoutAPaymentRowHasNoPaymentInsteadOfFailing() {
+        jdbc.rows(CABECERA, Rows.ventaCabecera());
+        jdbc.rows(LINEAS, Rows.ventaLinea());
+
+        var venta = adapter.findVenta(TENANT, VENTA).orElseThrow();
+
+        assertThat(venta.pago()).isNull();
+        assertThat(venta.lineas()).hasSize(1);
+    }
+
+    @Test
     void aMissingSaleIsEmptyWithoutLoadingItsDetail() {
         assertThat(adapter.findVenta(TENANT, VENTA)).isEmpty();
         assertThat(jdbc.statements()).hasSize(1);

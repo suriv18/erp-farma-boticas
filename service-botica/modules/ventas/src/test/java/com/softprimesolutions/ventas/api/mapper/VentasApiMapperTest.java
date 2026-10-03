@@ -19,6 +19,7 @@ import com.softprimesolutions.ventas.api.dto.request.LineaVentaRequest;
 import com.softprimesolutions.ventas.api.dto.request.PagoEfectivoRequest;
 import com.softprimesolutions.ventas.api.dto.request.VentaRequest;
 import com.softprimesolutions.ventas.application.dto.result.PaginaResult;
+import com.softprimesolutions.ventas.application.dto.result.VentaResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResumenResult;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -97,9 +98,21 @@ class VentasApiMapperTest {
     }
 
     @Test
+    void aSaleWithoutPaymentMapsToAResponseWithoutPayment() {
+        var venta = ventaResult();
+        var sinPago = new VentaResult(
+                venta.id(), venta.numeroOperacion(), venta.terminalId(), venta.turnoId(), venta.establecimientoId(),
+                venta.vendedorId(), venta.fechaVenta(), venta.moneda(), venta.subtotal(), venta.descuentoTotal(),
+                venta.impuestoTotal(), venta.total(), venta.estado(), venta.lineas(), null);
+
+        assertThat(VentasApiMapper.toResponse(sinPago).pago()).isNull();
+    }
+
+    @Test
     void mapsASalesPageToItsResponse() {
         var pagina = new PaginaResult<>(
-                List.of(new VentaResumenResult(VENTA, "EST001-POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
+                List.of(new VentaResumenResult(
+                        VENTA, "EST001-POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
                 1, 20, 21L);
 
         var response = VentasApiMapper.toResponse(pagina);
