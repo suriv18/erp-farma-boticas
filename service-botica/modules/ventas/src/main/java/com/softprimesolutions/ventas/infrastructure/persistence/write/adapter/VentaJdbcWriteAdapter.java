@@ -48,8 +48,9 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
             SELECT :lineaId, v.tenant_id, v.empresa_id, v.establecimiento_id, v.id, :numeroLinea, k.id,
                    :descripcion, :unidad, :esFraccion, :cantidad, :precio, 0, 0, :totalLinea, :fecha, :actor
               FROM sch_venta.venta v
+              JOIN sch_admin.tenant t ON t.id = v.tenant_id
               JOIN sch_catalogo.sku_comercial k ON k.tenant_id = v.tenant_id AND k.uuid_publico = :skuId
-             WHERE v.uuid_publico = :ventaId
+             WHERE t.uuid_publico = :tenantId AND v.uuid_publico = :ventaId
             """;
     private static final String ASEGURAR_EFECTIVO = """
             INSERT INTO sch_venta.medio_pago
@@ -68,7 +69,8 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
                      WHERE mp.tenant_id = v.tenant_id AND mp.codigo = 'EFECTIVO' AND mp.es_activo = '1'),
                    :monto, :montoRecibido, :vuelto, 'PEN', 'CONFIRMADO', :fecha
               FROM sch_venta.venta v
-             WHERE v.uuid_publico = :ventaId
+              JOIN sch_admin.tenant t ON t.id = v.tenant_id
+             WHERE t.uuid_publico = :tenantId AND v.uuid_publico = :ventaId
             """;
     private static final String INSERTAR_LOTE = """
             INSERT INTO sch_venta.venta_linea_lote (tenant_id, venta_linea_id, lote_id, cantidad)
@@ -139,6 +141,7 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
     private int insertarLinea(Venta venta, LineaVenta linea) {
         return jdbcClient.sql(INSERTAR_LINEA)
                 .param("lineaId", linea.id())
+                .param("tenantId", venta.tenantId())
                 .param("ventaId", venta.id())
                 .param("numeroLinea", linea.numeroLinea())
                 .param("skuId", linea.skuId())
@@ -162,6 +165,7 @@ public class VentaJdbcWriteAdapter implements VentaWritePort {
 
     private int insertarPago(Venta venta) {
         return jdbcClient.sql(INSERTAR_PAGO)
+                .param("tenantId", venta.tenantId())
                 .param("ventaId", venta.id())
                 .param("monto", venta.pago().monto())
                 .param("montoRecibido", venta.pago().montoRecibido())

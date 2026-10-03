@@ -65,18 +65,21 @@ class VentaJdbcWriteAdapterTest {
                 .containsEntry("idempotencyKey", "clave-1").containsEntry("huella", "huella-1")
                 .containsEntry("fecha", MOMENTO).containsEntry("subtotal", dec("12.50"))
                 .containsEntry("total", dec("12.50")).containsEntry("actor", ACTOR.codigo());
-        var linea = jdbc.statementContaining("INSERT INTO sch_venta.venta_linea\n").params();
-        assertThat(linea)
-                .containsEntry("lineaId", LINEA).containsEntry("ventaId", VENTA).containsEntry("numeroLinea", 1)
+        var lineaSql = jdbc.statementContaining("INSERT INTO sch_venta.venta_linea\n");
+        assertThat(lineaSql.sql()).contains("t.uuid_publico = :tenantId");
+        assertThat(lineaSql.params())
+                .containsEntry("lineaId", LINEA).containsEntry("tenantId", TENANT).containsEntry("ventaId", VENTA)
+                .containsEntry("numeroLinea", 1)
                 .containsEntry("skuId", SKU).containsEntry("descripcion", "Paracetamol 500 mg")
                 .containsEntry("unidad", "UND").containsEntry("esFraccion", false)
                 .containsEntry("cantidad", dec("5")).containsEntry("precio", dec("2.50"))
                 .containsEntry("totalLinea", dec("12.50"));
         assertThat(jdbc.statementContaining("INSERT INTO sch_venta.medio_pago").params())
                 .containsEntry("tenantId", TENANT).containsEntry("actor", ACTOR.codigo());
-        var pago = jdbc.statementContaining("INSERT INTO sch_venta.pago_venta").params();
-        assertThat(pago)
-                .containsEntry("ventaId", VENTA).containsEntry("monto", dec("12.50"))
+        var pagoSql = jdbc.statementContaining("INSERT INTO sch_venta.pago_venta");
+        assertThat(pagoSql.sql()).contains("t.uuid_publico = :tenantId");
+        assertThat(pagoSql.params())
+                .containsEntry("tenantId", TENANT).containsEntry("ventaId", VENTA).containsEntry("monto", dec("12.50"))
                 .containsEntry("montoRecibido", dec("20.00")).containsEntry("vuelto", dec("7.50"))
                 .containsEntry("fecha", MOMENTO);
     }
