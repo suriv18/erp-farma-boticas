@@ -23,8 +23,11 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.softprimesolutions.inventario.InventarioFixtures.HOY;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionOperations;
@@ -299,5 +302,29 @@ class InventarioJdbcWriteAdapterTest {
         var outcome = adapter.registrar(registro(TipoMovimiento.AJUSTE_INGRESO, true, true, "14"));
 
         assertThat(outcome).isEqualTo(RegistroOutcome.MODIFICACION_CONCURRENTE);
+    }
+
+    @Test
+    void listsTheSellablePositionsOfASkuInFefoOrderWithItsFilters() {
+        var segunda = posicionRow();
+        segunda.put("uuid_publico", UUID.fromString("abababab-abab-4bab-8bab-abababababab"));
+        segunda.put("cantidad_fisica", new BigDecimal("3.0000"));
+        segunda.put("cantidad_reservada", new BigDecimal("0.0000"));
+        jdbc.rows("ORDER BY l.fecha_vencimiento", List.of(posicionRow(), segunda));
+
+        var posiciones = adapter.findPosicionesVendiblesFefo(TENANT, ALMACEN, SKU, HOY);
+
+        assertThat(posiciones).hasSize(2);
+        assertThat(posiciones.get(0).id().value()).isEqualTo(POSICION);
+        assertThat(posiciones.get(0).disponible()).isEqualByComparingTo("8");
+        assertThat(posiciones.get(1).disponible()).isEqualByComparingTo("3");
+        var statement = jdbc.statementContaining("ORDER BY l.fecha_vencimiento");
+        assertThat(statement.params())
+                .containsEntry("tenantId", TENANT).containsEntry("almacenId", ALMACEN)
+                .containsEntry("skuId", SKU).containsEntry("hoy", HOY);
+        assertThat(statement.sql())
+                .contains("l.estado_lote = 'HABILITADO'")
+                .contains("l.fecha_vencimiento >= :hoy")
+                .contains("p.cantidad_fisica > p.cantidad_reservada");
     }
 }

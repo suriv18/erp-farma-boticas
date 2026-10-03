@@ -15,6 +15,7 @@ import com.softprimesolutions.inventario.infrastructure.persistence.JdbcColumns;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -42,7 +43,7 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                AND k.uuid_publico = :skuId AND l.numero_lote = :numeroLote
                AND l.fecha_vencimiento = :fechaVencimiento
             """;
-    private static final String POSICION_DISPONIBLE = """
+    private static final String POSICION_SELECT = """
             SELECT p.uuid_publico, l.uuid_publico AS lote_uuid, a.uuid_publico AS almacen_uuid,
                    k.uuid_publico AS sku_uuid, p.cantidad_fisica, p.cantidad_reservada, p.version_lock
               FROM sch_inventario.posicion_inventario p
@@ -50,8 +51,14 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
               JOIN sch_organizacion.almacen a ON a.id = p.almacen_id AND a.tenant_id = p.tenant_id
               JOIN sch_catalogo.sku_comercial k ON k.id = p.sku_id AND k.tenant_id = p.tenant_id
               JOIN sch_inventario.lote l ON l.id = p.lote_id AND l.tenant_id = p.tenant_id
-             WHERE t.uuid_publico = :tenantId AND a.uuid_publico = :almacenId AND l.uuid_publico = :loteId
+             WHERE t.uuid_publico = :tenantId AND a.uuid_publico = :almacenId
                AND p.estado_inventario = 'DISPONIBLE' AND p.ubicacion_id IS NULL AND p.es_activo = '1'
+            """;
+    private static final String POSICION_DISPONIBLE = POSICION_SELECT + " AND l.uuid_publico = :loteId";
+    private static final String POSICION_VENDIBLE_FEFO = POSICION_SELECT + """
+               AND k.uuid_publico = :skuId AND l.estado_lote = 'HABILITADO' AND l.fecha_vencimiento >= :hoy
+               AND p.cantidad_fisica > p.cantidad_reservada
+             ORDER BY l.fecha_vencimiento, l.numero_lote
             """;
     private static final String ACTUALIZAR_ESTADO_LOTE = """
             UPDATE sch_inventario.lote
@@ -169,6 +176,18 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                 .param("businessUuid", businessUuid)
                 .query((rs, rowNumber) -> mapMovimiento(rs))
                 .optional();
+    }
+
+    @Override
+    public List<PosicionInventario> findPosicionesVendiblesFefo(
+            UUID tenantId, UUID almacenId, UUID skuId, LocalDate hoy) {
+        return jdbcClient.sql(POSICION_VENDIBLE_FEFO)
+                .param("tenantId", tenantId)
+                .param("almacenId", almacenId)
+                .param("skuId", skuId)
+                .param("hoy", hoy)
+                .query((rs, rowNumber) -> mapPosicion(rs))
+                .list();
     }
 
     @Override

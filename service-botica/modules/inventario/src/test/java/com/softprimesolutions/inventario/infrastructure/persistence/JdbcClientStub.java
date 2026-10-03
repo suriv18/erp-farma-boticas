@@ -49,6 +49,11 @@ public final class JdbcClientStub {
         return this;
     }
 
+    public JdbcClientStub rows(String fragment, List<Map<String, Object>> rows) {
+        rules.add(new Rule(fragment, rows, List.of(), 1, null));
+        return this;
+    }
+
     public JdbcClientStub scalar(String fragment, Object value) {
         rules.add(new Rule(fragment, List.of(), List.of(value), 1, null));
         return this;
