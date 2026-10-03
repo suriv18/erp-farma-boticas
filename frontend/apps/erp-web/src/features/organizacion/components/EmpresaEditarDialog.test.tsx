@@ -27,7 +27,7 @@ describe('EmpresaEditarDialog', () => {
     expect(screen.getByLabelText('Razón social')).toHaveValue('Boticas SAC');
   });
 
-  it('guarda sin enviar el RUC, con el tenant en la consulta, y se cierra', async () => {
+  it('guarda sin enviar el RUC, sin tenant en la consulta, y se cierra', async () => {
     let query = new URLSearchParams();
     let body: Record<string, unknown> = {};
     server.use(
@@ -45,7 +45,7 @@ describe('EmpresaEditarDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(query.get('tenantId')).toBe('tenant-1');
+    expect(query.has('tenantId')).toBe(false);
     expect(body).toMatchObject({ razonSocial: 'Boticas del Perú SAC', monedaFuncional: 'PEN' });
     expect('ruc' in body).toBe(false);
   });

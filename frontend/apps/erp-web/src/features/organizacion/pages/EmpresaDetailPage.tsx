@@ -18,20 +18,17 @@ import { CONSECUENCIAS_ESTADO_EMPRESA } from '../lib/consecuencias-estado';
 import { describeApiError } from '../lib/describe-api-error';
 import { valueOrDash, yesNo } from '../lib/format';
 import { useRouteParam } from '../lib/use-route-param';
-import { useTenantId } from '../lib/use-tenant-id';
 
 export function EmpresaDetailPage() {
   const empresaId = useRouteParam('empresaId');
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
 
-  const result = useQuery({ ...empresaQuery(tenantId, empresaId), enabled: tenantId !== '' });
+  const result = useQuery(empresaQuery(empresaId));
 
   const stateMutation = useMutation({
-    mutationFn: (estado: EstadoEmpresa) =>
-      cambiarEstadoEmpresa(apiClient, empresaId, tenantId, estado),
+    mutationFn: (estado: EstadoEmpresa) => cambiarEstadoEmpresa(apiClient, empresaId, estado),
     onSuccess: () => {
       setStateOpen(false);
       void invalidateOrganizacion(queryClient);

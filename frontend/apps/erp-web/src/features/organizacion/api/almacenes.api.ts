@@ -15,7 +15,6 @@ export function fetchAlmacenes(
   params: FetchAlmacenesParams
 ): Promise<PaginaResponse<Almacen>> {
   const query = buildQuery({
-    tenantId: params.tenantId,
     establecimientoId: params.establecimientoId,
     search: params.search,
     ...resolverPaginacion(params)
@@ -30,7 +29,6 @@ export function almacenesQuery(params: FetchAlmacenesParams) {
       'organizacion',
       'almacenes',
       'lista',
-      params.tenantId,
       params.establecimientoId ?? '',
       params.search ?? '',
       page,
@@ -47,11 +45,10 @@ export function crearAlmacen(client: ApiClient, payload: CrearAlmacenPayload): P
 export function actualizarAlmacen(
   client: ApiClient,
   almacenId: string,
-  tenantId: string,
   payload: ActualizarAlmacenPayload
 ): Promise<Almacen> {
   return client.put<Almacen, ActualizarAlmacenPayload>(
-    `/organizacion/almacenes/${almacenId}?${buildQuery({ tenantId })}`,
+    `/organizacion/almacenes/${almacenId}`,
     payload
   );
 }

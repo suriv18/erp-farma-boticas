@@ -41,7 +41,6 @@ type AlmacenDatos = {
 };
 
 export type CrearAlmacenPayload = AlmacenDatos & {
-  tenantId: string;
   establecimientoId: string;
   codigo: string;
 };

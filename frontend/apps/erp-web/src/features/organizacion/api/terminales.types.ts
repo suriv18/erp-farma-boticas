@@ -32,7 +32,6 @@ type TerminalDatos = {
 };
 
 export type CrearTerminalPayload = TerminalDatos & {
-  tenantId: string;
   establecimientoId: string;
   codigo: string;
 };

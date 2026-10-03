@@ -45,7 +45,7 @@ const sampleEmpresa: Empresa = {
 };
 
 describe('empresas.api', () => {
-  it('fetchEmpresas consulta con tenantId, page y size por defecto', async () => {
+  it('fetchEmpresas consulta con page y size por defecto', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/organizacion/empresas', ({ request }) => {
@@ -54,9 +54,9 @@ describe('empresas.api', () => {
       })
     );
 
-    const result = await fetchEmpresas(client, { tenantId: 'tenant-1' });
+    const result = await fetchEmpresas(client, {});
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
     expect(receivedUrl?.searchParams.has('search')).toBe(false);
@@ -72,14 +72,14 @@ describe('empresas.api', () => {
       })
     );
 
-    await fetchEmpresas(client, { tenantId: 'tenant-1', search: 'bot', page: 2, size: 50 });
+    await fetchEmpresas(client, { search: 'bot', page: 2, size: 50 });
 
     expect(receivedUrl?.searchParams.get('search')).toBe('bot');
     expect(receivedUrl?.searchParams.get('page')).toBe('2');
     expect(receivedUrl?.searchParams.get('size')).toBe('50');
   });
 
-  it('fetchEmpresa consulta el detalle con el tenantId como query', async () => {
+  it('fetchEmpresa consulta el detalle sin tenantId', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/organizacion/empresas/empresa-1', ({ request }) => {
@@ -88,9 +88,9 @@ describe('empresas.api', () => {
       })
     );
 
-    const result = await fetchEmpresa(client, 'tenant-1', 'empresa-1');
+    const result = await fetchEmpresa(client, 'empresa-1');
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(result).toEqual(sampleEmpresa);
   });
 
@@ -103,7 +103,6 @@ describe('empresas.api', () => {
       })
     );
     const payload = {
-      tenantId: 'tenant-1',
       ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN',
@@ -117,7 +116,7 @@ describe('empresas.api', () => {
     expect(result).toEqual(sampleEmpresa);
   });
 
-  it('actualizarEmpresa usa PUT con tenantId como query y el payload como body', async () => {
+  it('actualizarEmpresa usa PUT sin tenantId y el payload como body', async () => {
     let receivedUrl: URL | undefined;
     let receivedBody: unknown;
     server.use(
@@ -134,9 +133,9 @@ describe('empresas.api', () => {
       permiteVentaOnline: true
     };
 
-    await actualizarEmpresa(client, 'empresa-1', 'tenant-1', payload);
+    await actualizarEmpresa(client, 'empresa-1', payload);
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual(payload);
   });
 
@@ -154,51 +153,47 @@ describe('empresas.api', () => {
       )
     );
 
-    const result = await cambiarEstadoEmpresa(client, 'empresa-1', 'tenant-1', 'SUSPENDIDO');
+    const result = await cambiarEstadoEmpresa(client, 'empresa-1', 'SUSPENDIDO');
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual({ estado: 'SUSPENDIDO' });
     expect(result.estado).toBe('SUSPENDIDO');
   });
 
   it('empresasQuery y empresaQuery definen claves estables por parámetros', () => {
-    expect(
-      empresasQuery({ tenantId: 'tenant-1', search: 'bot', page: 1, size: 10 }).queryKey
-    ).toEqual(['organizacion', 'empresas', 'lista', 'tenant-1', 'bot', 1, 10]);
-    expect(empresasQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+    expect(empresasQuery({ search: 'bot', page: 1, size: 10 }).queryKey).toEqual([
       'organizacion',
       'empresas',
       'lista',
-      'tenant-1',
-      '',
-      0,
-      20
+      'bot',
+      1,
+      10
     ]);
-    expect(empresaQuery('tenant-1', 'empresa-1').queryKey).toEqual([
+    expect(empresasQuery({}).queryKey).toEqual(['organizacion', 'empresas', 'lista', '', 0, 20]);
+    expect(empresaQuery('empresa-1').queryKey).toEqual([
       'organizacion',
       'empresas',
       'detalle',
-      'tenant-1',
       'empresa-1'
     ]);
   });
 
-  it('empresasQuery ejecuta la consulta contra /organizacion/empresas?tenantId=tenant-1&page=0&size=20', async () => {
+  it('empresasQuery ejecuta la consulta contra /organizacion/empresas?page=0&size=20', async () => {
     const get = vi
       .spyOn(apiClient, 'get')
       .mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0 });
 
-    await new QueryClient().fetchQuery(empresasQuery({ tenantId: 'tenant-1' }));
+    await new QueryClient().fetchQuery(empresasQuery({}));
 
-    expect(get).toHaveBeenCalledWith('/organizacion/empresas?tenantId=tenant-1&page=0&size=20');
+    expect(get).toHaveBeenCalledWith('/organizacion/empresas?page=0&size=20');
   });
 
-  it('empresaQuery ejecuta la consulta contra /organizacion/empresas/empresa-1?tenantId=tenant-1', async () => {
+  it('empresaQuery ejecuta la consulta contra /organizacion/empresas/empresa-1', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue(sampleEmpresa);
 
-    await new QueryClient().fetchQuery(empresaQuery('tenant-1', 'empresa-1'));
+    await new QueryClient().fetchQuery(empresaQuery('empresa-1'));
 
-    expect(get).toHaveBeenCalledWith('/organizacion/empresas/empresa-1?tenantId=tenant-1');
+    expect(get).toHaveBeenCalledWith('/organizacion/empresas/empresa-1');
   });
 
   it('crearEmpresa rechaza con ApiError 409 cuando el servidor informa un conflicto', async () => {
@@ -209,7 +204,6 @@ describe('empresas.api', () => {
     );
 
     const result = crearEmpresa(client, {
-      tenantId: 'tenant-1',
       ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN',

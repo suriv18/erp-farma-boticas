@@ -7,7 +7,6 @@ import { invalidateOrganizacion } from '../api/invalidate';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEmpresaFormValues } from '../lib/form-defaults';
 import { toActualizarEmpresaPayload } from '../lib/form-payloads';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { EmpresaFormValues } from '../schemas/empresa.schema';
 import { EmpresaForm } from './EmpresaForm';
 
@@ -17,12 +16,11 @@ type EmpresaEditarDialogProps = {
 };
 
 export function EmpresaEditarDialog({ empresa, onClose }: EmpresaEditarDialogProps) {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (values: EmpresaFormValues) =>
-      actualizarEmpresa(apiClient, empresa.id, tenantId, toActualizarEmpresaPayload(values)),
+      actualizarEmpresa(apiClient, empresa.id, toActualizarEmpresaPayload(values)),
     onSuccess: () => {
       onClose();
       void invalidateOrganizacion(queryClient);

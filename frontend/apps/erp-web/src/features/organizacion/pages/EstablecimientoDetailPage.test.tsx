@@ -115,7 +115,7 @@ describe('EstablecimientoDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(query.get('tenantId')).toBe('tenant-1');
+    expect(query.has('tenantId')).toBe(false);
     expect(body).toMatchObject({ nombre: 'Botica Principal', perfilOperacion: 'ONLINE' });
     expect('codigo' in body).toBe(false);
   });

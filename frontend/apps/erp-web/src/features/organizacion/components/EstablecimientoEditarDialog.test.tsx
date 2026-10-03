@@ -27,7 +27,7 @@ describe('EstablecimientoEditarDialog', () => {
     expect(screen.getByLabelText('Nombre', { exact: true })).toHaveValue('Botica Central');
   });
 
-  it('guarda sin enviar el código, con el tenant en la consulta, y se cierra', async () => {
+  it('guarda sin enviar el código, sin tenant en la consulta, y se cierra', async () => {
     let query = new URLSearchParams();
     let body: Record<string, unknown> = {};
     server.use(
@@ -45,7 +45,7 @@ describe('EstablecimientoEditarDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(query.get('tenantId')).toBe('tenant-1');
+    expect(query.has('tenantId')).toBe(false);
     expect(body).toMatchObject({ nombre: 'Botica Principal', perfilOperacion: 'ONLINE' });
     expect('codigo' in body).toBe(false);
   });

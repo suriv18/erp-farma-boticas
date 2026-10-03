@@ -7,7 +7,6 @@ import { invalidateOrganizacion } from '../api/invalidate';
 import { describeApiError } from '../lib/describe-api-error';
 import { toEstablecimientoFormValues } from '../lib/form-defaults';
 import { toActualizarEstablecimientoPayload } from '../lib/form-payloads';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { EstablecimientoFormValues } from '../schemas/establecimiento.schema';
 import { EstablecimientoForm } from './EstablecimientoForm';
 
@@ -20,7 +19,6 @@ export function EstablecimientoEditarDialog({
   establecimiento,
   onClose
 }: EstablecimientoEditarDialogProps) {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -28,7 +26,6 @@ export function EstablecimientoEditarDialog({
       actualizarEstablecimiento(
         apiClient,
         establecimiento.id,
-        tenantId,
         toActualizarEstablecimientoPayload(values)
       ),
     onSuccess: () => {

@@ -79,11 +79,10 @@ describe('establecimientos.api', () => {
     );
 
     const result = await fetchEstablecimientos(client, {
-      tenantId: 'tenant-1',
       empresaId: 'empresa-1'
     });
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.get('empresaId')).toBe('empresa-1');
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
@@ -100,19 +99,18 @@ describe('establecimientos.api', () => {
     );
 
     await fetchEstablecimientos(client, {
-      tenantId: 'tenant-1',
       search: 'cen',
       page: 1,
       size: 100
     });
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedUrl?.searchParams.has('empresaId')).toBe(false);
     expect(receivedUrl?.searchParams.get('search')).toBe('cen');
     expect(receivedUrl?.searchParams.get('size')).toBe('100');
   });
 
-  it('fetchEstablecimiento consulta el detalle con el tenantId como query', async () => {
+  it('fetchEstablecimiento consulta el detalle sin tenantId', async () => {
     let receivedUrl: URL | undefined;
     server.use(
       http.get('http://localhost/api/v1/organizacion/establecimientos/est-1', ({ request }) => {
@@ -121,9 +119,9 @@ describe('establecimientos.api', () => {
       })
     );
 
-    const result = await fetchEstablecimiento(client, 'tenant-1', 'est-1');
+    const result = await fetchEstablecimiento(client, 'est-1');
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(result).toEqual(sampleEstablecimiento);
   });
 
@@ -135,14 +133,14 @@ describe('establecimientos.api', () => {
         return HttpResponse.json(sampleEstablecimiento, { status: 201 });
       })
     );
-    const payload = { ...datos, tenantId: 'tenant-1', empresaId: 'empresa-1', codigo: 'EST001' };
+    const payload = { ...datos, empresaId: 'empresa-1', codigo: 'EST001' };
 
     await crearEstablecimiento(client, payload);
 
     expect(receivedBody).toEqual(payload);
   });
 
-  it('actualizarEstablecimiento usa PUT con tenantId como query', async () => {
+  it('actualizarEstablecimiento usa PUT sin tenantId', async () => {
     let receivedUrl: URL | undefined;
     let receivedBody: unknown;
     server.use(
@@ -156,9 +154,9 @@ describe('establecimientos.api', () => {
       )
     );
 
-    await actualizarEstablecimiento(client, 'est-1', 'tenant-1', datos);
+    await actualizarEstablecimiento(client, 'est-1', datos);
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual(datos);
   });
 
@@ -176,9 +174,9 @@ describe('establecimientos.api', () => {
       )
     );
 
-    const result = await cambiarEstadoEstablecimiento(client, 'est-1', 'tenant-1', 'CLAUSURADO');
+    const result = await cambiarEstadoEstablecimiento(client, 'est-1', 'CLAUSURADO');
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual({ estado: 'CLAUSURADO' });
     expect(result.estadoOperativo).toBe('CLAUSURADO');
   });
@@ -186,52 +184,47 @@ describe('establecimientos.api', () => {
   it('las consultas definen claves estables por parámetros', () => {
     expect(
       establecimientosQuery({
-        tenantId: 'tenant-1',
         empresaId: 'empresa-1',
         search: 'c',
         page: 1,
         size: 5
       }).queryKey
-    ).toEqual(['organizacion', 'establecimientos', 'lista', 'tenant-1', 'empresa-1', 'c', 1, 5]);
-    expect(establecimientosQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+    ).toEqual(['organizacion', 'establecimientos', 'lista', 'empresa-1', 'c', 1, 5]);
+    expect(establecimientosQuery({}).queryKey).toEqual([
       'organizacion',
       'establecimientos',
       'lista',
-      'tenant-1',
       '',
       '',
       0,
       20
     ]);
-    expect(establecimientoQuery('tenant-1', 'est-1').queryKey).toEqual([
+    expect(establecimientoQuery('est-1').queryKey).toEqual([
       'organizacion',
       'establecimientos',
       'detalle',
-      'tenant-1',
       'est-1'
     ]);
   });
 
-  it('establecimientosQuery ejecuta la consulta contra /organizacion/establecimientos?tenantId=tenant-1&empresaId=empresa-1&page=0&size=20', async () => {
+  it('establecimientosQuery ejecuta la consulta contra /organizacion/establecimientos?empresaId=empresa-1&page=0&size=20', async () => {
     const get = vi
       .spyOn(apiClient, 'get')
       .mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0 });
 
-    await new QueryClient().fetchQuery(
-      establecimientosQuery({ tenantId: 'tenant-1', empresaId: 'empresa-1' })
-    );
+    await new QueryClient().fetchQuery(establecimientosQuery({ empresaId: 'empresa-1' }));
 
     expect(get).toHaveBeenCalledWith(
-      '/organizacion/establecimientos?tenantId=tenant-1&empresaId=empresa-1&page=0&size=20'
+      '/organizacion/establecimientos?empresaId=empresa-1&page=0&size=20'
     );
   });
 
-  it('establecimientoQuery ejecuta la consulta contra /organizacion/establecimientos/est-1?tenantId=tenant-1', async () => {
+  it('establecimientoQuery ejecuta la consulta contra /organizacion/establecimientos/est-1', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue(sampleEstablecimiento);
 
-    await new QueryClient().fetchQuery(establecimientoQuery('tenant-1', 'est-1'));
+    await new QueryClient().fetchQuery(establecimientoQuery('est-1'));
 
-    expect(get).toHaveBeenCalledWith('/organizacion/establecimientos/est-1?tenantId=tenant-1');
+    expect(get).toHaveBeenCalledWith('/organizacion/establecimientos/est-1');
   });
 
   it('crearEstablecimiento rechaza con ApiError 409 cuando el servidor informa un conflicto', async () => {
@@ -243,7 +236,6 @@ describe('establecimientos.api', () => {
 
     const result = crearEstablecimiento(client, {
       ...datos,
-      tenantId: 'tenant-1',
       empresaId: 'empresa-1',
       codigo: 'EST001'
     });

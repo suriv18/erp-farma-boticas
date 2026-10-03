@@ -10,7 +10,6 @@ import { describeApiError } from '../lib/describe-api-error';
 import { toTerminalFormValues } from '../lib/form-defaults';
 import { toActualizarTerminalPayload, toCrearTerminalPayload } from '../lib/form-payloads';
 import { valueOrDash } from '../lib/format';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { TerminalFormValues } from '../schemas/terminal.schema';
 import { TerminalForm } from './TerminalForm';
 
@@ -21,15 +20,11 @@ export function TerminalesSection({
   establecimientoId: string;
   motivoSinAltas?: string | null;
 }) {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Terminal | null>(null);
 
-  const { data, isPending, isError } = useQuery({
-    ...terminalesQuery({ tenantId, establecimientoId, size: 100 }),
-    enabled: tenantId !== ''
-  });
+  const { data, isPending, isError } = useQuery(terminalesQuery({ establecimientoId, size: 100 }));
 
   const onSaved = () => {
     setCreateOpen(false);
@@ -39,13 +34,13 @@ export function TerminalesSection({
 
   const createMutation = useMutation({
     mutationFn: (values: TerminalFormValues) =>
-      crearTerminal(apiClient, toCrearTerminalPayload(tenantId, establecimientoId, values)),
+      crearTerminal(apiClient, toCrearTerminalPayload(establecimientoId, values)),
     onSuccess: onSaved
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ terminalId, values }: { terminalId: string; values: TerminalFormValues }) =>
-      actualizarTerminal(apiClient, terminalId, tenantId, toActualizarTerminalPayload(values)),
+      actualizarTerminal(apiClient, terminalId, toActualizarTerminalPayload(values)),
     onSuccess: onSaved
   });
 

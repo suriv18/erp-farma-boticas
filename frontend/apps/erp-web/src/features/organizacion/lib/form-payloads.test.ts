@@ -63,9 +63,8 @@ describe('form-payloads', () => {
     expect('ruc' in payload).toBe(false);
   });
 
-  it('empresa: al crear agrega tenantId y RUC', () => {
-    expect(toCrearEmpresaPayload('tenant-1', empresaVacia)).toMatchObject({
-      tenantId: 'tenant-1',
+  it('empresa: al crear agrega el RUC', () => {
+    expect(toCrearEmpresaPayload(empresaVacia)).toMatchObject({
       ruc: '20123456786',
       razonSocial: 'Boticas SAC'
     });
@@ -85,15 +84,14 @@ describe('form-payloads', () => {
     expect('codigo' in payload).toBe(false);
   });
 
-  it('establecimiento: omite coordenadas vacías y al crear agrega tenant, empresa y código', () => {
-    const payload = toCrearEstablecimientoPayload('tenant-1', 'empresa-1', {
+  it('establecimiento: omite coordenadas vacías y al crear agrega empresa y código', () => {
+    const payload = toCrearEstablecimientoPayload('empresa-1', {
       ...establecimientoLleno,
       latitud: '',
       longitud: ''
     });
 
     expect(payload).toMatchObject({
-      tenantId: 'tenant-1',
       empresaId: 'empresa-1',
       codigo: 'EST001'
     });
@@ -123,11 +121,10 @@ describe('form-payloads', () => {
     expect('codigo' in payload).toBe(false);
   });
 
-  it('almacén: al crear agrega tenant, establecimiento y código y no envía activo', () => {
-    const payload = toCrearAlmacenPayload('tenant-1', 'est-1', almacenValores);
+  it('almacén: al crear agrega establecimiento y código y no envía activo', () => {
+    const payload = toCrearAlmacenPayload('est-1', almacenValores);
 
     expect(payload).toMatchObject({
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'ALM001'
     });
@@ -162,11 +159,10 @@ describe('form-payloads', () => {
     expect('codigo' in payload).toBe(false);
   });
 
-  it('terminal: al crear agrega tenant, establecimiento y código y no envía estado', () => {
-    const payload = toCrearTerminalPayload('tenant-1', 'est-1', terminalValores);
+  it('terminal: al crear agrega establecimiento y código y no envía estado', () => {
+    const payload = toCrearTerminalPayload('est-1', terminalValores);
 
     expect(payload).toMatchObject({
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'POS001'
     });

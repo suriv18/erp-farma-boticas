@@ -84,7 +84,7 @@ describe('EmpresasPage', () => {
     const { user } = renderPage();
 
     await screen.findByText('Boticas SAC');
-    expect(received.get('tenantId')).toBe('tenant-1');
+    expect(received.has('tenantId')).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Siguiente' }));
     await waitFor(() => expect(received.get('page')).toBe('1'));
     await user.selectOptions(screen.getByRole('combobox', { name: 'Filas por página' }), '50');
@@ -115,8 +115,8 @@ describe('EmpresasPage', () => {
     await user.click(screen.getByRole('button', { name: 'Crear empresa' }));
 
     expect(await screen.findByText('Boticas SAC')).toBeInTheDocument();
+    expect(created).not.toHaveProperty('tenantId');
     expect(created).toMatchObject({
-      tenantId: 'tenant-1',
       ruc: '20123456786',
       razonSocial: 'Boticas SAC',
       monedaFuncional: 'PEN'

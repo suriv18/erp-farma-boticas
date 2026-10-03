@@ -15,7 +15,6 @@ export function fetchTerminales(
   params: FetchTerminalesParams
 ): Promise<PaginaResponse<Terminal>> {
   const query = buildQuery({
-    tenantId: params.tenantId,
     establecimientoId: params.establecimientoId,
     search: params.search,
     ...resolverPaginacion(params)
@@ -30,7 +29,6 @@ export function terminalesQuery(params: FetchTerminalesParams) {
       'organizacion',
       'terminales',
       'lista',
-      params.tenantId,
       params.establecimientoId ?? '',
       params.search ?? '',
       page,
@@ -47,11 +45,10 @@ export function crearTerminal(client: ApiClient, payload: CrearTerminalPayload):
 export function actualizarTerminal(
   client: ApiClient,
   terminalId: string,
-  tenantId: string,
   payload: ActualizarTerminalPayload
 ): Promise<Terminal> {
   return client.put<Terminal, ActualizarTerminalPayload>(
-    `/organizacion/terminales-pos/${terminalId}?${buildQuery({ tenantId })}`,
+    `/organizacion/terminales-pos/${terminalId}`,
     payload
   );
 }

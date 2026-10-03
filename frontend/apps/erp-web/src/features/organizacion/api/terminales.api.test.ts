@@ -51,7 +51,6 @@ describe('terminales.api', () => {
     );
 
     const result = await fetchTerminales(client, {
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1'
     });
 
@@ -69,7 +68,7 @@ describe('terminales.api', () => {
       })
     );
 
-    await fetchTerminales(client, { tenantId: 'tenant-1', search: 'caj', page: 1, size: 100 });
+    await fetchTerminales(client, { search: 'caj', page: 1, size: 100 });
 
     expect(receivedUrl?.searchParams.has('establecimientoId')).toBe(false);
     expect(receivedUrl?.searchParams.get('search')).toBe('caj');
@@ -84,7 +83,6 @@ describe('terminales.api', () => {
       })
     );
     const payload = {
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'POS001',
       nombre: 'Caja 1',
@@ -96,7 +94,7 @@ describe('terminales.api', () => {
     expect(receivedBody).toEqual(payload);
   });
 
-  it('actualizarTerminal usa PUT con tenantId como query e incluye estado', async () => {
+  it('actualizarTerminal usa PUT sin tenantId e incluye estado', async () => {
     let receivedUrl: URL | undefined;
     let receivedBody: unknown;
     server.use(
@@ -111,9 +109,9 @@ describe('terminales.api', () => {
     );
     const payload = { nombre: 'Caja 1', storeEdgeHabilitado: false, estado: 'BLOQUEADO' as const };
 
-    const result = await actualizarTerminal(client, 'term-1', 'tenant-1', payload);
+    const result = await actualizarTerminal(client, 'term-1', payload);
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual(payload);
     expect(result.estado).toBe('BLOQUEADO');
   });
@@ -121,18 +119,16 @@ describe('terminales.api', () => {
   it('terminalesQuery define claves estables por parámetros', () => {
     expect(
       terminalesQuery({
-        tenantId: 'tenant-1',
         establecimientoId: 'est-1',
         search: 'c',
         page: 2,
         size: 10
       }).queryKey
-    ).toEqual(['organizacion', 'terminales', 'lista', 'tenant-1', 'est-1', 'c', 2, 10]);
-    expect(terminalesQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+    ).toEqual(['organizacion', 'terminales', 'lista', 'est-1', 'c', 2, 10]);
+    expect(terminalesQuery({}).queryKey).toEqual([
       'organizacion',
       'terminales',
       'lista',
-      'tenant-1',
       '',
       '',
       0,
@@ -140,17 +136,15 @@ describe('terminales.api', () => {
     ]);
   });
 
-  it('terminalesQuery ejecuta la consulta contra /organizacion/terminales-pos?tenantId=tenant-1&establecimientoId=est-1&page=0&size=20', async () => {
+  it('terminalesQuery ejecuta la consulta contra /organizacion/terminales-pos?establecimientoId=est-1&page=0&size=20', async () => {
     const get = vi
       .spyOn(apiClient, 'get')
       .mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0 });
 
-    await new QueryClient().fetchQuery(
-      terminalesQuery({ tenantId: 'tenant-1', establecimientoId: 'est-1' })
-    );
+    await new QueryClient().fetchQuery(terminalesQuery({ establecimientoId: 'est-1' }));
 
     expect(get).toHaveBeenCalledWith(
-      '/organizacion/terminales-pos?tenantId=tenant-1&establecimientoId=est-1&page=0&size=20'
+      '/organizacion/terminales-pos?establecimientoId=est-1&page=0&size=20'
     );
   });
 
@@ -162,7 +156,6 @@ describe('terminales.api', () => {
     );
 
     const result = crearTerminal(client, {
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'POS001',
       nombre: 'Caja 1',

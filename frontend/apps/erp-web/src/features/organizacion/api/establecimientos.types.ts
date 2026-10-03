@@ -59,7 +59,6 @@ export type ActualizarEstablecimientoPayload = {
 };
 
 export type CrearEstablecimientoPayload = ActualizarEstablecimientoPayload & {
-  tenantId: string;
   empresaId: string;
   codigo: string;
 };

@@ -20,23 +20,18 @@ import { describeApiError } from '../lib/describe-api-error';
 import { numberOrEmpty } from '../lib/form-values';
 import { valueOrDash, yesNo } from '../lib/format';
 import { useRouteParam } from '../lib/use-route-param';
-import { useTenantId } from '../lib/use-tenant-id';
 
 export function EstablecimientoDetailPage() {
   const establecimientoId = useRouteParam('establecimientoId');
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
 
-  const result = useQuery({
-    ...establecimientoQuery(tenantId, establecimientoId),
-    enabled: tenantId !== ''
-  });
+  const result = useQuery(establecimientoQuery(establecimientoId));
 
   const stateMutation = useMutation({
     mutationFn: (estado: EstadoEstablecimiento) =>
-      cambiarEstadoEstablecimiento(apiClient, establecimientoId, tenantId, estado),
+      cambiarEstadoEstablecimiento(apiClient, establecimientoId, estado),
     onSuccess: () => {
       setStateOpen(false);
       void invalidateOrganizacion(queryClient);

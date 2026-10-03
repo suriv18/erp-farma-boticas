@@ -92,7 +92,7 @@ describe('EmpresaDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(query.get('tenantId')).toBe('tenant-1');
+    expect(query.has('tenantId')).toBe(false);
     expect(body).toMatchObject({ razonSocial: 'Boticas del Perú SAC', monedaFuncional: 'PEN' });
     expect('ruc' in body).toBe(false);
   });

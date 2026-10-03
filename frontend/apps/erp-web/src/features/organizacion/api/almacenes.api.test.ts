@@ -57,7 +57,6 @@ describe('almacenes.api', () => {
     );
 
     const result = await fetchAlmacenes(client, {
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1'
     });
 
@@ -76,7 +75,7 @@ describe('almacenes.api', () => {
       })
     );
 
-    await fetchAlmacenes(client, { tenantId: 'tenant-1', search: 'alm', page: 3, size: 100 });
+    await fetchAlmacenes(client, { search: 'alm', page: 3, size: 100 });
 
     expect(receivedUrl?.searchParams.has('establecimientoId')).toBe(false);
     expect(receivedUrl?.searchParams.get('search')).toBe('alm');
@@ -93,7 +92,6 @@ describe('almacenes.api', () => {
     );
     const payload = {
       ...datos,
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'ALM001'
     };
@@ -103,7 +101,7 @@ describe('almacenes.api', () => {
     expect(receivedBody).toEqual(payload);
   });
 
-  it('actualizarAlmacen usa PUT con tenantId como query e incluye activo', async () => {
+  it('actualizarAlmacen usa PUT sin tenantId e incluye activo', async () => {
     let receivedUrl: URL | undefined;
     let receivedBody: unknown;
     server.use(
@@ -114,12 +112,12 @@ describe('almacenes.api', () => {
       })
     );
 
-    const result = await actualizarAlmacen(client, 'alm-1', 'tenant-1', {
+    const result = await actualizarAlmacen(client, 'alm-1', {
       ...datos,
       activo: false
     });
 
-    expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
+    expect(receivedUrl?.searchParams.has('tenantId')).toBe(false);
     expect(receivedBody).toEqual({ ...datos, activo: false });
     expect(result.activo).toBe(false);
   });
@@ -127,18 +125,16 @@ describe('almacenes.api', () => {
   it('almacenesQuery define claves estables por parámetros', () => {
     expect(
       almacenesQuery({
-        tenantId: 'tenant-1',
         establecimientoId: 'est-1',
         search: 'a',
         page: 2,
         size: 10
       }).queryKey
-    ).toEqual(['organizacion', 'almacenes', 'lista', 'tenant-1', 'est-1', 'a', 2, 10]);
-    expect(almacenesQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+    ).toEqual(['organizacion', 'almacenes', 'lista', 'est-1', 'a', 2, 10]);
+    expect(almacenesQuery({}).queryKey).toEqual([
       'organizacion',
       'almacenes',
       'lista',
-      'tenant-1',
       '',
       '',
       0,
@@ -146,17 +142,15 @@ describe('almacenes.api', () => {
     ]);
   });
 
-  it('almacenesQuery ejecuta la consulta contra /organizacion/almacenes?tenantId=tenant-1&establecimientoId=est-1&page=0&size=20', async () => {
+  it('almacenesQuery ejecuta la consulta contra /organizacion/almacenes?establecimientoId=est-1&page=0&size=20', async () => {
     const get = vi
       .spyOn(apiClient, 'get')
       .mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0 });
 
-    await new QueryClient().fetchQuery(
-      almacenesQuery({ tenantId: 'tenant-1', establecimientoId: 'est-1' })
-    );
+    await new QueryClient().fetchQuery(almacenesQuery({ establecimientoId: 'est-1' }));
 
     expect(get).toHaveBeenCalledWith(
-      '/organizacion/almacenes?tenantId=tenant-1&establecimientoId=est-1&page=0&size=20'
+      '/organizacion/almacenes?establecimientoId=est-1&page=0&size=20'
     );
   });
 
@@ -169,7 +163,6 @@ describe('almacenes.api', () => {
 
     const result = crearAlmacen(client, {
       ...datos,
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'ALM001'
     });

@@ -74,7 +74,6 @@ describe('EstablecimientosSection', () => {
 
     expect(await screen.findByText('Botica Central')).toBeInTheDocument();
     expect(created).toMatchObject({
-      tenantId: 'tenant-1',
       empresaId: 'empresa-1',
       codigo: 'EST001',
       nombre: 'Botica Central',

@@ -7,7 +7,6 @@ import { crearEstablecimiento, establecimientosQuery } from '../api/establecimie
 import type { Establecimiento } from '../api/establecimientos.types';
 import { describeApiError } from '../lib/describe-api-error';
 import { toCrearEstablecimientoPayload } from '../lib/form-payloads';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { EstablecimientoFormValues } from '../schemas/establecimiento.schema';
 import { AccionesFila } from './AccionesFila';
 import { EstablecimientoEditarDialog } from './EstablecimientoEditarDialog';
@@ -20,19 +19,15 @@ export function EstablecimientosSection({
   empresaId: string;
   motivoSinAltas?: string | null;
 }) {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Establecimiento | null>(null);
 
-  const { data, isPending, isError } = useQuery({
-    ...establecimientosQuery({ tenantId, empresaId, size: 100 }),
-    enabled: tenantId !== ''
-  });
+  const { data, isPending, isError } = useQuery(establecimientosQuery({ empresaId, size: 100 }));
 
   const createMutation = useMutation({
     mutationFn: (values: EstablecimientoFormValues) =>
-      crearEstablecimiento(apiClient, toCrearEstablecimientoPayload(tenantId, empresaId, values)),
+      crearEstablecimiento(apiClient, toCrearEstablecimientoPayload(empresaId, values)),
     onSuccess: () => {
       setCreateOpen(false);
       void invalidateOrganizacion(queryClient);

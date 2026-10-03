@@ -9,7 +9,6 @@ import { invalidateOrganizacion } from '../api/invalidate';
 import { describeApiError } from '../lib/describe-api-error';
 import { toAlmacenFormValues } from '../lib/form-defaults';
 import { toActualizarAlmacenPayload, toCrearAlmacenPayload } from '../lib/form-payloads';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { AlmacenFormValues } from '../schemas/almacen.schema';
 import { AlmacenForm } from './AlmacenForm';
 
@@ -20,15 +19,11 @@ export function AlmacenesSection({
   establecimientoId: string;
   motivoSinAltas?: string | null;
 }) {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Almacen | null>(null);
 
-  const { data, isPending, isError } = useQuery({
-    ...almacenesQuery({ tenantId, establecimientoId, size: 100 }),
-    enabled: tenantId !== ''
-  });
+  const { data, isPending, isError } = useQuery(almacenesQuery({ establecimientoId, size: 100 }));
 
   const onSaved = () => {
     setCreateOpen(false);
@@ -38,13 +33,13 @@ export function AlmacenesSection({
 
   const createMutation = useMutation({
     mutationFn: (values: AlmacenFormValues) =>
-      crearAlmacen(apiClient, toCrearAlmacenPayload(tenantId, establecimientoId, values)),
+      crearAlmacen(apiClient, toCrearAlmacenPayload(establecimientoId, values)),
     onSuccess: onSaved
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ almacenId, values }: { almacenId: string; values: AlmacenFormValues }) =>
-      actualizarAlmacen(apiClient, almacenId, tenantId, toActualizarAlmacenPayload(values)),
+      actualizarAlmacen(apiClient, almacenId, toActualizarAlmacenPayload(values)),
     onSuccess: onSaved
   });
 

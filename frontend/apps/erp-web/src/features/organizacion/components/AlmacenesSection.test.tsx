@@ -83,7 +83,6 @@ describe('AlmacenesSection', () => {
 
     expect(await screen.findByText('Almacén Central')).toBeInTheDocument();
     expect(created).toMatchObject({
-      tenantId: 'tenant-1',
       establecimientoId: 'est-1',
       codigo: 'ALM001',
       nombre: 'Almacén Central',
@@ -143,7 +142,7 @@ describe('AlmacenesSection', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(query.get('tenantId')).toBe('tenant-1');
+    expect(query.has('tenantId')).toBe(false);
     expect(body).toMatchObject({ nombre: 'Almacén Principal', tipo: 'GENERAL', activo: false });
     expect('codigo' in body).toBe(false);
   });

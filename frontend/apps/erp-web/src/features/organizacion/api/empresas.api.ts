@@ -18,7 +18,6 @@ export function fetchEmpresas(
   params: FetchEmpresasParams
 ): Promise<PaginaResponse<Empresa>> {
   const query = buildQuery({
-    tenantId: params.tenantId,
     search: params.search,
     ...resolverPaginacion(params)
   });
@@ -28,31 +27,19 @@ export function fetchEmpresas(
 export function empresasQuery(params: FetchEmpresasParams) {
   const { page, size } = resolverPaginacion(params);
   return queryOptions({
-    queryKey: [
-      'organizacion',
-      'empresas',
-      'lista',
-      params.tenantId,
-      params.search ?? '',
-      page,
-      size
-    ],
+    queryKey: ['organizacion', 'empresas', 'lista', params.search ?? '', page, size],
     queryFn: () => fetchEmpresas(apiClient, params)
   });
 }
 
-export function fetchEmpresa(
-  client: ApiClient,
-  tenantId: string,
-  empresaId: string
-): Promise<Empresa> {
-  return client.get<Empresa>(`/organizacion/empresas/${empresaId}?${buildQuery({ tenantId })}`);
+export function fetchEmpresa(client: ApiClient, empresaId: string): Promise<Empresa> {
+  return client.get<Empresa>(`/organizacion/empresas/${empresaId}`);
 }
 
-export function empresaQuery(tenantId: string, empresaId: string) {
+export function empresaQuery(empresaId: string) {
   return queryOptions({
-    queryKey: ['organizacion', 'empresas', 'detalle', tenantId, empresaId],
-    queryFn: () => fetchEmpresa(apiClient, tenantId, empresaId)
+    queryKey: ['organizacion', 'empresas', 'detalle', empresaId],
+    queryFn: () => fetchEmpresa(apiClient, empresaId)
   });
 }
 
@@ -63,11 +50,10 @@ export function crearEmpresa(client: ApiClient, payload: CrearEmpresaPayload): P
 export function actualizarEmpresa(
   client: ApiClient,
   empresaId: string,
-  tenantId: string,
   payload: ActualizarEmpresaPayload
 ): Promise<Empresa> {
   return client.put<Empresa, ActualizarEmpresaPayload>(
-    `/organizacion/empresas/${empresaId}?${buildQuery({ tenantId })}`,
+    `/organizacion/empresas/${empresaId}`,
     payload
   );
 }
@@ -75,11 +61,10 @@ export function actualizarEmpresa(
 export function cambiarEstadoEmpresa(
   client: ApiClient,
   empresaId: string,
-  tenantId: string,
   estado: EstadoEmpresa
 ): Promise<Empresa> {
   return client.patch<Empresa, { estado: EstadoEmpresa }>(
-    `/organizacion/empresas/${empresaId}/estado?${buildQuery({ tenantId })}`,
+    `/organizacion/empresas/${empresaId}/estado`,
     { estado }
   );
 }

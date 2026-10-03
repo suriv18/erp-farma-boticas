@@ -26,11 +26,8 @@ export function toActualizarEmpresaPayload(values: EmpresaFormValues): Actualiza
   };
 }
 
-export function toCrearEmpresaPayload(
-  tenantId: string,
-  values: EmpresaFormValues
-): CrearEmpresaPayload {
-  return { ...toActualizarEmpresaPayload(values), tenantId, ruc: values.ruc };
+export function toCrearEmpresaPayload(values: EmpresaFormValues): CrearEmpresaPayload {
+  return { ...toActualizarEmpresaPayload(values), ruc: values.ruc };
 }
 
 export function toActualizarEstablecimientoPayload(
@@ -58,13 +55,11 @@ export function toActualizarEstablecimientoPayload(
 }
 
 export function toCrearEstablecimientoPayload(
-  tenantId: string,
   empresaId: string,
   values: EstablecimientoFormValues
 ): CrearEstablecimientoPayload {
   return {
     ...toActualizarEstablecimientoPayload(values),
-    tenantId,
     empresaId,
     codigo: values.codigo.trim()
   };
@@ -89,11 +84,10 @@ export function toActualizarAlmacenPayload(values: AlmacenFormValues): Actualiza
 }
 
 export function toCrearAlmacenPayload(
-  tenantId: string,
   establecimientoId: string,
   values: AlmacenFormValues
 ): CrearAlmacenPayload {
-  return { ...almacenDatos(values), tenantId, establecimientoId, codigo: values.codigo.trim() };
+  return { ...almacenDatos(values), establecimientoId, codigo: values.codigo.trim() };
 }
 
 function terminalDatos(values: TerminalFormValues) {
@@ -114,9 +108,8 @@ export function toActualizarTerminalPayload(values: TerminalFormValues): Actuali
 }
 
 export function toCrearTerminalPayload(
-  tenantId: string,
   establecimientoId: string,
   values: TerminalFormValues
 ): CrearTerminalPayload {
-  return { ...terminalDatos(values), tenantId, establecimientoId, codigo: values.codigo.trim() };
+  return { ...terminalDatos(values), establecimientoId, codigo: values.codigo.trim() };
 }

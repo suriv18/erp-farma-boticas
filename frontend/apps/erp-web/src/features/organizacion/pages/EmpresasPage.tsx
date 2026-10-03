@@ -11,11 +11,9 @@ import { EmpresaForm } from '../components/EmpresaForm';
 import { describeApiError } from '../lib/describe-api-error';
 import { valueOrDash } from '../lib/format';
 import { toCrearEmpresaPayload } from '../lib/form-payloads';
-import { useTenantId } from '../lib/use-tenant-id';
 import type { EmpresaFormValues } from '../schemas/empresa.schema';
 
 export function EmpresasPage() {
-  const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Empresa | null>(null);
@@ -23,14 +21,11 @@ export function EmpresasPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
 
-  const { data, isPending, isError } = useQuery({
-    ...empresasQuery({ tenantId, search, page, size }),
-    enabled: tenantId !== ''
-  });
+  const { data, isPending, isError } = useQuery(empresasQuery({ search, page, size }));
 
   const createMutation = useMutation({
     mutationFn: (values: EmpresaFormValues) =>
-      crearEmpresa(apiClient, toCrearEmpresaPayload(tenantId, values)),
+      crearEmpresa(apiClient, toCrearEmpresaPayload(values)),
     onSuccess: () => {
       setCreateOpen(false);
       void invalidateOrganizacion(queryClient);

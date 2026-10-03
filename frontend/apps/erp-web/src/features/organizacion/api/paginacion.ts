@@ -2,7 +2,6 @@ export const PAGINA_POR_DEFECTO = 0;
 export const TAMANO_POR_DEFECTO = 20;
 
 export type ParametrosLista = {
-  tenantId: string;
   search?: string | undefined;
   page?: number | undefined;
   size?: number | undefined;

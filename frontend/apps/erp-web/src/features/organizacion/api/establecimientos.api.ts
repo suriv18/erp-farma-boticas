@@ -20,7 +20,6 @@ export function fetchEstablecimientos(
   params: FetchEstablecimientosParams
 ): Promise<PaginaResponse<Establecimiento>> {
   const query = buildQuery({
-    tenantId: params.tenantId,
     empresaId: params.empresaId,
     search: params.search,
     ...resolverPaginacion(params)
@@ -35,7 +34,6 @@ export function establecimientosQuery(params: FetchEstablecimientosParams) {
       'organizacion',
       'establecimientos',
       'lista',
-      params.tenantId,
       params.empresaId ?? '',
       params.search ?? '',
       page,
@@ -47,18 +45,15 @@ export function establecimientosQuery(params: FetchEstablecimientosParams) {
 
 export function fetchEstablecimiento(
   client: ApiClient,
-  tenantId: string,
   establecimientoId: string
 ): Promise<Establecimiento> {
-  return client.get<Establecimiento>(
-    `/organizacion/establecimientos/${establecimientoId}?${buildQuery({ tenantId })}`
-  );
+  return client.get<Establecimiento>(`/organizacion/establecimientos/${establecimientoId}`);
 }
 
-export function establecimientoQuery(tenantId: string, establecimientoId: string) {
+export function establecimientoQuery(establecimientoId: string) {
   return queryOptions({
-    queryKey: ['organizacion', 'establecimientos', 'detalle', tenantId, establecimientoId],
-    queryFn: () => fetchEstablecimiento(apiClient, tenantId, establecimientoId)
+    queryKey: ['organizacion', 'establecimientos', 'detalle', establecimientoId],
+    queryFn: () => fetchEstablecimiento(apiClient, establecimientoId)
   });
 }
 
@@ -75,11 +70,10 @@ export function crearEstablecimiento(
 export function actualizarEstablecimiento(
   client: ApiClient,
   establecimientoId: string,
-  tenantId: string,
   payload: ActualizarEstablecimientoPayload
 ): Promise<Establecimiento> {
   return client.put<Establecimiento, ActualizarEstablecimientoPayload>(
-    `/organizacion/establecimientos/${establecimientoId}?${buildQuery({ tenantId })}`,
+    `/organizacion/establecimientos/${establecimientoId}`,
     payload
   );
 }
@@ -87,11 +81,10 @@ export function actualizarEstablecimiento(
 export function cambiarEstadoEstablecimiento(
   client: ApiClient,
   establecimientoId: string,
-  tenantId: string,
   estado: EstadoEstablecimiento
 ): Promise<Establecimiento> {
   return client.patch<Establecimiento, { estado: EstadoEstablecimiento }>(
-    `/organizacion/establecimientos/${establecimientoId}/estado?${buildQuery({ tenantId })}`,
+    `/organizacion/establecimientos/${establecimientoId}/estado`,
     { estado }
   );
 }

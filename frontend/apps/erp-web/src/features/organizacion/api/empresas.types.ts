@@ -35,6 +35,5 @@ export type ActualizarEmpresaPayload = {
 };
 
 export type CrearEmpresaPayload = ActualizarEmpresaPayload & {
-  tenantId: string;
   ruc: string;
 };
