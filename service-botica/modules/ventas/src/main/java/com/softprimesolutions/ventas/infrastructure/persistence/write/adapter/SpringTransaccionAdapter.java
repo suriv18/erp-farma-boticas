@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
-@Component
+@Component("ventasTransaccionAdapter")
 public class SpringTransaccionAdapter implements TransaccionPort {
 
     private final TransactionOperations transaction;
