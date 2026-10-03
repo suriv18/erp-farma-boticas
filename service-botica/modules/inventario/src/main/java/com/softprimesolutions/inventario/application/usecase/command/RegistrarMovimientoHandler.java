@@ -71,7 +71,10 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
                         referencias.estadoSku(command.tenantId(), command.skuId()),
                         InventarioErrors.skuNoEncontrado(), InventarioErrors.skuNoOperable()));
         if (errorReferencia.isPresent()) return Result.failure(errorReferencia.get());
-        return conReintentos(new Solicitud(command, tipo.get(), motivo, IdempotencyKeys.businessUuid(command.idempotencyKey()), huella(command, motivo)));
+        var solicitud = new Solicitud(
+                command, tipo.get(), motivo, IdempotencyKeys.businessUuid(command.idempotencyKey()),
+                huella(command, motivo));
+        return conReintentos(solicitud);
     }
 
     private Result<MovimientoResult, ApplicationError> conReintentos(Solicitud solicitud) {
