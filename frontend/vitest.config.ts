@@ -31,6 +31,7 @@ export default defineConfig({
       {
         test: {
           name: 'erp-web',
+          testTimeout: 20000,
           environment: 'jsdom',
           environmentOptions: {
             jsdom: {

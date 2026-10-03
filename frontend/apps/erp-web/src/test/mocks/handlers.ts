@@ -178,6 +178,27 @@ export const handlers = [
       totalElements: 3
     })
   ),
+  http.get('*/api/v1/catalogo/principios-activos', () =>
+    HttpResponse.json([
+      { id: 'principio-1', codigoFuente: 'PA-001', denominacion: 'Paracetamol', nombreNormalizado: 'paracetamol', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/productos-regulados', () =>
+    HttpResponse.json({
+      items: [{ id: 'producto-1', denominacion: 'Paracetamol 500 mg', condicionVentaCodigo: 'VL', estadoRegulatorio: 'VIGENTE' }],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/skus', () =>
+    HttpResponse.json({
+      items: [{ id: 'sku-1', codigoInterno: 'SKU-001', descripcionComercial: 'Paracetamol 500 mg x 100', tipoSku: 'REGULADO', estado: 'ACTIVO' }],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
   http.get('*/api/v1/catalogo/clasificaciones-controladas', () =>
     HttpResponse.json([
       {
