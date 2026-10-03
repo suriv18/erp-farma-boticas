@@ -37,6 +37,9 @@ class InventarioModuleConfigurationTest {
         var registrarMovimiento = configuration.registrarMovimientoUseCase(writePort, referencias, identifiers, clock);
         assertThat(registrarMovimiento).isNotNull();
         assertThat(configuration.ingresoInventarioApi(registrarMovimiento)).isNotNull();
+        var registrarSalidaVenta = configuration.registrarSalidaVentaUseCase(writePort, registrarMovimiento, clock);
+        assertThat(registrarSalidaVenta).isNotNull();
+        assertThat(configuration.salidaInventarioApi(registrarSalidaVenta)).isNotNull();
     }
 
     @Test

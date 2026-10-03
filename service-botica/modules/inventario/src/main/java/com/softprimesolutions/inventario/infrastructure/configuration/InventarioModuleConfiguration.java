@@ -1,12 +1,15 @@
 package com.softprimesolutions.inventario.infrastructure.configuration;
 
 import com.softprimesolutions.inventario.api.IngresoInventarioApi;
+import com.softprimesolutions.inventario.api.SalidaInventarioApi;
 import com.softprimesolutions.inventario.api.facade.IngresoInventarioFacade;
+import com.softprimesolutions.inventario.api.facade.SalidaInventarioFacade;
 import com.softprimesolutions.inventario.application.port.in.BloquearLoteUseCase;
 import com.softprimesolutions.inventario.application.port.in.DesbloquearLoteUseCase;
 import com.softprimesolutions.inventario.application.port.in.ListarPosicionesUseCase;
 import com.softprimesolutions.inventario.application.port.in.ObtenerLoteUseCase;
 import com.softprimesolutions.inventario.application.port.in.RegistrarMovimientoUseCase;
+import com.softprimesolutions.inventario.application.port.in.RegistrarSalidaVentaUseCase;
 import com.softprimesolutions.inventario.application.port.out.InventarioReadPort;
 import com.softprimesolutions.inventario.application.port.out.InventarioWritePort;
 import com.softprimesolutions.inventario.application.port.out.ReferenciasInventarioPort;
@@ -14,6 +17,7 @@ import com.softprimesolutions.inventario.application.usecase.command.BloquearLot
 import com.softprimesolutions.inventario.application.usecase.command.CambioEstadoLote;
 import com.softprimesolutions.inventario.application.usecase.command.DesbloquearLoteHandler;
 import com.softprimesolutions.inventario.application.usecase.command.RegistrarMovimientoHandler;
+import com.softprimesolutions.inventario.application.usecase.command.RegistrarSalidaVentaHandler;
 import com.softprimesolutions.inventario.application.usecase.query.ListarPosicionesHandler;
 import com.softprimesolutions.inventario.application.usecase.query.ObtenerLoteHandler;
 import com.softprimesolutions.shared.application.port.ClockPort;
@@ -73,5 +77,17 @@ public class InventarioModuleConfiguration {
     @Bean
     ObtenerLoteUseCase obtenerLoteUseCase(InventarioReadPort readPort) {
         return new ObtenerLoteHandler(readPort);
+    }
+
+    @Bean
+    RegistrarSalidaVentaUseCase registrarSalidaVentaUseCase(
+            InventarioWritePort writePort, RegistrarMovimientoUseCase registrarMovimientoUseCase,
+            ClockPort inventarioClockPort) {
+        return new RegistrarSalidaVentaHandler(writePort, registrarMovimientoUseCase, inventarioClockPort);
+    }
+
+    @Bean
+    SalidaInventarioApi salidaInventarioApi(RegistrarSalidaVentaUseCase registrarSalidaVentaUseCase) {
+        return new SalidaInventarioFacade(registrarSalidaVentaUseCase);
     }
 }
