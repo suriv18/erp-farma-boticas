@@ -103,6 +103,10 @@ public final class InventarioErrors {
                 Map.of("page", page, "size", size));
     }
 
+    public static ApplicationError salidasNoEncontradas() {
+        return notFound("INV_SALIDAS_NO_ENCONTRADAS", "La venta indicada no tiene salidas de inventario que reintegrar.");
+    }
+
     private static ApplicationError notFound(String code, String message) {
         return new StandardApplicationError(code, message, ErrorCategory.NOT_FOUND);
     }

@@ -72,4 +72,17 @@ class EnumsAndValueObjectsTest {
         assertThatNullPointerException().isThrownBy(() -> new TenantId(null));
         assertThatNullPointerException().isThrownBy(() -> new Actor(null));
     }
+
+    @Test
+    void anulacionVentaIsANonManualIngresoThatIgnoresTheLoteStateOnIngreso() {
+        assertThat(TipoMovimiento.desde("ANULACION_VENTA")).contains(TipoMovimiento.ANULACION_VENTA);
+        assertThat(TipoMovimiento.ANULACION_VENTA.ingreso()).isTrue();
+        assertThat(TipoMovimiento.ANULACION_VENTA.naturaleza()).isEqualTo("E");
+        assertThat(TipoMovimiento.ANULACION_VENTA.manual()).isFalse();
+        assertThat(TipoMovimiento.ANULACION_VENTA.tipoOperacionSunat()).isEqualTo("05");
+        assertThat(TipoMovimiento.ANULACION_VENTA.exigeLoteVendible()).isFalse();
+        assertThat(TipoMovimiento.ANULACION_VENTA.ignoraEstadoLoteEnIngreso()).isTrue();
+        assertThat(TipoMovimiento.INGRESO_COMPRA.ignoraEstadoLoteEnIngreso()).isFalse();
+        assertThat(TipoMovimiento.SALIDA_VENTA.ignoraEstadoLoteEnIngreso()).isFalse();
+    }
 }

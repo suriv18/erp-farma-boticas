@@ -29,4 +29,13 @@ class IdempotencyKeysTest {
         assertThat(primero).isNotEqualTo(IdempotencyKeys.tramo("venta-1", 2));
         assertThat(primero).isNotEqualTo(IdempotencyKeys.tramo("venta-2", 1));
     }
+
+    @Test
+    void eachOriginalMovementHasAStableReversalKey() {
+        var id = UUID.fromString("12345678-9abc-4def-8123-456789abcdef");
+
+        assertThat(IdempotencyKeys.reverso(id)).isEqualTo("reverso:12345678-9abc-4def-8123-456789abcdef");
+        assertThat(IdempotencyKeys.reverso(id)).isEqualTo(IdempotencyKeys.reverso(id));
+        assertThat(IdempotencyKeys.reverso(id)).isNotEqualTo(IdempotencyKeys.reverso(UUID.randomUUID()));
+    }
 }

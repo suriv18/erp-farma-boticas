@@ -131,7 +131,8 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
     private Result<MovimientoResult, ApplicationError> aplicar(
             Solicitud solicitud, LoteResuelto resuelto, LocalDate hoy, Instant ahora) {
         var command = solicitud.command();
-        if (solicitud.tipo().ingreso() && !resuelto.lote().estado().admiteIngreso()) {
+        if (solicitud.tipo().ingreso() && !solicitud.tipo().ignoraEstadoLoteEnIngreso()
+                && !resuelto.lote().estado().admiteIngreso()) {
             return Result.failure(InventarioErrors.loteNoAdmiteIngreso());
         }
         if (solicitud.tipo().exigeLoteVendible() && !resuelto.lote().vendible(hoy)) {

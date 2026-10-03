@@ -73,4 +73,10 @@ class InventarioErrorsTest {
         assertThat(InventarioErrors.cantidadInvalida().code()).isEqualTo("INV_CANTIDAD_INVALIDA");
         assertThat(InventarioErrors.cantidadInvalida().category()).isEqualTo(ErrorCategory.VALIDATION);
     }
+
+    @Test
+    void exposesTheMissingSalidasError() {
+        assertThat(InventarioErrors.salidasNoEncontradas().code()).isEqualTo("INV_SALIDAS_NO_ENCONTRADAS");
+        assertThat(InventarioErrors.salidasNoEncontradas().category()).isEqualTo(ErrorCategory.NOT_FOUND);
+    }
 }

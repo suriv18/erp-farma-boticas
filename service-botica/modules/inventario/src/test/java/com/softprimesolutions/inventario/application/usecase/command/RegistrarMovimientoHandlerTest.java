@@ -476,4 +476,32 @@ class RegistrarMovimientoHandlerTest {
 
         assertThat(value(handler.execute(salidaVenta())).stockPosterior()).isEqualByComparingTo("7");
     }
+
+    private static RegistrarMovimientoCommand anulacionVenta() {
+        var origen = new DocumentoOrigen("ANULACION_VENTA", UUID.randomUUID(), UUID.randomUUID(), null);
+        return new RegistrarMovimientoCommand(
+                TENANT, ALMACEN, SKU, LOTE, null, null, "ANULACION_VENTA", new BigDecimal("3"),
+                "Anulacion de venta", ACTOR_ID, null, origen);
+    }
+
+    @Test
+    void anAnulacionVentaRestoresStockEvenWhenTheLoteNoLongerAdmitsIngresos() {
+        when(writePort.findLote(TENANT, LOTE)).thenReturn(Optional.of(lote(EstadoLote.INMOVILIZADO_RECALL, VENCIMIENTO)));
+        when(writePort.findPosicion(TENANT, ALMACEN, LOTE)).thenReturn(Optional.of(posicion("4", "0", 2)));
+
+        var result = value(handler.execute(anulacionVenta()));
+
+        assertThat(result.tipo()).isEqualTo("ANULACION_VENTA");
+        assertThat(result.naturaleza()).isEqualTo("E");
+        assertThat(result.stockAnterior()).isEqualByComparingTo("4");
+        assertThat(result.stockPosterior()).isEqualByComparingTo("7");
+    }
+
+    @Test
+    void aManualIngresoOnTheSameNonAdmittingLoteIsStillRejected() {
+        when(writePort.findLote(TENANT, LOTE)).thenReturn(Optional.of(lote(EstadoLote.INMOVILIZADO_RECALL, VENCIMIENTO)));
+
+        assertThat(error(handler.execute(ingresoSobreLote("1"))).code()).isEqualTo("INV_LOTE_NO_ADMITE_INGRESO");
+        verify(writePort, never()).registrar(any());
+    }
 }

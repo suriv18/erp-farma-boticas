@@ -19,6 +19,10 @@ final class IdempotencyKeys {
         return uuidDe("tramo:" + clave.trim() + "#" + numero).toString();
     }
 
+    static String reverso(UUID movimientoOriginalId) {
+        return "reverso:" + movimientoOriginalId;
+    }
+
     private static UUID uuidDe(String texto) {
         return UUID.nameUUIDFromBytes(texto.getBytes(StandardCharsets.UTF_8));
     }
