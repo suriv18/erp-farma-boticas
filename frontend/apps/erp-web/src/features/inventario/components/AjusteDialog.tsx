@@ -1,13 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import { describeApiError } from '../../../shared/lib/describe-api-error';
-import { invalidateInventario } from '../api/invalidate';
 import { registrarMovimiento } from '../api/movimientos.api';
 import type { Posicion } from '../api/inventario.types';
 import { toRegistrarMovimientoPayload } from '../lib/ajuste';
 import { almacenesDe } from '../lib/estructura';
-import { nuevaClaveIdempotencia } from '../lib/idempotencia';
+import { useClaveIdempotencia } from '../lib/use-clave-idempotencia';
+import { useMutacionInventario } from '../lib/use-mutacion-inventario';
 import { useOpcionesEstablecimientos } from '../lib/use-opciones-establecimientos';
 import type { AjusteFormValues } from '../schemas/ajuste.schema';
 import { AjusteForm } from './AjusteForm';
@@ -18,21 +16,12 @@ type AjusteDialogProps = {
 };
 
 export function AjusteDialog({ posicion, onClose }: AjusteDialogProps) {
-  const queryClient = useQueryClient();
   const almacenes = almacenesDe(useOpcionesEstablecimientos(), undefined);
-
-  const mutation = useMutation({
-    mutationFn: (values: AjusteFormValues) =>
-      registrarMovimiento(
-        apiClient,
-        toRegistrarMovimientoPayload(values),
-        nuevaClaveIdempotencia()
-      ),
-    onSuccess: () => {
-      onClose();
-      void invalidateInventario(queryClient);
-    }
-  });
+  const claveDe = useClaveIdempotencia();
+  const mutation = useMutacionInventario((values: AjusteFormValues) => {
+    const payload = toRegistrarMovimientoPayload(values);
+    return registrarMovimiento(apiClient, payload, claveDe(payload));
+  }, onClose);
 
   return (
     <Modal
@@ -45,7 +34,7 @@ export function AjusteDialog({ posicion, onClose }: AjusteDialogProps) {
         posicion={posicion}
         almacenes={almacenes}
         isSubmitting={mutation.isPending}
-        error={mutation.isError ? describeApiError(mutation.error) : null}
+        error={mutation.mensajeError}
         onSubmit={(values) => mutation.mutate(values)}
       />
     </Modal>

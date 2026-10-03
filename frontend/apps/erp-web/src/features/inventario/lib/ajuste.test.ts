@@ -1,7 +1,16 @@
 import { samplePosicion } from '../../../test/inventario-fixtures';
-import { AJUSTE_FORM_VACIO, ajusteDesdePosicion, toRegistrarMovimientoPayload } from './ajuste';
+import {
+  AJUSTE_FORM_VACIO,
+  ETIQUETAS_TIPO_AJUSTE,
+  ajusteDesdePosicion,
+  toRegistrarMovimientoPayload
+} from './ajuste';
 
 describe('ajuste', () => {
+  it('etiqueta en español cada tipo de ajuste', () => {
+    expect(ETIQUETAS_TIPO_AJUSTE).toEqual({ AJUSTE_INGRESO: 'Ingreso', AJUSTE_SALIDA: 'Salida' });
+  });
+
   it('el formulario vacío es un ingreso sin datos', () => {
     expect(AJUSTE_FORM_VACIO).toEqual({
       almacenId: '',

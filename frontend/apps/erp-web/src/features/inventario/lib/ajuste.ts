@@ -1,5 +1,10 @@
-import type { Posicion, RegistrarMovimientoPayload } from '../api/inventario.types';
+import type { Posicion, RegistrarMovimientoPayload, TipoAjuste } from '../api/inventario.types';
 import type { AjusteFormValues } from '../schemas/ajuste.schema';
+
+export const ETIQUETAS_TIPO_AJUSTE: Record<TipoAjuste, string> = {
+  AJUSTE_INGRESO: 'Ingreso',
+  AJUSTE_SALIDA: 'Salida'
+};
 
 export const AJUSTE_FORM_VACIO: AjusteFormValues = {
   almacenId: '',

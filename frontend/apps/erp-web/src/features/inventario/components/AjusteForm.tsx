@@ -6,7 +6,7 @@ import { DatoItem } from '../../../shared/components/DatoItem';
 import { FormError } from '../../../shared/components/FormError';
 import { SelectField, TextField } from '../../../shared/components/FormFields';
 import { TIPOS_AJUSTE, type Posicion } from '../api/inventario.types';
-import { AJUSTE_FORM_VACIO, ajusteDesdePosicion } from '../lib/ajuste';
+import { AJUSTE_FORM_VACIO, ETIQUETAS_TIPO_AJUSTE, ajusteDesdePosicion } from '../lib/ajuste';
 import type { OpcionAlmacen } from '../lib/estructura';
 import { ajusteSchema, type AjusteFormValues } from '../schemas/ajuste.schema';
 import { SkuSelect } from './SkuSelect';
@@ -108,7 +108,7 @@ export function AjusteForm({
           >
             {TIPOS_AJUSTE.map((tipo) => (
               <option key={tipo} value={tipo}>
-                {tipo}
+                {ETIQUETAS_TIPO_AJUSTE[tipo]}
               </option>
             ))}
           </SelectField>

@@ -1,13 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Button, Modal } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { FormError } from '../../../shared/components/FormError';
 import { TextField } from '../../../shared/components/FormFields';
-import { describeApiError } from '../../../shared/lib/describe-api-error';
-import { invalidateInventario } from '../api/invalidate';
 import { bloquearLote } from '../api/lotes.api';
+import { useMutacionInventario } from '../lib/use-mutacion-inventario';
 import { bloqueoSchema, type BloqueoFormValues } from '../schemas/bloqueo.schema';
 
 type BloqueoDialogProps = {
@@ -16,7 +14,6 @@ type BloqueoDialogProps = {
 };
 
 export function BloqueoDialog({ loteId, onClose }: BloqueoDialogProps) {
-  const queryClient = useQueryClient();
   const {
     formState: { errors },
     handleSubmit,
@@ -27,14 +24,10 @@ export function BloqueoDialog({ loteId, onClose }: BloqueoDialogProps) {
     resolver: zodResolver(bloqueoSchema)
   });
 
-  const mutation = useMutation({
-    mutationFn: (values: BloqueoFormValues) =>
-      bloquearLote(apiClient, loteId, { motivo: values.motivo }),
-    onSuccess: () => {
-      onClose();
-      void invalidateInventario(queryClient);
-    }
-  });
+  const mutation = useMutacionInventario(
+    (values: BloqueoFormValues) => bloquearLote(apiClient, loteId, { motivo: values.motivo }),
+    onClose
+  );
 
   return (
     <Modal open onClose={onClose} title="Bloquear lote">
@@ -51,7 +44,7 @@ export function BloqueoDialog({ loteId, onClose }: BloqueoDialogProps) {
           error={errors.motivo?.message}
           {...register('motivo')}
         />
-        {mutation.isError ? <FormError message={describeApiError(mutation.error)} /> : null}
+        {mutation.mensajeError ? <FormError message={mutation.mensajeError} /> : null}
         <Button type="submit" disabled={mutation.isPending}>
           Bloquear lote
         </Button>

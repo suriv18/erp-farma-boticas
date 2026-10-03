@@ -1,10 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Modal } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { FormError } from '../../../shared/components/FormError';
-import { describeApiError } from '../../../shared/lib/describe-api-error';
-import { invalidateInventario } from '../api/invalidate';
 import { desbloquearLote } from '../api/lotes.api';
+import { useMutacionInventario } from '../lib/use-mutacion-inventario';
 
 type DesbloqueoDialogProps = {
   loteId: string;
@@ -12,15 +10,7 @@ type DesbloqueoDialogProps = {
 };
 
 export function DesbloqueoDialog({ loteId, onClose }: DesbloqueoDialogProps) {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: () => desbloquearLote(apiClient, loteId),
-    onSuccess: () => {
-      onClose();
-      void invalidateInventario(queryClient);
-    }
-  });
+  const mutation = useMutacionInventario(() => desbloquearLote(apiClient, loteId), onClose);
 
   return (
     <Modal open onClose={onClose} title="Desbloquear lote">
@@ -28,8 +18,8 @@ export function DesbloqueoDialog({ loteId, onClose }: DesbloqueoDialogProps) {
         <p className="text-sm text-neutral-600 dark:text-neutral-300">
           El lote volverá a estar habilitado. Un lote vencido no puede habilitarse.
         </p>
-        {mutation.isError ? <FormError message={describeApiError(mutation.error)} /> : null}
-        <Button disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+        {mutation.mensajeError ? <FormError message={mutation.mensajeError} /> : null}
+        <Button disabled={mutation.isPending} onClick={() => mutation.mutate(undefined)}>
           Desbloquear lote
         </Button>
       </div>

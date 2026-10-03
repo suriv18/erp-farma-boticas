@@ -43,6 +43,9 @@ describe('AjusteForm', () => {
 
     expect(screen.getByText('L001')).toBeInTheDocument();
     expect(screen.queryByLabelText('Almacén')).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Ingreso' })).toHaveValue('AJUSTE_INGRESO');
+    expect(screen.getByRole('option', { name: 'Salida' })).toHaveValue('AJUSTE_SALIDA');
+    expect(screen.queryByRole('option', { name: 'AJUSTE_SALIDA' })).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Tipo de ajuste'), 'AJUSTE_SALIDA');
     await user.type(screen.getByLabelText('Cantidad'), '3');
     await user.type(screen.getByLabelText('Motivo'), 'Merma');
