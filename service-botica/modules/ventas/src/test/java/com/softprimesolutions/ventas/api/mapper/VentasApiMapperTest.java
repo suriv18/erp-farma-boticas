@@ -85,7 +85,7 @@ class VentasApiMapperTest {
         var response = VentasApiMapper.toResponse(ventaResult());
 
         assertThat(response.id()).isEqualTo(VENTA);
-        assertThat(response.numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(response.numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(response.turnoId()).isEqualTo(TURNO);
         assertThat(response.total()).isEqualTo(dec("12.50"));
         assertThat(response.lineas()).hasSize(1);
@@ -99,7 +99,7 @@ class VentasApiMapperTest {
     @Test
     void mapsASalesPageToItsResponse() {
         var pagina = new PaginaResult<>(
-                List.of(new VentaResumenResult(VENTA, "POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
+                List.of(new VentaResumenResult(VENTA, "EST001-POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
                 1, 20, 21L);
 
         var response = VentasApiMapper.toResponse(pagina);
@@ -109,7 +109,7 @@ class VentasApiMapperTest {
         assertThat(response.totalElements()).isEqualTo(21L);
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().getFirst().id()).isEqualTo(VENTA);
-        assertThat(response.items().getFirst().numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(response.items().getFirst().numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(response.items().getFirst().total()).isEqualTo(dec("12.50"));
     }
 }

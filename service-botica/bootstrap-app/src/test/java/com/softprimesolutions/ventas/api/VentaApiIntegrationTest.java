@@ -54,6 +54,7 @@ class VentaApiIntegrationTest {
     private String bearer;
     private String noPermissions;
     private UUID userId;
+    private UUID empresaId;
     private UUID establecimientoId;
     private UUID almacenId;
     private UUID terminalId;
@@ -71,7 +72,7 @@ class VentaApiIntegrationTest {
         bearer = session.bearer();
         noPermissions = realLogin.login(TENANT_ID, "sin.permisos", null).bearer();
 
-        var empresaId = created(post(ORG + "/empresas").content("""
+        empresaId = created(post(ORG + "/empresas").content("""
                 {"tenantId":"%s","ruc":"20123456786","razonSocial":"Boticas Venta SAC",
                  "monedaFuncional":"PEN","zonaHoraria":"America/Lima","permiteVentaOnline":false}
                 """.formatted(TENANT_ID)));
@@ -102,9 +103,7 @@ class VentaApiIntegrationTest {
                           FROM sch_admin.tenant t WHERE t.uuid_publico = :tenantId
                         """).param("skuId", skuId).param("unidad", UNIDAD).param("tenantId", TENANT_ID).update();
 
-        mockMvc.perform(post(TURNOS).header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"terminalId\":\"%s\",\"fondoInicial\":100}".formatted(terminalId)))
-                .andExpect(status().isCreated());
+        abrirTurno(terminalId);
     }
 
     @Test
@@ -114,7 +113,7 @@ class VentaApiIntegrationTest {
 
         var cuerpo = vender("clave-1", "5", "2.50", "20")
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.numeroOperacion").value("POS001-000001"))
+                .andExpect(jsonPath("$.numeroOperacion").value("EST001-POS001-000001"))
                 .andExpect(jsonPath("$.estado").value("CONFIRMADA"))
                 .andExpect(jsonPath("$.vendedorId").value(userId.toString()))
                 .andExpect(jsonPath("$.subtotal").value(12.5))
@@ -171,9 +170,37 @@ class VentaApiIntegrationTest {
         ingresar("10", "L-001", LocalDate.now().plusYears(1));
 
         vender("clave-a", "1", "5", "10").andExpect(status().isCreated())
-                .andExpect(jsonPath("$.numeroOperacion").value("POS001-000001"));
+                .andExpect(jsonPath("$.numeroOperacion").value("EST001-POS001-000001"));
         vender("clave-b", "1", "5", "10").andExpect(status().isCreated())
-                .andExpect(jsonPath("$.numeroOperacion").value("POS001-000002"));
+                .andExpect(jsonPath("$.numeroOperacion").value("EST001-POS001-000002"));
+    }
+
+    @Test
+    void terminalsWithTheSameCodeInTwoEstablishmentsOfTheSameCompanySellWithDistinctNumbers() throws Exception {
+        ingresar("10", "L-001", LocalDate.now().plusYears(1));
+        var otroEstablecimiento = created(post(ORG + "/establecimientos").content("""
+                {"tenantId":"%s","empresaId":"%s","codigo":"EST002","nombre":"Botica Norte",
+                 "tipoEstablecimiento":"BOTICA","codigoAnexoSunat":"0002","esPrincipal":false,
+                 "permiteVentaOnline":false,"permiteDelivery":false,"perfilOperacion":"ONLINE",
+                 "zonaHoraria":"America/Lima"}
+                """.formatted(TENANT_ID, empresaId)));
+        var otroAlmacen = created(post(ORG + "/almacenes").content("""
+                {"tenantId":"%s","establecimientoId":"%s","codigo":"ALM001","nombre":"Almacen Norte",
+                 "tipo":"GENERAL","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
+                 "permiteDespacho":true,"controlTemperatura":false}
+                """.formatted(TENANT_ID, otroEstablecimiento)));
+        var otraTerminal = created(post(ORG + "/terminales-pos").content("""
+                {"establecimientoId":"%s","codigo":"POS001","nombre":"Caja 1",
+                 "serieBoletaDefecto":"B002","serieFacturaDefecto":"F002","storeEdgeHabilitado":false}
+                """.formatted(otroEstablecimiento)));
+        abrirTurno(otraTerminal);
+        ingresar(otroAlmacen, "10", "L-002", LocalDate.now().plusYears(1));
+
+        vender(terminalId, almacenId, "clave-local-1").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.numeroOperacion").value("EST001-POS001-000001"));
+        vender(otraTerminal, otroAlmacen, "clave-local-2").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.numeroOperacion").value("EST002-POS001-000001"))
+                .andExpect(jsonPath("$.establecimientoId").value(otroEstablecimiento.toString()));
     }
 
     @Test
@@ -276,26 +303,50 @@ class VentaApiIntegrationTest {
         mockMvc.perform(get(VENTAS)).andExpect(status().isUnauthorized());
     }
 
+    private void abrirTurno(UUID terminal) throws Exception {
+        mockMvc.perform(post(TURNOS).header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terminalId\":\"%s\",\"fondoInicial\":100}".formatted(terminal)))
+                .andExpect(status().isCreated());
+    }
+
     private ResultActions vender(String clave, String cantidad, String precio, String recibido) throws Exception {
+        return vender(clave, ventaJson(terminalId, almacenId, skuId, cantidad, precio, recibido));
+    }
+
+    private ResultActions vender(UUID terminal, UUID almacen, String clave) throws Exception {
+        return vender(clave, ventaJson(terminal, almacen, skuId, "1", "5", "10"));
+    }
+
+    private ResultActions vender(String clave, String json) throws Exception {
         var request = post(VENTAS).header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                .content(ventaJson(skuId, cantidad, precio, recibido));
+                .content(json);
         return mockMvc.perform(clave == null ? request : request.header("Idempotency-Key", clave));
     }
 
     private String ventaJson(UUID sku, String cantidad, String precio, String recibido) {
+        return ventaJson(terminalId, almacenId, sku, cantidad, precio, recibido);
+    }
+
+    private static String ventaJson(
+            UUID terminal, UUID almacen, UUID sku, String cantidad, String precio, String recibido) {
         return """
                 {"terminalId":"%s","almacenId":"%s",
                  "lineas":[{"skuId":"%s","cantidad":%s,"precioUnitario":%s}],
                  "pago":{"montoRecibido":%s}}
-                """.formatted(terminalId, almacenId, sku, cantidad, precio, recibido);
+                """.formatted(terminal, almacen, sku, cantidad, precio, recibido);
     }
 
     private UUID ingresar(String cantidad, String numeroLote, LocalDate vencimiento) throws Exception {
+        return ingresar(almacenId, cantidad, numeroLote, vencimiento);
+    }
+
+    private UUID ingresar(UUID almacen, String cantidad, String numeroLote, LocalDate vencimiento)
+            throws Exception {
         var cuerpo = mockMvc.perform(post(INV + "/movimientos").header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"almacenId":"%s","skuId":"%s","tipo":"AJUSTE_INGRESO","cantidad":%s,
                                  "motivo":"Saldo inicial","numeroLote":"%s","fechaVencimiento":"%s"}
-                                """.formatted(almacenId, skuId, cantidad, numeroLote, vencimiento)))
+                                """.formatted(almacen, skuId, cantidad, numeroLote, vencimiento)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return UUID.fromString(JsonPath.read(cuerpo, "$.loteId"));
     }

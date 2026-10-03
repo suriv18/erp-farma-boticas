@@ -90,7 +90,7 @@ class VentaControllerTest {
         var response = controller.getById(JWT, VENTA);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(((VentaResponse) response.getBody()).numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(((VentaResponse) response.getBody()).numeroOperacion()).isEqualTo("EST001-POS01-000001");
     }
 
     @Test

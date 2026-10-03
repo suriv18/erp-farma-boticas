@@ -23,7 +23,6 @@ class ReferenciasVentasJdbcAdapterTest {
         var row = new HashMap<String, Object>();
         row.put("uuid_publico", TERMINAL);
         row.put("establecimiento_uuid", ESTABLECIMIENTO);
-        row.put("codigo", "POS01");
         row.put("operable", true);
         jdbc.rows("FROM sch_organizacion.terminal_pos tp", row);
 
@@ -31,7 +30,6 @@ class ReferenciasVentasJdbcAdapterTest {
 
         assertThat(terminal.id()).isEqualTo(TERMINAL);
         assertThat(terminal.establecimientoId()).isEqualTo(ESTABLECIMIENTO);
-        assertThat(terminal.codigo()).isEqualTo("POS01");
         assertThat(terminal.operable()).isTrue();
         assertThat(jdbc.statementContaining("FROM sch_organizacion.terminal_pos tp").params())
                 .containsEntry("tenantId", TENANT).containsEntry("terminalId", TERMINAL);

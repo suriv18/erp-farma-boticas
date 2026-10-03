@@ -80,14 +80,14 @@ class RegistrarVentaHandlerTest {
     @BeforeEach
     void theContextIsValidAndEveryCollaboratorSucceedsByDefault() {
         when(referencias.terminal(TENANT, TERMINAL))
-                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, "POS01", true)));
+                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, true)));
         when(turnos.bloquearTurnoAbierto(TENANT, TERMINAL))
                 .thenReturn(Optional.of(turno(EstadoTurno.ABIERTO, "50.00")));
         when(referencias.almacen(TENANT, ALMACEN))
                 .thenReturn(Optional.of(new AlmacenRef(ALMACEN, ESTABLECIMIENTO, true)));
         when(referencias.skus(eq(TENANT), anyCollection()))
                 .thenReturn(Map.of(SKU, skuRef(SKU, true), OTRO_SKU, skuRef(OTRO_SKU, true)));
-        when(numeracion.siguienteNumeroOperacion(TENANT, TERMINAL, "POS01")).thenReturn("POS01-000001");
+        when(numeracion.siguienteNumeroOperacion(TENANT, TERMINAL)).thenReturn("EST001-POS01-000001");
         when(ventas.insertar(any(), any(), any())).thenReturn(GuardadoOutcome.GUARDADO);
         when(inventario.descontar(any())).thenAnswer(invocation -> {
             SalidaSolicitada solicitada = invocation.getArgument(0);
@@ -130,7 +130,7 @@ class RegistrarVentaHandlerTest {
         assertThat(venta.turnoId()).isEqualTo(TURNO);
         assertThat(venta.establecimientoId()).isEqualTo(ESTABLECIMIENTO);
         assertThat(venta.vendedor().id()).isEqualTo(ACTOR_ID);
-        assertThat(venta.numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(venta.numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(venta.fechaVenta()).isEqualTo(AHORA);
         assertThat(venta.total()).isEqualTo(dec("12.50"));
         assertThat(venta.pago().vuelto()).isEqualTo(dec("7.50"));
@@ -177,7 +177,7 @@ class RegistrarVentaHandlerTest {
         assertThat(repetida).isEqualTo(ventaResult());
         verify(ventas, never()).insertar(any(), any(), any());
         verify(inventario, never()).descontar(any());
-        verify(numeracion, never()).siguienteNumeroOperacion(any(), any(), any());
+        verify(numeracion, never()).siguienteNumeroOperacion(any(), any());
         verify(consultas).obtener(new ObtenerVentaQuery(TENANT, VENTA));
     }
 
@@ -206,7 +206,7 @@ class RegistrarVentaHandlerTest {
         assertThat(error(handler.execute(unaLinea())).code()).isEqualTo("VEN_TERMINAL_NO_ENCONTRADA");
 
         when(referencias.terminal(TENANT, TERMINAL))
-                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, "POS01", false)));
+                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, false)));
         assertThat(error(handler.execute(unaLinea())).code()).isEqualTo("VEN_TERMINAL_NO_OPERABLE");
         verify(ventas, never()).insertar(any(), any(), any());
     }

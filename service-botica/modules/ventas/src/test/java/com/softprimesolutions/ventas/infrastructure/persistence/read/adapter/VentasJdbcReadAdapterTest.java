@@ -72,7 +72,7 @@ class VentasJdbcReadAdapterTest {
         var venta = adapter.findVenta(TENANT, VENTA).orElseThrow();
 
         assertThat(venta.id()).isEqualTo(VENTA);
-        assertThat(venta.numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(venta.numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(venta.terminalId()).isEqualTo(TERMINAL);
         assertThat(venta.turnoId()).isEqualTo(TURNO);
         assertThat(venta.establecimientoId()).isEqualTo(ESTABLECIMIENTO);
@@ -122,7 +122,7 @@ class VentasJdbcReadAdapterTest {
         assertThat(pagina.size()).isEqualTo(10);
         assertThat(pagina.totalElements()).isEqualTo(3L);
         assertThat(pagina.items()).hasSize(1);
-        assertThat(pagina.items().getFirst().numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(pagina.items().getFirst().numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(pagina.items().getFirst().total()).isEqualTo(dec("12.50"));
         var lista = jdbc.statementContaining("ORDER BY v.fecha_venta DESC").params();
         assertThat(lista).containsEntry("tenantId", TENANT).containsEntry("establecimientoId", ESTABLECIMIENTO)

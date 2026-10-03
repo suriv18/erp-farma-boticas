@@ -5,19 +5,24 @@ import static com.softprimesolutions.ventas.VentasFixtures.TERMINAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcClientStub;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class NumeracionJdbcAdapterTest {
+
+    private static final String SIGUIENTE = "ON CONFLICT (tenant_id, terminal_id)";
 
     private final JdbcClientStub jdbc = new JdbcClientStub();
     private final NumeracionJdbcAdapter adapter = new NumeracionJdbcAdapter(jdbc.client());
 
     @Test
-    void formatsTheNextTerminalSequenceWithSixDigits() {
-        jdbc.scalar("ON CONFLICT (tenant_id, terminal_id)", 7L);
+    void prefixesTheNextTerminalSequenceWithTheEstablishmentAndTerminalCodes() {
+        jdbc.rows(SIGUIENTE, Map.of(
+                "establecimiento_codigo", "EST001", "terminal_codigo", "POS01", "ultimo_numero", 7L));
 
-        assertThat(adapter.siguienteNumeroOperacion(TENANT, TERMINAL, "POS01")).isEqualTo("POS01-000007");
-        assertThat(jdbc.statementContaining("ON CONFLICT (tenant_id, terminal_id)").params())
-                .containsEntry("tenantId", TENANT).containsEntry("terminalId", TERMINAL);
+        assertThat(adapter.siguienteNumeroOperacion(TENANT, TERMINAL)).isEqualTo("EST001-POS01-000007");
+        var statement = jdbc.statementContaining(SIGUIENTE);
+        assertThat(statement.sql()).contains("JOIN sch_organizacion.establecimiento_farmaceutico");
+        assertThat(statement.params()).containsEntry("tenantId", TENANT).containsEntry("terminalId", TERMINAL);
     }
 }

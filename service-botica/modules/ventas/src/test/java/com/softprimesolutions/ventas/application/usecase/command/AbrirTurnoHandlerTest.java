@@ -47,7 +47,7 @@ class AbrirTurnoHandlerTest {
     @BeforeEach
     void theTerminalIsOperableWithoutAnOpenTurnoAndTheInsertSucceedsByDefault() {
         when(referencias.terminal(TENANT, TERMINAL))
-                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, "POS01", true)));
+                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, true)));
         when(consultas.actual(new TurnoActualQuery(TENANT, TERMINAL))).thenReturn(conflict());
         when(turnos.insertar(any())).thenReturn(GuardadoOutcome.GUARDADO);
         when(consultas.obtener(new ObtenerTurnoQuery(TENANT, TURNO))).thenReturn(ok(turnoResult()));
@@ -90,7 +90,7 @@ class AbrirTurnoHandlerTest {
     @Test
     void aTerminalThatIsNotOperableIsRejected() {
         when(referencias.terminal(TENANT, TERMINAL))
-                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, "POS01", false)));
+                .thenReturn(Optional.of(new TerminalRef(TERMINAL, ESTABLECIMIENTO, false)));
 
         assertThat(error(handler.execute(command("50"))).code()).isEqualTo("VEN_TERMINAL_NO_OPERABLE");
         verify(turnos, never()).insertar(any());

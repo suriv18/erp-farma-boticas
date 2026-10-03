@@ -59,7 +59,7 @@ class VentaJdbcWriteAdapterTest {
         var cabecera = jdbc.statementContaining(INSERT_VENTA).params();
         assertThat(cabecera)
                 .containsEntry("ventaId", VENTA).containsEntry("tenantId", TENANT).containsEntry("turnoId", TURNO)
-                .containsEntry("vendedorId", ACTOR_ID).containsEntry("numero", "POS01-000001")
+                .containsEntry("vendedorId", ACTOR_ID).containsEntry("numero", "EST001-POS01-000001")
                 .containsEntry("idempotencyKey", "clave-1").containsEntry("huella", "huella-1")
                 .containsEntry("fecha", MOMENTO).containsEntry("subtotal", dec("12.50"))
                 .containsEntry("total", dec("12.50")).containsEntry("actor", ACTOR.codigo());

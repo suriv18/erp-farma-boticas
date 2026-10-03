@@ -143,8 +143,7 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
         return lineas(command, contexto.skus()).flatMap(lineas -> VentasErrors.fromDomain(Venta.registrar(
                 identifiers.next(), command.tenantId(), contexto.terminal().id(), contexto.turno().id(),
                 contexto.terminal().establecimientoId(), new Actor(command.actorId()),
-                numeracion.siguienteNumeroOperacion(
-                        command.tenantId(), contexto.terminal().id(), contexto.terminal().codigo()),
+                numeracion.siguienteNumeroOperacion(command.tenantId(), contexto.terminal().id()),
                 clock.now(), lineas, command.montoRecibido())));
     }
 

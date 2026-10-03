@@ -58,7 +58,7 @@ class ConsultarVentasHandlerTest {
     @Test
     void listsASalesPage() {
         var pagina = new PaginaResult<>(
-                List.of(new VentaResumenResult(VENTA, "POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
+                List.of(new VentaResumenResult(VENTA, "EST001-POS01-000001", TERMINAL, AHORA, dec("12.50"), "CONFIRMADA")),
                 0, 20, 1L);
         when(readPort.listarVentas(query(0, 20))).thenReturn(pagina);
 

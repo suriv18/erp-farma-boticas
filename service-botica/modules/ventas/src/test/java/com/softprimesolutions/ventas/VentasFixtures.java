@@ -74,7 +74,7 @@ public final class VentasFixtures {
         var linea = LineaVenta.nueva(LINEA, 1, SKU, "Paracetamol 500 mg", "UND", false, dec("5"), dec("2.50"))
                 .fold(value -> value, error -> { throw new AssertionError(error); });
         return Venta.registrar(
-                        VENTA, TENANT, TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR, "POS01-000001", AHORA,
+                        VENTA, TENANT, TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR, "EST001-POS01-000001", AHORA,
                         List.of(linea), dec("20"))
                 .fold(value -> value, error -> { throw new AssertionError(error); });
     }
@@ -84,7 +84,7 @@ public final class VentasFixtures {
         var linea = new LineaVentaResult(
                 1, SKU, "Paracetamol 500 mg", "UND", dec("5"), dec("2.50"), dec("12.50"), List.of(lote));
         return new VentaResult(
-                VENTA, "POS01-000001", TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR_ID, AHORA, "PEN", dec("12.50"),
+                VENTA, "EST001-POS01-000001", TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR_ID, AHORA, "PEN", dec("12.50"),
                 dec("0.00"), dec("0.00"), dec("12.50"), "CONFIRMADA", List.of(linea),
                 new PagoResult("EFECTIVO", dec("12.50"), dec("20.00"), dec("7.50")));
     }

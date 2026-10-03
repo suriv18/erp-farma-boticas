@@ -13,7 +13,7 @@ public interface ReferenciasVentasPort {
 
     Map<UUID, SkuVentaRef> skus(UUID tenantId, Collection<UUID> skuIds);
 
-    record TerminalRef(UUID id, UUID establecimientoId, String codigo, boolean operable) {
+    record TerminalRef(UUID id, UUID establecimientoId, boolean operable) {
     }
 
     record AlmacenRef(UUID id, UUID establecimientoId, boolean operable) {

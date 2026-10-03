@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
 
     private static final String TERMINAL = """
-            SELECT tp.uuid_publico, es.uuid_publico AS establecimiento_uuid, tp.codigo,
+            SELECT tp.uuid_publico, es.uuid_publico AS establecimiento_uuid,
                    (tp.es_activo = '1' AND tp.estado = 'ACTIVO') AS operable
               FROM sch_organizacion.terminal_pos tp
               JOIN sch_admin.tenant t ON t.id = tp.tenant_id
@@ -56,7 +56,7 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
                 .param("terminalId", terminalId)
                 .query((rs, rowNumber) -> new TerminalRef(
                         JdbcColumns.uuid(rs, "uuid_publico"), JdbcColumns.uuid(rs, "establecimiento_uuid"),
-                        rs.getString("codigo"), rs.getBoolean("operable")))
+                        rs.getBoolean("operable")))
                 .optional();
     }
 

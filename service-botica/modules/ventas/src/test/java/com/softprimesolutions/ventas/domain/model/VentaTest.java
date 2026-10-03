@@ -31,7 +31,7 @@ class VentaTest {
 
     private static Result<Venta, ErrorDetail> registrar(List<LineaVenta> lineas, BigDecimal recibido) {
         return Venta.registrar(
-                VENTA, TENANT, TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR, "POS01-000001", AHORA, lineas, recibido);
+                VENTA, TENANT, TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR, "EST001-POS01-000001", AHORA, lineas, recibido);
     }
 
     private static String code(Result<Venta, ErrorDetail> result) {
@@ -49,7 +49,7 @@ class VentaTest {
         assertThat(venta.turnoId()).isEqualTo(TURNO);
         assertThat(venta.establecimientoId()).isEqualTo(ESTABLECIMIENTO);
         assertThat(venta.vendedor()).isEqualTo(ACTOR);
-        assertThat(venta.numeroOperacion()).isEqualTo("POS01-000001");
+        assertThat(venta.numeroOperacion()).isEqualTo("EST001-POS01-000001");
         assertThat(venta.fechaVenta()).isEqualTo(AHORA);
         assertThat(venta.lineas()).hasSize(2);
         assertThat(venta.subtotal()).isEqualTo(dec("32.50"));

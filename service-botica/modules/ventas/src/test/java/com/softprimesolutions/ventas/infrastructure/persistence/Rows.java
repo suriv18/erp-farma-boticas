@@ -44,7 +44,7 @@ public final class Rows {
     public static Map<String, Object> ventaCabecera() {
         var row = new HashMap<String, Object>();
         row.put("uuid_publico", VENTA);
-        row.put("numero_operacion", "POS01-000001");
+        row.put("numero_operacion", "EST001-POS01-000001");
         row.put("terminal_uuid", TERMINAL);
         row.put("turno_uuid", TURNO);
         row.put("establecimiento_uuid", ESTABLECIMIENTO);
@@ -92,7 +92,7 @@ public final class Rows {
     public static Map<String, Object> ventaResumen() {
         var row = new HashMap<String, Object>();
         row.put("uuid_publico", VENTA);
-        row.put("numero_operacion", "POS01-000001");
+        row.put("numero_operacion", "EST001-POS01-000001");
         row.put("terminal_uuid", TERMINAL);
         row.put("fecha_venta", MOMENTO);
         row.put("total", dec("12.50"));
