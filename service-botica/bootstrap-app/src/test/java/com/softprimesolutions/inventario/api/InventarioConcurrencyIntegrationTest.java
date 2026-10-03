@@ -46,6 +46,9 @@ class InventarioConcurrencyIntegrationTest {
     private SalidaInventarioApi salidaInventario;
 
     @Autowired
+    private AnulacionInventarioApi anulacionInventario;
+
+    @Autowired
     private JdbcClient jdbcClient;
 
     @Autowired
@@ -243,6 +246,83 @@ class InventarioConcurrencyIntegrationTest {
         assertThat(registrada.get().isSuccess()).isTrue();
         assertThat(physicalStock()).isEqualByComparingTo("10");
         assertThat(salidasInKardex()).isZero();
+    }
+
+    @Test
+    void reintegratingASaleRestoresEveryConsumedLoteAndRecordsTheAnulacionInTheKardex() {
+        var antiguo = registrarMovimiento.execute(new RegistrarMovimientoCommand(
+                TENANT_ID, almacenId, skuId, null, "L-ANT", LocalDate.now().plusMonths(6), "AJUSTE_INGRESO",
+                new BigDecimal("3"), "Lote por vencer", actor, null))
+                .fold(MovimientoResult::loteId, error -> { throw new AssertionError(error); });
+        var ventaId = UUID.randomUUID();
+        vender(ventaId, "5", "venta-anulable");
+        assertThat(stockDe(antiguo)).isEqualByComparingTo("0");
+        assertThat(stockDe(loteId)).isEqualByComparingTo("8");
+
+        var reintegro = reintegrar(ventaId).fold(value -> value, error -> { throw new AssertionError(error); });
+
+        assertThat(reintegro.movimientos()).extracting(MovimientoReintegrado::loteId).containsExactly(antiguo, loteId);
+        assertThat(stockDe(antiguo)).isEqualByComparingTo("3");
+        assertThat(stockDe(loteId)).isEqualByComparingTo("10");
+        assertThat(jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_inventario.movimiento_inventario m
+                         WHERE m.tipo_movimiento = 'ANULACION_VENTA' AND m.documento_tipo = 'ANULACION_VENTA'
+                           AND m.documento_uuid = :ventaId AND m.tipo_operacion_sunat = '05'
+                           AND m.naturaleza = 'E' AND m.actor = :actor
+                        """).param("ventaId", ventaId).param("actor", actor.toString())
+                .query(Long.class).single()).isEqualTo(2L);
+    }
+
+    @Test
+    void reintegratingTheSameSaleTwiceReturnsTheSameMovementsWithoutRestoringStockAgain() {
+        var ventaId = UUID.randomUUID();
+        vender(ventaId, "4", "venta-doble");
+
+        var primero = reintegrar(ventaId).fold(value -> value, error -> { throw new AssertionError(error); });
+        var segundo = reintegrar(ventaId).fold(value -> value, error -> { throw new AssertionError(error); });
+
+        assertThat(segundo.movimientos()).extracting(MovimientoReintegrado::movimientoId)
+                .containsExactlyElementsOf(primero.movimientos().stream().map(MovimientoReintegrado::movimientoId).toList());
+        assertThat(physicalStock()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void aLoteBlockedAfterTheSaleStillReceivesTheStockButStaysUnsellable() {
+        var ventaId = UUID.randomUUID();
+        vender(ventaId, "4", "venta-bloqueada-previa");
+        jdbcClient.sql("UPDATE sch_inventario.lote SET estado_lote = 'INMOVILIZADO_RECALL' WHERE uuid_publico = :loteId")
+                .param("loteId", loteId).update();
+
+        var reintegro = reintegrar(ventaId);
+
+        assertThat(reintegro.isSuccess()).isTrue();
+        assertThat(physicalStock()).isEqualByComparingTo("10");
+        assertThat(venta("1", "venta-nueva-sin-stock-vendible").fold(value -> "OK", ApplicationError::code))
+                .isEqualTo(SalidaInventarioApi.CODIGO_STOCK_INSUFICIENTE);
+    }
+
+    @Test
+    void aSaleWithoutSalidasIsReportedAsNotFoundWithoutMovingStock() {
+        var error = reintegrar(UUID.randomUUID()).fold(value -> null, failure -> failure);
+
+        assertThat(error.code()).isEqualTo(AnulacionInventarioApi.CODIGO_SALIDAS_NO_ENCONTRADAS);
+        assertThat(physicalStock()).isEqualByComparingTo("10");
+    }
+
+    private Result<SalidaVentaRegistrada, ApplicationError> vender(UUID ventaId, String cantidad, String clave) {
+        return salidaInventario.registrarSalidaVenta(new SalidaVentaSolicitud(
+                TENANT_ID, almacenId, skuId, new BigDecimal(cantidad), ventaId, UUID.randomUUID(), actor, clave));
+    }
+
+    private Result<ReintegroVentaRegistrado, ApplicationError> reintegrar(UUID ventaId) {
+        return anulacionInventario.reintegrarSalidasDeVenta(new ReintegroVentaSolicitud(TENANT_ID, ventaId, actor));
+    }
+
+    private BigDecimal stockDe(UUID lote) {
+        return jdbcClient.sql("""
+                        SELECT p.cantidad_fisica FROM sch_inventario.posicion_inventario p
+                          JOIN sch_inventario.lote l ON l.id = p.lote_id WHERE l.uuid_publico = :loteId
+                        """).param("loteId", lote).query(BigDecimal.class).single();
     }
 
     private Result<SalidaVentaRegistrada, ApplicationError> venta(String cantidad, String clave) {
