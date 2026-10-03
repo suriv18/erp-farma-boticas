@@ -57,6 +57,7 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
     private static final String POSICION_DISPONIBLE = POSICION_SELECT + " AND l.uuid_publico = :loteId";
     private static final String POSICION_VENDIBLE_FEFO = POSICION_SELECT + """
                AND k.uuid_publico = :skuId AND l.estado_lote = 'HABILITADO' AND l.fecha_vencimiento >= :hoy
+               AND l.es_activo = '1'
                AND p.cantidad_fisica > p.cantidad_reservada
              ORDER BY l.fecha_vencimiento, l.numero_lote
                FOR UPDATE OF p

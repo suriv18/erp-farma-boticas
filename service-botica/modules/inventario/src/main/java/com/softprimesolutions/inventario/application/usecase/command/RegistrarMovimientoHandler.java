@@ -89,7 +89,7 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
         var ahora = clock.now();
         var hoy = LocalDate.ofInstant(ahora, ZoneOffset.UTC);
         return resolverLote(solicitud.command(), hoy, ahora)
-                .flatMap(lote -> aplicar(solicitud, lote, ahora));
+                .flatMap(lote -> aplicar(solicitud, lote, hoy, ahora));
     }
 
     private static Result<MovimientoResult, ApplicationError> repetir(MovimientoRegistrado previo, String huella) {
@@ -126,12 +126,12 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
     }
 
     private Result<MovimientoResult, ApplicationError> aplicar(
-            Solicitud solicitud, LoteResuelto resuelto, Instant ahora) {
+            Solicitud solicitud, LoteResuelto resuelto, LocalDate hoy, Instant ahora) {
         var command = solicitud.command();
         if (solicitud.tipo().ingreso() && !resuelto.lote().estado().admiteIngreso()) {
             return Result.failure(InventarioErrors.loteNoAdmiteIngreso());
         }
-        if (solicitud.tipo().exigeLoteVendible() && !resuelto.lote().estado().vendible()) {
+        if (solicitud.tipo().exigeLoteVendible() && !resuelto.lote().vendible(hoy)) {
             return Result.failure(InventarioErrors.loteNoVendible());
         }
         var existente = writePort.findPosicion(

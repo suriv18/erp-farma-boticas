@@ -459,4 +459,21 @@ class RegistrarMovimientoHandlerTest {
         assertThat(error(handler.execute(salidaVenta())).code()).isEqualTo("INV_LOTE_NO_VENDIBLE");
         verify(writePort, never()).registrar(any());
     }
+
+    @Test
+    void aSalidaVentaOnAnEnabledButExpiredLoteIsRejectedWithoutRegistering() {
+        when(writePort.findLote(TENANT, LOTE))
+                .thenReturn(Optional.of(lote(EstadoLote.HABILITADO, HOY.minusDays(1))));
+
+        assertThat(error(handler.execute(salidaVenta())).code()).isEqualTo("INV_LOTE_NO_VENDIBLE");
+        verify(writePort, never()).registrar(any());
+    }
+
+    @Test
+    void aSalidaVentaOnAnEnabledLoteExpiringTodayIsAccepted() {
+        when(writePort.findLote(TENANT, LOTE)).thenReturn(Optional.of(lote(EstadoLote.HABILITADO, HOY)));
+        when(writePort.findPosicion(TENANT, ALMACEN, LOTE)).thenReturn(Optional.of(posicion("10", "0", 1)));
+
+        assertThat(value(handler.execute(salidaVenta())).stockPosterior()).isEqualByComparingTo("7");
+    }
 }

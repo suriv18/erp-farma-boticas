@@ -324,6 +324,7 @@ class InventarioJdbcWriteAdapterTest {
                 .containsEntry("skuId", SKU).containsEntry("hoy", HOY);
         assertThat(statement.sql())
                 .contains("l.estado_lote = 'HABILITADO'")
+                .contains("l.es_activo = '1'")
                 .contains("l.fecha_vencimiento >= :hoy")
                 .contains("p.cantidad_fisica > p.cantidad_reservada")
                 .contains("ORDER BY l.fecha_vencimiento, l.numero_lote")
