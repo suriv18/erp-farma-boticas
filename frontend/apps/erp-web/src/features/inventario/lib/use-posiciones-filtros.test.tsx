@@ -7,7 +7,10 @@ function renderFiltros(entrada: string) {
   const wrapper = ({ children }: PropsWithChildren) => (
     <MemoryRouter initialEntries={[entrada]}>{children}</MemoryRouter>
   );
-  return renderHook(() => ({ ...usePosicionesFiltros(), location: useLocation(), navigate: useNavigate() }), { wrapper });
+  return renderHook(
+    () => ({ ...usePosicionesFiltros(), location: useLocation(), navigate: useNavigate() }),
+    { wrapper }
+  );
 }
 
 describe('usePosicionesFiltros', () => {
