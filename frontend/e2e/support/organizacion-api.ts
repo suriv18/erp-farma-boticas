@@ -98,6 +98,13 @@ export async function mockOrganizacionApi(page: Page) {
     const current = id ? items.find((row) => row.id === id) : undefined;
     const body = request.postData() ? (JSON.parse(request.postData() ?? '{}') as Row) : undefined;
 
+    if (url.searchParams.has('tenantId') || (body && 'tenantId' in body)) {
+      return json(route, 400, {
+        title: 'Bad Request',
+        detail: 'El tenant se resuelve del token; no debe enviarse tenantId.'
+      });
+    }
+
     if (request.method() === 'GET' && !id) {
       const search = url.searchParams.get('search') ?? '';
       const parent = collection.parentField ? url.searchParams.get(collection.parentField) : null;
