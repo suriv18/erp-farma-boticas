@@ -12,6 +12,9 @@ public final class VentasErrorCodes {
     public static final String VENTA_LINEAS_EXCEDIDAS = "VEN_VENTA_LINEAS_EXCEDIDAS";
     public static final String TOTAL_INVALIDO = "VEN_TOTAL_INVALIDO";
     public static final String MONTO_RECIBIDO_INSUFICIENTE = "VEN_MONTO_RECIBIDO_INSUFICIENTE";
+    public static final String MOTIVO_INVALIDO = "VEN_MOTIVO_INVALIDO";
+    public static final String VENTA_ESTADO_INVALIDO = "VEN_VENTA_ESTADO_INVALIDO";
+    public static final String TURNO_NO_ABIERTO = "VEN_TURNO_NO_ABIERTO";
 
     private VentasErrorCodes() {
     }

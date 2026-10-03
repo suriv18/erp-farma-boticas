@@ -26,6 +26,17 @@ class VentasErrorsTest {
     }
 
     @Test
+    void classifiesTheAnulacionStateErrorsAsConflictsAndTheReasonAsValidation() {
+        var venta = VentasErrors.fromDomain(new ErrorDetail(VentasErrorCodes.VENTA_ESTADO_INVALIDO, "e", Map.of()));
+        var turno = VentasErrors.fromDomain(new ErrorDetail(VentasErrorCodes.TURNO_NO_ABIERTO, "t", Map.of()));
+        var motivo = VentasErrors.fromDomain(new ErrorDetail(VentasErrorCodes.MOTIVO_INVALIDO, "m", Map.of()));
+
+        assertThat(venta.category()).isEqualTo(ErrorCategory.CONFLICT);
+        assertThat(turno.category()).isEqualTo(ErrorCategory.CONFLICT);
+        assertThat(motivo.category()).isEqualTo(ErrorCategory.VALIDATION);
+    }
+
+    @Test
     void exposesTheTurnoErrors() {
         assertThat(VentasErrors.turnoNoEncontrado().code()).isEqualTo("VEN_TURNO_NO_ENCONTRADO");
         assertThat(VentasErrors.turnoNoEncontrado().category()).isEqualTo(ErrorCategory.NOT_FOUND);

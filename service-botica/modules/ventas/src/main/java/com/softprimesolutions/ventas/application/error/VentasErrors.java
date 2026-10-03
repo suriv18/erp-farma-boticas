@@ -14,7 +14,9 @@ public final class VentasErrors {
 
     public static final String CONCURRENCIA = "VEN_MODIFICACION_CONCURRENTE";
 
-    private static final Set<String> CONFLICTOS = Set.of(VentasErrorCodes.TURNO_ESTADO_INVALIDO);
+    private static final Set<String> CONFLICTOS = Set.of(
+            VentasErrorCodes.TURNO_ESTADO_INVALIDO, VentasErrorCodes.VENTA_ESTADO_INVALIDO,
+            VentasErrorCodes.TURNO_NO_ABIERTO);
 
     private VentasErrors() {
     }
