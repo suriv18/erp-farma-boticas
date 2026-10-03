@@ -12,6 +12,7 @@ import com.softprimesolutions.ventas.application.dto.command.AbrirTurnoCommand;
 import com.softprimesolutions.ventas.application.dto.command.CerrarTurnoCommand;
 import com.softprimesolutions.ventas.application.dto.command.LineaVentaInput;
 import com.softprimesolutions.ventas.application.dto.command.RegistrarVentaCommand;
+import com.softprimesolutions.ventas.application.dto.result.TurnoResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResult;
 import com.softprimesolutions.ventas.application.port.in.AbrirTurnoUseCase;
 import com.softprimesolutions.ventas.application.port.in.CerrarTurnoUseCase;
@@ -61,8 +62,8 @@ class VentaConcurrencyIntegrationTest {
     private final UUID actor = UUID.randomUUID();
     private final UUID almacenId = UUID.randomUUID();
     private final UUID terminalId = UUID.randomUUID();
-    private final UUID skuA = UUID.randomUUID();
-    private final UUID skuB = UUID.randomUUID();
+    private final UUID skuA = UUID.fromString("1aaaaaaa-0000-4000-8000-000000000001");
+    private final UUID skuB = UUID.fromString("2bbbbbbb-0000-4000-8000-000000000002");
 
     @BeforeEach
     void createCommittedMasterDataStockAndAnOpenTurno() {
@@ -143,7 +144,9 @@ class VentaConcurrencyIntegrationTest {
 
     @Test
     void aSaleThatFailsOnALaterLineLeavesNoTracesNorDiscountsAnEarlierLine() {
-        var resultado = vender("clave-1", linea(skuA, "3"), linea(skuB, "95"));
+        assertThat(skuA).as("la linea valida se descuenta antes que la que falla").isLessThan(skuB);
+
+        var resultado = vender("clave-1", linea(skuB, "95"), linea(skuA, "3"));
 
         assertThat(resultado.fold(venta -> "OK", ApplicationError::code)).isEqualTo("INV_STOCK_INSUFICIENTE");
         assertThat(stock(skuA)).isEqualByComparingTo("10");
@@ -166,8 +169,42 @@ class VentaConcurrencyIntegrationTest {
     }
 
     @Test
+    void simultaneousRequestsWithTheSameKeyAndBodyReturnTheSameSaleAndDiscountOnce() throws Exception {
+        var tareas = new ArrayList<Callable<Result<VentaResult, ApplicationError>>>();
+        for (var indice = 0; indice < 4; indice++) tareas.add(() -> vender("clave-unica", linea(skuA, "4")));
+
+        var resultados = concurrently(tareas);
+
+        var ids = resultados.stream().map(resultado -> value(resultado).id()).distinct().toList();
+        assertThat(ids).hasSize(1);
+        assertThat(stock(skuA)).isEqualByComparingTo("6");
+        assertThat(count("sch_venta.venta")).isEqualTo(1L);
+        assertThat(salidasVentaEnKardex()).isEqualTo(1L);
+    }
+
+    @Test
+    void aSaleInFlightWhileTheTurnoClosesIsEitherCountedOrRejected() throws Exception {
+        for (var ronda = 0; ronda < 5; ronda++) {
+            var turno = turnoAbierto();
+            var clave = "clave-cierre-" + ronda;
+
+            var resultados = concurrently(List.<Callable<String>>of(
+                    () -> vender(clave, linea(skuA, "1")).fold(venta -> "OK", ApplicationError::code),
+                    () -> cerrar(turno).fold(cerrado -> "OK", ApplicationError::code)));
+
+            assertThat(resultados.get(1)).isEqualTo("OK");
+            assertThat(resultados.get(0)).isIn("OK", "VEN_TURNO_NO_ABIERTO");
+            var esperado = resultados.get(0).equals("OK") ? "10.00" : "0.00";
+            assertThat(totalVentasDelTurno(turno)).isEqualByComparingTo(esperado);
+            assertThat(ventasConfirmadasDelTurno(turno)).isEqualByComparingTo(esperado);
+            abrirTurno.execute(new AbrirTurnoCommand(TENANT_ID, actor, terminalId, new BigDecimal("100")))
+                    .fold(abierto -> abierto, error -> { throw new AssertionError(error); });
+        }
+    }
+
+    @Test
     void twoSimultaneousSalesOfEightFromTenNeverOversell() throws Exception {
-        var resultados = concurrently(List.of(
+        var resultados = concurrently(List.<Callable<Result<VentaResult, ApplicationError>>>of(
                 () -> vender("clave-a", linea(skuA, "8")), () -> vender("clave-b", linea(skuA, "8"))));
 
         assertThat(resultados.stream().filter(Result::isSuccess).count()).isEqualTo(1);
@@ -202,12 +239,9 @@ class VentaConcurrencyIntegrationTest {
     void closingTheTurnoAfterSalesCountsThemInTheSystemTotal() {
         value(vender("clave-1", linea(skuA, "2")));
         value(vender("clave-2", linea(skuB, "3")));
-        var turno = jdbcClient.sql("""
-                        SELECT tc.uuid_publico FROM sch_venta.turno_caja tc
-                          JOIN sch_admin.tenant t ON t.id = tc.tenant_id WHERE t.uuid_publico = :tenantId
-                        """).param("tenantId", TENANT_ID).query(UUID.class).single();
 
-        var cerrado = cerrarTurno.execute(new CerrarTurnoCommand(TENANT_ID, actor, turno, new BigDecimal("150"), null))
+        var cerrado = cerrarTurno.execute(
+                        new CerrarTurnoCommand(TENANT_ID, actor, turnoAbierto(), new BigDecimal("150"), null))
                 .fold(valor -> valor, error -> { throw new AssertionError(error); });
 
         assertThat(cerrado.totalVentasSistema()).isEqualByComparingTo("50.00");
@@ -230,12 +264,36 @@ class VentaConcurrencyIntegrationTest {
         return resultado.fold(venta -> venta, error -> { throw new AssertionError(error); });
     }
 
-    private List<Result<VentaResult, ApplicationError>> concurrently(
-            List<Callable<Result<VentaResult, ApplicationError>>> tareas) throws Exception {
+    private Result<TurnoResult, ApplicationError> cerrar(UUID turno) {
+        return cerrarTurno.execute(new CerrarTurnoCommand(TENANT_ID, actor, turno, new BigDecimal("100"), null));
+    }
+
+    private UUID turnoAbierto() {
+        return jdbcClient.sql("""
+                        SELECT tc.uuid_publico FROM sch_venta.turno_caja tc
+                          JOIN sch_admin.tenant t ON t.id = tc.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND tc.estado = 'ABIERTO'
+                        """).param("tenantId", TENANT_ID).query(UUID.class).single();
+    }
+
+    private BigDecimal totalVentasDelTurno(UUID turno) {
+        return jdbcClient.sql("SELECT total_ventas_sistema FROM sch_venta.turno_caja WHERE uuid_publico = :turnoId")
+                .param("turnoId", turno).query(BigDecimal.class).single();
+    }
+
+    private BigDecimal ventasConfirmadasDelTurno(UUID turno) {
+        return jdbcClient.sql("""
+                        SELECT COALESCE(SUM(v.total), 0) FROM sch_venta.venta v
+                          JOIN sch_venta.turno_caja tc ON tc.id = v.turno_caja_id
+                         WHERE tc.uuid_publico = :turnoId AND v.estado = 'CONFIRMADA'
+                        """).param("turnoId", turno).query(BigDecimal.class).single();
+    }
+
+    private <T> List<T> concurrently(List<Callable<T>> tareas) throws Exception {
         var start = new CountDownLatch(1);
         var pool = Executors.newFixedThreadPool(tareas.size());
         try {
-            var futuros = new ArrayList<Future<Result<VentaResult, ApplicationError>>>();
+            var futuros = new ArrayList<Future<T>>();
             for (var tarea : tareas) {
                 futuros.add(pool.submit(() -> {
                     start.await();
@@ -243,7 +301,7 @@ class VentaConcurrencyIntegrationTest {
                 }));
             }
             start.countDown();
-            var resultados = new ArrayList<Result<VentaResult, ApplicationError>>();
+            var resultados = new ArrayList<T>();
             for (var futuro : futuros) resultados.add(futuro.get());
             return resultados;
         } finally {
