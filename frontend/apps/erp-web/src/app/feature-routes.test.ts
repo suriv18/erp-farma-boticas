@@ -18,6 +18,7 @@ describe('featureRoutes', () => {
       'catalogo/clasificaciones-controladas',
       'catalogo/tipos-documento-identidad',
       'inventario',
+      'inventario/lotes/:loteId',
       'compras',
       'ventas',
       'pos',
