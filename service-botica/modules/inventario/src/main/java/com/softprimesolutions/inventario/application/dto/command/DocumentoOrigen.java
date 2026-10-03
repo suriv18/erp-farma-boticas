@@ -9,6 +9,5 @@ public record DocumentoOrigen(String tipo, UUID documentoId, UUID lineaId, UUID 
         Objects.requireNonNull(tipo, "tipo es obligatorio");
         Objects.requireNonNull(documentoId, "documentoId es obligatorio");
         Objects.requireNonNull(lineaId, "lineaId es obligatorio");
-        Objects.requireNonNull(proveedorId, "proveedorId es obligatorio");
     }
 }

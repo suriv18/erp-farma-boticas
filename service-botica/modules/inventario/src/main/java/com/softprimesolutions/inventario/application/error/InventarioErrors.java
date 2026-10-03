@@ -50,6 +50,20 @@ public final class InventarioErrors {
         return conflict("INV_LOTE_NO_ADMITE_INGRESO", "El estado del lote no admite ingresos de stock.");
     }
 
+    public static ApplicationError loteNoVendible() {
+        return conflict("INV_LOTE_NO_VENDIBLE", "El estado del lote no permite venderlo.");
+    }
+
+    public static ApplicationError stockInsuficiente() {
+        return conflict(InventarioErrorCodes.STOCK_INSUFICIENTE,
+                "El stock disponible no alcanza para la salida solicitada.");
+    }
+
+    public static ApplicationError cantidadInvalida() {
+        return validation(InventarioErrorCodes.CANTIDAD_INVALIDA,
+                "La cantidad debe ser mayor que cero y admite hasta 4 decimales.");
+    }
+
     public static ApplicationError loteSkuDistinto() {
         return validation("INV_LOTE_SKU_DISTINTO", "El lote indicado pertenece a otro SKU.");
     }

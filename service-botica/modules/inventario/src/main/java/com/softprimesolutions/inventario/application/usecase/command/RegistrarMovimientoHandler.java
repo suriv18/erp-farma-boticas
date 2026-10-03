@@ -71,7 +71,7 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
                         referencias.estadoSku(command.tenantId(), command.skuId()),
                         InventarioErrors.skuNoEncontrado(), InventarioErrors.skuNoOperable()));
         if (errorReferencia.isPresent()) return Result.failure(errorReferencia.get());
-        return conReintentos(new Solicitud(command, tipo.get(), motivo, businessUuid(command), huella(command, motivo)));
+        return conReintentos(new Solicitud(command, tipo.get(), motivo, IdempotencyKeys.businessUuid(command.idempotencyKey()), huella(command, motivo)));
     }
 
     private Result<MovimientoResult, ApplicationError> conReintentos(Solicitud solicitud) {
@@ -131,6 +131,9 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
         if (solicitud.tipo().ingreso() && !resuelto.lote().estado().admiteIngreso()) {
             return Result.failure(InventarioErrors.loteNoAdmiteIngreso());
         }
+        if (solicitud.tipo().exigeLoteVendible() && !resuelto.lote().estado().vendible()) {
+            return Result.failure(InventarioErrors.loteNoVendible());
+        }
         var existente = writePort.findPosicion(
                 command.tenantId(), command.almacenId(), resuelto.lote().id().value());
         var posicion = existente.orElseGet(() -> PosicionInventario.nueva(
@@ -177,12 +180,6 @@ public final class RegistrarMovimientoHandler implements RegistrarMovimientoUseC
 
     private static boolean claveIdempotenciaInvalida(String clave) {
         return clave != null && (clave.isBlank() || clave.length() > CLAVE_IDEMPOTENCIA_MAX);
-    }
-
-    private static UUID businessUuid(RegistrarMovimientoCommand command) {
-        return Optional.ofNullable(command.idempotencyKey())
-                .map(clave -> UUID.nameUUIDFromBytes(("idempotency:" + clave.trim()).getBytes(StandardCharsets.UTF_8)))
-                .orElse(null);
     }
 
     private static String huella(RegistrarMovimientoCommand command, String motivo) {

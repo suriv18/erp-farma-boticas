@@ -74,4 +74,5 @@ public final class PosicionInventario {
     public BigDecimal cantidadFisica() { return cantidadFisica; }
     public BigDecimal cantidadReservada() { return cantidadReservada; }
     public long version() { return version; }
+    public BigDecimal disponible() { return cantidadFisica.subtract(cantidadReservada); }
 }

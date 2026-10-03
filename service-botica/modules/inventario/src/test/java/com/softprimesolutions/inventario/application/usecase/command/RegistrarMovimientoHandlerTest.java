@@ -432,4 +432,31 @@ class RegistrarMovimientoHandlerTest {
                 .isEqualTo("INV_TIPO_MOVIMIENTO_INVALIDO");
         verify(writePort, never()).registrar(any());
     }
+
+    private static RegistrarMovimientoCommand salidaVenta() {
+        var origen = new DocumentoOrigen("VENTA", UUID.randomUUID(), UUID.randomUUID(), null);
+        return new RegistrarMovimientoCommand(
+                TENANT, ALMACEN, SKU, LOTE, null, null, "SALIDA_VENTA", new BigDecimal("3"), "Venta", ACTOR_ID,
+                null, origen);
+    }
+
+    @Test
+    void aSalidaVentaDiscountsStockFromASellableLote() {
+        when(writePort.findLote(TENANT, LOTE)).thenReturn(Optional.of(loteHabilitado()));
+        when(writePort.findPosicion(TENANT, ALMACEN, LOTE)).thenReturn(Optional.of(posicion("10", "0", 1)));
+
+        var result = value(handler.execute(salidaVenta()));
+
+        assertThat(result.tipo()).isEqualTo("SALIDA_VENTA");
+        assertThat(result.naturaleza()).isEqualTo("S");
+        assertThat(result.stockPosterior()).isEqualByComparingTo("7");
+    }
+
+    @Test
+    void aSalidaVentaOnANonSellableLoteIsRejectedWithoutRegistering() {
+        when(writePort.findLote(TENANT, LOTE)).thenReturn(Optional.of(lote(EstadoLote.BLOQUEADO, VENCIMIENTO)));
+
+        assertThat(error(handler.execute(salidaVenta())).code()).isEqualTo("INV_LOTE_NO_VENDIBLE");
+        verify(writePort, never()).registrar(any());
+    }
 }

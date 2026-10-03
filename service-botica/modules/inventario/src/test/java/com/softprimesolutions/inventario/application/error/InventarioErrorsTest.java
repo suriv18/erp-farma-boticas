@@ -63,4 +63,14 @@ class InventarioErrorsTest {
         assertError(error, "INV_PAGINACION_INVALIDA", ErrorCategory.VALIDATION);
         assertThat(error.metadata()).containsEntry("page", -1).containsEntry("size", 500);
     }
+
+    @Test
+    void exposesTheSalidaVentaErrors() {
+        assertThat(InventarioErrors.loteNoVendible().code()).isEqualTo("INV_LOTE_NO_VENDIBLE");
+        assertThat(InventarioErrors.loteNoVendible().category()).isEqualTo(ErrorCategory.CONFLICT);
+        assertThat(InventarioErrors.stockInsuficiente().code()).isEqualTo("INV_STOCK_INSUFICIENTE");
+        assertThat(InventarioErrors.stockInsuficiente().category()).isEqualTo(ErrorCategory.CONFLICT);
+        assertThat(InventarioErrors.cantidadInvalida().code()).isEqualTo("INV_CANTIDAD_INVALIDA");
+        assertThat(InventarioErrors.cantidadInvalida().category()).isEqualTo(ErrorCategory.VALIDATION);
+    }
 }

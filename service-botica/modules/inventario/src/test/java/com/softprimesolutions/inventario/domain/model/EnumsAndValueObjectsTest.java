@@ -42,6 +42,17 @@ class EnumsAndValueObjectsTest {
     }
 
     @Test
+    void salidaVentaIsANonManualSalidaThatRequiresASellableLote() {
+        assertThat(TipoMovimiento.desde("SALIDA_VENTA")).contains(TipoMovimiento.SALIDA_VENTA);
+        assertThat(TipoMovimiento.SALIDA_VENTA.ingreso()).isFalse();
+        assertThat(TipoMovimiento.SALIDA_VENTA.naturaleza()).isEqualTo("S");
+        assertThat(TipoMovimiento.SALIDA_VENTA.manual()).isFalse();
+        assertThat(TipoMovimiento.SALIDA_VENTA.tipoOperacionSunat()).isEqualTo("01");
+        assertThat(TipoMovimiento.SALIDA_VENTA.exigeLoteVendible()).isTrue();
+        assertThat(TipoMovimiento.AJUSTE_SALIDA.exigeLoteVendible()).isFalse();
+    }
+
+    @Test
     void keepsTheFullUserIdAsTheActorCode() {
         var id = UUID.fromString("12345678-9abc-4def-8123-456789abcdef");
 

@@ -88,4 +88,9 @@ class PosicionInventarioTest {
         assertThat(code(posicion.aplicar(TipoMovimiento.AJUSTE_INGRESO, new BigDecimal("1.5000000"))))
                 .isEqualTo("OK");
     }
+
+    @Test
+    void exposesTheAvailableQuantityAsPhysicalMinusReserved() {
+        assertThat(posicion("10", "3", 0).disponible()).isEqualByComparingTo("7");
+    }
 }
