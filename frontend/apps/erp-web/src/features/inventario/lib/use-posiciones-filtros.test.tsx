@@ -1,13 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { usePosicionesFiltros } from './use-posiciones-filtros';
 
 function renderFiltros(entrada: string) {
   const wrapper = ({ children }: PropsWithChildren) => (
     <MemoryRouter initialEntries={[entrada]}>{children}</MemoryRouter>
   );
-  return renderHook(() => ({ ...usePosicionesFiltros(), location: useLocation() }), { wrapper });
+  return renderHook(() => ({ ...usePosicionesFiltros(), location: useLocation(), navigate: useNavigate() }), { wrapper });
 }
 
 describe('usePosicionesFiltros', () => {
@@ -63,5 +63,25 @@ describe('usePosicionesFiltros', () => {
 
     act(() => result.current.setSize(50));
     expect(result.current.location.search).toBe('?size=50');
+  });
+
+  it('aplica tamaño y página en un mismo tick sin perder ninguno', () => {
+    const { result } = renderFiltros('/inventario?page=2');
+
+    act(() => {
+      result.current.setSize(50);
+      result.current.setPage(0);
+    });
+
+    expect(result.current.location.search).toBe('?size=50&page=0');
+  });
+
+  it('resincroniza los parámetros tras una navegación externa', () => {
+    const { result } = renderFiltros('/inventario?skuId=sku-1');
+
+    act(() => result.current.navigate('/inventario?almacenId=alm-9'));
+    act(() => result.current.setPage(1));
+
+    expect(result.current.location.search).toBe('?almacenId=alm-9&page=1');
   });
 });
