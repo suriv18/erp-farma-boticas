@@ -330,4 +330,38 @@ class InventarioJdbcWriteAdapterTest {
                 .contains("ORDER BY l.fecha_vencimiento, l.numero_lote")
                 .contains("FOR UPDATE OF p");
     }
+
+    @Test
+    void listsTheSalidasVentaOfASaleFromTheKardex() {
+        var row = new HashMap<String, Object>();
+        row.put("uuid_publico", UUID.fromString("abababab-abab-4bab-8bab-abababababab"));
+        row.put("almacen_uuid", ALMACEN);
+        row.put("sku_uuid", SKU);
+        row.put("lote_uuid", LOTE);
+        row.put("numero_lote", "L-001");
+        row.put("fecha_vencimiento", VENCIMIENTO);
+        row.put("cantidad", new BigDecimal("3.0000"));
+        jdbc.rows("m.tipo_movimiento = 'SALIDA_VENTA'", row);
+        var venta = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+        var salidas = adapter.findSalidasDeVenta(TENANT, venta);
+
+        assertThat(salidas).hasSize(1);
+        var salida = salidas.getFirst();
+        assertThat(salida.movimientoId()).isEqualTo(UUID.fromString("abababab-abab-4bab-8bab-abababababab"));
+        assertThat(salida.almacenId()).isEqualTo(ALMACEN);
+        assertThat(salida.skuId()).isEqualTo(SKU);
+        assertThat(salida.loteId()).isEqualTo(LOTE);
+        assertThat(salida.numeroLote()).isEqualTo("L-001");
+        assertThat(salida.fechaVencimiento()).isEqualTo(VENCIMIENTO);
+        assertThat(salida.cantidad()).isEqualByComparingTo("3");
+        var statement = jdbc.statementContaining("m.tipo_movimiento = 'SALIDA_VENTA'");
+        assertThat(statement.params()).containsEntry("tenantId", TENANT).containsEntry("ventaId", venta);
+        assertThat(statement.sql()).contains("m.documento_tipo = 'VENTA'").contains("m.documento_uuid = :ventaId");
+    }
+
+    @Test
+    void aSaleWithoutSalidasYieldsAnEmptyList() {
+        assertThat(adapter.findSalidasDeVenta(TENANT, UUID.randomUUID())).isEmpty();
+    }
 }

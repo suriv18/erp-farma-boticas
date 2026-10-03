@@ -5,6 +5,7 @@ import com.softprimesolutions.inventario.application.dto.result.MovimientoResult
 import com.softprimesolutions.inventario.application.port.out.InventarioWritePort;
 import com.softprimesolutions.inventario.application.port.out.MovimientoRegistrado;
 import com.softprimesolutions.inventario.application.port.out.RegistroMovimiento;
+import com.softprimesolutions.inventario.application.port.out.SalidaDeVenta;
 import com.softprimesolutions.inventario.domain.model.EstadoLote;
 import com.softprimesolutions.inventario.domain.model.Lote;
 import com.softprimesolutions.inventario.domain.model.PosicionInventario;
@@ -61,6 +62,17 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                AND p.cantidad_fisica > p.cantidad_reservada
              ORDER BY l.fecha_vencimiento, l.numero_lote
                FOR UPDATE OF p
+            """;
+    private static final String SALIDAS_DE_VENTA = """
+            SELECT m.uuid_publico, a.uuid_publico AS almacen_uuid, k.uuid_publico AS sku_uuid,
+                   l.uuid_publico AS lote_uuid, l.numero_lote, l.fecha_vencimiento, m.cantidad
+              FROM sch_inventario.movimiento_inventario m
+              JOIN sch_admin.tenant t ON t.id = m.tenant_id
+              JOIN sch_organizacion.almacen a ON a.id = m.almacen_origen_id AND a.tenant_id = m.tenant_id
+              JOIN sch_catalogo.sku_comercial k ON k.id = m.sku_id AND k.tenant_id = m.tenant_id
+              JOIN sch_inventario.lote l ON l.id = m.lote_id AND l.tenant_id = m.tenant_id
+             WHERE t.uuid_publico = :tenantId AND m.tipo_movimiento = 'SALIDA_VENTA'
+               AND m.documento_tipo = 'VENTA' AND m.documento_uuid = :ventaId
             """;
     private static final String ACTUALIZAR_ESTADO_LOTE = """
             UPDATE sch_inventario.lote
@@ -189,6 +201,19 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                 .param("skuId", skuId)
                 .param("hoy", hoy)
                 .query((rs, rowNumber) -> mapPosicion(rs))
+                .list();
+    }
+
+    @Override
+    public List<SalidaDeVenta> findSalidasDeVenta(UUID tenantId, UUID ventaId) {
+        return jdbcClient.sql(SALIDAS_DE_VENTA)
+                .param("tenantId", tenantId)
+                .param("ventaId", ventaId)
+                .query((rs, rowNumber) -> new SalidaDeVenta(
+                        JdbcColumns.uuid(rs, "uuid_publico"), JdbcColumns.uuid(rs, "almacen_uuid"),
+                        JdbcColumns.uuid(rs, "sku_uuid"), JdbcColumns.uuid(rs, "lote_uuid"),
+                        rs.getString("numero_lote"), JdbcColumns.date(rs, "fecha_vencimiento"),
+                        rs.getBigDecimal("cantidad")))
                 .list();
     }
 

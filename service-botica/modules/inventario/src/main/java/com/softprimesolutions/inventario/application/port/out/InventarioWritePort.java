@@ -20,6 +20,8 @@ public interface InventarioWritePort {
 
     List<PosicionInventario> findPosicionesVendiblesFefo(UUID tenantId, UUID almacenId, UUID skuId, LocalDate hoy);
 
+    List<SalidaDeVenta> findSalidasDeVenta(UUID tenantId, UUID ventaId);
+
     boolean actualizarEstado(Lote lote, EstadoLote estadoPrevio);
 
     RegistroOutcome registrar(RegistroMovimiento registro);
