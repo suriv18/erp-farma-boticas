@@ -9,17 +9,18 @@ import type { Sesion } from '../api/sesiones.types';
 import { ConfirmActionDialog } from '../components/ConfirmActionDialog';
 
 export function SessionsPage() {
-  const { tenantId } = useAuthSession();
+  const { tenantId: sessionTenantId } = useAuthSession();
+  const tenantId = sessionTenantId ?? '';
   const queryClient = useQueryClient();
   const [sessionToRevoke, setSessionToRevoke] = useState<Sesion | null>(null);
 
   const { data, isPending, isError } = useQuery({
-    ...sesionesQuery({ tenantId: tenantId ?? '' }),
-    enabled: Boolean(tenantId)
+    ...sesionesQuery({ tenantId }),
+    enabled: tenantId !== ''
   });
 
   const revokeMutation = useMutation({
-    mutationFn: () => revocarSesion(apiClient, sessionToRevoke?.id ?? '', tenantId ?? ''),
+    mutationFn: (session: Sesion) => revocarSesion(apiClient, session.id, tenantId),
     onSuccess: () => {
       setSessionToRevoke(null);
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'sesiones'] });
@@ -70,7 +71,7 @@ export function SessionsPage() {
         confirmLabel="Revocar sesión"
         tone="danger"
         isPending={revokeMutation.isPending}
-        onConfirm={() => revokeMutation.mutate()}
+        onConfirm={() => revokeMutation.mutate(sessionToRevoke!)}
         onCancel={() => setSessionToRevoke(null)}
       />
     </div>

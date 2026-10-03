@@ -11,6 +11,7 @@ import {
   provisionarCredencialLocal,
   revocarAsignacionRol,
   usuarioAsignacionesQuery,
+  usuariosQuery,
   vincularIdentidadExterna
 } from './usuarios.api';
 import { QueryClient } from '@tanstack/react-query';
@@ -50,11 +51,47 @@ describe('usuarios.api', () => {
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
-    const result = await fetchUsuarios(client, { tenantId: 'tenant-1', search: 'ada', page: 0, size: 20 });
+    const result = await fetchUsuarios(client, {
+      tenantId: 'tenant-1',
+      search: 'ada',
+      page: 0,
+      size: 20
+    });
 
     expect(receivedUrl?.searchParams.get('tenantId')).toBe('tenant-1');
     expect(receivedUrl?.searchParams.get('search')).toBe('ada');
     expect(result.items).toEqual([sampleUsuario]);
+  });
+
+  it('fetchUsuarios usa pagina 0, tamano 20 y omite search por defecto', async () => {
+    let receivedUrl: URL | undefined;
+    server.use(
+      http.get('http://localhost/api/v1/usuarios', ({ request }) => {
+        receivedUrl = new URL(request.url);
+        return HttpResponse.json({ items: [], page: 0, size: 20, totalElements: 0 });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    await fetchUsuarios(client, { tenantId: 'tenant-1' });
+
+    expect(receivedUrl?.searchParams.has('search')).toBe(false);
+    expect(receivedUrl?.searchParams.get('page')).toBe('0');
+    expect(receivedUrl?.searchParams.get('size')).toBe('20');
+  });
+
+  it('usuariosQuery construye la clave con y sin parametros opcionales', () => {
+    expect(usuariosQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+      'seguridad',
+      'usuarios',
+      'tenant-1',
+      '',
+      0,
+      20
+    ]);
+    expect(
+      usuariosQuery({ tenantId: 'tenant-1', search: 'ada', page: 1, size: 50 }).queryKey
+    ).toEqual(['seguridad', 'usuarios', 'tenant-1', 'ada', 1, 50]);
   });
 
   it('crearUsuario envia el payload y devuelve el usuario creado', async () => {
@@ -178,10 +215,13 @@ describe('usuarios.api', () => {
   it('revocarAsignacionRol envia DELETE con tenantId como query param', async () => {
     let receivedUrl: URL | undefined;
     server.use(
-      http.delete('http://localhost/api/v1/usuarios/user-1/asignaciones-rol/assign-1', ({ request }) => {
-        receivedUrl = new URL(request.url);
-        return new HttpResponse(null, { status: 204 });
-      })
+      http.delete(
+        'http://localhost/api/v1/usuarios/user-1/asignaciones-rol/assign-1',
+        ({ request }) => {
+          receivedUrl = new URL(request.url);
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
@@ -219,11 +259,14 @@ describe('usuarios.api', () => {
     let receivedBody: unknown;
     let receivedUrl: URL | undefined;
     server.use(
-      http.post('http://localhost/api/v1/usuarios/user-1/identidades-externas', async ({ request }) => {
-        receivedBody = await request.json();
-        receivedUrl = new URL(request.url);
-        return HttpResponse.json(sampleIdentidad, { status: 201 });
-      })
+      http.post(
+        'http://localhost/api/v1/usuarios/user-1/identidades-externas',
+        async ({ request }) => {
+          receivedBody = await request.json();
+          receivedUrl = new URL(request.url);
+          return HttpResponse.json(sampleIdentidad, { status: 201 });
+        }
+      )
     );
 
     const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });

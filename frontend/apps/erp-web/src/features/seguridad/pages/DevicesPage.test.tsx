@@ -16,13 +16,15 @@ const authenticatedSession = {
   signOut: vi.fn()
 };
 
-function renderPage() {
+function renderPage(
+  session: typeof authenticatedSession | { tenantId: null } = authenticatedSession
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AuthSessionContext value={authenticatedSession}>
+        <AuthSessionContext value={{ ...authenticatedSession, ...session }}>
           <DevicesPage />
         </AuthSessionContext>
       </QueryClientProvider>
@@ -99,5 +101,37 @@ describe('DevicesPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
+  });
+
+  it('muestra marcadores y no ofrece acciones para un dispositivo bloqueado sin datos', async () => {
+    server.use(
+      http.get('*/api/v1/dispositivos', () =>
+        HttpResponse.json([
+          { ...sampleDevice, agentVersion: null, fingerprintHash: null, status: 'BLOQUEADO' }
+        ])
+      )
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('BLOQUEADO')).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Marcar confiable' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bloquear' })).not.toBeInTheDocument();
+  });
+
+  it('no consulta dispositivos cuando la sesion no tiene tenant', () => {
+    let consultado = false;
+    server.use(
+      http.get('*/api/v1/dispositivos', () => {
+        consultado = true;
+        return HttpResponse.json([]);
+      })
+    );
+
+    renderPage({ tenantId: null });
+
+    expect(consultado).toBe(false);
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
   });
 });

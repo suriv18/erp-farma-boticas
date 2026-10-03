@@ -7,7 +7,8 @@ import {
   crearRol,
   fetchRolById,
   fetchRoles,
-  reemplazarPermisosRol
+  reemplazarPermisosRol,
+  rolesQuery
 } from './roles.api';
 
 const server = setupServer();
@@ -53,6 +54,37 @@ describe('roles.api', () => {
     expect(receivedUrl?.searchParams.get('page')).toBe('0');
     expect(receivedUrl?.searchParams.get('size')).toBe('20');
     expect(result.items).toEqual([sampleRol]);
+  });
+
+  it('fetchRoles usa pagina 0, tamano 20 y omite search por defecto', async () => {
+    let receivedUrl: URL | undefined;
+    server.use(
+      http.get('http://localhost/api/v1/roles', ({ request }) => {
+        receivedUrl = new URL(request.url);
+        return HttpResponse.json({ items: [], page: 0, size: 20, totalElements: 0 });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    await fetchRoles(client, { tenantId: 'tenant-1' });
+
+    expect(receivedUrl?.searchParams.has('search')).toBe(false);
+    expect(receivedUrl?.searchParams.get('page')).toBe('0');
+    expect(receivedUrl?.searchParams.get('size')).toBe('20');
+  });
+
+  it('rolesQuery construye la clave con y sin parametros opcionales', () => {
+    expect(rolesQuery({ tenantId: 'tenant-1' }).queryKey).toEqual([
+      'seguridad',
+      'roles',
+      'tenant-1',
+      '',
+      0,
+      20
+    ]);
+    expect(rolesQuery({ tenantId: 'tenant-1', search: 'adm', page: 2, size: 50 }).queryKey).toEqual(
+      ['seguridad', 'roles', 'tenant-1', 'adm', 2, 50]
+    );
   });
 
   it('crearRol envia el payload y devuelve el rol creado', async () => {

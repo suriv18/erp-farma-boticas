@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../../test/mocks/server';
 import { UsuarioForm } from './UsuarioForm';
 
 function renderForm(props: Parameters<typeof UsuarioForm>[0]) {
@@ -95,5 +97,102 @@ describe('UsuarioForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ documentType: '4', documentNumber: 'X1234567' })
     );
+  });
+
+  it('no sobrescribe el tipo de documento al editar un usuario existente', async () => {
+    const onSubmit = vi.fn();
+    const { user } = renderForm({
+      onSubmit,
+      submitLabel: 'Guardar',
+      defaultValues: {
+        documentType: '4',
+        documentNumber: 'X1234567',
+        firstNames: 'Ada',
+        lastNames: 'Lovelace',
+        username: '',
+        email: 'ada@boticas.pe',
+        phone: '',
+        displayName: '',
+        mfaRequired: false
+      }
+    });
+
+    await screen.findByRole('option', { name: 'DNI' });
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ documentType: '4' }));
+  });
+
+  it('deja el tipo de documento sin seleccionar cuando el catalogo no incluye DNI', async () => {
+    server.use(
+      http.get('*/api/v1/catalogo/tipos-documento-identidad', () =>
+        HttpResponse.json({
+          items: [
+            {
+              codigo: '4',
+              sigla: 'CE',
+              denominacion: 'Carnet de extranjería',
+              max: null,
+              min: null,
+              estado: 'ACTIVO'
+            }
+          ],
+          page: 0,
+          size: 100,
+          totalElements: 1
+        })
+      )
+    );
+
+    renderForm({ onSubmit: vi.fn(), submitLabel: 'Crear usuario' });
+
+    await screen.findByRole('option', { name: 'CE' });
+    expect(screen.getByLabelText('Tipo de documento')).toHaveValue('');
+  });
+
+  it('conserva el tipo elegido por la persona cuando el catalogo se actualiza', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UsuarioForm onSubmit={vi.fn()} submitLabel="Crear usuario" />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('option', { name: 'CE' });
+    await user.selectOptions(screen.getByLabelText('Tipo de documento'), '4');
+
+    server.use(
+      http.get('*/api/v1/catalogo/tipos-documento-identidad', () =>
+        HttpResponse.json({
+          items: [
+            { codigo: '1', sigla: 'DNI', denominacion: 'DNI', max: 8, min: 8, estado: 'ACTIVO' },
+            {
+              codigo: '4',
+              sigla: 'CE',
+              denominacion: 'CE',
+              max: null,
+              min: null,
+              estado: 'ACTIVO'
+            },
+            {
+              codigo: '7',
+              sigla: 'PAS',
+              denominacion: 'Pasaporte',
+              max: null,
+              min: null,
+              estado: 'ACTIVO'
+            }
+          ],
+          page: 0,
+          size: 100,
+          totalElements: 3
+        })
+      )
+    );
+    await queryClient.invalidateQueries();
+
+    await screen.findByRole('option', { name: 'PAS' });
+    expect(screen.getByLabelText('Tipo de documento')).toHaveValue('4');
   });
 });

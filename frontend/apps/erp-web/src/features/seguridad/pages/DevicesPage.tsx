@@ -11,23 +11,19 @@ import { ConfirmActionDialog } from '../components/ConfirmActionDialog';
 type PendingAction = { device: Dispositivo; nextStatus: string; label: string };
 
 export function DevicesPage() {
-  const { tenantId } = useAuthSession();
+  const { tenantId: sessionTenantId } = useAuthSession();
+  const tenantId = sessionTenantId ?? '';
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const { data, isPending, isError } = useQuery({
-    ...dispositivosQuery(tenantId ?? ''),
-    enabled: Boolean(tenantId)
+    ...dispositivosQuery(tenantId),
+    enabled: tenantId !== ''
   });
 
   const changeStatusMutation = useMutation({
-    mutationFn: () =>
-      cambiarEstadoDispositivo(
-        apiClient,
-        pendingAction?.device.id ?? '',
-        tenantId ?? '',
-        pendingAction?.nextStatus ?? ''
-      ),
+    mutationFn: (action: PendingAction) =>
+      cambiarEstadoDispositivo(apiClient, action.device.id, tenantId, action.nextStatus),
     onSuccess: () => {
       setPendingAction(null);
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'dispositivos'] });
@@ -56,7 +52,11 @@ export function DevicesPage() {
                     icon={ShieldCheck}
                     label="Marcar confiable"
                     onClick={() =>
-                      setPendingAction({ device: row, nextStatus: 'CONFIABLE', label: 'Marcar confiable' })
+                      setPendingAction({
+                        device: row,
+                        nextStatus: 'CONFIABLE',
+                        label: 'Marcar confiable'
+                      })
                     }
                   />
                 ) : row.status === 'CONFIABLE' ? (
@@ -91,7 +91,7 @@ export function DevicesPage() {
         confirmLabel="Confirmar"
         tone={pendingAction?.nextStatus === 'BLOQUEADO' ? 'danger' : 'default'}
         isPending={changeStatusMutation.isPending}
-        onConfirm={() => changeStatusMutation.mutate()}
+        onConfirm={() => changeStatusMutation.mutate(pendingAction!)}
         onCancel={() => setPendingAction(null)}
       />
     </div>

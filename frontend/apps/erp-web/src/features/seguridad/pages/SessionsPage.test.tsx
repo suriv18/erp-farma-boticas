@@ -16,13 +16,15 @@ const authenticatedSession = {
   signOut: vi.fn()
 };
 
-function renderPage() {
+function renderPage(
+  session: typeof authenticatedSession | { tenantId: null } = authenticatedSession
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return {
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <AuthSessionContext value={authenticatedSession}>
+        <AuthSessionContext value={{ ...authenticatedSession, ...session }}>
           <SessionsPage />
         </AuthSessionContext>
       </QueryClientProvider>
@@ -87,5 +89,34 @@ describe('SessionsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(screen.queryByRole('button', { name: 'Revocar sesión' })).not.toBeInTheDocument();
+  });
+
+  it('muestra marcador de IP y no ofrece revocar una sesion ya revocada', async () => {
+    server.use(
+      http.get('*/api/v1/sesiones', () =>
+        HttpResponse.json([{ ...sampleSession, ipAddress: null, status: 'REVOCADA' }])
+      )
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('REVOCADA')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Revocar' })).not.toBeInTheDocument();
+  });
+
+  it('no consulta sesiones cuando la sesion no tiene tenant', () => {
+    let consultado = false;
+    server.use(
+      http.get('*/api/v1/sesiones', () => {
+        consultado = true;
+        return HttpResponse.json([]);
+      })
+    );
+
+    renderPage({ tenantId: null });
+
+    expect(consultado).toBe(false);
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
   });
 });
