@@ -103,7 +103,7 @@ class VentasApiMapperTest {
         var sinPago = new VentaResult(
                 venta.id(), venta.numeroOperacion(), venta.terminalId(), venta.turnoId(), venta.establecimientoId(),
                 venta.vendedorId(), venta.fechaVenta(), venta.moneda(), venta.subtotal(), venta.descuentoTotal(),
-                venta.impuestoTotal(), venta.total(), venta.estado(), venta.lineas(), null);
+                venta.impuestoTotal(), venta.total(), venta.estado(), venta.lineas(), null, null);
 
         assertThat(VentasApiMapper.toResponse(sinPago).pago()).isNull();
     }

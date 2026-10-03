@@ -4,6 +4,7 @@ import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import com.softprimesolutions.shared.application.error.StandardApplicationError;
 import com.softprimesolutions.shared.kernel.result.Result;
+import com.softprimesolutions.ventas.application.dto.result.AnulacionResult;
 import com.softprimesolutions.ventas.application.dto.result.LineaVentaResult;
 import com.softprimesolutions.ventas.application.dto.result.LoteConsumidoResult;
 import com.softprimesolutions.ventas.application.dto.result.PagoResult;
@@ -86,7 +87,17 @@ public final class VentasFixtures {
         return new VentaResult(
                 VENTA, "EST001-POS01-000001", TERMINAL, TURNO, ESTABLECIMIENTO, ACTOR_ID, AHORA, "PEN", dec("12.50"),
                 dec("0.00"), dec("0.00"), dec("12.50"), "CONFIRMADA", List.of(linea),
-                new PagoResult("EFECTIVO", dec("12.50"), dec("20.00"), dec("7.50")));
+                new PagoResult("EFECTIVO", dec("12.50"), dec("20.00"), dec("7.50")),
+                null);
+    }
+
+    public static VentaResult ventaAnuladaResult() {
+        var base = ventaResult();
+        return new VentaResult(
+                base.id(), base.numeroOperacion(), base.terminalId(), base.turnoId(), base.establecimientoId(),
+                base.vendedorId(), base.fechaVenta(), base.moneda(), base.subtotal(), base.descuentoTotal(),
+                base.impuestoTotal(), base.total(), "ANULADA", base.lineas(), base.pago(),
+                new AnulacionResult(AHORA, ACTOR_ID, "Error de cobro"));
     }
 
     public static <T> Result<T, ApplicationError> ok(T valor) {

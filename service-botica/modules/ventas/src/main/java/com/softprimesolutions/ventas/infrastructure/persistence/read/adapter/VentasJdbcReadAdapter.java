@@ -191,7 +191,7 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
                 cabecera.id(), cabecera.numeroOperacion(), cabecera.terminalId(), cabecera.turnoId(),
                 cabecera.establecimientoId(), cabecera.vendedorId(), cabecera.fechaVenta(), cabecera.moneda(),
                 cabecera.subtotal(), cabecera.descuentoTotal(), cabecera.impuestoTotal(), cabecera.total(),
-                cabecera.estado(), lineas, pago);
+                cabecera.estado(), lineas, pago, null);
     }
 
     private record Cabecera(

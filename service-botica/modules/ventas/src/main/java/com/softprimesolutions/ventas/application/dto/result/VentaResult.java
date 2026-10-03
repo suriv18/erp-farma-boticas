@@ -20,5 +20,6 @@ public record VentaResult(
         BigDecimal total,
         String estado,
         List<LineaVentaResult> lineas,
-        PagoResult pago) {
+        PagoResult pago,
+        AnulacionResult anulacion) {
 }
