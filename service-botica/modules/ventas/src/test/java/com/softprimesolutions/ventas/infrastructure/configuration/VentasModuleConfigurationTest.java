@@ -6,8 +6,10 @@ import static org.mockito.Mockito.mock;
 
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.ventas.application.port.out.AnulacionWritePort;
 import com.softprimesolutions.ventas.application.port.out.NumeracionPort;
 import com.softprimesolutions.ventas.application.port.out.ReferenciasVentasPort;
+import com.softprimesolutions.ventas.application.port.out.ReintegroInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.SalidaInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.TurnoWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentaWritePort;
@@ -25,6 +27,8 @@ class VentasModuleConfigurationTest {
     private final VentasReadPort readPort = mock(VentasReadPort.class);
     private final SalidaInventarioPort inventario = mock(SalidaInventarioPort.class);
     private final NumeracionPort numeracion = mock(NumeracionPort.class);
+    private final AnulacionWritePort anulaciones = mock(AnulacionWritePort.class);
+    private final ReintegroInventarioPort reintegro = mock(ReintegroInventarioPort.class);
     private final ClockPort clock = configuration.ventasClockPort();
     private final IdentifierGenerator identifiers = configuration.ventasIdentifierGenerator();
 
@@ -51,5 +55,13 @@ class VentasModuleConfigurationTest {
         assertThat(configuration.registrarVentaUseCase(
                 ventas, turnos, referencias, inventario, numeracion, consultas, TRANSACCION_DIRECTA, identifiers,
                 clock)).isNotNull();
+    }
+
+    @Test
+    void wiresTheAnularVentaUseCase() {
+        var consultas = configuration.consultarVentasUseCase(readPort);
+
+        assertThat(configuration.anularVentaUseCase(anulaciones, reintegro, consultas, TRANSACCION_DIRECTA, clock))
+                .isNotNull();
     }
 }

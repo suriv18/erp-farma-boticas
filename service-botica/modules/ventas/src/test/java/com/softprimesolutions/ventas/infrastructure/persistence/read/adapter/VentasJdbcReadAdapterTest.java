@@ -151,4 +151,32 @@ class VentasJdbcReadAdapterTest {
         assertThat(jdbc.statementContaining("ORDER BY v.fecha_venta DESC").params())
                 .containsEntry("desde", null).containsEntry("hasta", null);
     }
+
+    @Test
+    void anAnnulledSaleExposesWhoWhenAndWhyItWasAnnulled() {
+        var cabecera = Rows.ventaCabecera();
+        cabecera.put("estado", "ANULADA");
+        cabecera.put("anulada_at", Rows.MOMENTO);
+        cabecera.put("anulada_por_uuid", ACTOR_ID);
+        cabecera.put("motivo_anulacion", "Error de cobro");
+        jdbc.rows(CABECERA, cabecera);
+        jdbc.rows(LINEAS, Rows.ventaLinea());
+        jdbc.rows(PAGO, Rows.ventaPago());
+
+        var venta = adapter.findVenta(TENANT, VENTA).orElseThrow();
+
+        assertThat(venta.estado()).isEqualTo("ANULADA");
+        assertThat(venta.anulacion().anuladaAt()).isEqualTo(Rows.MOMENTO.toInstant());
+        assertThat(venta.anulacion().anuladaPorId()).isEqualTo(ACTOR_ID);
+        assertThat(venta.anulacion().motivo()).isEqualTo("Error de cobro");
+    }
+
+    @Test
+    void aSaleThatWasNeverAnnulledHasNoAnulacionBlock() {
+        jdbc.rows(CABECERA, Rows.ventaCabecera());
+        jdbc.rows(LINEAS, Rows.ventaLinea());
+        jdbc.rows(PAGO, Rows.ventaPago());
+
+        assertThat(adapter.findVenta(TENANT, VENTA).orElseThrow().anulacion()).isNull();
+    }
 }

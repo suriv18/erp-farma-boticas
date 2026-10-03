@@ -1,6 +1,7 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.read.adapter;
 
 import com.softprimesolutions.ventas.application.dto.query.ListarVentasQuery;
+import com.softprimesolutions.ventas.application.dto.result.AnulacionResult;
 import com.softprimesolutions.ventas.application.dto.result.LineaVentaResult;
 import com.softprimesolutions.ventas.application.dto.result.LoteConsumidoResult;
 import com.softprimesolutions.ventas.application.dto.result.PaginaResult;
@@ -13,6 +14,8 @@ import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcColumns;
 import com.softprimesolutions.ventas.infrastructure.persistence.TurnoRows;
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +33,8 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
             SELECT v.uuid_publico, v.numero_operacion, tp.uuid_publico AS terminal_uuid,
                    tc.uuid_publico AS turno_uuid, es.uuid_publico AS establecimiento_uuid,
                    m.uuid_publico AS vendedor_uuid, v.fecha_venta, v.moneda, v.subtotal, v.descuento_total,
-                   v.impuesto_total, v.total, v.estado
+                   v.impuesto_total, v.total, v.estado, v.anulada_at, ma.uuid_publico AS anulada_por_uuid,
+                   v.motivo_anulacion
               FROM sch_venta.venta v
               JOIN sch_admin.tenant t ON t.id = v.tenant_id
               JOIN sch_organizacion.terminal_pos tp ON tp.id = v.terminal_id AND tp.tenant_id = v.tenant_id
@@ -38,6 +42,7 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
               JOIN sch_organizacion.establecimiento_farmaceutico es
                 ON es.id = v.establecimiento_id AND es.tenant_id = v.tenant_id
               JOIN sch_seguridad.membership m ON m.id = v.vendedor_usuario_id
+              LEFT JOIN sch_seguridad.membership ma ON ma.id = v.anulada_por_usuario_id
              WHERE t.uuid_publico = :tenantId AND v.es_activo = '1' AND v.uuid_publico = :ventaId
             """;
     private static final String LINEAS = """
@@ -124,7 +129,8 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
                         JdbcColumns.uuid(rs, "establecimiento_uuid"), JdbcColumns.uuid(rs, "vendedor_uuid"),
                         JdbcColumns.instant(rs, "fecha_venta"), rs.getString("moneda"),
                         rs.getBigDecimal("subtotal"), rs.getBigDecimal("descuento_total"),
-                        rs.getBigDecimal("impuesto_total"), rs.getBigDecimal("total"), rs.getString("estado")))
+                        rs.getBigDecimal("impuesto_total"), rs.getBigDecimal("total"), rs.getString("estado"),
+                        anulacionDe(rs)))
                 .optional()
                 .map(cabecera -> armar(tenantId, ventaId, cabecera));
     }
@@ -191,12 +197,19 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
                 cabecera.id(), cabecera.numeroOperacion(), cabecera.terminalId(), cabecera.turnoId(),
                 cabecera.establecimientoId(), cabecera.vendedorId(), cabecera.fechaVenta(), cabecera.moneda(),
                 cabecera.subtotal(), cabecera.descuentoTotal(), cabecera.impuestoTotal(), cabecera.total(),
-                cabecera.estado(), lineas, pago, null);
+                cabecera.estado(), lineas, pago, cabecera.anulacion());
+    }
+
+    private static AnulacionResult anulacionDe(ResultSet rs) throws SQLException {
+        var anuladaAt = JdbcColumns.instant(rs, "anulada_at");
+        return anuladaAt == null
+                ? null
+                : new AnulacionResult(anuladaAt, JdbcColumns.uuid(rs, "anulada_por_uuid"), rs.getString("motivo_anulacion"));
     }
 
     private record Cabecera(
             UUID id, String numeroOperacion, UUID terminalId, UUID turnoId, UUID establecimientoId, UUID vendedorId,
             Instant fechaVenta, String moneda, BigDecimal subtotal, BigDecimal descuentoTotal,
-            BigDecimal impuestoTotal, BigDecimal total, String estado) {
+            BigDecimal impuestoTotal, BigDecimal total, String estado, AnulacionResult anulacion) {
     }
 }

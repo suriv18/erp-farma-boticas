@@ -3,18 +3,22 @@ package com.softprimesolutions.ventas.infrastructure.configuration;
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import com.softprimesolutions.ventas.application.port.in.AbrirTurnoUseCase;
+import com.softprimesolutions.ventas.application.port.in.AnularVentaUseCase;
 import com.softprimesolutions.ventas.application.port.in.CerrarTurnoUseCase;
 import com.softprimesolutions.ventas.application.port.in.ConsultarTurnosUseCase;
 import com.softprimesolutions.ventas.application.port.in.ConsultarVentasUseCase;
 import com.softprimesolutions.ventas.application.port.in.RegistrarVentaUseCase;
+import com.softprimesolutions.ventas.application.port.out.AnulacionWritePort;
 import com.softprimesolutions.ventas.application.port.out.NumeracionPort;
 import com.softprimesolutions.ventas.application.port.out.ReferenciasVentasPort;
+import com.softprimesolutions.ventas.application.port.out.ReintegroInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.SalidaInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.TransaccionPort;
 import com.softprimesolutions.ventas.application.port.out.TurnoWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentaWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
 import com.softprimesolutions.ventas.application.usecase.command.AbrirTurnoHandler;
+import com.softprimesolutions.ventas.application.usecase.command.AnularVentaHandler;
 import com.softprimesolutions.ventas.application.usecase.command.CerrarTurnoHandler;
 import com.softprimesolutions.ventas.application.usecase.command.RegistrarVentaHandler;
 import com.softprimesolutions.ventas.application.usecase.query.ConsultarTurnosHandler;
@@ -72,5 +76,13 @@ public class VentasModuleConfiguration {
         return new RegistrarVentaHandler(
                 ventas, turnos, referencias, inventario, numeracion, consultarVentasUseCase, transaccion,
                 ventasIdentifierGenerator, ventasClockPort);
+    }
+
+    @Bean
+    AnularVentaUseCase anularVentaUseCase(
+            AnulacionWritePort anulaciones, ReintegroInventarioPort reintegro,
+            ConsultarVentasUseCase consultarVentasUseCase, TransaccionPort transaccion,
+            ClockPort ventasClockPort) {
+        return new AnularVentaHandler(anulaciones, reintegro, consultarVentasUseCase, transaccion, ventasClockPort);
     }
 }
