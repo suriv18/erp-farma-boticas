@@ -44,6 +44,9 @@ class InventarioModuleConfigurationTest {
                 writePort, registrarMovimiento, transaccion, clock);
         assertThat(registrarSalidaVenta).isNotNull();
         assertThat(configuration.salidaInventarioApi(registrarSalidaVenta)).isNotNull();
+        var reintegrar = configuration.reintegrarSalidasDeVentaUseCase(writePort, registrarMovimiento, transaccion);
+        assertThat(reintegrar).isNotNull();
+        assertThat(configuration.anulacionInventarioApi(reintegrar)).isNotNull();
     }
 
     @Test
