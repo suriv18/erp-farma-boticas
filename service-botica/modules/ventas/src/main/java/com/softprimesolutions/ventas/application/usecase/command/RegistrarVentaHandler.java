@@ -72,10 +72,9 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
     @Override
     public Result<VentaResult, ApplicationError> execute(RegistrarVentaCommand command) {
         Objects.requireNonNull(command, "command es obligatorio");
-        if (claveInvalida(command.idempotencyKey())) {
-            return Result.failure(VentasErrors.claveIdempotenciaInvalida());
-        }
-        var solicitud = new Solicitud(command, huella(command));
+        var clave = Optional.ofNullable(command.idempotencyKey()).map(String::trim).orElse(null);
+        if (claveInvalida(clave)) return Result.failure(VentasErrors.claveIdempotenciaInvalida());
+        var solicitud = new Solicitud(command, clave, huella(command));
         var resultado = intentar(solicitud);
         for (var intento = 1; intento < MAX_INTENTOS && esConcurrencia(resultado); intento++) {
             resultado = intentar(solicitud);
@@ -85,7 +84,7 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
 
     private Result<VentaResult, ApplicationError> intentar(Solicitud solicitud) {
         var command = solicitud.command();
-        var previa = ventas.findPorIdempotencia(command.tenantId(), command.idempotencyKey());
+        var previa = ventas.findPorIdempotencia(command.tenantId(), solicitud.clave());
         if (previa.isPresent()) return repetir(command, previa.get(), solicitud.huella());
         return transaccion.ejecutar(() -> registrar(solicitud))
                 .flatMap(ventaId -> consultas.obtener(new ObtenerVentaQuery(command.tenantId(), ventaId)));
@@ -93,7 +92,7 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
 
     private Result<VentaResult, ApplicationError> repetir(
             RegistrarVentaCommand command, VentaExistente previa, String huella) {
-        if (!previa.huella().equals(huella)) return Result.failure(VentasErrors.conflictoIdempotencia());
+        if (!huella.equals(previa.huella())) return Result.failure(VentasErrors.conflictoIdempotencia());
         return consultas.obtener(new ObtenerVentaQuery(command.tenantId(), previa.id()));
     }
 
@@ -166,13 +165,12 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
     }
 
     private Result<UUID, ApplicationError> persistir(Solicitud solicitud, Venta venta) {
-        var command = solicitud.command();
-        if (ventas.insertar(venta, command.idempotencyKey(), solicitud.huella()) == GuardadoOutcome.DUPLICADO) {
+        if (ventas.insertar(venta, solicitud.clave(), solicitud.huella()) == GuardadoOutcome.DUPLICADO) {
             return Result.failure(VentasErrors.modificacionConcurrente());
         }
         Result<UUID, ApplicationError> acumulado = Result.success(venta.id());
         for (var linea : enOrdenDeBloqueo(venta)) {
-            acumulado = acumulado.flatMap(ventaId -> descontar(command, venta, linea).map(lotes -> ventaId));
+            acumulado = acumulado.flatMap(ventaId -> descontar(solicitud, venta, linea).map(lotes -> ventaId));
         }
         return acumulado;
     }
@@ -183,11 +181,11 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
                 .toList();
     }
 
-    private Result<List<LoteConsumo>, ApplicationError> descontar(
-            RegistrarVentaCommand command, Venta venta, LineaVenta linea) {
+    private Result<List<LoteConsumo>, ApplicationError> descontar(Solicitud solicitud, Venta venta, LineaVenta linea) {
+        var command = solicitud.command();
         return inventario.descontar(new SalidaSolicitada(
                         command.tenantId(), command.almacenId(), linea.skuId(), linea.cantidad(), venta.id(),
-                        linea.id(), command.actorId(), command.idempotencyKey() + ":" + linea.numeroLinea()))
+                        linea.id(), command.actorId(), solicitud.clave() + ":" + linea.numeroLinea()))
                 .map(lotes -> {
                     ventas.registrarLotes(command.tenantId(), linea.id(), lotes);
                     return lotes;
@@ -223,6 +221,6 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
     private record Contexto(TerminalRef terminal, TurnoCaja turno, Map<UUID, SkuVentaRef> skus) {
     }
 
-    private record Solicitud(RegistrarVentaCommand command, String huella) {
+    private record Solicitud(RegistrarVentaCommand command, String clave, String huella) {
     }
 }

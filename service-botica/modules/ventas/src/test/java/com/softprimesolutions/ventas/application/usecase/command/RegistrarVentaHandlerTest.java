@@ -190,6 +190,23 @@ class RegistrarVentaHandlerTest {
     }
 
     @Test
+    void aStoredSaleWithoutFingerprintIsAnIdempotencyConflict() {
+        when(ventas.findPorIdempotencia(TENANT, CLAVE)).thenReturn(Optional.of(new VentaExistente(VENTA, null)));
+
+        assertThat(error(handler.execute(unaLinea())).code()).isEqualTo("VEN_IDEMPOTENCY_CONFLICT");
+        verify(ventas, never()).insertar(any(), any(), any());
+    }
+
+    @Test
+    void theIdempotencyKeyIsTrimmedForTheSaleAndForEachInventoryExit() {
+        value(handler.execute(command("  " + CLAVE + "  ", "20", linea(SKU, "5", "2.50"))));
+
+        verify(ventas).findPorIdempotencia(TENANT, CLAVE);
+        verify(ventas).insertar(any(), eq(CLAVE), any());
+        verify(inventario).descontar(argThat(salida -> salida.idempotencyKey().equals(CLAVE + ":1")));
+    }
+
+    @Test
     void theIdempotencyKeyIsRequiredAndAtMostOneHundredSixtyCharacters() {
         assertThat(error(handler.execute(command(null, "20", linea(SKU, "5", "2.50")))).code())
                 .isEqualTo("VEN_IDEMPOTENCY_KEY_INVALID");
@@ -198,6 +215,8 @@ class RegistrarVentaHandlerTest {
         assertThat(error(handler.execute(command("x".repeat(161), "20", linea(SKU, "5", "2.50")))).code())
                 .isEqualTo("VEN_IDEMPOTENCY_KEY_INVALID");
         assertThat(handler.execute(command("x".repeat(160), "20", linea(SKU, "5", "2.50"))).isSuccess()).isTrue();
+        assertThat(handler.execute(command(" " + "y".repeat(160) + " ", "20", linea(SKU, "5", "2.50"))).isSuccess())
+                .isTrue();
     }
 
     @Test
