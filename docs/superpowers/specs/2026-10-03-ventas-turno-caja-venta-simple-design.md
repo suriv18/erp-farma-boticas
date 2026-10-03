@@ -30,7 +30,7 @@ Venta:
 - SKU operable; cantidad > 0 con hasta 4 decimales; precio unitario >= 0; maximo 100 lineas.
 - `total_linea` = round(cantidad x precio, 2); `subtotal` = suma de lineas; `impuesto` = 0; `total` = `subtotal`; total > 0. IGV POR_VALIDAR hasta el slice CPE.
 - Efectivo: `montoRecibido` >= total; `vuelto` = recibido - total.
-- `numero_operacion` = `{codigo terminal}-{secuencia 6 digitos}`; contador por terminal en `sch_venta.secuencia_operacion`, incrementado en la misma transaccion (POR_VALIDAR).
+- `numero_operacion` = `{codigo del local}-{codigo de terminal}-{secuencia 6 digitos}` (ej. `EST001-POS01-000123`); contador por terminal en `sch_venta.secuencia_operacion`, incrementado en la misma transaccion (POR_VALIDAR). El codigo del local es unico por empresa (de hecho por tenant) y el de terminal por local, por lo que el numero respeta `uk_venta_numero_operacion` (tenant, empresa, numero) aunque dos locales tengan una terminal con el mismo codigo; sin migracion.
 
 ## Flujo de registro de venta
 
