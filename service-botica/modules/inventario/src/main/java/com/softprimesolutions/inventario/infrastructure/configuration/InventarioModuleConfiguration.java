@@ -13,6 +13,7 @@ import com.softprimesolutions.inventario.application.port.in.RegistrarSalidaVent
 import com.softprimesolutions.inventario.application.port.out.InventarioReadPort;
 import com.softprimesolutions.inventario.application.port.out.InventarioWritePort;
 import com.softprimesolutions.inventario.application.port.out.ReferenciasInventarioPort;
+import com.softprimesolutions.inventario.application.port.out.TransaccionPort;
 import com.softprimesolutions.inventario.application.usecase.command.BloquearLoteHandler;
 import com.softprimesolutions.inventario.application.usecase.command.CambioEstadoLote;
 import com.softprimesolutions.inventario.application.usecase.command.DesbloquearLoteHandler;
@@ -20,6 +21,7 @@ import com.softprimesolutions.inventario.application.usecase.command.RegistrarMo
 import com.softprimesolutions.inventario.application.usecase.command.RegistrarSalidaVentaHandler;
 import com.softprimesolutions.inventario.application.usecase.query.ListarPosicionesHandler;
 import com.softprimesolutions.inventario.application.usecase.query.ObtenerLoteHandler;
+import com.softprimesolutions.inventario.infrastructure.persistence.write.adapter.SpringTransaccionAdapter;
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import java.time.Clock;
@@ -27,6 +29,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Configuration(proxyBeanMethods = false)
 public class InventarioModuleConfiguration {
@@ -80,10 +83,16 @@ public class InventarioModuleConfiguration {
     }
 
     @Bean
+    TransaccionPort inventarioTransaccionPort(TransactionOperations transactionOperations) {
+        return new SpringTransaccionAdapter(transactionOperations);
+    }
+
+    @Bean
     RegistrarSalidaVentaUseCase registrarSalidaVentaUseCase(
             InventarioWritePort writePort, RegistrarMovimientoUseCase registrarMovimientoUseCase,
-            ClockPort inventarioClockPort) {
-        return new RegistrarSalidaVentaHandler(writePort, registrarMovimientoUseCase, inventarioClockPort);
+            TransaccionPort inventarioTransaccionPort, ClockPort inventarioClockPort) {
+        return new RegistrarSalidaVentaHandler(
+                writePort, registrarMovimientoUseCase, inventarioTransaccionPort, inventarioClockPort);
     }
 
     @Bean

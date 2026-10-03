@@ -59,6 +59,7 @@ public class InventarioJdbcWriteAdapter implements InventarioWritePort {
                AND k.uuid_publico = :skuId AND l.estado_lote = 'HABILITADO' AND l.fecha_vencimiento >= :hoy
                AND p.cantidad_fisica > p.cantidad_reservada
              ORDER BY l.fecha_vencimiento, l.numero_lote
+               FOR UPDATE OF p
             """;
     private static final String ACTUALIZAR_ESTADO_LOTE = """
             UPDATE sch_inventario.lote

@@ -11,6 +11,7 @@ import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionOperations;
 
 class InventarioModuleConfigurationTest {
 
@@ -37,7 +38,10 @@ class InventarioModuleConfigurationTest {
         var registrarMovimiento = configuration.registrarMovimientoUseCase(writePort, referencias, identifiers, clock);
         assertThat(registrarMovimiento).isNotNull();
         assertThat(configuration.ingresoInventarioApi(registrarMovimiento)).isNotNull();
-        var registrarSalidaVenta = configuration.registrarSalidaVentaUseCase(writePort, registrarMovimiento, clock);
+        var transaccion = configuration.inventarioTransaccionPort(TransactionOperations.withoutTransaction());
+        assertThat(transaccion).isNotNull();
+        var registrarSalidaVenta = configuration.registrarSalidaVentaUseCase(
+                writePort, registrarMovimiento, transaccion, clock);
         assertThat(registrarSalidaVenta).isNotNull();
         assertThat(configuration.salidaInventarioApi(registrarSalidaVenta)).isNotNull();
     }

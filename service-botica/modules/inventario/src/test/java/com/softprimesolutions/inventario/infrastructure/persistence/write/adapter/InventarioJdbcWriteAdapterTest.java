@@ -325,6 +325,8 @@ class InventarioJdbcWriteAdapterTest {
         assertThat(statement.sql())
                 .contains("l.estado_lote = 'HABILITADO'")
                 .contains("l.fecha_vencimiento >= :hoy")
-                .contains("p.cantidad_fisica > p.cantidad_reservada");
+                .contains("p.cantidad_fisica > p.cantidad_reservada")
+                .contains("ORDER BY l.fecha_vencimiento, l.numero_lote")
+                .contains("FOR UPDATE OF p");
     }
 }

@@ -21,6 +21,7 @@ import com.softprimesolutions.inventario.application.dto.result.MovimientoResult
 import com.softprimesolutions.inventario.application.port.in.RegistrarMovimientoUseCase;
 import com.softprimesolutions.inventario.application.port.out.InventarioWritePort;
 import com.softprimesolutions.inventario.application.port.out.MovimientoRegistrado;
+import com.softprimesolutions.inventario.application.port.out.TransaccionPort;
 import com.softprimesolutions.inventario.domain.model.PosicionInventario;
 import com.softprimesolutions.inventario.domain.valueobject.PosicionId;
 import com.softprimesolutions.shared.application.error.ApplicationError;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class RegistrarSalidaVentaHandlerTest {
@@ -41,13 +43,33 @@ class RegistrarSalidaVentaHandlerTest {
     private static final String CLAVE = "venta-1";
 
     private final InventarioWritePort writePort = mock(InventarioWritePort.class);
+    private final TransaccionEspia transaccion = new TransaccionEspia();
+    private final List<Boolean> accesosEnTransaccion = new ArrayList<>();
     private final List<RegistrarMovimientoCommand> enviados = new ArrayList<>();
     private final RegistrarMovimientoUseCase registrarMovimiento = command -> {
+        accesosEnTransaccion.add(transaccion.activa);
         enviados.add(command);
         return Result.success(movimiento(command.loteId(), command.cantidad().toPlainString(), "0"));
     };
     private final RegistrarSalidaVentaHandler handler =
-            new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, () -> AHORA);
+            new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, transaccion, () -> AHORA);
+
+    private static final class TransaccionEspia implements TransaccionPort {
+
+        private boolean activa;
+        private int ejecuciones;
+        private Result<?, ApplicationError> resultado;
+
+        @Override
+        public <T> Result<T, ApplicationError> ejecutar(Supplier<Result<T, ApplicationError>> trabajo) {
+            ejecuciones++;
+            activa = true;
+            var obtenido = trabajo.get();
+            activa = false;
+            resultado = obtenido;
+            return obtenido;
+        }
+    }
 
     private static PosicionInventario posicion(UUID lote, String fisica, String reservada) {
         return PosicionInventario.restore(
@@ -76,7 +98,35 @@ class RegistrarSalidaVentaHandlerTest {
     }
 
     private void fefo(PosicionInventario... posiciones) {
-        when(writePort.findPosicionesVendiblesFefo(TENANT, ALMACEN, SKU, HOY)).thenReturn(List.of(posiciones));
+        when(writePort.findPosicionesVendiblesFefo(TENANT, ALMACEN, SKU, HOY)).thenAnswer(invocation -> {
+            accesosEnTransaccion.add(transaccion.activa);
+            return List.of(posiciones);
+        });
+    }
+
+    @Test
+    void theFefoReadAndEveryTramoRunInsideASingleTransaction() {
+        fefo(posicion(LOTE_A, "5", "0"), posicion(LOTE_B, "10", "0"));
+
+        value(handler.execute(salida("6", CLAVE)));
+
+        assertThat(transaccion.ejecuciones).isEqualTo(1);
+        assertThat(accesosEnTransaccion).containsExactly(true, true, true);
+        assertThat(transaccion.resultado.isSuccess()).isTrue();
+    }
+
+    @Test
+    void returnsTheOutcomeDecidedByTheTransaction() {
+        var sinTrabajo = new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, new TransaccionPort() {
+            @Override
+            public <T> Result<T, ApplicationError> ejecutar(Supplier<Result<T, ApplicationError>> trabajo) {
+                return Result.failure(CONFLICTO);
+            }
+        }, () -> AHORA);
+
+        assertThat(error(sinTrabajo.execute(salida("1", CLAVE)))).isSameAs(CONFLICTO);
+        verify(writePort, never()).findPosicionesVendiblesFefo(any(), any(), any(), any());
+        assertThat(enviados).isEmpty();
     }
 
     @Test
@@ -140,12 +190,14 @@ class RegistrarSalidaVentaHandlerTest {
             return llamadas.size() == 1
                     ? Result.success(movimiento(command.loteId(), "5", "0"))
                     : Result.failure(CONFLICTO);
-        }, () -> AHORA);
+        }, transaccion, () -> AHORA);
 
         var failure = error(fallaElSegundo.execute(salida("8", CLAVE)));
 
         assertThat(failure).isSameAs(CONFLICTO);
         assertThat(llamadas).containsExactly(LOTE_A, LOTE_B);
+        assertThat(transaccion.ejecuciones).isEqualTo(1);
+        assertThat(transaccion.resultado.isFailure()).isTrue();
     }
 
     @Test
@@ -192,16 +244,19 @@ class RegistrarSalidaVentaHandlerTest {
         assertThat(error(handler.execute(salida("-1", CLAVE))).code()).isEqualTo("INV_CANTIDAD_INVALIDA");
         assertThat(error(handler.execute(salida("1.00001", CLAVE))).code()).isEqualTo("INV_CANTIDAD_INVALIDA");
         assertThat(enviados).isEmpty();
+        assertThat(transaccion.ejecuciones).isZero();
     }
 
     @Test
     void requiresItsCollaboratorsAndTheCommand() {
         assertThatNullPointerException().isThrownBy(
-                () -> new RegistrarSalidaVentaHandler(null, registrarMovimiento, () -> AHORA));
+                () -> new RegistrarSalidaVentaHandler(null, registrarMovimiento, transaccion, () -> AHORA));
         assertThatNullPointerException().isThrownBy(
-                () -> new RegistrarSalidaVentaHandler(writePort, null, () -> AHORA));
+                () -> new RegistrarSalidaVentaHandler(writePort, null, transaccion, () -> AHORA));
         assertThatNullPointerException().isThrownBy(
-                () -> new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, null));
+                () -> new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, null, () -> AHORA));
+        assertThatNullPointerException().isThrownBy(
+                () -> new RegistrarSalidaVentaHandler(writePort, registrarMovimiento, transaccion, null));
         assertThatNullPointerException().isThrownBy(() -> handler.execute(null));
     }
 }

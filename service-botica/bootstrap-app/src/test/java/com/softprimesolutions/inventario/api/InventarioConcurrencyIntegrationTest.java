@@ -1,6 +1,7 @@
 package com.softprimesolutions.inventario.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import com.softprimesolutions.inventario.application.dto.command.RegistrarMovimientoCommand;
 import com.softprimesolutions.inventario.application.dto.result.MovimientoResult;
@@ -17,6 +18,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +28,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ActiveProfiles("test")
 @Import(PostgresTestContainerConfiguration.class)
@@ -42,6 +47,9 @@ class InventarioConcurrencyIntegrationTest {
 
     @Autowired
     private JdbcClient jdbcClient;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     private final UUID actor = UUID.randomUUID();
     private UUID almacenId;
@@ -200,31 +208,41 @@ class InventarioConcurrencyIntegrationTest {
 
     @Test
     void twoSimultaneousSalidasVentaOfEightFromTenNeverOversell() throws Exception {
-        var start = new CountDownLatch(1);
-        var pool = Executors.newFixedThreadPool(2);
-        try {
-            var futures = new ArrayList<Future<Result<SalidaVentaRegistrada, ApplicationError>>>();
-            for (var index = 0; index < 2; index++) {
-                var clave = "venta-concurrente-" + index;
-                Callable<Result<SalidaVentaRegistrada, ApplicationError>> tarea = () -> {
-                    start.await();
-                    return venta("8", clave);
-                };
-                futures.add(pool.submit(tarea));
-            }
-            start.countDown();
-            var results = new ArrayList<Result<SalidaVentaRegistrada, ApplicationError>>();
-            for (var future : futures) results.add(future.get());
+        var results = concurrently(2, index -> () -> venta("8", "venta-concurrente-" + index));
 
-            assertThat(results.stream().filter(Result::isSuccess).count()).isEqualTo(1);
-            assertThat(results.stream().map(result -> result.fold(value -> "OK", ApplicationError::code))
-                    .filter(code -> !code.equals("OK")).toList())
-                    .containsExactly(SalidaInventarioApi.CODIGO_STOCK_INSUFICIENTE);
-            assertThat(physicalStock()).isEqualByComparingTo("2");
-            assertThat(salidasInKardex()).isEqualTo(1);
-        } finally {
-            pool.shutdownNow();
-        }
+        assertThat(results.stream().filter(Result::isSuccess).count()).isEqualTo(1);
+        assertThat(results.stream().map(result -> result.fold(value -> "OK", ApplicationError::code))
+                .filter(code -> !code.equals("OK")).toList())
+                .containsExactly(SalidaInventarioApi.CODIGO_STOCK_INSUFICIENTE);
+        assertThat(physicalStock()).isEqualByComparingTo("2");
+        assertThat(salidasInKardex()).isEqualTo(1);
+    }
+
+    @Test
+    void twoSalidasVentaInsideTheirOwnOuterTransactionsBothSucceedAndCommit() throws Exception {
+        var transaction = new TransactionTemplate(transactionManager);
+
+        var results = concurrently(2, index -> () -> transaction.execute(
+                status -> venta("4", "venta-externa-" + index)));
+
+        assertThat(results).allMatch(Result::isSuccess);
+        assertThat(physicalStock()).isEqualByComparingTo("2");
+        assertThat(salidasInKardex()).isEqualTo(2);
+    }
+
+    @Test
+    void aSalidaVentaIsUndoneWhenTheOuterTransactionFailsAfterIt() {
+        var transaction = new TransactionTemplate(transactionManager);
+        var registrada = new AtomicReference<Result<SalidaVentaRegistrada, ApplicationError>>();
+
+        assertThatIllegalStateException().isThrownBy(() -> transaction.executeWithoutResult(status -> {
+            registrada.set(venta("4", "venta-revertida"));
+            throw new IllegalStateException("fallo posterior de ventas");
+        }));
+
+        assertThat(registrada.get().isSuccess()).isTrue();
+        assertThat(physicalStock()).isEqualByComparingTo("10");
+        assertThat(salidasInKardex()).isZero();
     }
 
     private Result<SalidaVentaRegistrada, ApplicationError> venta(String cantidad, String clave) {
@@ -241,21 +259,25 @@ class InventarioConcurrencyIntegrationTest {
     private List<Result<MovimientoResult, ApplicationError>> runConcurrently(
             int threads, String cantidad, String clave)
             throws Exception {
+        return concurrently(threads, index -> () -> registrarMovimiento.execute(new RegistrarMovimientoCommand(
+                TENANT_ID, almacenId, skuId, loteId, null, null, "AJUSTE_SALIDA",
+                new BigDecimal(cantidad), "Salida concurrente", actor, clave)));
+    }
+
+    private static <T> List<T> concurrently(int threads, IntFunction<Callable<T>> tareas) throws Exception {
         var start = new CountDownLatch(1);
         var pool = Executors.newFixedThreadPool(threads);
         try {
-            var futures = new ArrayList<java.util.concurrent.Future<Result<MovimientoResult, ApplicationError>>>();
+            var futures = new ArrayList<Future<T>>();
             for (var index = 0; index < threads; index++) {
-                Callable<Result<MovimientoResult, ApplicationError>> salida = () -> {
+                var tarea = tareas.apply(index);
+                futures.add(pool.submit(() -> {
                     start.await();
-                    return registrarMovimiento.execute(new RegistrarMovimientoCommand(
-                            TENANT_ID, almacenId, skuId, loteId, null, null, "AJUSTE_SALIDA",
-                            new BigDecimal(cantidad), "Salida concurrente", actor, clave));
-                };
-                futures.add(pool.submit(salida));
+                    return tarea.call();
+                }));
             }
             start.countDown();
-            var results = new ArrayList<Result<MovimientoResult, ApplicationError>>();
+            var results = new ArrayList<T>();
             for (var future : futures) results.add(future.get());
             return results;
         } finally {

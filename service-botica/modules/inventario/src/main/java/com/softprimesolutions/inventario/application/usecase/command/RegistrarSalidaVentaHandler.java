@@ -9,6 +9,7 @@ import com.softprimesolutions.inventario.application.port.in.RegistrarMovimiento
 import com.softprimesolutions.inventario.application.port.in.RegistrarSalidaVentaUseCase;
 import com.softprimesolutions.inventario.application.port.out.InventarioWritePort;
 import com.softprimesolutions.inventario.application.port.out.MovimientoRegistrado;
+import com.softprimesolutions.inventario.application.port.out.TransaccionPort;
 import com.softprimesolutions.inventario.domain.model.PosicionInventario;
 import com.softprimesolutions.inventario.domain.model.TipoMovimiento;
 import com.softprimesolutions.shared.application.error.ApplicationError;
@@ -35,12 +36,15 @@ public final class RegistrarSalidaVentaHandler implements RegistrarSalidaVentaUs
 
     private final InventarioWritePort writePort;
     private final RegistrarMovimientoUseCase registrarMovimiento;
+    private final TransaccionPort transaccion;
     private final ClockPort clock;
 
     public RegistrarSalidaVentaHandler(
-            InventarioWritePort writePort, RegistrarMovimientoUseCase registrarMovimiento, ClockPort clock) {
+            InventarioWritePort writePort, RegistrarMovimientoUseCase registrarMovimiento,
+            TransaccionPort transaccion, ClockPort clock) {
         this.writePort = Objects.requireNonNull(writePort, "writePort es obligatorio");
         this.registrarMovimiento = Objects.requireNonNull(registrarMovimiento, "registrarMovimiento es obligatorio");
+        this.transaccion = Objects.requireNonNull(transaccion, "transaccion es obligatorio");
         this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
     }
 
@@ -51,6 +55,10 @@ public final class RegistrarSalidaVentaHandler implements RegistrarSalidaVentaUs
             return Result.failure(InventarioErrors.claveIdempotenciaInvalida());
         }
         if (cantidadInvalida(command.cantidad())) return Result.failure(InventarioErrors.cantidadInvalida());
+        return transaccion.ejecutar(() -> registrar(command));
+    }
+
+    private Result<List<MovimientoResult>, ApplicationError> registrar(RegistrarSalidaVentaCommand command) {
         var previos = movimientosPrevios(command);
         return previos.isEmpty() ? asignar(command) : repetir(command, previos);
     }
