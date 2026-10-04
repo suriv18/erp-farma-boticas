@@ -4,7 +4,7 @@ import { registrarMovimiento } from '../api/movimientos.api';
 import type { Posicion } from '../api/inventario.types';
 import { toRegistrarMovimientoPayload } from '../lib/ajuste';
 import { almacenesDe } from '../lib/estructura';
-import { useClaveIdempotencia } from '../lib/use-clave-idempotencia';
+import { useClaveIdempotencia } from '../../../shared/lib/use-clave-idempotencia';
 import { useMutacionInventario } from '../lib/use-mutacion-inventario';
 import { useOpcionesEstablecimientos } from '../lib/use-opciones-establecimientos';
 import type { AjusteFormValues } from '../schemas/ajuste.schema';
