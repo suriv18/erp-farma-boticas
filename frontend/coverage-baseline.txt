@@ -4,7 +4,6 @@ apps/erp-web/src/features/auth/model/session-storage.ts
 apps/erp-web/src/features/auth/model/useAuthSession.ts
 apps/erp-web/src/features/auth/pages/LoginPage.tsx
 apps/erp-web/src/features/auth/routes.tsx
-apps/erp-web/src/features/caja/routes.tsx
 apps/erp-web/src/features/catalogo/api/categorias.api.ts
 apps/erp-web/src/features/catalogo/api/marcas.api.ts
 apps/erp-web/src/features/catalogo/pages/CategoriasPage.tsx
