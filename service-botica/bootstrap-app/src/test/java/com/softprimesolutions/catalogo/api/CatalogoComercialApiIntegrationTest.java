@@ -390,6 +390,36 @@ class CatalogoComercialApiIntegrationTest {
     }
 
     @Test
+    void aSkuWithoutReferencePriceKeepsItNullAndInvalidPricesAreRejected() throws Exception {
+        var skuJson = """
+                {"tipoSku":"NO_REGULADO","codigoInterno":"%s",
+                 "descripcionComercial":"Producto de precio","unidadVentaCodigo":"UND",
+                 "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
+                 "afectoIgv":true,"stockMinimoDefault":0%s}
+                """;
+        var creado = mockMvc.perform(post("/api/v1/catalogo/skus")
+                        .header("Authorization", gestor).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(skuJson.formatted("SKU-SIN-PRECIO", "")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.precioVentaReferencia").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String skuId = JsonPath.read(creado, "$.id");
+
+        mockMvc.perform(get("/api/v1/catalogo/skus/{skuId}", skuId).header("Authorization", consultor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.precioVentaReferencia").doesNotExist());
+
+        for (var invalido : new String[] {"-1", "1.00001"}) {
+            mockMvc.perform(post("/api/v1/catalogo/skus")
+                            .header("Authorization", gestor).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(skuJson.formatted("SKU-PRECIO-MALO", ",\"precioVentaReferencia\":" + invalido)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
     void managesSkuBarcodesLifecycle() throws Exception {
         var createResponse = mockMvc.perform(post("/api/v1/catalogo/skus")
                         .header("Authorization", gestor).with(csrf())
