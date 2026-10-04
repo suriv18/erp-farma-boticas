@@ -6,3 +6,7 @@ export type {
   EstablishmentStructure,
   OrganizationalNode
 } from './api/organization.api';
+export { terminalesQuery } from './api/terminales.api';
+export type { Terminal } from './api/terminales.types';
+export { usePuestoTrabajo, PUESTO_VACIO, type PuestoTrabajo } from './lib/use-puesto-trabajo';
+export { TerminalSelector } from './components/TerminalSelector';
