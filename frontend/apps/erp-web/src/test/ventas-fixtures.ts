@@ -1,3 +1,4 @@
+import type { SkuResumen } from '../features/catalogo';
 import type { Turno } from '../features/caja/api/caja.types';
 import type { Venta, VentaResumen } from '../features/ventas/api/ventas.types';
 
@@ -75,4 +76,26 @@ export const sampleVentaResumen: VentaResumen = {
   fechaVenta: '2026-10-03T15:30:00Z',
   total: 25,
   estado: 'CONFIRMADA'
+};
+
+export const sampleSkuVenta: SkuResumen = {
+  id: 'sku-0001-aaaa',
+  codigoInterno: 'MED-001',
+  descripcionComercial: 'Paracetamol 500 mg',
+  tipoSku: 'REGULADO',
+  estado: 'ACTIVO',
+  unidadVentaCodigo: 'UND',
+  permiteVentaFraccion: false,
+  precioVentaReferencia: 12.5
+};
+
+export const sampleSkuFraccionable: SkuResumen = {
+  id: 'sku-0002-bbbb',
+  codigoInterno: 'JAR-002',
+  descripcionComercial: 'Jarabe por mililitro',
+  tipoSku: 'NO_REGULADO',
+  estado: 'ACTIVO',
+  unidadVentaCodigo: 'ML',
+  permiteVentaFraccion: true,
+  precioVentaReferencia: null
 };
