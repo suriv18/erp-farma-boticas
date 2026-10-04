@@ -48,7 +48,11 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
 
   return (
     <Card>
-      <form onSubmit={buscar}>
+      <form
+        onSubmit={(evento) => {
+          void buscar(evento);
+        }}
+      >
         <TextField
           id="pos-buscar"
           label="Buscar producto"
