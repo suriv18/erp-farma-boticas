@@ -1,6 +1,4 @@
-export const ESTADOS_TURNO = ['ABIERTO', 'EN_ARQUEO', 'CERRADO', 'ANULADO'] as const;
-
-export type EstadoTurno = (typeof ESTADOS_TURNO)[number];
+export type EstadoTurno = 'ABIERTO' | 'EN_ARQUEO' | 'CERRADO' | 'ANULADO';
 
 export type Turno = {
   id: string;
