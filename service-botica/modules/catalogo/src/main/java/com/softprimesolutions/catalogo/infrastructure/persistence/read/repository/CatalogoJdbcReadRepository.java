@@ -330,7 +330,10 @@ public class CatalogoJdbcReadRepository {
     private static final String SKU_FILTER = """
              WHERE t.uuid_publico = :tenantId
                AND (:texto = '' OR LOWER(s.descripcion_comercial) LIKE :pattern
-                    OR LOWER(s.codigo_interno) LIKE :pattern)
+                    OR LOWER(s.codigo_interno) LIKE :pattern
+                    OR EXISTS (SELECT 1 FROM sch_catalogo.sku_codigo_barra b
+                                WHERE b.tenant_id = s.tenant_id AND b.sku_id = s.id
+                                  AND LOWER(b.codigo_barra) = :texto))
                AND (CAST(:categoriaId AS UUID) IS NULL OR s.categoria_id = (
                        SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = CAST(:categoriaId AS UUID)))
                AND (CAST(:marcaId AS UUID) IS NULL OR s.marca_id = (
@@ -344,7 +347,8 @@ public class CatalogoJdbcReadRepository {
             int offset, int limit) {
         var textFilter = normalizeSearch(texto);
         return jdbcClient.sql("SELECT s.uuid_publico, s.codigo_interno, s.descripcion_comercial, s.tipo_sku, "
-                        + "s.estado_comercial " + SKU_FROM + SKU_FILTER
+                        + "s.estado_comercial, s.unidad_venta_codigo, s.permite_venta_fraccion, "
+                        + "s.precio_venta_referencia " + SKU_FROM + SKU_FILTER
                         + " ORDER BY s.descripcion_comercial LIMIT :limit OFFSET :offset")
                 .param("tenantId", tenantId)
                 .param("texto", textFilter)
@@ -358,7 +362,8 @@ public class CatalogoJdbcReadRepository {
                 .query((rs, rowNumber) -> new SkuResumen(
                         rs.getObject("uuid_publico", UUID.class), rs.getString("codigo_interno"),
                         rs.getString("descripcion_comercial"), rs.getString("tipo_sku"),
-                        rs.getString("estado_comercial")))
+                        rs.getString("estado_comercial"), rs.getString("unidad_venta_codigo"),
+                        rs.getBoolean("permite_venta_fraccion"), rs.getBigDecimal("precio_venta_referencia")))
                 .list();
     }
 

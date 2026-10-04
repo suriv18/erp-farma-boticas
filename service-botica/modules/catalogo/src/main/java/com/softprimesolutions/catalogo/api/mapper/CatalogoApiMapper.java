@@ -388,7 +388,8 @@ public final class CatalogoApiMapper {
                 result.items().stream()
                         .map(resumen -> new SkuResumenResponse(
                                 resumen.id(), resumen.codigoInterno(), resumen.descripcionComercial(),
-                                resumen.tipoSku(), resumen.estado()))
+                                resumen.tipoSku(), resumen.estado(), resumen.unidadVentaCodigo(),
+                                resumen.permiteVentaFraccion(), resumen.precioVentaReferencia()))
                         .toList(),
                 result.page(), result.size(), result.totalElements());
     }

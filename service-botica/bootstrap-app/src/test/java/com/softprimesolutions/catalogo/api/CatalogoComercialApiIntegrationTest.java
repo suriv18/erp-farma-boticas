@@ -369,7 +369,10 @@ class CatalogoComercialApiIntegrationTest {
         mockMvc.perform(get("/api/v1/catalogo/skus")
                         .header("Authorization", consultor))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(skuId)).exists());
+                .andExpect(jsonPath("$.items[?(@.id=='%s')]".formatted(skuId)).exists())
+                .andExpect(jsonPath("$.items[?(@.id=='%s')].unidadVentaCodigo".formatted(skuId)).value("UND"))
+                .andExpect(jsonPath("$.items[?(@.id=='%s')].permiteVentaFraccion".formatted(skuId)).value(false))
+                .andExpect(jsonPath("$.items[?(@.id=='%s')].precioVentaReferencia".formatted(skuId)).value(15.25));
 
         mockMvc.perform(post("/api/v1/catalogo/skus")
                         .header("Authorization", gestor).with(csrf())
@@ -409,6 +412,19 @@ class CatalogoComercialApiIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigosBarra[?(@.codigoBarra=='7750001234567')]").exists());
+
+        mockMvc.perform(get("/api/v1/catalogo/skus")
+                        .header("Authorization", gestor)
+                        .param("q", "7750001234567"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(skuId));
+
+        mockMvc.perform(get("/api/v1/catalogo/skus")
+                        .header("Authorization", gestor)
+                        .param("q", "775000123456"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
 
         mockMvc.perform(patch("/api/v1/catalogo/skus/{skuId}/codigos-barra/{codigoBarra}/principal",
                         skuId, "7750001234567")
