@@ -42,7 +42,10 @@ export const sampleSku: SkuResumen = {
   codigoInterno: 'MED-001',
   descripcionComercial: 'Paracetamol 500 mg',
   tipoSku: 'REGULADO',
-  estado: 'ACTIVO'
+  estado: 'ACTIVO',
+  unidadVentaCodigo: 'UND',
+  permiteVentaFraccion: false,
+  precioVentaReferencia: 12.5
 };
 
 export const samplePosicion: Posicion = {

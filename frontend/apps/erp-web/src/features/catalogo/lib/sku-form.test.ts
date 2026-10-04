@@ -27,6 +27,7 @@ const sku: Sku = {
   afectoIgv: true,
   stockMinimoDefault: 5,
   stockMaximoDefault: null,
+  precioVentaReferencia: null,
   imagenUri: null,
   codigosBarra: [],
   estado: 'ACTIVO',
@@ -72,6 +73,20 @@ describe('sku-form', () => {
     expect(payload.categoriaId).toBeUndefined();
     expect(payload.stockMaximoDefault).toBeUndefined();
     expect(payload.imagenUri).toBeUndefined();
+  });
+
+  it('envía el precio de referencia numérico o lo omite si está vacío', () => {
+    expect(
+      toSkuPayload({ ...SKU_VACIO, precioVentaReferencia: '12.5' }).precioVentaReferencia
+    ).toBe(12.5);
+    expect(toSkuPayload(SKU_VACIO).precioVentaReferencia).toBeUndefined();
+  });
+
+  it('carga el precio de referencia en el formulario', () => {
+    expect(toSkuFormValues({ ...sku, precioVentaReferencia: 12.5 }).precioVentaReferencia).toBe(
+      '12.5'
+    );
+    expect(toSkuFormValues({ ...sku, precioVentaReferencia: null }).precioVentaReferencia).toBe('');
   });
 
   it('toSkuPayload con el formulario vacio usa los valores por defecto del DDL', () => {

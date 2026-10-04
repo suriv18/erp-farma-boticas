@@ -66,6 +66,7 @@ function skuApi(overrides: Record<string, unknown> = {}) {
     afectoIgv: true,
     stockMinimoDefault: 5,
     stockMaximoDefault: null,
+    precioVentaReferencia: null,
     imagenUri: null,
     codigosBarra: [],
     estado: 'ACTIVO',
@@ -101,6 +102,19 @@ describe('SkuDetailPage', () => {
       'href',
       '/catalogo/skus'
     );
+  });
+
+  it('muestra el precio de venta de referencia formateado o un marcador', async () => {
+    server.use(
+      http.get('*/api/v1/catalogo/skus/sku-1', () =>
+        HttpResponse.json(skuApi({ precioVentaReferencia: 12.5 }))
+      )
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Precio de venta de referencia')).toBeInTheDocument();
+    expect(screen.getByText(/S\/\s?12\.50/)).toBeInTheDocument();
   });
 
   it('muestra marcador cuando el SKU no tiene producto, categoria ni marca', async () => {

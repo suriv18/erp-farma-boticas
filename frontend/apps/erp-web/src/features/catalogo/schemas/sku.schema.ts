@@ -42,6 +42,13 @@ export const skuSchema = z
       requerido: false,
       permiteCero: true
     }),
+    precioVentaReferencia: decimal({
+      etiqueta: 'El precio de venta de referencia',
+      enteros: 10,
+      decimales: 4,
+      requerido: false,
+      permiteCero: true
+    }),
     imagenUri: textoMax('La URI de imagen', 2000)
   })
   .superRefine((valores, contexto) => {

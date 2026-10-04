@@ -31,6 +31,7 @@ export const SKU_VACIO: SkuFormValues = {
   afectoIgv: true,
   stockMinimoDefault: '0',
   stockMaximoDefault: '',
+  precioVentaReferencia: '',
   imagenUri: ''
 };
 
@@ -59,6 +60,7 @@ export function toSkuPayload(values: SkuFormValues): SkuPayload {
     afectoIgv: values.afectoIgv,
     stockMinimoDefault: Number(values.stockMinimoDefault),
     stockMaximoDefault: numeroOpcional(values.stockMaximoDefault),
+    precioVentaReferencia: numeroOpcional(values.precioVentaReferencia),
     imagenUri: textoOpcional(values.imagenUri)
   };
 }
@@ -88,6 +90,7 @@ export function toSkuFormValues(sku: Sku): SkuFormValues {
     afectoIgv: sku.afectoIgv,
     stockMinimoDefault: numeroDeFormulario(sku.stockMinimoDefault),
     stockMaximoDefault: numeroDeFormulario(sku.stockMaximoDefault),
+    precioVentaReferencia: numeroDeFormulario(sku.precioVentaReferencia),
     imagenUri: textoDeFormulario(sku.imagenUri)
   };
 }

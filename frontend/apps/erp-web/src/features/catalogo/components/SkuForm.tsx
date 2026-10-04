@@ -114,6 +114,7 @@ export function SkuForm({
         { name: 'afectoIgv', label: 'Afecto a IGV', tipo: 'checkbox' },
         { name: 'stockMinimoDefault', label: 'Stock mínimo por defecto', tipo: 'decimal' },
         { name: 'stockMaximoDefault', label: 'Stock máximo por defecto', tipo: 'decimal' },
+        { name: 'precioVentaReferencia', label: 'Precio de venta de referencia', tipo: 'decimal' },
         { name: 'imagenUri', label: 'URI de imagen', tipo: 'texto' }
       ]
     }

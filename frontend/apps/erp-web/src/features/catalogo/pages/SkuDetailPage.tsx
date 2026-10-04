@@ -6,7 +6,7 @@ import { apiClient } from '../../../app/api';
 import { DatoItem } from '../../../shared/components/DatoItem';
 import { FormError } from '../../../shared/components/FormError';
 import { describeApiError } from '../../../shared/lib/describe-api-error';
-import { valueOrDash, yesNo } from '../../../shared/lib/format';
+import { formatoMoneda, valueOrDash, yesNo } from '../../../shared/lib/format';
 import { useRouteParam } from '../../../shared/lib/use-route-param';
 import { actualizarSku, cambiarEstadoSku, skuQuery } from '../api/skus.api';
 import { ESTADOS_SKU } from '../api/skus.types';
@@ -86,6 +86,10 @@ export function SkuDetailPage() {
     ['Afecto a IGV', yesNo(sku.afectoIgv)],
     ['Stock mínimo por defecto', numeroDeFormulario(sku.stockMinimoDefault)],
     ['Stock máximo por defecto', valueOrDash(numeroDeFormulario(sku.stockMaximoDefault))],
+    [
+      'Precio de venta de referencia',
+      sku.precioVentaReferencia === null ? '—' : formatoMoneda(sku.precioVentaReferencia)
+    ],
     ['URI de imagen', valueOrDash(sku.imagenUri)]
   ];
 

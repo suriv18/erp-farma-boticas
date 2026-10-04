@@ -76,6 +76,17 @@ describe('skuSchema', () => {
     ]);
   });
 
+  it('valida el precio de venta de referencia opcional con hasta 4 decimales', () => {
+    expect(mensajes({ precioVentaReferencia: '' })).toEqual([]);
+    expect(mensajes({ precioVentaReferencia: '12.5' })).toEqual([]);
+    expect(mensajes({ precioVentaReferencia: '-1' })).toEqual([
+      'El precio de venta de referencia debe ser un número mayor o igual a cero con hasta 4 decimales.'
+    ]);
+    expect(mensajes({ precioVentaReferencia: '1.00001' })).toEqual([
+      'El precio de venta de referencia debe ser un número mayor o igual a cero con hasta 4 decimales.'
+    ]);
+  });
+
   it('impide un stock maximo menor que el minimo', () => {
     expect(mensajes({ stockMinimoDefault: '10', stockMaximoDefault: '5' })).toEqual([
       'El stock máximo no puede ser menor que el mínimo.'

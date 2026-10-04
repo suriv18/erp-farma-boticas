@@ -18,6 +18,9 @@ export type SkuResumen = {
   descripcionComercial: string;
   tipoSku: string;
   estado: string;
+  unidadVentaCodigo: string | null;
+  permiteVentaFraccion: boolean;
+  precioVentaReferencia: number | null;
 };
 
 export type Sku = {
@@ -46,6 +49,7 @@ export type Sku = {
   afectoIgv: boolean;
   stockMinimoDefault: number;
   stockMaximoDefault: number | null;
+  precioVentaReferencia: number | null;
   imagenUri: string | null;
   codigosBarra: CodigoBarraSku[];
   estado: string;
@@ -79,6 +83,7 @@ export type SkuPayload = {
   afectoIgv: boolean;
   stockMinimoDefault: number;
   stockMaximoDefault?: number | undefined;
+  precioVentaReferencia?: number | undefined;
   imagenUri?: string | undefined;
 };
 
