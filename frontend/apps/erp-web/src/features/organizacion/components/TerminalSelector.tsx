@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { SelectField } from '../../../shared/components/FormFields';
-import { corporateStructureQuery } from '../api/organization.api';
 import { terminalesQuery } from '../api/terminales.api';
+import { useEstablecimientos } from '../lib/use-establecimientos';
 
 type TerminalSelectorProps = {
   establecimientoId: string;
@@ -14,14 +14,11 @@ export function TerminalSelector({
   terminalId,
   onChange
 }: TerminalSelectorProps) {
-  const { data: estructura } = useQuery(corporateStructureQuery);
+  const establecimientos = useEstablecimientos();
   const { data: terminales } = useQuery({
     ...terminalesQuery({ establecimientoId, size: 100 }),
     enabled: establecimientoId !== ''
   });
-  const establecimientos = (estructura?.companies ?? []).flatMap(
-    ({ establishments }) => establishments
-  );
   const activas = (terminales?.items ?? []).filter(({ estado }) => estado === 'ACTIVO');
 
   return (
