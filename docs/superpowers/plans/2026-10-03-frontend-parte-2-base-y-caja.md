@@ -1111,7 +1111,7 @@ test.describe('Caja', () => {
 
 - [ ] **Step 2: Ejecutar y verificar**
 
-Run: `pnpm --filter @boticas/erp-web test -- src/features/caja/routes` → PASS; luego `pnpm test:e2e -- caja` (usar el script de e2e de `frontend/package.json`; si el nombre difiere, ver `scripts` y usar el que ejecuta Playwright) → PASS en desktop, tablet y móvil.
+Run: `pnpm --filter @boticas/erp-web test -- src/features/caja/routes` → PASS; luego `pnpm e2e -- caja.spec.ts` (usar el script de e2e de `frontend/package.json`; si el nombre difiere, ver `scripts` y usar el que ejecuta Playwright) → PASS en desktop, tablet y móvil.
 
 - [ ] **Step 3: Quitar la línea de baseline y verificar todo**
 
