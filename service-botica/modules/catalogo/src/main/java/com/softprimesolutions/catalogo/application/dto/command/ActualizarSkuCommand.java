@@ -31,6 +31,7 @@ public record ActualizarSkuCommand(
         boolean afectoIgv,
         BigDecimal stockMinimoDefault,
         BigDecimal stockMaximoDefault,
+        BigDecimal precioVentaReferencia,
         String imagenUri,
         String updatedBy) implements Command<SkuResult> {
 }

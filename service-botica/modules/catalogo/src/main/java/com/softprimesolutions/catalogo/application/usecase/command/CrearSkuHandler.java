@@ -60,7 +60,7 @@ public final class CrearSkuHandler implements CrearSkuUseCase {
                 command.unidadContenidoCodigo(), command.pesoGramos(), command.altoCm(), command.anchoCm(),
                 command.largoCm(), command.permiteVentaFraccion(), command.factorFraccion(),
                 command.unidadFraccionCodigo(), command.requiereLote(), command.requiereVencimiento(),
-                command.afectoIgv(), command.stockMinimoDefault(), command.stockMaximoDefault(),
+                command.afectoIgv(), command.stockMinimoDefault(), command.stockMaximoDefault(), command.precioVentaReferencia(),
                 command.imagenUri(), command.createdBy(), clock.now());
         return sku.fold(this::persist, this::validationFailure);
     }

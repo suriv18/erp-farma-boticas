@@ -296,10 +296,12 @@ class CatalogoComercialApiIntegrationTest {
                                 {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
                                  "descripcionComercial":"Producto sin receta","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
-                                 "afectoIgv":true,"stockMinimoDefault":0}
+                                 "afectoIgv":true,"stockMinimoDefault":0,
+                                 "precioVentaReferencia":12.5}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.codigoInterno").value("SKU-001"))
+                .andExpect(jsonPath("$.precioVentaReferencia").value(12.5))
                 .andExpect(jsonPath("$.estado").value("ACTIVO"))
                 .andReturn().getResponse().getContentAsString();
         String skuId = JsonPath.read(createResponse, "$.id");
@@ -311,10 +313,12 @@ class CatalogoComercialApiIntegrationTest {
                                 {"tipoSku":"NO_REGULADO","codigoInterno":"SKU-001",
                                  "descripcionComercial":"Producto sin receta actualizado","unidadVentaCodigo":"UND",
                                  "permiteVentaFraccion":false,"requiereLote":false,"requiereVencimiento":false,
-                                 "afectoIgv":true,"stockMinimoDefault":0}
+                                 "afectoIgv":true,"stockMinimoDefault":0,
+                                 "precioVentaReferencia":15.25}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.descripcionComercial").value("Producto sin receta actualizado"));
+                .andExpect(jsonPath("$.descripcionComercial").value("Producto sin receta actualizado"))
+                .andExpect(jsonPath("$.precioVentaReferencia").value(15.25));
 
         mockMvc.perform(patch("/api/v1/catalogo/skus/{skuId}/estado", skuId)
                         .header("Authorization", gestor).with(csrf())
@@ -331,7 +335,8 @@ class CatalogoComercialApiIntegrationTest {
                         .header("Authorization", consultor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(skuId))
-                .andExpect(jsonPath("$.estado").value("BLOQUEADO"));
+                .andExpect(jsonPath("$.estado").value("BLOQUEADO"))
+                .andExpect(jsonPath("$.precioVentaReferencia").value(15.25));
 
         var categoriaParaFiltroResponse = mockMvc.perform(post("/api/v1/catalogo/categorias")
                         .header("Authorization", gestor).with(csrf())

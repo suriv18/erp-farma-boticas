@@ -31,6 +31,7 @@ public record SkuResponse(
         boolean afectoIgv,
         BigDecimal stockMinimoDefault,
         BigDecimal stockMaximoDefault,
+        BigDecimal precioVentaReferencia,
         String imagenUri,
         List<CodigoBarraSkuResponse> codigosBarra,
         String estado,

@@ -30,6 +30,7 @@ public record CrearSkuCommand(
         boolean afectoIgv,
         BigDecimal stockMinimoDefault,
         BigDecimal stockMaximoDefault,
+        BigDecimal precioVentaReferencia,
         String imagenUri,
         String createdBy) implements Command<SkuResult> {
 }

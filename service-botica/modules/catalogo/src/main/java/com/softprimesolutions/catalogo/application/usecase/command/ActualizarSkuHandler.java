@@ -62,7 +62,7 @@ public final class ActualizarSkuHandler implements ActualizarSkuUseCase {
                 command.unidadContenidoCodigo(), command.pesoGramos(), command.altoCm(), command.anchoCm(),
                 command.largoCm(), command.permiteVentaFraccion(), command.factorFraccion(),
                 command.unidadFraccionCodigo(), command.requiereLote(), command.requiereVencimiento(),
-                command.afectoIgv(), command.stockMinimoDefault(), command.stockMaximoDefault(),
+                command.afectoIgv(), command.stockMinimoDefault(), command.stockMaximoDefault(), command.precioVentaReferencia(),
                 command.imagenUri(), existing.get().createdBy(), existing.get().createdAt());
         return sku.map(updated -> updated.conActualizacion(command.updatedBy(), clock.now()))
                 .fold(this::persist, this::validationFailure);

@@ -25,6 +25,8 @@ public final class SKUComercial extends AggregateRoot {
     private static final int PRESENTACION_COMERCIAL_MAX_LENGTH = 300;
     private static final int CODIGO_REFERENCIA_MAX_LENGTH = 30;
     private static final int IMAGEN_URI_MAX_LENGTH = 2000;
+    private static final int PRECIO_MAX_DECIMALES = 4;
+    private static final BigDecimal PRECIO_MAXIMO = new BigDecimal("1000000000");
 
     private final SkuId id;
     private final TenantId tenantId;
@@ -51,6 +53,7 @@ public final class SKUComercial extends AggregateRoot {
     private final boolean afectoIgv;
     private final BigDecimal stockMinimoDefault;
     private final BigDecimal stockMaximoDefault;
+    private final BigDecimal precioVentaReferencia;
     private final String imagenUri;
     private final List<CodigoBarraSku> codigosBarra;
     private final EstadoComercialSku estado;
@@ -66,7 +69,8 @@ public final class SKUComercial extends AggregateRoot {
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
             BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
             boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
-            BigDecimal stockMaximoDefault, String imagenUri, List<CodigoBarraSku> codigosBarra,
+            BigDecimal stockMaximoDefault, BigDecimal precioVentaReferencia, String imagenUri,
+            List<CodigoBarraSku> codigosBarra,
             EstadoComercialSku estado, String createdBy, Instant createdAt, String updatedBy, Instant updatedAt) {
         this.id = id;
         this.tenantId = tenantId;
@@ -93,6 +97,7 @@ public final class SKUComercial extends AggregateRoot {
         this.afectoIgv = afectoIgv;
         this.stockMinimoDefault = stockMinimoDefault;
         this.stockMaximoDefault = stockMaximoDefault;
+        this.precioVentaReferencia = precioVentaReferencia;
         this.imagenUri = imagenUri;
         this.codigosBarra = List.copyOf(codigosBarra);
         this.estado = estado;
@@ -109,7 +114,8 @@ public final class SKUComercial extends AggregateRoot {
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
             BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
             boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
-            BigDecimal stockMaximoDefault, String imagenUri, String createdBy, Instant createdAt) {
+            BigDecimal stockMaximoDefault, BigDecimal precioVentaReferencia, String imagenUri,
+            String createdBy, Instant createdAt) {
         if (id == null) return invalid("id", "La identidad del SKU es obligatoria.");
         if (tenantId == null) return invalid("tenantId", "El tenant es obligatorio.");
         if (tipoSku == null) return invalid("tipoSku", "El tipo de SKU es obligatorio.");
@@ -199,6 +205,13 @@ public final class SKUComercial extends AggregateRoot {
             return invalid("stockMaximoDefault", "El stock máximo por defecto no puede ser menor que el mínimo.");
         }
 
+        if (precioVentaReferencia != null && (precioVentaReferencia.signum() < 0
+                || precioVentaReferencia.compareTo(PRECIO_MAXIMO) > 0
+                || precioVentaReferencia.stripTrailingZeros().scale() > PRECIO_MAX_DECIMALES)) {
+            return invalid("precioVentaReferencia",
+                    "El precio de venta de referencia debe estar entre 0 y 1000000000 con hasta 4 decimales.");
+        }
+
         var normalizedImagenUri = normalizeNullable(imagenUri);
         if (!withinLength(normalizedImagenUri, IMAGEN_URI_MAX_LENGTH)) {
             return invalid("imagenUri", "La URI de imagen no debe exceder 2000 caracteres.");
@@ -210,7 +223,7 @@ public final class SKUComercial extends AggregateRoot {
                 normalizedUnidadVentaCodigo, contenido, normalizedUnidadContenidoCodigo, pesoGramos, altoCm,
                 anchoCm, largoCm, permiteVentaFraccion, factorFraccion, normalizedUnidadFraccionCodigo,
                 requiereLote, requiereVencimiento, afectoIgv, stockMinimoDefault, stockMaximoDefault,
-                normalizedImagenUri, List.of(), EstadoComercialSku.ACTIVO, createdBy.trim(), createdAt, null, null));
+                precioVentaReferencia, normalizedImagenUri, List.of(), EstadoComercialSku.ACTIVO, createdBy.trim(), createdAt, null, null));
     }
 
     public static SKUComercial restore(
@@ -220,7 +233,8 @@ public final class SKUComercial extends AggregateRoot {
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
             BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
             boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
-            BigDecimal stockMaximoDefault, String imagenUri, List<CodigoBarraSku> codigosBarra,
+            BigDecimal stockMaximoDefault, BigDecimal precioVentaReferencia, String imagenUri,
+            List<CodigoBarraSku> codigosBarra,
             EstadoComercialSku estado, String createdBy, Instant createdAt, String updatedBy,
             Instant updatedAt) {
         return new SKUComercial(
@@ -228,7 +242,7 @@ public final class SKUComercial extends AggregateRoot {
                 descripcionComercial, nombreCorto, presentacionComercial, unidadVentaCodigo, contenido,
                 unidadContenidoCodigo, pesoGramos, altoCm, anchoCm, largoCm, permiteVentaFraccion,
                 factorFraccion, unidadFraccionCodigo, requiereLote, requiereVencimiento, afectoIgv,
-                stockMinimoDefault, stockMaximoDefault, imagenUri, codigosBarra, estado, createdBy, createdAt,
+                stockMinimoDefault, stockMaximoDefault, precioVentaReferencia, imagenUri, codigosBarra, estado, createdBy, createdAt,
                 updatedBy, updatedAt);
     }
 
@@ -261,7 +275,7 @@ public final class SKUComercial extends AggregateRoot {
                 descripcionComercial, nombreCorto, presentacionComercial, unidadVentaCodigo, contenido,
                 unidadContenidoCodigo, pesoGramos, altoCm, anchoCm, largoCm, permiteVentaFraccion,
                 factorFraccion, unidadFraccionCodigo, requiereLote, requiereVencimiento, afectoIgv,
-                stockMinimoDefault, stockMaximoDefault, imagenUri, codigosBarra, estado, createdBy, createdAt,
+                stockMinimoDefault, stockMaximoDefault, precioVentaReferencia, imagenUri, codigosBarra, estado, createdBy, createdAt,
                 actor, at);
     }
 
@@ -271,7 +285,7 @@ public final class SKUComercial extends AggregateRoot {
                 descripcionComercial, nombreCorto, presentacionComercial, unidadVentaCodigo, contenido,
                 unidadContenidoCodigo, pesoGramos, altoCm, anchoCm, largoCm, permiteVentaFraccion,
                 factorFraccion, unidadFraccionCodigo, requiereLote, requiereVencimiento, afectoIgv,
-                stockMinimoDefault, stockMaximoDefault, imagenUri, nuevaLista, estado, createdBy, createdAt,
+                stockMinimoDefault, stockMaximoDefault, precioVentaReferencia, imagenUri, nuevaLista, estado, createdBy, createdAt,
                 updatedBy, updatedAt);
     }
 
@@ -327,6 +341,7 @@ public final class SKUComercial extends AggregateRoot {
     public boolean afectoIgv() { return afectoIgv; }
     public BigDecimal stockMinimoDefault() { return stockMinimoDefault; }
     public BigDecimal stockMaximoDefault() { return stockMaximoDefault; }
+    public BigDecimal precioVentaReferencia() { return precioVentaReferencia; }
     public String imagenUri() { return imagenUri; }
     public List<CodigoBarraSku> codigosBarra() { return codigosBarra; }
     public EstadoComercialSku estado() { return estado; }

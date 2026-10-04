@@ -209,7 +209,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                                    unidad_fraccion_codigo = :unidadFraccionCodigo, requiere_lote = :requiereLote,
                                    requiere_vencimiento = :requiereVencimiento, afecto_igv = :afectoIgv,
                                    stock_minimo_default = :stockMinimoDefault,
-                                   stock_maximo_default = :stockMaximoDefault, imagen_uri = :imagenUri,
+                                   stock_maximo_default = :stockMaximoDefault,
+                                   precio_venta_referencia = :precioVentaReferencia, imagen_uri = :imagenUri,
                                    updated_by = :updatedBy, updated_at = :updatedAt
                              WHERE uuid_publico = :skuId
                             """)
@@ -236,6 +237,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                     .param("afectoIgv", sku.afectoIgv())
                     .param("stockMinimoDefault", sku.stockMinimoDefault())
                     .param("stockMaximoDefault", sku.stockMaximoDefault())
+                    .param("precioVentaReferencia", sku.precioVentaReferencia())
                     .param("imagenUri", sku.imagenUri())
                     .param("updatedBy", sku.updatedBy())
                     .param("updatedAt", toOffsetDateTime(sku.updatedAt()))
@@ -294,6 +296,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 entity.get().getUnidadFraccionCodigo(), entity.get().isRequiereLote(),
                 entity.get().isRequiereVencimiento(), entity.get().isAfectoIgv(),
                 entity.get().getStockMinimoDefault(), entity.get().getStockMaximoDefault(),
+                entity.get().getPrecioVentaReferencia(),
                 entity.get().getImagenUri(), codigos,
                 EstadoComercialSku.valueOf(entity.get().getEstadoComercial()),
                 entity.get().getCreatedBy(), entity.get().getCreatedAt(), entity.get().getUpdatedBy(),

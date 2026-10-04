@@ -40,7 +40,8 @@ public final class CatalogoComercialWriteMapper {
                 sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(), sku.pesoGramos(),
                 sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(), sku.factorFraccion(),
                 sku.unidadFraccionCodigo(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
-                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(), sku.estado().name(),
+                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.precioVentaReferencia(), sku.imagenUri(),
+                sku.estado().name(),
                 sku.createdBy(), sku.createdAt(), sku.updatedBy(), sku.updatedAt());
     }
 

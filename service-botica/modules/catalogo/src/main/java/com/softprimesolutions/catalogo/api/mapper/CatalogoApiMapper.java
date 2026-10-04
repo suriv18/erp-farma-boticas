@@ -342,7 +342,7 @@ public final class CatalogoApiMapper {
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
                 request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
-                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(), request.precioVentaReferencia(),
                 request.imagenUri(), createdBy);
     }
 
@@ -355,7 +355,7 @@ public final class CatalogoApiMapper {
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
                 request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
-                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(), request.precioVentaReferencia(),
                 request.imagenUri(), updatedBy);
     }
 
@@ -373,7 +373,8 @@ public final class CatalogoApiMapper {
                 result.contenido(), result.unidadContenidoCodigo(), result.pesoGramos(), result.altoCm(),
                 result.anchoCm(), result.largoCm(), result.permiteVentaFraccion(), result.factorFraccion(),
                 result.unidadFraccionCodigo(), result.requiereLote(), result.requiereVencimiento(),
-                result.afectoIgv(), result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
+                result.afectoIgv(), result.stockMinimoDefault(), result.stockMaximoDefault(), result.precioVentaReferencia(),
+                result.imagenUri(),
                 result.codigosBarra().stream()
                         .map(codigo -> new CodigoBarraSkuResponse(
                                 codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),

@@ -92,6 +92,9 @@ public class SkuComercialJpaEntity {
     @Column(name = "stock_maximo_default")
     private BigDecimal stockMaximoDefault;
 
+    @Column(name = "precio_venta_referencia")
+    private BigDecimal precioVentaReferencia;
+
     @Column(name = "imagen_uri")
     private String imagenUri;
 
@@ -120,7 +123,8 @@ public class SkuComercialJpaEntity {
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
             BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
             boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
-            BigDecimal stockMaximoDefault, String imagenUri, String estadoComercial, String createdBy,
+            BigDecimal stockMaximoDefault, BigDecimal precioVentaReferencia, String imagenUri,
+            String estadoComercial, String createdBy,
             Instant createdAt, String updatedBy, Instant updatedAt) {
         this.uuidPublico = uuidPublico;
         this.tenantId = tenantId;
@@ -147,6 +151,7 @@ public class SkuComercialJpaEntity {
         this.afectoIgv = afectoIgv;
         this.stockMinimoDefault = stockMinimoDefault;
         this.stockMaximoDefault = stockMaximoDefault;
+        this.precioVentaReferencia = precioVentaReferencia;
         this.imagenUri = imagenUri;
         this.estadoComercial = estadoComercial;
         this.createdBy = createdBy;
@@ -181,6 +186,7 @@ public class SkuComercialJpaEntity {
     public boolean isAfectoIgv() { return afectoIgv; }
     public BigDecimal getStockMinimoDefault() { return stockMinimoDefault; }
     public BigDecimal getStockMaximoDefault() { return stockMaximoDefault; }
+    public BigDecimal getPrecioVentaReferencia() { return precioVentaReferencia; }
     public String getImagenUri() { return imagenUri; }
     public String getEstadoComercial() { return estadoComercial; }
     public String getCreatedBy() { return createdBy; }
