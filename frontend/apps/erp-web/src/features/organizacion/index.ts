@@ -8,6 +8,11 @@ export type {
 } from './api/organization.api';
 export { terminalesQuery } from './api/terminales.api';
 export type { Terminal } from './api/terminales.types';
-export { usePuestoTrabajo, PUESTO_VACIO, type PuestoTrabajo } from './lib/use-puesto-trabajo';
+export {
+  usePuestoTrabajo,
+  cambiarTerminal,
+  PUESTO_VACIO,
+  type PuestoTrabajo
+} from './lib/use-puesto-trabajo';
 export { useEstablecimientos } from './lib/use-establecimientos';
 export { TerminalSelector } from './components/TerminalSelector';

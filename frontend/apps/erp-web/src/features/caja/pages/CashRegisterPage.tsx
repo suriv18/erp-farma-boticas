@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import { TerminalSelector, usePuestoTrabajo } from '../../organizacion';
+import { TerminalSelector, cambiarTerminal, usePuestoTrabajo } from '../../organizacion';
 import { abrirTurno, cerrarTurno, turnoActualQuery } from '../api/turnos.api';
 import type { Turno } from '../api/caja.types';
 import { AbrirTurnoForm } from '../components/AbrirTurnoForm';
@@ -79,12 +79,7 @@ export function CashRegisterPage() {
           establecimientoId={puesto.establecimientoId}
           terminalId={puesto.terminalId}
           onChange={(establecimientoId, terminalId) =>
-            setPuesto({
-              ...puesto,
-              establecimientoId,
-              terminalId,
-              almacenId: establecimientoId === puesto.establecimientoId ? puesto.almacenId : ''
-            })
+            setPuesto(cambiarTerminal(puesto, establecimientoId, terminalId))
           }
         />
       </Card>
