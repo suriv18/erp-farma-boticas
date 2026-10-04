@@ -26,6 +26,7 @@ describe('featureRoutes', () => {
       'inventario/lotes/:loteId',
       'compras',
       'ventas',
+      'ventas/:ventaId',
       'pos',
       'caja',
       'clientes',

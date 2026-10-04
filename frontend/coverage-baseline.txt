@@ -24,7 +24,6 @@ apps/erp-web/src/features/seguridad/pages/UserDetailPage.tsx
 apps/erp-web/src/features/seguridad/pages/UsersPage.tsx
 apps/erp-web/src/features/seguridad/routes.tsx
 apps/erp-web/src/features/seguridad/schemas/asignacion-rol.schema.ts
-apps/erp-web/src/features/ventas/routes.tsx
 packages/api-client/src/client.ts
 packages/ui-web/src/dropdown-menu/DropdownMenu.tsx
 packages/ui-web/src/form-field/FormField.tsx
