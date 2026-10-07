@@ -17,7 +17,7 @@ export function PuestoVenta({ puesto, onChange }: PuestoVentaProps) {
     useEstablecimientos().find(({ id }) => id === puesto.establecimientoId)?.warehouses ?? [];
 
   return (
-    <Card className="space-y-4 p-4">
+    <Card className="grid gap-4 p-5 md:grid-cols-3 md:[&>*:first-child]:col-span-2">
       <TerminalSelector
         establecimientoId={puesto.establecimientoId}
         terminalId={puesto.terminalId}

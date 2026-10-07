@@ -4,7 +4,7 @@ import { Button } from '@boticas/ui-web';
 import { FormError } from '../../../shared/components/FormError';
 import { TextField } from '../../../shared/components/FormFields';
 import { formatoMoneda } from '../../../shared/lib/format';
-import { diferenciaArqueo } from '../lib/arqueo';
+import { claseDiferencia, diferenciaArqueo } from '../lib/arqueo';
 import {
   PATRON_MONTO,
   cerrarTurnoSchema,
@@ -52,7 +52,9 @@ export function CerrarTurnoForm({
         {...register('totalDeclarado')}
       />
       {PATRON_MONTO.test(totalDeclarado) ? (
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">
+        <p
+          className={`rounded-xl bg-neutral-50 px-4 py-3 text-sm dark:bg-neutral-800/60 ${claseDiferencia(diferenciaArqueo(totalEstimado, Number(totalDeclarado)))}`}
+        >
           {`Diferencia estimada: ${formatoMoneda(diferenciaArqueo(totalEstimado, Number(totalDeclarado)))}`}
         </p>
       ) : null}
