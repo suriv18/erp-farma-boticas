@@ -9,24 +9,18 @@ import java.util.UUID;
 
 public final class TurnoRows {
 
-    private static final String VENTAS_EN_EFECTIVO = """
-            (SELECT COALESCE(SUM(p.monto), 0)
-               FROM sch_venta.pago_venta p
-               JOIN sch_venta.venta v ON v.tenant_id = p.tenant_id AND v.id = p.venta_id
-              WHERE v.tenant_id = tc.tenant_id AND v.turno_caja_id = tc.id
-                AND v.estado = 'CONFIRMADA' AND v.es_activo = '1'
-                AND p.estado = 'CONFIRMADO' AND p.es_activo = '1')""";
-    public static final String SELECT = """
+    public static final String FILTRO_VENTAS_EN_EFECTIVO = """
+            v.estado = 'CONFIRMADA' AND v.es_activo = '1'
+               AND p.estado = 'CONFIRMADO' AND p.es_activo = '1'""";
+    private static final String COLUMNAS = """
             SELECT tc.uuid_publico, tp.uuid_publico AS terminal_uuid, es.uuid_publico AS establecimiento_uuid,
                    m.uuid_publico AS cajero_uuid, tc.apertura_at, tc.fondo_inicial, tc.estado, tc.cierre_at,
-                   CASE WHEN tc.estado = 'CERRADO' THEN tc.total_ventas_sistema ELSE
-            """ + VENTAS_EN_EFECTIVO + """
-                   END AS total_ventas_sistema,
-                   CASE WHEN tc.estado = 'CERRADO' THEN tc.total_sistema ELSE tc.fondo_inicial + 
-            """ + VENTAS_EN_EFECTIVO + """
-                   END AS total_sistema,
+            """;
+    private static final String COLUMNAS_FINALES = """
                    tc.total_declarado, tc.diferencia, tc.observacion_cierre
               FROM sch_venta.turno_caja tc
+            """;
+    private static final String RELACIONES = """
               JOIN sch_admin.tenant t ON t.id = tc.tenant_id
               JOIN sch_organizacion.terminal_pos tp ON tp.id = tc.terminal_id AND tp.tenant_id = tc.tenant_id
               JOIN sch_organizacion.establecimiento_farmaceutico es
@@ -34,6 +28,26 @@ public final class TurnoRows {
               JOIN sch_seguridad.membership m ON m.id = tc.cajero_usuario_id
              WHERE t.uuid_publico = :tenantId AND tc.es_activo = '1'
             """;
+    public static final String SELECT = COLUMNAS + """
+                   tc.total_ventas_sistema, tc.total_sistema,
+            """ + COLUMNAS_FINALES + RELACIONES;
+    private static final String SELECT_EN_VIVO = COLUMNAS + """
+                   CASE WHEN tc.estado = 'CERRADO' THEN tc.total_ventas_sistema ELSE ventas.total END
+                       AS total_ventas_sistema,
+                   CASE WHEN tc.estado = 'CERRADO' THEN tc.total_sistema ELSE tc.fondo_inicial + ventas.total END
+                       AS total_sistema,
+            """ + COLUMNAS_FINALES + """
+              LEFT JOIN LATERAL (
+                   SELECT COALESCE(SUM(p.monto), 0) AS total
+                     FROM sch_venta.pago_venta p
+                     JOIN sch_venta.venta v ON v.tenant_id = p.tenant_id AND v.id = p.venta_id
+                    WHERE tc.estado <> 'CERRADO' AND v.tenant_id = tc.tenant_id AND v.turno_caja_id = tc.id
+                      AND\s""" + FILTRO_VENTAS_EN_EFECTIVO + """
+              ) ventas ON true
+            """ + RELACIONES;
+    public static final String EN_VIVO_POR_ID = SELECT_EN_VIVO + " AND tc.uuid_publico = :turnoId";
+    public static final String EN_VIVO_ABIERTO_POR_TERMINAL = SELECT_EN_VIVO
+            + " AND tp.uuid_publico = :terminalId AND tc.estado IN ('ABIERTO', 'EN_ARQUEO')";
     public static final String POR_ID = SELECT + " AND tc.uuid_publico = :turnoId";
     public static final String ABIERTO_POR_TERMINAL = SELECT
             + " AND tp.uuid_publico = :terminalId AND tc.estado IN ('ABIERTO', 'EN_ARQUEO')";

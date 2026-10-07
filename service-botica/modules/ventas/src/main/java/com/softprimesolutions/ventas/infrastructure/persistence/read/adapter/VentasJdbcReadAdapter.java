@@ -100,7 +100,7 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<TurnoResult> findTurno(UUID tenantId, UUID turnoId) {
-        return jdbcClient.sql(TurnoRows.POR_ID)
+        return jdbcClient.sql(TurnoRows.EN_VIVO_POR_ID)
                 .param("tenantId", tenantId)
                 .param("turnoId", turnoId)
                 .query((rs, rowNumber) -> VentasApplicationMapper.toResult(TurnoRows.map(rs, tenantId)))
@@ -110,7 +110,7 @@ public class VentasJdbcReadAdapter implements VentasReadPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<TurnoResult> findTurnoAbierto(UUID tenantId, UUID terminalId) {
-        return jdbcClient.sql(TurnoRows.ABIERTO_POR_TERMINAL)
+        return jdbcClient.sql(TurnoRows.EN_VIVO_ABIERTO_POR_TERMINAL)
                 .param("tenantId", tenantId)
                 .param("terminalId", terminalId)
                 .query((rs, rowNumber) -> VentasApplicationMapper.toResult(TurnoRows.map(rs, tenantId)))

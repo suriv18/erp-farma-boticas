@@ -43,9 +43,7 @@ public class TurnoJdbcWriteAdapter implements TurnoWritePort {
               JOIN sch_venta.turno_caja tc ON tc.tenant_id = v.tenant_id AND tc.id = v.turno_caja_id
               JOIN sch_admin.tenant t ON t.id = tc.tenant_id
              WHERE t.uuid_publico = :tenantId AND tc.uuid_publico = :turnoId
-               AND v.estado = 'CONFIRMADA' AND v.es_activo = '1'
-               AND p.estado = 'CONFIRMADO' AND p.es_activo = '1'
-            """;
+               AND\s""" + TurnoRows.FILTRO_VENTAS_EN_EFECTIVO;
     private static final String ACTUALIZAR_CIERRE = """
             UPDATE sch_venta.turno_caja
                SET estado = 'CERRADO', cierre_at = :cierreAt, total_ventas_sistema = :totalVentas,
