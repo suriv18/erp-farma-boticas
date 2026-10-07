@@ -268,6 +268,30 @@ class VentaApiIntegrationTest {
     }
 
     @Test
+    void anOpenTurnoReportsTheConfirmedCashSalesMadeSoFar() throws Exception {
+        ingresar("20", "L-001", LocalDate.now().plusYears(1));
+        var anulada = vender("clave-1", "2", "5", "10").andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        vender("clave-2", "3", "5", "20").andExpect(status().isCreated());
+        mockMvc.perform(post(ANULAR, UUID.fromString(JsonPath.read(anulada, "$.id")))
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\":\"Cliente se arrepintio\"}"))
+                .andExpect(status().isOk());
+
+        var actual = mockMvc.perform(get(TURNOS + "/actual").header("Authorization", bearer)
+                        .param("terminalId", terminalId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ABIERTO"))
+                .andExpect(jsonPath("$.totalVentasSistema").value(15.0))
+                .andExpect(jsonPath("$.totalSistema").value(115.0))
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(get(TURNOS + "/{id}", UUID.fromString(JsonPath.read(actual, "$.id")))
+                        .header("Authorization", bearer))
+                .andExpect(jsonPath("$.totalSistema").value(115.0));
+    }
+
+    @Test
     void validatesTheRequestAndItsReferences() throws Exception {
         ingresar("10", "L-001", LocalDate.now().plusYears(1));
 

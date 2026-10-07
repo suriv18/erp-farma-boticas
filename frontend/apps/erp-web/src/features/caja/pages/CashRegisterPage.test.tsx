@@ -133,6 +133,21 @@ describe('CashRegisterPage', () => {
     );
   });
 
+  it('estima la diferencia contra el total del sistema que incluye las ventas en efectivo', async () => {
+    guardarPuesto();
+    server.use(
+      http.get(turnoActualUrl, () =>
+        HttpResponse.json({ ...sampleTurno, totalVentasSistema: 25, totalSistema: 125 })
+      )
+    );
+    const { user } = renderPage();
+
+    await user.type(await screen.findByLabelText('Total declarado'), '120');
+
+    expect(screen.getByText('Diferencia estimada: -S/ 5.00')).toBeInTheDocument();
+    expect(screen.getByText('S/ 125.00')).toBeInTheDocument();
+  });
+
   it('envía el cierre sin observación cuando está en blanco', async () => {
     guardarPuesto();
     let body: unknown;

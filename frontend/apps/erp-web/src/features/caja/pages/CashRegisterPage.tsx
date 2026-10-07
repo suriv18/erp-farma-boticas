@@ -44,37 +44,44 @@ export function CashRegisterPage() {
     if (turnoCerrado) return <ResultadoCierre turno={turnoCerrado} />;
     if (turno === null) {
       return (
-        <div className="space-y-4">
-          <p>No hay un turno abierto en esta terminal.</p>
+        <Card className="mx-auto max-w-md space-y-5 p-6">
+          <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+            No hay un turno abierto en esta terminal.
+          </p>
           <AbrirTurnoForm
             isSubmitting={apertura.isPending}
             error={apertura.mensajeError}
             onSubmit={(valores) => apertura.mutate(valores)}
           />
-        </div>
+        </Card>
       );
     }
     return (
-      <div className="space-y-4">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <ResumenTurno turno={turno} />
-        <CerrarTurnoForm
-          totalEstimado={turno.fondoInicial}
-          isSubmitting={cierre.isPending}
-          error={cierre.mensajeError}
-          onSubmit={(valores) => cierre.mutate({ turnoId: turno.id, valores })}
-        />
+        <Card className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+            Arqueo de caja
+          </h2>
+          <CerrarTurnoForm
+            totalEstimado={turno.totalSistema ?? turno.fondoInicial}
+            isSubmitting={cierre.isPending}
+            error={cierre.mensajeError}
+            onSubmit={(valores) => cierre.mutate({ turnoId: turno.id, valores })}
+          />
+        </Card>
       </div>
     );
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Caja"
         context="Operaciones / Caja"
         description="Apertura y cierre del turno de la terminal."
       />
-      <Card>
+      <Card className="p-5">
         <TerminalSelector
           establecimientoId={puesto.establecimientoId}
           terminalId={puesto.terminalId}
