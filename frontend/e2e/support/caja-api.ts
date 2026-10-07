@@ -24,8 +24,8 @@ const terminal = {
   updatedAt: null
 };
 
-export async function mockCajaApi(page: Page) {
-  let turno: Turno | null = null;
+export async function mockCajaApi(page: Page, opciones: { turnoAbierto?: boolean } = {}) {
+  let turno: Turno | null = opciones.turnoAbierto ? sampleTurno : null;
 
   await page.route('**/api/v1/estructura-corporativa', (route) =>
     json(route, 200, sampleEstructura)

@@ -15,7 +15,6 @@ apps/erp-web/src/features/compras/routes.tsx
 apps/erp-web/src/features/dashboard/pages/DashboardPage.tsx
 apps/erp-web/src/features/dashboard/routes.tsx
 apps/erp-web/src/features/perfil/routes.tsx
-apps/erp-web/src/features/pos/routes.tsx
 apps/erp-web/src/features/seguridad/components/AsignarRolDialog.tsx
 apps/erp-web/src/features/seguridad/components/IdentidadExternaForm.tsx
 apps/erp-web/src/features/seguridad/pages/PermissionsPage.tsx
