@@ -28,7 +28,7 @@ export function PosPage() {
   const queryClient = useQueryClient();
   const { puesto, setPuesto } = usePuestoTrabajo();
   const establecimientos = useEstablecimientos();
-  const claveDe = useClaveIdempotencia();
+  const { claveDe, reiniciar } = useClaveIdempotencia();
   const [carrito, setCarrito] = useState<Carrito>([]);
   const [recibido, setRecibido] = useState('');
   const { data: turno } = useQuery({
@@ -45,12 +45,14 @@ export function PosPage() {
       );
       return registrarVenta(apiClient, payload, claveDe(payload));
     },
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: () => {
+      reiniciar();
+      return Promise.all([
         invalidateVentas(queryClient),
         invalidateCaja(queryClient),
         invalidateInventario(queryClient)
-      ])
+      ]);
+    }
   });
 
   const total = totalCarrito(carrito);

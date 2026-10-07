@@ -17,7 +17,7 @@ type AjusteDialogProps = {
 
 export function AjusteDialog({ posicion, onClose }: AjusteDialogProps) {
   const almacenes = almacenesDe(useOpcionesEstablecimientos(), undefined);
-  const claveDe = useClaveIdempotencia();
+  const { claveDe } = useClaveIdempotencia();
   const mutation = useMutacionInventario((values: AjusteFormValues) => {
     const payload = toRegistrarMovimientoPayload(values);
     return registrarMovimiento(apiClient, payload, claveDe(payload));

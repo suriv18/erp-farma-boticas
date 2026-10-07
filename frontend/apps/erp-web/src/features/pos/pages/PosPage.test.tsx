@@ -290,4 +290,28 @@ describe('PosPage', () => {
 
     expect(screen.getByLabelText('Cantidad de MED-001')).toBeInTheDocument();
   });
+
+  it('una segunda venta idéntica tras la primera usa otra clave de idempotencia', async () => {
+    mockEntorno();
+    const claves: (string | null)[] = [];
+    server.use(
+      http.post(ventasUrl, ({ request }) => {
+        claves.push(request.headers.get('Idempotency-Key'));
+        return HttpResponse.json(sampleVenta, { status: 201 });
+      })
+    );
+    const { user } = renderPage();
+    await prepararCobro(user);
+    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(await screen.findByRole('button', { name: 'Nueva venta' }));
+
+    await agregarParacetamol(user);
+    await user.type(screen.getByLabelText('Monto recibido'), '30');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await screen.findByText('Venta registrada');
+
+    expect(claves).toHaveLength(2);
+    expect(claves[0]).not.toBe(claves[1]);
+  });
 });
