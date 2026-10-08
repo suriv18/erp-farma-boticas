@@ -191,6 +191,7 @@ describe('errorLinea', () => {
 describe('totales', () => {
   it('importeBruto multiplica y redondea a dos decimales y es cero si la línea es inválida', () => {
     expect(importeBruto(conPrecio({ cantidad: '3', precio: '0.3333' }))).toBe(1);
+    expect(importeBruto(conPrecio({ cantidad: '1', precio: '4.145' }))).toBe(4.15);
     expect(importeBruto(conPrecio({ cantidad: '' }))).toBe(0);
     expect(importeBruto(conPrecio({ precio: '' }))).toBe(0);
   });
