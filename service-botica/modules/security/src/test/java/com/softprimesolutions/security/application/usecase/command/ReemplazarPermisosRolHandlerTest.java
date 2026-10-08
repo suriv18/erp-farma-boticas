@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.softprimesolutions.security.application.dto.command.ReemplazarPermisosRolCommand;
 import com.softprimesolutions.security.application.port.out.IamWritePort;
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.domain.valueobject.RolId;
@@ -59,7 +60,7 @@ class ReemplazarPermisosRolHandlerTest {
         }
 
         @Override
-        public SaveUsuarioOutcome save(Usuario user) {
+        public SaveUsuarioOutcome save(Identidad identidad, Usuario user) {
             throw new UnsupportedOperationException();
         }
 
@@ -99,6 +100,11 @@ class ReemplazarPermisosRolHandlerTest {
 
         @Override
         public boolean roleBelongsToTenant(UUID roleId, UUID tenantId) {
+            return false;
+        }
+
+        @Override
+        public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
             return false;
         }
 

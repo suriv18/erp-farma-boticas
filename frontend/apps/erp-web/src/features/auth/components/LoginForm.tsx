@@ -1,12 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  ArrowRight,
   CheckCircle2,
   CircleHelp,
   Eye,
   EyeOff,
+  KeyRound,
   LoaderCircle,
   LockKeyhole,
   Mail,
+  QrCode,
   ShieldCheck
 } from 'lucide-react';
 import { useState } from 'react';
@@ -16,9 +19,10 @@ import { loginSchema, type LoginCredentials } from '../schemas/login.schema';
 
 type LoginFormProps = {
   onAuthenticate: (credentials: LoginCredentials) => Promise<void>;
+  submitError?: string | null;
 };
 
-export function LoginForm({ onAuthenticate }: LoginFormProps) {
+export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   const {
@@ -41,13 +45,25 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
         void submitLogin(event);
       }}
     >
+      {submitError ? (
+        <p
+          role="alert"
+          className="border-danger-200 bg-danger-50 text-danger-700 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300 rounded-xl border px-3.5 py-3 text-xs font-medium"
+        >
+          {submitError}
+        </p>
+      ) : null}
+
       <div>
-        <label htmlFor="email" className="text-sm font-semibold text-slate-700">
-          Correo corporativo
+        <label
+          htmlFor="email"
+          className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+        >
+          Usuario o correo electrónico
         </label>
         <div className="relative mt-2">
           <Mail
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-neutral-400"
             aria-hidden="true"
           />
           <input
@@ -55,15 +71,19 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
             type="email"
             autoComplete="username"
             autoFocus
-            placeholder="nombre@boticas.pe"
+            placeholder="ej. jperez@farmavita.pe"
             aria-describedby={errors.email ? 'email-error' : undefined}
             aria-invalid={Boolean(errors.email)}
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-4 pl-11 text-sm text-slate-900 shadow-sm transition outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-600 focus:ring-4 focus:ring-teal-100 aria-invalid:border-rose-400 aria-invalid:focus:ring-rose-100"
+            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('email')}
           />
         </div>
         {errors.email ? (
-          <p id="email-error" role="alert" className="mt-1.5 text-xs font-medium text-rose-600">
+          <p
+            id="email-error"
+            role="alert"
+            className="text-danger-600 dark:text-danger-400 mt-1.5 text-xs font-medium"
+          >
             {errors.email.message}
           </p>
         ) : null}
@@ -71,12 +91,15 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
 
       <div>
         <div className="flex items-center justify-between gap-4">
-          <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+          <label
+            htmlFor="password"
+            className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
+          >
             Contraseña
           </label>
           <button
             type="button"
-            className="text-xs font-semibold text-teal-700 transition hover:text-teal-900 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            className="text-primary-700 hover:text-primary-900 focus-visible:outline-primary-600 dark:text-primary-400 dark:hover:text-primary-200 text-xs font-semibold transition focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => setRecoveryVisible((visible) => !visible)}
             aria-expanded={recoveryVisible}
             aria-controls="recovery-help"
@@ -86,7 +109,7 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
         </div>
         <div className="relative mt-2">
           <LockKeyhole
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-neutral-400"
             aria-hidden="true"
           />
           <input
@@ -96,20 +119,24 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
             placeholder="Ingresa tu contraseña"
             aria-describedby={errors.password ? 'password-error' : undefined}
             aria-invalid={Boolean(errors.password)}
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-12 pl-11 text-sm text-slate-900 shadow-sm transition outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-600 focus:ring-4 focus:ring-teal-100 aria-invalid:border-rose-400 aria-invalid:focus:ring-rose-100"
+            className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-12 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
             {...register('password')}
           />
           <button
             type="button"
             onClick={() => setPasswordVisible((visible) => !visible)}
-            className="absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600"
+            className="focus-visible:outline-primary-600 absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-1 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
             aria-label={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           >
             {passwordVisible ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
           </button>
         </div>
         {errors.password ? (
-          <p id="password-error" role="alert" className="mt-1.5 text-xs font-medium text-rose-600">
+          <p
+            id="password-error"
+            role="alert"
+            className="text-danger-600 dark:text-danger-400 mt-1.5 text-xs font-medium"
+          >
             {errors.password.message}
           </p>
         ) : null}
@@ -119,44 +146,85 @@ export function LoginForm({ onAuthenticate }: LoginFormProps) {
         <div
           id="recovery-help"
           role="status"
-          className="flex gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-xs leading-5 text-blue-900"
+          className="border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800/40 dark:text-neutral-300 flex gap-3 rounded-xl border p-3.5 text-xs leading-5"
         >
-          <CircleHelp className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
+          <CircleHelp
+            className="text-neutral-500 dark:text-neutral-400 mt-0.5 size-4 shrink-0"
+            aria-hidden="true"
+          />
           Solicita el restablecimiento al administrador de tu organización. El enlace se enviará
           únicamente a tu correo corporativo.
         </div>
       ) : null}
 
-      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+      <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300">
         <input
           type="checkbox"
-          className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+          className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
           {...register('remember')}
         />
         Recordar mi correo en este equipo
       </label>
 
-      <Button type="submit" className="h-12 w-full text-[15px]" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="bg-primary-600 hover:bg-primary-700 focus-visible:outline-primary-600 h-12 w-full text-[15px]"
+        disabled={isSubmitting}
+      >
         {isSubmitting ? (
           <>
             <LoaderCircle className="size-4.5 animate-spin" aria-hidden="true" />
             Verificando acceso
           </>
         ) : (
-          <>Iniciar Sesión</>
+          <>
+            Iniciar sesión
+            <ArrowRight className="size-4.5" aria-hidden="true" />
+          </>
         )}
       </Button>
 
-      <div className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3.5 py-3 text-xs leading-5 text-slate-500">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden="true" />
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <span className="text-xs font-medium text-neutral-400 dark:text-neutral-500">
+          o continúa con
+        </span>
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+        >
+          <QrCode className="size-4.5" aria-hidden="true" />
+          Código QR
+        </button>
+        <button
+          type="button"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+        >
+          <KeyRound className="size-4.5" aria-hidden="true" />
+          PIN de caja
+        </button>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-xl bg-neutral-50 px-3.5 py-3 text-xs leading-5 text-neutral-500 dark:bg-neutral-800/50 dark:text-neutral-400">
+        <ShieldCheck
+          className="text-primary-700 dark:text-primary-400 mt-0.5 size-4 shrink-0"
+          aria-hidden="true"
+        />
         <span>
           Acceso protegido y auditado. Nunca compartas tus credenciales ni las almacenes en equipos
           públicos.
         </span>
       </div>
 
-      <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
-        <CheckCircle2 className="size-3.5 text-emerald-600" aria-hidden="true" />
+      <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+        <CheckCircle2
+          className="text-primary-600 dark:text-primary-400 size-3.5"
+          aria-hidden="true"
+        />
         Plataforma operativa · soporte interno habilitado
       </p>
     </form>

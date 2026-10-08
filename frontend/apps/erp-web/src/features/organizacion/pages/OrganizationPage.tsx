@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Clock3, MapPin, MonitorSmartphone, Warehouse } from 'lucide-react';
-import { Badge, Card } from '@boticas/ui-web';
+import { Link } from 'react-router';
+import { Badge, Card, buttonClassName } from '@boticas/ui-web';
 import { corporateStructureQuery } from '../api/organization.api';
 
 function statusLabel(status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') {
@@ -37,16 +38,25 @@ export function OrganizationPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div>
-        <p className="text-sm font-semibold text-teal-700">Foundation / Core maestro</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Organización</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Estructura corporativa efectiva dentro del ámbito autorizado de la sesión.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
+            Foundation / Core maestro
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
+            Organización
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Estructura corporativa efectiva dentro del ámbito autorizado de la sesión.
+          </p>
+        </div>
+        <Link className={buttonClassName('primary')} to="/organizacion/empresas">
+          Gestionar empresas
+        </Link>
       </div>
 
       {isError ? (
-        <Card className="mt-7 border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <Card className="border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-800 dark:bg-danger-900/30 dark:text-danger-300 mt-7 p-4 text-sm">
           No fue posible obtener la estructura corporativa. Verifica la conexión y tu ámbito de
           acceso.
         </Card>
@@ -64,10 +74,12 @@ export function OrganizationPage() {
         ].map(({ icon: Icon, label, value }) => (
           <Card key={label} className="flex items-center justify-between p-5">
             <div>
-              <p className="text-sm font-medium text-slate-500">{label}</p>
-              <p className="mt-2 text-2xl font-bold text-slate-950">{isPending ? '—' : value}</p>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{label}</p>
+              <p className="mt-2 text-2xl font-bold text-neutral-950 dark:text-white">
+                {isPending ? '—' : value}
+              </p>
             </div>
-            <div className="grid size-11 place-items-center rounded-xl bg-teal-50 text-teal-700">
+            <div className="bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 grid size-11 place-items-center rounded-xl">
               <Icon className="size-5" aria-hidden="true" />
             </div>
           </Card>
@@ -76,33 +88,46 @@ export function OrganizationPage() {
 
       {data ? (
         <div className="mt-6 space-y-5">
-          <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <p className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
             <Clock3 className="size-4" aria-hidden="true" />
             Fecha de corte: {formatCutoff(data.asOf)}
           </p>
 
           {data.companies.map((company) => (
             <Card key={company.id} className="overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex flex-col gap-3 border-b border-neutral-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-neutral-800">
                 <div>
-                  <h2 className="font-bold text-slate-950">
-                    {company.tradeName ?? company.legalName}
+                  <h2 className="font-bold text-neutral-950 dark:text-white">
+                    <Link className="hover:underline" to={`/organizacion/empresas/${company.id}`}>
+                      {company.tradeName ?? company.legalName}
+                    </Link>
                   </h2>
-                  <p className="mt-1 text-xs text-slate-500">{company.legalName}</p>
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    {company.legalName}
+                  </p>
                 </div>
                 <Badge tone={statusTone(company.status)}>{statusLabel(company.status)}</Badge>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
                 {company.establishments.map((establishment) => (
                   <article key={establishment.id} className="p-5 sm:p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-xs font-bold tracking-wide text-teal-700 uppercase">
+                        <p className="text-primary-700 dark:text-primary-400 text-xs font-bold tracking-wide uppercase">
                           {establishment.code}
                         </p>
-                        <h3 className="mt-1 font-semibold text-slate-900">{establishment.name}</h3>
-                        <p className="mt-1 text-xs text-slate-500">{establishment.timeZone}</p>
+                        <h3 className="mt-1 font-semibold text-neutral-900 dark:text-neutral-50">
+                          <Link
+                            className="hover:underline"
+                            to={`/organizacion/establecimientos/${establishment.id}`}
+                          >
+                            {establishment.name}
+                          </Link>
+                        </h3>
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                          {establishment.timeZone}
+                        </p>
                       </div>
                       <Badge tone={statusTone(establishment.status)}>
                         {statusLabel(establishment.status)}
@@ -110,20 +135,20 @@ export function OrganizationPage() {
                     </div>
 
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50 p-4">
-                        <p className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase">
+                      <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800/50">
+                        <p className="flex items-center gap-2 text-xs font-bold text-neutral-600 uppercase dark:text-neutral-300">
                           <Warehouse className="size-4" aria-hidden="true" /> Almacenes
                         </p>
-                        <p className="mt-2 text-sm text-slate-700">
+                        <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
                           {establishment.warehouses.map((warehouse) => warehouse.name).join(', ') ||
                             'Sin almacenes visibles'}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-4">
-                        <p className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase">
+                      <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800/50">
+                        <p className="flex items-center gap-2 text-xs font-bold text-neutral-600 uppercase dark:text-neutral-300">
                           <MonitorSmartphone className="size-4" aria-hidden="true" /> Cajas
                         </p>
-                        <p className="mt-2 text-sm text-slate-700">
+                        <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
                           {establishment.cashRegisters
                             .map((register) => register.name)
                             .join(', ') || 'Sin cajas visibles'}

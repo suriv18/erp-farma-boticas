@@ -4,6 +4,9 @@ graphify-out/
 # Scratch de ejecucion de skills (briefs, reportes y diffs intermedios de subagentes)
 .superpowers/
 
+# Worktrees locales para ejecucion aislada de planes
+.worktrees/
+
 # Sistema operativo / editores
 .DS_Store
 Thumbs.db

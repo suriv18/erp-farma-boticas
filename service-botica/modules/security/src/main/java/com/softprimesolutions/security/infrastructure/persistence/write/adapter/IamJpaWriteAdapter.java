@@ -2,15 +2,15 @@ package com.softprimesolutions.security.infrastructure.persistence.write.adapter
 
 import com.softprimesolutions.security.application.port.out.IamWritePort;
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.infrastructure.persistence.write.mapper.IamWriteMapper;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.AsignacionRolJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.repository.IdentidadExternaJpaRepository;
+import com.softprimesolutions.security.infrastructure.persistence.write.repository.IdentidadJpaRepository;
+import com.softprimesolutions.security.infrastructure.persistence.write.repository.MembershipJpaRepository;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.PermisoJpaRepository;
 import com.softprimesolutions.security.infrastructure.persistence.write.repository.RolJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.repository.UsuarioJpaRepository;
-import com.softprimesolutions.security.infrastructure.persistence.write.entity.IdentidadExternaJpaEntity;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -26,52 +26,45 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class IamJpaWriteAdapter implements IamWritePort {
 
-    private final UsuarioJpaRepository userRepository;
+    private final IdentidadJpaRepository identidadRepository;
+    private final MembershipJpaRepository membershipRepository;
     private final RolJpaRepository roleRepository;
     private final PermisoJpaRepository permissionRepository;
     private final AsignacionRolJpaRepository assignmentRepository;
-    private final IdentidadExternaJpaRepository externalIdentityRepository;
     private final JdbcClient jdbcClient;
 
     public IamJpaWriteAdapter(
-            UsuarioJpaRepository userRepository,
+            IdentidadJpaRepository identidadRepository,
+            MembershipJpaRepository membershipRepository,
             RolJpaRepository roleRepository,
             PermisoJpaRepository permissionRepository,
             AsignacionRolJpaRepository assignmentRepository,
-            IdentidadExternaJpaRepository externalIdentityRepository,
             JdbcClient jdbcClient) {
-        this.userRepository = userRepository;
+        this.identidadRepository = identidadRepository;
+        this.membershipRepository = membershipRepository;
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.assignmentRepository = assignmentRepository;
-        this.externalIdentityRepository = externalIdentityRepository;
         this.jdbcClient = jdbcClient;
     }
 
     @Override
     @Transactional
-    public SaveUsuarioOutcome save(Usuario user) {
+    public SaveUsuarioOutcome save(Identidad identidad, Usuario user) {
         var tenantId = findTenantId(user.tenantId().value());
         if (tenantId.isEmpty()) return SaveUsuarioOutcome.TENANT_NOT_FOUND;
-        if (externalIdentityRepository.existsByProviderAndSubject(
-                user.identity().provider(), user.identity().subject())) {
-            return SaveUsuarioOutcome.DUPLICATE_IDENTITY;
-        }
-        if (user.username() != null && userRepository.existsByTenantIdAndUsername(tenantId.get(), user.username())) {
+        if (identidadRepository.existsByEmail(identidad.email())) return SaveUsuarioOutcome.DUPLICATE_EMAIL;
+        if (identidad.username() != null && identidadRepository.existsByUsername(identidad.username())) {
             return SaveUsuarioOutcome.DUPLICATE_USERNAME;
         }
-        if (user.email() != null && userRepository.existsByTenantIdAndEmail(tenantId.get(), user.email())) {
-            return SaveUsuarioOutcome.DUPLICATE_EMAIL;
-        }
-        if (user.documentNumber() != null && userRepository.existsByTenantIdAndTipoDocumentoAndNumeroDocumento(
-                tenantId.get(), user.documentType(), user.documentNumber())) {
+        if (identidad.documentNumber() != null && identidadRepository.existsByTipoDocumentoAndNumeroDocumento(
+                identidad.documentType(), identidad.documentNumber())) {
             return SaveUsuarioOutcome.DUPLICATE_DOCUMENT;
         }
         try {
-            var entity = userRepository.saveAndFlush(IamWriteMapper.toEntity(user, tenantId.get()));
-            externalIdentityRepository.saveAndFlush(new IdentidadExternaJpaEntity(
-                    entity.getId(), user.identity().provider(), user.identity().subject(),
-                    user.identity().issuer(), user.identity().emailClaim(), user.createdAt()));
+            var identidadEntity = identidadRepository.saveAndFlush(IamWriteMapper.toEntity(identidad));
+            membershipRepository.saveAndFlush(
+                    IamWriteMapper.toEntity(user, tenantId.get(), identidadEntity.getId()));
             return SaveUsuarioOutcome.CREATED;
         } catch (DataIntegrityViolationException exception) {
             return SaveUsuarioOutcome.DUPLICATE_CONSTRAINT;
@@ -91,10 +84,12 @@ public class IamJpaWriteAdapter implements IamWritePort {
             if (existing.isPresent()) {
                 jdbcClient.sql("""
                                 UPDATE sch_seguridad.rol
-                                   SET nombre = :name, descripcion = :description, tipo_rol = :roleType,
-                                       es_sistema = :systemRole, estado = :status, updated_at = :updatedAt
+                                   SET codigo = :code, nombre = :name, descripcion = :description,
+                                       tipo_rol = :roleType, es_sistema = :systemRole, estado = :status,
+                                       updated_at = :updatedAt
                                  WHERE uuid_publico = :roleId
                                 """)
+                        .param("code", role.code())
                         .param("name", role.name())
                         .param("description", role.description())
                         .param("roleType", role.roleType().name())
@@ -165,8 +160,8 @@ public class IamJpaWriteAdapter implements IamWritePort {
 
     @Override
     public boolean userBelongsToTenant(UUID userId, UUID tenantId) {
-        return userRepository.findByUuidPublico(userId)
-                .map(user -> findTenantId(tenantId).filter(user.getTenantId()::equals).isPresent())
+        return membershipRepository.findByUuidPublico(userId)
+                .map(membership -> findTenantId(tenantId).filter(membership.getTenantId()::equals).isPresent())
                 .orElse(false);
     }
 
@@ -174,6 +169,13 @@ public class IamJpaWriteAdapter implements IamWritePort {
     public boolean roleBelongsToTenant(UUID roleId, UUID tenantId) {
         return roleRepository.findByUuidPublico(roleId)
                 .map(role -> findTenantId(tenantId).filter(role.getTenantId()::equals).isPresent())
+                .orElse(false);
+    }
+
+    @Override
+    public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
+        return findTenantId(tenantId)
+                .map(id -> roleRepository.existsByTenantIdAndCodigoAndUuidPublicoNot(id, code, excludingRoleId))
                 .orElse(false);
     }
 
@@ -188,7 +190,7 @@ public class IamJpaWriteAdapter implements IamWritePort {
     @Transactional
     public SaveAssignmentOutcome save(AsignacionRol assignment) {
         var tenantId = findTenantId(assignment.tenantId().value());
-        var user = userRepository.findByUuidPublico(assignment.userId().value());
+        var user = membershipRepository.findByUuidPublico(assignment.userId().value());
         var role = roleRepository.findByUuidPublico(assignment.roleId().value());
         var scope = resolveScope(assignment.tenantId().value(), assignment.scope());
         if (tenantId.isEmpty() || user.isEmpty() || role.isEmpty() || scope.isEmpty()) {
@@ -199,7 +201,7 @@ public class IamJpaWriteAdapter implements IamWritePort {
                         SELECT COUNT(*)
                           FROM sch_seguridad.usuario_rol_ambito
                          WHERE tenant_id = :tenantId
-                           AND usuario_id = :userId
+                           AND membership_id = :userId
                            AND rol_id = :roleId
                            AND tipo_ambito = :scopeType
                            AND COALESCE(empresa_id, 0) = :companyId
@@ -234,14 +236,14 @@ public class IamJpaWriteAdapter implements IamWritePort {
 
     private Optional<Long> findTenantId(UUID tenantUuid) {
         if (tenantUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantUuid")
+        return jdbcClient.sql("SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantUuid")
                 .param("tenantUuid", tenantUuid)
                 .query(Long.class)
                 .optional();
     }
 
     private Optional<UUID> findTenantUuid(Long tenantId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.tenant WHERE id = :tenantId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_admin.tenant WHERE id = :tenantId")
                 .param("tenantId", tenantId)
                 .query(UUID.class)
                 .optional();
@@ -270,8 +272,8 @@ public class IamJpaWriteAdapter implements IamWritePort {
             case GLOBAL -> findTenantId(tenantUuid).map(ignored -> new ResolvedScope(null, null, null, null));
             case EMPRESA -> jdbcClient.sql("""
                             SELECT e.id
-                              FROM sch_farmacia.empresa_operadora e
-                              JOIN sch_farmacia.tenant t ON t.id = e.tenant_id
+                              FROM sch_organizacion.empresa_operadora e
+                              JOIN sch_admin.tenant t ON t.id = e.tenant_id
                              WHERE t.uuid_publico = :tenantUuid AND e.uuid_publico = :companyUuid
                             """)
                     .param("tenantUuid", tenantUuid)
@@ -281,9 +283,9 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .map(companyId -> new ResolvedScope(companyId, null, null, null));
             case ESTABLECIMIENTO -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id
-                              FROM sch_farmacia.establecimiento_farmaceutico s
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = s.empresa_id AND e.tenant_id = s.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+                              FROM sch_organizacion.establecimiento_farmaceutico s
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = s.empresa_id AND e.tenant_id = s.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = s.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid
@@ -296,11 +298,11 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .optional();
             case ALMACEN -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id, a.id AS warehouse_id
-                              FROM sch_farmacia.almacen a
-                              JOIN sch_farmacia.establecimiento_farmaceutico s
+                              FROM sch_organizacion.almacen a
+                              JOIN sch_organizacion.establecimiento_farmaceutico s
                                 ON s.id = a.establecimiento_id AND s.empresa_id = a.empresa_id AND s.tenant_id = a.tenant_id
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = a.empresa_id AND e.tenant_id = a.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = a.tenant_id
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = a.empresa_id AND e.tenant_id = a.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = a.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid
@@ -316,11 +318,11 @@ public class IamJpaWriteAdapter implements IamWritePort {
                     .optional();
             case TERMINAL -> jdbcClient.sql("""
                             SELECT e.id AS company_id, s.id AS establishment_id, p.id AS terminal_id
-                              FROM sch_farmacia.terminal_pos p
-                              JOIN sch_farmacia.establecimiento_farmaceutico s
+                              FROM sch_organizacion.terminal_pos p
+                              JOIN sch_organizacion.establecimiento_farmaceutico s
                                 ON s.id = p.establecimiento_id AND s.empresa_id = p.empresa_id AND s.tenant_id = p.tenant_id
-                              JOIN sch_farmacia.empresa_operadora e ON e.id = p.empresa_id AND e.tenant_id = p.tenant_id
-                              JOIN sch_farmacia.tenant t ON t.id = p.tenant_id
+                              JOIN sch_organizacion.empresa_operadora e ON e.id = p.empresa_id AND e.tenant_id = p.tenant_id
+                              JOIN sch_admin.tenant t ON t.id = p.tenant_id
                              WHERE t.uuid_publico = :tenantUuid
                                AND e.uuid_publico = :companyUuid
                                AND s.uuid_publico = :establishmentUuid

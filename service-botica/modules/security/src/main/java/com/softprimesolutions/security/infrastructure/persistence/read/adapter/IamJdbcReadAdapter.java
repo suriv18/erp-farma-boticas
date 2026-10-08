@@ -7,7 +7,7 @@ import com.softprimesolutions.security.application.dto.result.UsuarioResult;
 import com.softprimesolutions.security.application.port.out.IamReadPort;
 import com.softprimesolutions.security.infrastructure.persistence.read.mapper.IamReadMapper;
 import com.softprimesolutions.security.infrastructure.persistence.read.repository.IamJdbcReadRepository;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +41,16 @@ public class IamJdbcReadAdapter implements IamReadPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PermisoResult> findPermissions(String search) {
-        return repository.findPermissions(search).stream().map(IamReadMapper::toResult).toList();
+    public PaginaResult<PermisoResult> findPermissions(String search, int page, int size) {
+        var items = repository.findPermissions(search, page * size, size).stream()
+                .map(IamReadMapper::toResult)
+                .toList();
+        return new PaginaResult<>(items, page, size, repository.countPermissions(search));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RolResult> findRoleById(UUID tenantId, UUID roleId) {
+        return repository.findRoleById(tenantId, roleId).map(IamReadMapper::toResult);
     }
 }

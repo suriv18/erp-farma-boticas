@@ -35,7 +35,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-La aplicación queda disponible en `http://localhost:5173`.
+La aplicación queda disponible en `http://localhost:3000`.
 
 En Windows PowerShell, si la política de ejecución bloquea `pnpm.ps1`, se puede usar
 `pnpm.cmd` en los mismos comandos.

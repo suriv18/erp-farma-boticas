@@ -56,14 +56,14 @@ public final class LocalAuthService implements LocalAuthUseCase {
 
     @Override
     public Result<TokenResult, ApplicationError> login(LoginCommand command) {
-        if (command == null || command.tenantId() == null || blank(command.login()) || blank(command.password())) {
-            return invalid("login", "Tenant, usuario y contrasena son obligatorios.");
+        if (command == null || blank(command.login()) || blank(command.password())) {
+            return invalid("login", "Usuario y contrasena son obligatorios.");
         }
         var channel = normalizeChannel(command.channel());
         if (!CHANNELS.contains(channel)) return invalid("channel", "El canal de autenticacion no es valido.");
 
         var now = clock.now();
-        var account = store.findAccountByLogin(command.tenantId(), command.login().trim());
+        var account = store.findAccountByLogin(command.login().trim());
         var encoded = account.map(LocalAuthStorePort.LocalAccount::passwordHash).orElse(dummyPasswordHash);
         var passwordMatches = passwords.matches(command.password(), encoded);
         if (account.isEmpty() || !passwordMatches) {
@@ -148,11 +148,11 @@ public final class LocalAuthService implements LocalAuthUseCase {
 
     @Override
     public Result<Unit, ApplicationError> requestPasswordReset(PasswordResetRequest command) {
-        if (command == null || command.tenantId() == null || blank(command.login())) {
-            return invalid("login", "Tenant y usuario son obligatorios.");
+        if (command == null || blank(command.login())) {
+            return invalid("login", "Usuario es obligatorio.");
         }
         passwords.matches("dummy-password-that-is-never-valid", dummyPasswordHash);
-        var account = store.findAccountByLogin(command.tenantId(), command.login().trim());
+        var account = store.findAccountByLogin(command.login().trim());
         if (account.isPresent() && account.get().email() != null
                 && "ACTIVO".equals(account.get().userStatus())
                 && "ACTIVA".equals(account.get().credentialStatus())) {
