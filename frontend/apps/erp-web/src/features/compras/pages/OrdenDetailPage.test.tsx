@@ -2,7 +2,8 @@ import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
 import { sampleEstructura } from '../../../test/inventario-fixtures';
-import { sampleOrden, sampleProveedor } from '../../../test/compras-fixtures';
+import { sampleOrden, sampleProveedor, sampleRecepcion } from '../../../test/compras-fixtures';
+import { pagina } from '../../../test/organizacion-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import { formatoImporte } from '../lib/formato-compras';
 import type { EstadoOrden } from '../api/ordenes.types';
@@ -15,7 +16,8 @@ function mockOrden(estado: EstadoOrden, overrides: object = {}) {
   server.use(
     http.get(ordenUrl, () => HttpResponse.json({ ...sampleOrden, estado, ...overrides })),
     http.get('*/api/v1/compras/proveedores/prov-1', () => HttpResponse.json(sampleProveedor)),
-    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura))
+    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura)),
+    http.get('*/api/v1/compras/recepciones', () => HttpResponse.json(pagina([])))
   );
 }
 
@@ -153,5 +155,44 @@ describe('OrdenDetailPage', () => {
     expect(
       screen.queryByRole('heading', { name: 'Anular orden de compra' })
     ).not.toBeInTheDocument();
+  });
+
+  it.each(['EMITIDA', 'PARCIALMENTE_RECIBIDA'] as const)(
+    'en estado %s ofrece registrar una recepción',
+    async (estado) => {
+      mockOrden(estado);
+
+      renderPage();
+
+      expect(await screen.findByRole('link', { name: 'Registrar recepción' })).toHaveAttribute(
+        'href',
+        '/compras/ordenes/orden-1/recepcion'
+      );
+    }
+  );
+
+  it.each(['BORRADOR', 'APROBADA', 'RECIBIDA', 'CANCELADA'] as const)(
+    'en estado %s no ofrece registrar recepciones',
+    async (estado) => {
+      mockOrden(estado);
+
+      renderPage();
+      await screen.findByRole('heading', { name: 'Orden OC-2026-000001' });
+
+      expect(screen.queryByRole('link', { name: 'Registrar recepción' })).not.toBeInTheDocument();
+    }
+  );
+
+  it('lista las recepciones de la orden con su lote', async () => {
+    mockOrden('PARCIALMENTE_RECIBIDA');
+    server.use(
+      http.get('*/api/v1/compras/recepciones', () => HttpResponse.json(pagina([sampleRecepcion])))
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Recepciones' })).toBeInTheDocument();
+    expect(await screen.findByText('REC-2026-000001')).toBeInTheDocument();
+    expect(screen.getByText('L2026-01')).toBeInTheDocument();
   });
 });

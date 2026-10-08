@@ -67,4 +67,37 @@ test.describe('Compras', () => {
 
     await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
   });
+
+  test('aprueba, emite y registra una recepción parcial', async ({ page }) => {
+    await abrirComprasEn(page, '/compras/ordenes/orden-1');
+
+    await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
+    await page.getByRole('button', { name: 'Aprobar', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Emitir', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Emitir', exact: true }).click();
+    await expect(page.getByText('La orden aún no tiene recepciones.')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Registrar recepción' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Recepción de la orden OC-2026-000001' })
+    ).toBeVisible();
+    await page.getByLabel('Almacén', { exact: true }).selectOption('alm-1');
+    await page.getByLabel('Serie del documento').fill('F001');
+    await page.getByLabel('Número del documento').fill('123');
+    const linea = page.getByRole('group', { name: 'Línea 1 — Paracetamol 500 mg' });
+    await expect(linea.getByText('Pendiente: 10 UND')).toBeVisible();
+    await expect(linea.getByLabel('Costo unitario')).toHaveValue('5.5');
+    await linea.getByLabel('Número de lote').fill('L2026-01');
+    await linea.getByLabel('Fecha de vencimiento').fill('2099-12-31');
+    await linea.getByLabel('Cantidad recibida').fill('4');
+    await expectNoHorizontalOverflow(page);
+
+    await page.getByRole('button', { name: 'Registrar recepción' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
+    await expect(page.getByText('Parcialmente recibida').first()).toBeVisible();
+    await expect(page.getByText('REC-2026-000001')).toBeVisible();
+    await expect(page.getByText('L2026-01')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
 });

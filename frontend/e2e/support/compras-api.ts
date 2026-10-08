@@ -2,11 +2,13 @@ import type { Page } from '@playwright/test';
 import {
   sampleOrden,
   sampleOrdenResumen,
-  sampleProveedor
+  sampleProveedor,
+  sampleRecepcion
 } from '../../apps/erp-web/src/test/compras-fixtures';
 import { sampleSkuVenta } from '../../apps/erp-web/src/test/ventas-fixtures';
 import { sampleEstructura } from '../../apps/erp-web/src/test/inventario-fixtures';
 import type { Orden } from '../../apps/erp-web/src/features/compras/api/ordenes.types';
+import type { Recepcion } from '../../apps/erp-web/src/features/compras/api/recepciones.types';
 import type { Proveedor } from '../../apps/erp-web/src/features/compras/api/proveedores.types';
 import { json, login } from './login';
 
@@ -15,6 +17,7 @@ const pagina = <T>(items: T[]) => ({ items, page: 0, size: 20, totalElements: it
 export async function mockComprasApi(page: Page) {
   let proveedores: Proveedor[] = [sampleProveedor];
   let orden: Orden = sampleOrden;
+  let recepciones: Recepcion[] = [];
 
   await page.route(/\/api\/v1\/compras\/proveedores(\?|$)/, async (route) => {
     const request = route.request();
@@ -74,6 +77,21 @@ export async function mockComprasApi(page: Page) {
       return json(route, 200, orden);
     }
   );
+
+  await page.route(/\/api\/v1\/compras\/recepciones(\?|$)/, (route) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return json(route, 200, pagina(recepciones));
+    if (!request.headers()['idempotency-key']) {
+      return json(route, 400, { title: 'Falta Idempotency-Key' });
+    }
+    recepciones = [sampleRecepcion];
+    orden = {
+      ...orden,
+      estado: 'PARCIALMENTE_RECIBIDA',
+      lineas: orden.lineas.map((linea) => ({ ...linea, cantidadRecibida: 4, cantidadPendiente: 6 }))
+    };
+    return json(route, 201, sampleRecepcion);
+  });
 }
 
 export async function abrirComprasEn(page: Page, path: string) {

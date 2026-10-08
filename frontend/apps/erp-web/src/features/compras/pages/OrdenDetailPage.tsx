@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Button, Card, PageHeader } from '@boticas/ui-web';
+import { Button, Card, PageHeader, buttonClassName } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { DatoItem } from '../../../shared/components/DatoItem';
 import { FormError } from '../../../shared/components/FormError';
@@ -13,8 +13,9 @@ import { proveedorQuery } from '../api/proveedores.api';
 import { AnularOrdenDialog } from '../components/AnularOrdenDialog';
 import { EstadoOrdenBadge } from '../components/EstadoOrdenBadge';
 import { LineasOrdenTable } from '../components/LineasOrdenTable';
+import { RecepcionesOrden } from '../components/RecepcionesOrden';
 import { describeErrorCompras } from '../lib/errores-compras';
-import { puedeAnular, puedeAprobar, puedeEmitir } from '../lib/estado-orden';
+import { puedeAnular, puedeAprobar, puedeEmitir, puedeRecibir } from '../lib/estado-orden';
 import { formatoFecha, formatoImporte } from '../lib/formato-compras';
 import { useMutacionCompras } from '../lib/use-mutacion-compras';
 
@@ -66,6 +67,11 @@ export function OrdenDetailPage() {
                 Anular
               </Button>
             ) : null}
+            {puedeRecibir(orden.estado) ? (
+              <Link to={`/compras/ordenes/${orden.id}/recepcion`} className={buttonClassName()}>
+                Registrar recepción
+              </Link>
+            ) : null}
           </>
         }
       />
@@ -107,6 +113,11 @@ export function OrdenDetailPage() {
           <DatoItem label="Total">{importe(orden.total)}</DatoItem>
         </dl>
       </Card>
+
+      <section className="mt-6">
+        <h2 className="mb-3 text-base font-semibold">Recepciones</h2>
+        <RecepcionesOrden ordenId={orden.id} />
+      </section>
 
       {anulando ? (
         <AnularOrdenDialog
