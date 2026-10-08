@@ -31,6 +31,7 @@ describe('featureRoutes', () => {
       'compras/ordenes',
       'compras/ordenes/nueva',
       'compras/ordenes/:ordenId',
+      'compras/ordenes/:ordenId/recepcion',
       'ventas',
       'ventas/:ventaId',
       'pos',

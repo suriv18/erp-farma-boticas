@@ -9,7 +9,8 @@ describe('purchasesRoutes', () => {
       'compras/proveedores/:proveedorId',
       'compras/ordenes',
       'compras/ordenes/nueva',
-      'compras/ordenes/:ordenId'
+      'compras/ordenes/:ordenId',
+      'compras/ordenes/:ordenId/recepcion'
     ]);
   });
 
