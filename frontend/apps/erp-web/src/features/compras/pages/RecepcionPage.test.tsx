@@ -7,6 +7,8 @@ import { renderRoute } from '../../../test/render-route';
 import type { EstadoOrden } from '../api/ordenes.types';
 import { RecepcionPage } from './RecepcionPage';
 
+vi.mock('../lib/fecha-utc', () => ({ fechaUtcISO: () => '2026-10-09' }));
+
 const recepcionesUrl = '*/api/v1/compras/recepciones';
 const ordenUrl = '*/api/v1/compras/ordenes/orden-1';
 
@@ -144,6 +146,31 @@ describe('RecepcionPage', () => {
     expect(await screen.findByText('Selecciona el almacén de recepción.')).toBeInTheDocument();
     expect(
       screen.getByText('Ingresa la cantidad recibida de al menos un producto.')
+    ).toBeInTheDocument();
+    expect(enviado).not.toHaveBeenCalled();
+  });
+
+  it('valida el vencimiento contra la fecha de hoy en UTC como inventario', async () => {
+    mockEntorno();
+    const enviado = vi.fn();
+    server.use(
+      http.post(recepcionesUrl, () => {
+        enviado();
+        return HttpResponse.json(sampleRecepcion, { status: 201 });
+      })
+    );
+    const { user } = renderPage();
+    await completarRecepcion(user);
+    const vencimiento = linea1().getByLabelText('Fecha de vencimiento');
+    await user.clear(vencimiento);
+    await user.type(vencimiento, '2026-10-08');
+
+    await user.click(registrar());
+
+    expect(
+      await screen.findByText(
+        'No se puede ingresar un lote vencido; recházalo por completo o corrige la fecha.'
+      )
     ).toBeInTheDocument();
     expect(enviado).not.toHaveBeenCalled();
   });

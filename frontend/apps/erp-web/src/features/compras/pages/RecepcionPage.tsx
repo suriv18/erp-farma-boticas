@@ -16,7 +16,7 @@ import { ItemsRecepcionEditor } from '../components/ItemsRecepcionEditor';
 import { RecepcionCabeceraForm } from '../components/RecepcionCabeceraForm';
 import { describeErrorCompras } from '../lib/errores-compras';
 import { puedeRecibir } from '../lib/estado-orden';
-import { fechaLocalISO } from '../lib/orden-cabecera';
+import { fechaUtcISO } from '../lib/fecha-utc';
 import {
   CABECERA_RECEPCION_VACIA,
   almacenesDeDestino,
@@ -41,7 +41,7 @@ function RecepcionForm({ orden }: { orden: Orden }) {
   const [cabecera, setCabecera] = useState<CabeceraRecepcion>(CABECERA_RECEPCION_VACIA);
   const [items, setItems] = useState<ItemBorrador[]>(() => itemsDesdeOrden(orden));
   const [intentado, setIntentado] = useState(false);
-  const hoy = fechaLocalISO();
+  const hoy = fechaUtcISO();
   const detalle = `/compras/ordenes/${orden.id}`;
   const registro = useMutacionCompras(
     (payload: RegistrarRecepcionPayload) =>

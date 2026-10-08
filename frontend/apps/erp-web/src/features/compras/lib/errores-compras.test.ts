@@ -35,7 +35,16 @@ describe('describeErrorCompras', () => {
       'Otro usuario modificó este registro. Actualiza la pantalla e inténtalo de nuevo.'
     ],
     ['COM_SKU_NO_OPERABLE', 'Uno de los productos no está activo comercialmente.'],
-    ['COM_ESTABLECIMIENTO_NO_OPERABLE', 'El establecimiento destino debe estar activo.']
+    ['COM_ESTABLECIMIENTO_NO_OPERABLE', 'El establecimiento destino debe estar activo.'],
+    [
+      'INV_LOTE_VENCIDO',
+      'No se puede ingresar un lote vencido; recházalo por completo o corrige la fecha de vencimiento.'
+    ],
+    [
+      'INV_LOTE_NO_ADMITE_INGRESO',
+      'Ya existe un lote con ese número y vencimiento que no admite ingresos de stock.'
+    ],
+    ['INV_SKU_NO_OPERABLE', 'Uno de los productos no está activo comercialmente.']
   ])('traduce %s', (code, mensaje) => {
     expect(describeErrorCompras(error(code))).toBe(mensaje);
   });
