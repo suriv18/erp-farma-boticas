@@ -194,4 +194,17 @@ class ComprasApiMapperTest {
         });
         assertThat(ordenes.totalElements()).isEqualTo(1);
     }
+
+    @Test
+    void mapsThePageOfReceptions() {
+        var pagina = ComprasApiMapper.toRecepcionPage(new PaginaResult<>(List.of(recepcionResult()), 1, 5, 6));
+
+        assertThat(pagina.items()).singleElement().satisfies(item -> {
+            assertThat(item.id()).isEqualTo(RECEPCION);
+            assertThat(item.lineas()).hasSize(1);
+        });
+        assertThat(pagina.page()).isEqualTo(1);
+        assertThat(pagina.size()).isEqualTo(5);
+        assertThat(pagina.totalElements()).isEqualTo(6);
+    }
 }

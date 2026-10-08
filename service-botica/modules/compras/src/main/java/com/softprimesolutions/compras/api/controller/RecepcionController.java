@@ -2,6 +2,7 @@ package com.softprimesolutions.compras.api.controller;
 
 import com.softprimesolutions.compras.api.dto.request.RecepcionRequest;
 import com.softprimesolutions.compras.api.mapper.ComprasApiMapper;
+import com.softprimesolutions.compras.application.dto.query.ListarRecepcionesOrdenQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerRecepcionQuery;
 import com.softprimesolutions.compras.application.port.in.ConsultarRecepcionesUseCase;
 import com.softprimesolutions.compras.application.port.in.RegistrarRecepcionUseCase;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -55,5 +57,19 @@ public class RecepcionController {
         return queryRecepciones.obtener(new ObtenerRecepcionQuery(ComprasControllerSupport.tenantOf(jwt), recepcionId))
                 .fold(result -> ResponseEntity.ok(ComprasApiMapper.toResponse(result)),
                         ComprasControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('compras.recepciones.consultar')")
+    public ResponseEntity<?> listByOrden(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam UUID ordenCompraId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var query = new ListarRecepcionesOrdenQuery(
+                ComprasControllerSupport.tenantOf(jwt), ordenCompraId, page, size);
+        return queryRecepciones.listarPorOrden(query).fold(
+                result -> ResponseEntity.ok(ComprasApiMapper.toRecepcionPage(result)),
+                ComprasControllerSupport::problem);
     }
 }

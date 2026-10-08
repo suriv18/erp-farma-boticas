@@ -41,6 +41,7 @@ import com.softprimesolutions.compras.application.dto.command.TransicionOrden;
 import com.softprimesolutions.compras.application.dto.command.TransicionarOrdenCompraCommand;
 import com.softprimesolutions.compras.application.dto.query.ListarOrdenesCompraQuery;
 import com.softprimesolutions.compras.application.dto.query.ListarProveedoresQuery;
+import com.softprimesolutions.compras.application.dto.query.ListarRecepcionesOrdenQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerOrdenCompraQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerProveedorQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerRecepcionQuery;
@@ -311,12 +312,30 @@ class ComprasControllersTest {
     }
 
     @Test
+    void listsTheReceptionsOfAnOrderForTheTenantOfTheToken() {
+        var query = mock(ConsultarRecepcionesUseCase.class);
+        when(query.listarPorOrden(new ListarRecepcionesOrdenQuery(TENANT, ORDEN, 1, 5)))
+                .thenReturn(ok(new PaginaResult<>(List.of(recepcionResult()), 1, 5, 6)));
+        var controller = new RecepcionController(command -> conflict(), query);
+
+        var response = controller.listByOrden(JWT, ORDEN, 1, 5);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isInstanceOfSatisfying(PaginaResponse.class, body -> {
+            assertThat(body.items()).hasSize(1);
+            assertThat(body.totalElements()).isEqualTo(6);
+        });
+    }
+
+    @Test
     void translatesTheReceptionFailuresToProblemDetails() {
         var query = mock(ConsultarRecepcionesUseCase.class);
         when(query.obtener(any())).thenReturn(conflict());
+        when(query.listarPorOrden(any())).thenReturn(conflict());
         var controller = new RecepcionController(command -> conflict(), query);
 
         assertConflict(controller.register(JWT, null, recepcionRequest()));
         assertConflict(controller.getById(JWT, UUID.randomUUID()));
+        assertConflict(controller.listByOrden(JWT, ORDEN, 0, 20));
     }
 }

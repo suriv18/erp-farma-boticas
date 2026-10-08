@@ -96,6 +96,10 @@ public final class ComprasApiMapper {
         return toPage(page, ComprasApiMapper::toResponse);
     }
 
+    public static PaginaResponse<RecepcionResponse> toRecepcionPage(PaginaResult<RecepcionResult> page) {
+        return toPage(page, ComprasApiMapper::toResponse);
+    }
+
     private static <S, T> PaginaResponse<T> toPage(PaginaResult<S> page, Function<S, T> mapper) {
         return new PaginaResponse<>(
                 page.items().stream().map(mapper).toList(), page.page(), page.size(), page.totalElements());
