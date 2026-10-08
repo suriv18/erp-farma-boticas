@@ -11,7 +11,6 @@ apps/erp-web/src/features/catalogo/pages/MarcasPage.tsx
 apps/erp-web/src/features/catalogo/routes.tsx
 apps/erp-web/src/features/catalogo/support-catalog/SupportCatalogPage.tsx
 apps/erp-web/src/features/clientes/routes.tsx
-apps/erp-web/src/features/compras/routes.tsx
 apps/erp-web/src/features/dashboard/pages/DashboardPage.tsx
 apps/erp-web/src/features/dashboard/routes.tsx
 apps/erp-web/src/features/perfil/routes.tsx
