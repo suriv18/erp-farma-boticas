@@ -8,6 +8,7 @@ import { pagina } from '../../../test/organizacion-fixtures';
 import {
   anularOrden,
   aprobarOrden,
+  crearOrden,
   emitirOrden,
   fetchOrden,
   fetchOrdenes,
@@ -27,6 +28,37 @@ afterAll(() => server.close());
 const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
 
 describe('ordenes.api', () => {
+  it('crearOrden hace POST con el cuerpo', async () => {
+    let body: unknown;
+    server.use(
+      http.post('http://localhost/api/v1/compras/ordenes', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(sampleOrden, { status: 201 });
+      })
+    );
+    const payload = {
+      proveedorId: 'prov-1',
+      establecimientoDestinoId: 'est-1',
+      moneda: 'PEN',
+      diasCredito: 30,
+      lineas: [
+        {
+          skuId: 'sku-0001-aaaa',
+          cantidad: 10,
+          unidadMedidaCodigo: 'UND',
+          precioUnitario: 5.5,
+          descuento: 0,
+          impuesto: 9.9,
+          toleranciaExcesoPct: 0,
+          toleranciaDefectoPct: 0
+        }
+      ]
+    };
+
+    await expect(crearOrden(client, payload)).resolves.toEqual(sampleOrden);
+    expect(body).toEqual(payload);
+  });
+
   it('fetchOrdenes envía proveedor, estado, página y tamaño', async () => {
     let recibido: URL | undefined;
     server.use(

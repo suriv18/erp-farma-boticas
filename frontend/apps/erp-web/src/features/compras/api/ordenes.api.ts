@@ -3,7 +3,7 @@ import type { ApiClient } from '@boticas/api-client';
 import { apiClient } from '../../../app/api';
 import type { PaginaResponse } from '../../../shared/lib/pagina.types';
 import { withQuery } from '../../../shared/lib/query-string';
-import type { AnularOrdenPayload, Orden, OrdenResumen } from './ordenes.types';
+import type { AnularOrdenPayload, CrearOrdenPayload, Orden, OrdenResumen } from './ordenes.types';
 
 export type FetchOrdenesParams = {
   proveedorId?: string | undefined;
@@ -66,4 +66,8 @@ export function anularOrden(
   payload: AnularOrdenPayload
 ): Promise<Orden> {
   return client.post<Orden, AnularOrdenPayload>(`/compras/ordenes/${ordenId}/anulacion`, payload);
+}
+
+export function crearOrden(client: ApiClient, payload: CrearOrdenPayload): Promise<Orden> {
+  return client.post<Orden, CrearOrdenPayload>('/compras/ordenes', payload);
 }

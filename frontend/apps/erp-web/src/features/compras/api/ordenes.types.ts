@@ -62,3 +62,26 @@ export type Orden = {
 };
 
 export type AnularOrdenPayload = { motivo: string };
+
+export type LineaOrdenPayload = {
+  skuId: string;
+  cantidad: number;
+  unidadMedidaCodigo: string;
+  precioUnitario: number;
+  descuento: number;
+  impuesto: number;
+  toleranciaExcesoPct: number;
+  toleranciaDefectoPct: number;
+};
+
+export type CrearOrdenPayload = {
+  proveedorId: string;
+  establecimientoDestinoId: string;
+  fechaEntregaEstimada?: string | undefined;
+  moneda: string;
+  tipoCambio?: number | undefined;
+  condicionPago?: string | undefined;
+  diasCredito: number;
+  observacion?: string | undefined;
+  lineas: LineaOrdenPayload[];
+};

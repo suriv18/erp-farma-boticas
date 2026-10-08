@@ -4,7 +4,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { useMutacionCompras } from './use-mutacion-compras';
 
-function renderMutacion(mutationFn: (valor: string) => Promise<string>, onSuccess?: () => void) {
+function renderMutacion(
+  mutationFn: (valor: string) => Promise<string>,
+  onSuccess?: (dato: string) => void
+) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   const wrapper = ({ children }: PropsWithChildren) => (
@@ -31,7 +34,7 @@ describe('useMutacionCompras', () => {
 
     act(() => result.current.mutate('x'));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('ok'));
     expect(mutationFn).toHaveBeenCalledWith('x', expect.anything());
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['compras'] });
   });

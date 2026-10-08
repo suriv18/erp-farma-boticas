@@ -4,13 +4,13 @@ import { describeErrorCompras } from './errores-compras';
 
 export function useMutacionCompras<TVariables, TData>(
   mutationFn: (variables: TVariables) => Promise<TData>,
-  onSuccess?: () => void
+  onSuccess?: (data: TData) => void
 ) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn,
-    onSuccess: () => {
-      onSuccess?.();
+    onSuccess: (data) => {
+      onSuccess?.(data);
       return invalidateCompras(queryClient);
     }
   });
