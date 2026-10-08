@@ -17,6 +17,7 @@ import static com.softprimesolutions.compras.ComprasFixtures.proveedor;
 import static com.softprimesolutions.compras.ComprasResultFixtures.ordenResumen;
 import static com.softprimesolutions.compras.ComprasResultFixtures.recepcionResult;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +48,7 @@ import com.softprimesolutions.compras.application.dto.result.PaginaResult;
 import com.softprimesolutions.compras.application.mapper.ComprasApplicationMapper;
 import com.softprimesolutions.compras.application.port.in.ConsultarOrdenesCompraUseCase;
 import com.softprimesolutions.compras.application.port.in.ConsultarProveedoresUseCase;
+import com.softprimesolutions.compras.application.port.in.ConsultarRecepcionesUseCase;
 import com.softprimesolutions.compras.domain.model.EstadoProveedor;
 import java.time.LocalDate;
 import java.util.List;
@@ -282,7 +284,7 @@ class ComprasControllersTest {
         var controller = new RecepcionController(command -> {
             received.set(command);
             return ok(recepcionResult());
-        }, query -> ok(recepcionResult()));
+        }, mock(ConsultarRecepcionesUseCase.class));
 
         var response = controller.register(JWT, "clave-1", recepcionRequest());
 
@@ -297,21 +299,22 @@ class ComprasControllersTest {
 
     @Test
     void getsAReceptionById() {
-        var received = new AtomicReference<ObtenerRecepcionQuery>();
-        var controller = new RecepcionController(command -> conflict(), query -> {
-            received.set(query);
-            return ok(recepcionResult());
-        });
+        var query = mock(ConsultarRecepcionesUseCase.class);
+        when(query.obtener(new ObtenerRecepcionQuery(TENANT, RECEPCION))).thenReturn(ok(recepcionResult()));
+        var controller = new RecepcionController(command -> conflict(), query);
 
         var response = controller.getById(JWT, RECEPCION);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(received.get()).isEqualTo(new ObtenerRecepcionQuery(TENANT, RECEPCION));
+        assertThat(response.getBody()).isInstanceOfSatisfying(RecepcionResponse.class,
+                body -> assertThat(body.id()).isEqualTo(RECEPCION));
     }
 
     @Test
     void translatesTheReceptionFailuresToProblemDetails() {
-        var controller = new RecepcionController(command -> conflict(), query -> conflict());
+        var query = mock(ConsultarRecepcionesUseCase.class);
+        when(query.obtener(any())).thenReturn(conflict());
+        var controller = new RecepcionController(command -> conflict(), query);
 
         assertConflict(controller.register(JWT, null, recepcionRequest()));
         assertConflict(controller.getById(JWT, UUID.randomUUID()));

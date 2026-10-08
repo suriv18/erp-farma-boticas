@@ -20,4 +20,6 @@ public interface ComprasReadPort {
             UUID tenantId, UUID proveedorId, String estado, int page, int size);
 
     Optional<RecepcionResult> findRecepcion(UUID tenantId, UUID recepcionId);
+
+    PaginaResult<RecepcionResult> findRecepcionesDeOrden(UUID tenantId, UUID ordenId, int page, int size);
 }

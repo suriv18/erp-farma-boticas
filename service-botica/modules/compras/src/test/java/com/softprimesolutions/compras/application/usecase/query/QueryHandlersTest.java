@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 
 import com.softprimesolutions.compras.application.dto.query.ListarOrdenesCompraQuery;
 import com.softprimesolutions.compras.application.dto.query.ListarProveedoresQuery;
+import com.softprimesolutions.compras.application.dto.query.ListarRecepcionesOrdenQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerOrdenCompraQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerProveedorQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerRecepcionQuery;
@@ -108,5 +109,19 @@ class QueryHandlersTest {
                 .isEqualTo(recepcionResult());
         assertThat(error(recepciones.obtener(new ObtenerRecepcionQuery(TENANT, ORDEN))).code())
                 .isEqualTo("COM_RECEPCION_NO_ENCONTRADA");
+    }
+
+    @Test
+    void listsTheReceptionsOfAnOrderOrRejectsAnInvalidPage() {
+        var pagina = new PaginaResult<>(List.of(recepcionResult()), 0, 20, 1);
+        when(readPort.findRecepcionesDeOrden(TENANT, ORDEN, 0, 20)).thenReturn(pagina);
+
+        assertThat(value(recepciones.listarPorOrden(new ListarRecepcionesOrdenQuery(TENANT, ORDEN, 0, 20))))
+                .isSameAs(pagina);
+        assertThat(error(recepciones.listarPorOrden(new ListarRecepcionesOrdenQuery(TENANT, ORDEN, -1, 20))).code())
+                .isEqualTo("COM_PAGINACION_INVALIDA");
+        assertThat(error(recepciones.listarPorOrden(new ListarRecepcionesOrdenQuery(TENANT, ORDEN, 0, 101))).code())
+                .isEqualTo("COM_PAGINACION_INVALIDA");
+        verify(readPort, never()).findRecepcionesDeOrden(TENANT, ORDEN, -1, 20);
     }
 }

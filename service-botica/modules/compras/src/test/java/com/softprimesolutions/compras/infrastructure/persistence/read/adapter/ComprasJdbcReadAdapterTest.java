@@ -134,4 +134,38 @@ class ComprasJdbcReadAdapterTest {
         assertThat(adapter.findRecepcion(TENANT, RECEPCION)).isEmpty();
         assertThat(jdbc.statements()).hasSize(1);
     }
+
+    @Test
+    void listsTheReceptionsOfAnOrderWithTheirLinesAndTheTotal() {
+        jdbc.rows("ORDER BY r.fecha_recepcion DESC", Rows.recepcion())
+                .rows("ORDER BY rl.numero_linea", Rows.recepcionLinea())
+                .scalar("SELECT COUNT(*) ", 5L);
+
+        var pagina = adapter.findRecepcionesDeOrden(TENANT, ORDEN, 1, 2);
+
+        assertThat(pagina.items()).singleElement().satisfies(item -> {
+            assertThat(item.id()).isEqualTo(RECEPCION);
+            assertThat(item.ordenCompraId()).isEqualTo(ORDEN);
+            assertThat(item.lineas()).singleElement()
+                    .satisfies(linea -> assertThat(linea.numeroLote()).isEqualTo("LOTE-1"));
+        });
+        assertThat(pagina.page()).isEqualTo(1);
+        assertThat(pagina.size()).isEqualTo(2);
+        assertThat(pagina.totalElements()).isEqualTo(5);
+        assertThat(jdbc.statementContaining("ORDER BY r.fecha_recepcion DESC").params())
+                .containsEntry("tenantId", TENANT).containsEntry("ordenId", ORDEN)
+                .containsEntry("limit", 2).containsEntry("offset", 2);
+        assertThat(jdbc.statementContaining("SELECT COUNT(*) ").params())
+                .containsEntry("tenantId", TENANT).containsEntry("ordenId", ORDEN);
+    }
+
+    @Test
+    void listsNoReceptionsForAnOrderWithoutThem() {
+        jdbc.scalar("SELECT COUNT(*) ", 0L);
+
+        var pagina = adapter.findRecepcionesDeOrden(TENANT, ORDEN, 0, 20);
+
+        assertThat(pagina.items()).isEmpty();
+        assertThat(pagina.totalElements()).isZero();
+    }
 }

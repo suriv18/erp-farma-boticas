@@ -1,6 +1,8 @@
 package com.softprimesolutions.compras.application.usecase.query;
 
+import com.softprimesolutions.compras.application.dto.query.ListarRecepcionesOrdenQuery;
 import com.softprimesolutions.compras.application.dto.query.ObtenerRecepcionQuery;
+import com.softprimesolutions.compras.application.dto.result.PaginaResult;
 import com.softprimesolutions.compras.application.dto.result.RecepcionResult;
 import com.softprimesolutions.compras.application.error.ComprasErrors;
 import com.softprimesolutions.compras.application.port.in.ConsultarRecepcionesUseCase;
@@ -23,5 +25,14 @@ public final class ConsultarRecepcionesHandler implements ConsultarRecepcionesUs
         return readPort.findRecepcion(query.tenantId(), query.recepcionId())
                 .<Result<RecepcionResult, ApplicationError>>map(Result::success)
                 .orElseGet(() -> Result.failure(ComprasErrors.recepcionNoEncontrada()));
+    }
+
+    @Override
+    public Result<PaginaResult<RecepcionResult>, ApplicationError> listarPorOrden(ListarRecepcionesOrdenQuery query) {
+        Objects.requireNonNull(query, "query es obligatorio");
+        return Paginacion.invalida(query.page(), query.size())
+                .<Result<PaginaResult<RecepcionResult>, ApplicationError>>map(Result::failure)
+                .orElseGet(() -> Result.success(readPort.findRecepcionesDeOrden(
+                        query.tenantId(), query.ordenId(), query.page(), query.size())));
     }
 }

@@ -48,12 +48,14 @@ public class ComprasJdbcReadAdapter implements ComprasReadPort {
                AND (CAST(:estado AS text) IS NULL OR o.estado = CAST(:estado AS text))
             """;
     private static final String ORDENES_ORDEN = " ORDER BY o.fecha_emision DESC, o.id DESC LIMIT :limit OFFSET :offset";
-    private static final String RECEPCION = """
+    private static final String RECEPCION_COLUMNAS = """
             SELECT r.uuid_publico, r.numero, o.uuid_publico AS orden_uuid, pr.uuid_publico AS proveedor_uuid,
                    es.uuid_publico AS establecimiento_uuid, a.uuid_publico AS almacen_uuid,
                    r.documento_proveedor_tipo, r.documento_proveedor_serie, r.documento_proveedor_numero,
                    r.guia_remision_remitente, r.guia_remision_transportista, r.fecha_recepcion,
                    r.temperatura_recepcion_c, r.humedad_relativa_pct, r.estado, r.observacion
+            """;
+    private static final String RECEPCION_FROM = """
               FROM sch_abastecimiento.recepcion_compra r
               JOIN sch_admin.tenant t ON t.id = r.tenant_id
               LEFT JOIN sch_abastecimiento.orden_compra o ON o.id = r.orden_compra_id AND o.tenant_id = r.tenant_id
@@ -61,8 +63,14 @@ public class ComprasJdbcReadAdapter implements ComprasReadPort {
               JOIN sch_organizacion.establecimiento_farmaceutico es
                 ON es.id = r.establecimiento_id AND es.tenant_id = r.tenant_id
               JOIN sch_organizacion.almacen a ON a.id = r.almacen_id AND a.tenant_id = r.tenant_id
-             WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :recepcionId AND r.es_activo = '1'
+             WHERE t.uuid_publico = :tenantId AND r.es_activo = '1'
             """;
+    private static final String RECEPCION = RECEPCION_COLUMNAS + RECEPCION_FROM
+            + " AND r.uuid_publico = :recepcionId";
+    private static final String RECEPCIONES_DE_ORDEN = RECEPCION_COLUMNAS + RECEPCION_FROM
+            + " AND o.uuid_publico = :ordenId ORDER BY r.fecha_recepcion DESC, r.id DESC LIMIT :limit OFFSET :offset";
+    private static final String RECEPCIONES_DE_ORDEN_TOTAL = "SELECT COUNT(*) " + RECEPCION_FROM
+            + " AND o.uuid_publico = :ordenId";
     private static final String RECEPCION_LINEAS = """
             SELECT rl.uuid_publico, rl.numero_linea, ol.numero_linea AS numero_linea_orden,
                    k.uuid_publico AS sku_uuid, rl.numero_lote, rl.fecha_fabricacion, rl.fecha_vencimiento,
@@ -154,6 +162,27 @@ public class ComprasJdbcReadAdapter implements ComprasReadPort {
                 .query((rs, rowNumber) -> mapRecepcion(rs))
                 .optional()
                 .map(recepcion -> recepcion.conLineas(lineas(tenantId, recepcionId)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResult<RecepcionResult> findRecepcionesDeOrden(UUID tenantId, UUID ordenId, int page, int size) {
+        var items = jdbcClient.sql(RECEPCIONES_DE_ORDEN)
+                .param("tenantId", tenantId)
+                .param("ordenId", ordenId)
+                .param("limit", size)
+                .param("offset", page * size)
+                .query((rs, rowNumber) -> mapRecepcion(rs))
+                .list()
+                .stream()
+                .map(recepcion -> recepcion.conLineas(lineas(tenantId, recepcion.id())))
+                .toList();
+        var total = jdbcClient.sql(RECEPCIONES_DE_ORDEN_TOTAL)
+                .param("tenantId", tenantId)
+                .param("ordenId", ordenId)
+                .query(Long.class)
+                .single();
+        return new PaginaResult<>(items, page, size, total);
     }
 
     private List<LineaRecepcionResult> lineas(UUID tenantId, UUID recepcionId) {
