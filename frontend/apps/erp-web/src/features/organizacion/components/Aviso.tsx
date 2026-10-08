@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { ESTILO_AVISO } from './estilo-aviso';
+import { ESTILO_AVISO } from '../../../shared/components/estilo-aviso';
 
 export function Aviso({ children }: PropsWithChildren) {
   return (

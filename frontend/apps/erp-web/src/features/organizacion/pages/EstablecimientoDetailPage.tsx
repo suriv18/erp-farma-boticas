@@ -8,7 +8,7 @@ import { ESTADOS_ESTABLECIMIENTO, type EstadoEstablecimiento } from '../api/esta
 import { invalidateOrganizacion } from '../api/invalidate';
 import { AlmacenesSection } from '../components/AlmacenesSection';
 import { Aviso } from '../components/Aviso';
-import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
+import { CambiarEstadoDialog } from '../../../shared/components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
 import { EstablecimientoEditarDialog } from '../components/EstablecimientoEditarDialog';

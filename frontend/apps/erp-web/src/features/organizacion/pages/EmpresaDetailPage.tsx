@@ -7,7 +7,7 @@ import { cambiarEstadoEmpresa, empresaQuery } from '../api/empresas.api';
 import { ESTADOS_EMPRESA, type EstadoEmpresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
 import { Aviso } from '../components/Aviso';
-import { CambiarEstadoDialog } from '../components/CambiarEstadoDialog';
+import { CambiarEstadoDialog } from '../../../shared/components/CambiarEstadoDialog';
 import { DatoContacto } from '../components/DatoContacto';
 import { DatoItem } from '../components/DatoItem';
 import { EmpresaEditarDialog } from '../components/EmpresaEditarDialog';
