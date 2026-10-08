@@ -363,6 +363,57 @@ class ComprasApiIntegrationTest {
     }
 
     @Test
+    void listsTheReceptionsOfAnOrderNewestFirstWithTheirLinesAndPaginates() throws Exception {
+        var proveedorId = proveedor("20100070970", "Laboratorios Peru SAC");
+        var ordenId = ordenEmitida(proveedorId, "10", "0");
+        var otraOrdenId = ordenEmitida(proveedorId, "10", "0");
+        var vencimiento = LocalDate.now().plusYears(1);
+        var primera = recepcion(ordenId, almacenId, "LP-020", vencimiento, "4", "0", null)
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        var segunda = recepcion(ordenId, almacenId, "LP-021", vencimiento, "3", "0", null)
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        recepcion(otraOrdenId, almacenId, "LP-022", vencimiento, "2", "0", null).andExpect(status().isCreated());
+
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", bearer())
+                        .param("ordenCompraId", ordenId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[0].id").value((String) JsonPath.read(segunda, "$.id")))
+                .andExpect(jsonPath("$.items[1].id").value((String) JsonPath.read(primera, "$.id")))
+                .andExpect(jsonPath("$.items[0].lineas[0].numeroLote").value("LP-021"))
+                .andExpect(jsonPath("$.items[0].lineas[0].loteId").isNotEmpty())
+                .andExpect(jsonPath("$.items[1].lineas[0].cantidadAceptada").value(4));
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", bearer())
+                        .param("ordenCompraId", ordenId.toString()).param("page", "1").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value((String) JsonPath.read(primera, "$.id")));
+    }
+
+    @Test
+    void listingReceptionsValidatesTheParametersAndTheirScope() throws Exception {
+        var ordenId = ordenEmitida(proveedor("20100070970", "Laboratorios Peru SAC"), "10", "0");
+
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", bearer()))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", bearer())
+                        .param("ordenCompraId", ordenId.toString()).param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COM_PAGINACION_INVALIDA"));
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", bearer())
+                        .param("ordenCompraId", UUID.randomUUID().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.items.length()").value(0));
+        mockMvc.perform(get(COM + "/recepciones").header("Authorization", noPermissions)
+                        .param("ordenCompraId", ordenId.toString()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(COM + "/recepciones").param("ordenCompraId", ordenId.toString()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void deniesAccessWithoutTheRequiredPermissionOrToken() throws Exception {
         mockMvc.perform(post(COM + "/recepciones").with(csrf())
                         .header("Authorization", noPermissions)

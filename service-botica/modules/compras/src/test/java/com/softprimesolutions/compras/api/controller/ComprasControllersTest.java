@@ -167,8 +167,7 @@ class ComprasControllersTest {
         assertThat(one.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(one.getBody()).isInstanceOfSatisfying(ProveedorResponse.class,
                 body -> assertThat(body.razonSocial()).isEqualTo("Laboratorios SAC"));
-        assertThat(page.getBody()).isInstanceOfSatisfying(PaginaResponse.class,
-                body -> assertThat(body.totalElements()).isEqualTo(51));
+        assertThat((PaginaResponse<?>) page.getBody()).returns(51L, PaginaResponse::totalElements);
     }
 
     @Test
@@ -257,8 +256,7 @@ class ComprasControllersTest {
 
         assertThat(one.getBody()).isInstanceOfSatisfying(OrdenCompraResponse.class,
                 body -> assertThat(body.numero()).isEqualTo("OC-2026-000001"));
-        assertThat(page.getBody()).isInstanceOfSatisfying(PaginaResponse.class,
-                body -> assertThat(body.totalElements()).isEqualTo(1));
+        assertThat((PaginaResponse<?>) page.getBody()).returns(1L, PaginaResponse::totalElements);
     }
 
     @Test
@@ -321,10 +319,9 @@ class ComprasControllersTest {
         var response = controller.listByOrden(JWT, ORDEN, 1, 5);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isInstanceOfSatisfying(PaginaResponse.class, body -> {
-            assertThat(body.items()).hasSize(1);
-            assertThat(body.totalElements()).isEqualTo(6);
-        });
+        var body = (PaginaResponse<?>) response.getBody();
+        assertThat(body.items()).hasSize(1);
+        assertThat(body.totalElements()).isEqualTo(6);
     }
 
     @Test
