@@ -1,5 +1,11 @@
 import type { Page } from '@playwright/test';
-import { sampleProveedor } from '../../apps/erp-web/src/test/compras-fixtures';
+import {
+  sampleOrden,
+  sampleOrdenResumen,
+  sampleProveedor
+} from '../../apps/erp-web/src/test/compras-fixtures';
+import { sampleEstructura } from '../../apps/erp-web/src/test/inventario-fixtures';
+import type { Orden } from '../../apps/erp-web/src/features/compras/api/ordenes.types';
 import type { Proveedor } from '../../apps/erp-web/src/features/compras/api/proveedores.types';
 import { json, login } from './login';
 
@@ -7,6 +13,7 @@ const pagina = <T>(items: T[]) => ({ items, page: 0, size: 20, totalElements: it
 
 export async function mockComprasApi(page: Page) {
   let proveedores: Proveedor[] = [sampleProveedor];
+  let orden: Orden = sampleOrden;
 
   await page.route(/\/api\/v1\/compras\/proveedores(\?|$)/, async (route) => {
     const request = route.request();
@@ -37,6 +44,23 @@ export async function mockComprasApi(page: Page) {
     proveedores = proveedores.map((proveedor) => (proveedor.id === id ? actualizado : proveedor));
     return json(route, 200, actualizado);
   });
+
+  await page.route('**/api/v1/estructura-corporativa', (route) =>
+    json(route, 200, sampleEstructura)
+  );
+  await page.route(/\/api\/v1\/compras\/ordenes(\?|$)/, (route) =>
+    json(route, 200, pagina([{ ...sampleOrdenResumen, estado: orden.estado, total: orden.total }]))
+  );
+  await page.route(
+    /\/api\/v1\/compras\/ordenes\/orden-1(\/(aprobacion|emision|anulacion))?(\?|$)/,
+    (route) => {
+      const { pathname } = new URL(route.request().url());
+      if (pathname.endsWith('/aprobacion')) orden = { ...orden, estado: 'APROBADA' };
+      if (pathname.endsWith('/emision')) orden = { ...orden, estado: 'EMITIDA' };
+      if (pathname.endsWith('/anulacion')) orden = { ...orden, estado: 'CANCELADA' };
+      return json(route, 200, orden);
+    }
+  );
 }
 
 export async function abrirComprasEn(page: Page, path: string) {

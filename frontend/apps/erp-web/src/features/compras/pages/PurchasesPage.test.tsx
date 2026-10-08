@@ -13,4 +13,13 @@ describe('PurchasesPage', () => {
       '/compras/proveedores'
     );
   });
+
+  it('muestra también el acceso a las órdenes de compra', () => {
+    renderRoute('/compras', PurchasesPage, '/compras');
+
+    expect(screen.getByRole('link', { name: /Órdenes de compra/ })).toHaveAttribute(
+      'href',
+      '/compras/ordenes'
+    );
+  });
 });

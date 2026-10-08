@@ -28,5 +28,19 @@ export const purchasesRoutes = [
       const { ProveedorDetailPage } = await import('./pages/ProveedorDetailPage');
       return { Component: ProveedorDetailPage };
     }
+  },
+  {
+    path: 'compras/ordenes',
+    lazy: async () => {
+      const { OrdenesPage } = await import('./pages/OrdenesPage');
+      return { Component: OrdenesPage };
+    }
+  },
+  {
+    path: 'compras/ordenes/:ordenId',
+    lazy: async () => {
+      const { OrdenDetailPage } = await import('./pages/OrdenDetailPage');
+      return { Component: OrdenDetailPage };
+    }
   }
 ] satisfies RouteObject[];

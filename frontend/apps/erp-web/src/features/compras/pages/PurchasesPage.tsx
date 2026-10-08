@@ -1,8 +1,14 @@
-import { Truck } from 'lucide-react';
+import { ShoppingCart, Truck } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, PageHeader } from '@boticas/ui-web';
 
 const sections = [
+  {
+    to: '/compras/ordenes',
+    icon: ShoppingCart,
+    title: 'Órdenes de compra',
+    description: 'Consulta, aprueba, emite y anula las órdenes de compra.'
+  },
   {
     to: '/compras/proveedores',
     icon: Truck,

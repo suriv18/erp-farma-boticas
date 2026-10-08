@@ -28,6 +28,8 @@ describe('featureRoutes', () => {
       'compras/proveedores',
       'compras/proveedores/nuevo',
       'compras/proveedores/:proveedorId',
+      'compras/ordenes',
+      'compras/ordenes/:ordenId',
       'ventas',
       'ventas/:ventaId',
       'pos',
