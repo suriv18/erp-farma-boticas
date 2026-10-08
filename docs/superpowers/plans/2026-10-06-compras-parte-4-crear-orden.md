@@ -14,8 +14,9 @@ Spec: `docs/superpowers/specs/2026-10-06-frontend-compras-design.md`. Requiere i
 
 - Todo archivo **nuevo** (código y tests) alcanza 100% de líneas, ramas, funciones y sentencias; no agregar archivos a `coverage-baseline.txt`.
 - Sin comentarios en el código; sin duplicación; `forwardRef` y React Router 8 bloqueados por ESLint; las features solo se importan por su `index.ts`.
-- Reglas espejo del backend para la orden: entre 1 y 200 líneas; cantidad `> 0` con hasta 4 decimales; precio `>= 0` con hasta 6 decimales; descuento e impuesto `>= 0` con hasta 2 decimales; tolerancias de exceso y defecto entre 0 y 100 con hasta 4 decimales; total de línea `>= 0` (precio × cantidad − descuento + impuesto); moneda de 3 letras mayúsculas; tipo de cambio `> 0` con hasta 6 decimales (si se omite el backend usa 1); días de crédito entero `>= 0`; condición de pago hasta 80 caracteres; observación hasta 1500; la fecha de entrega estimada no puede ser anterior a hoy. Al elegir proveedor se precargan moneda, condición de pago y días de crédito con los valores por defecto del proveedor (`PEN` y vacío si no los tiene).
+- Reglas espejo del backend para la orden: entre 1 y 200 líneas; cantidad `> 0` con hasta 4 decimales; precio `>= 0` con hasta 6 decimales; descuento e impuesto `>= 0` con hasta 2 decimales; tolerancias de exceso y defecto entre 0 y 100 con hasta 4 decimales; total de línea `>= 0` (precio × cantidad − descuento + impuesto); moneda solo `PEN` o `USD` (decisión de negocio para Perú; el backend acepta cualquier código de 3 letras); tipo de cambio `> 0` con hasta 6 decimales, obligatorio cuando la moneda es `USD` porque el backend asume 1 si se omite (regla POR_VALIDAR); días de crédito entero `>= 0`; condición de pago hasta 80 caracteres; observación hasta 1500; la fecha de entrega estimada no puede ser anterior a hoy. Al elegir proveedor se precargan moneda, condición de pago y días de crédito con los valores por defecto del proveedor (`PEN` y vacío si no los tiene; si su moneda por defecto no es `PEN` ni `USD`, se usa `PEN`).
 - IGV sugerido: 18% de (precio × cantidad − descuento) redondeado a 2 decimales, solo para productos con `afectoIgv`; mientras la línea no se edite a mano el impuesto se recalcula al cambiar cantidad, precio o descuento; al editarlo a mano deja de recalcularse. La tasa vive solo en `lib/igv.ts` y la pantalla la rotula como sugerida (decisión POR_VALIDAR del spec).
+- El impuesto editado a mano se puede volver a sugerido con el botón `Sugerido` de la línea (`restablecerImpuesto`). Los errores de línea y de cabecera se muestran solo después de intentar crear la orden (`intentado`); antes, la línea nueva muestra total cero sin alerta. La moneda se elige en un select con `PEN` y `USD`. Al elegir proveedor se sobrescriben moneda, condición de pago y días de crédito, y la cabecera lo avisa con una nota.
 - Un mismo SKU no se agrega dos veces (se ignora el segundo intento); la unidad de la línea es la unidad de venta del SKU (`UND` si no tiene).
 - Textos exactos: ver cada tarea (los usan los tests y el e2e).
 - Comandos desde `frontend/` (`pnpm.cmd` si `pnpm.ps1` está bloqueado): `pnpm exec vitest run <ruta>`, `pnpm typecheck`, `pnpm lint`, `pnpm check`, `pnpm e2e compras.spec.ts`.
@@ -57,6 +58,7 @@ export function lineaDesdeSku(sku: SkuResumen, afectoIgv: boolean): LineaBorrado
 export function agregarSku(lineas: LineaBorrador[], sku: SkuResumen, afectoIgv: boolean): LineaBorrador[];
 export function actualizarLinea(lineas: LineaBorrador[], skuId: string, cambios: CambiosLinea): LineaBorrador[];
 export function quitarLinea(lineas: LineaBorrador[], skuId: string): LineaBorrador[];
+export function restablecerImpuesto(lineas: LineaBorrador[], skuId: string): LineaBorrador[];
 export function errorLinea(linea: LineaBorrador): string | null;
 export function importeBruto(linea: LineaBorrador): number;
 export function totalLinea(linea: LineaBorrador): number;
@@ -140,6 +142,7 @@ import {
   importeBruto,
   lineaDesdeSku,
   quitarLinea,
+  restablecerImpuesto,
   toLineasPayload,
   totalLinea,
   totalesOrden,
@@ -229,6 +232,24 @@ describe('agregarSku, actualizarLinea y quitarLinea', () => {
 
     const despues = actualizarLinea(manual, base.skuId, { cantidad: '3' });
     expect(despues[0]?.impuesto).toBe('2');
+  });
+
+  it('restablecer el impuesto vuelve al sugerido y lo recalcula de nuevo', () => {
+    const manual = actualizarLinea([conPrecio()], base.skuId, { impuesto: '2' });
+
+    const restablecida = restablecerImpuesto(manual, base.skuId);
+    expect(restablecida[0]).toMatchObject({ impuesto: '0.99', impuestoManual: false });
+
+    const despues = actualizarLinea(restablecida, base.skuId, { cantidad: '2' });
+    expect(despues[0]?.impuesto).toBe('1.98');
+  });
+
+  it('restablecer el impuesto no toca las otras líneas', () => {
+    const otra = { ...conPrecio({ skuId: 'sku-0002-bbbb' }), impuestoManual: true, impuesto: '7' };
+
+    const resultado = restablecerImpuesto([conPrecio(), otra], 'sku-0001-aaaa');
+
+    expect(resultado[1]).toBe(otra);
   });
 
   it('cambia solo la línea indicada', () => {
@@ -406,6 +427,15 @@ describe('cabecera de la orden', () => {
     ).toMatchObject({ moneda: 'PEN', condicionPago: '' });
   });
 
+  it('conserva la moneda del proveedor si es USD y cae a PEN si no es soportada', () => {
+    expect(
+      cabeceraDesdeProveedor(CABECERA_VACIA, { ...sampleProveedor, monedaDefault: 'USD' }).moneda
+    ).toBe('USD');
+    expect(
+      cabeceraDesdeProveedor(CABECERA_VACIA, { ...sampleProveedor, monedaDefault: 'EUR' }).moneda
+    ).toBe('PEN');
+  });
+
   it('fechaLocalISO usa la fecha local con ceros a la izquierda', () => {
     expect(fechaLocalISO(new Date(2026, 0, 5))).toBe('2026-01-05');
     expect(fechaLocalISO(new Date(2026, 9, 6))).toBe('2026-10-06');
@@ -437,8 +467,8 @@ describe('erroresCabecera', () => {
   });
 
   it('valida la moneda, el tipo de cambio, la condición, los días y la observación', () => {
-    expect(erroresCabecera({ ...completa, moneda: 'pen' }, HOY)).toEqual({
-      moneda: 'La moneda debe ser un código de 3 letras mayúsculas.'
+    expect(erroresCabecera({ ...completa, moneda: 'EUR' }, HOY)).toEqual({
+      moneda: 'La moneda debe ser PEN o USD.'
     });
     expect(erroresCabecera({ ...completa, tipoCambio: '0' }, HOY)).toEqual({
       tipoCambio: 'El tipo de cambio debe ser mayor que cero con hasta 6 decimales.'
@@ -453,6 +483,28 @@ describe('erroresCabecera', () => {
     });
     expect(erroresCabecera({ ...completa, observacion: 'a'.repeat(1501) }, HOY)).toEqual({
       observacion: 'La observación no debe exceder 1500 caracteres.'
+    });
+  });
+});
+
+describe('tipo de cambio según la moneda', () => {
+  it('lo exige cuando la moneda es USD', () => {
+    expect(erroresCabecera({ ...completa, moneda: 'USD' }, HOY)).toEqual({
+      tipoCambio: 'El tipo de cambio es obligatorio cuando la moneda no es PEN.'
+    });
+    expect(erroresCabecera({ ...completa, moneda: 'USD', tipoCambio: '  ' }, HOY)).toHaveProperty(
+      'tipoCambio'
+    );
+  });
+
+  it('no lo exige en soles ni cuando ya se escribió', () => {
+    expect(erroresCabecera({ ...completa, moneda: 'PEN', tipoCambio: '' }, HOY)).toEqual({});
+    expect(erroresCabecera({ ...completa, moneda: 'USD', tipoCambio: '3.81' }, HOY)).toEqual({});
+  });
+
+  it('con una moneda inválida solo reporta la moneda', () => {
+    expect(erroresCabecera({ ...completa, moneda: 'EUR' }, HOY)).toEqual({
+      moneda: 'La moneda debe ser PEN o USD.'
     });
   });
 });
@@ -693,6 +745,11 @@ export const actualizarLinea = (
 export const quitarLinea = (lineas: LineaBorrador[], skuId: string): LineaBorrador[] =>
   lineas.filter((linea) => linea.skuId !== skuId);
 
+export const restablecerImpuesto = (lineas: LineaBorrador[], skuId: string): LineaBorrador[] =>
+  lineas.map((linea) =>
+    linea.skuId === skuId ? conImpuestoSugerido({ ...linea, impuestoManual: false }) : linea
+  );
+
 const importeSinValidar = (linea: LineaBorrador): number =>
   importeBruto(linea) - Number(linea.descuento) + Number(linea.impuesto);
 
@@ -782,13 +839,18 @@ export const CABECERA_VACIA: CabeceraOrden = {
 
 const PATRON_TIPO_CAMBIO = /^\d{1,10}(\.\d{1,6})?$/;
 
+export const MONEDAS: readonly string[] = ['PEN', 'USD'];
+
+const monedaSoportada = (moneda: string | null): string =>
+  moneda !== null && MONEDAS.includes(moneda) ? moneda : 'PEN';
+
 export const cabeceraDesdeProveedor = (
   cabecera: CabeceraOrden,
   proveedor: Proveedor
 ): CabeceraOrden => ({
   ...cabecera,
   proveedorId: proveedor.id,
-  moneda: proveedor.monedaDefault ?? 'PEN',
+  moneda: monedaSoportada(proveedor.monedaDefault),
   condicionPago: proveedor.condicionPagoDefault ?? '',
   diasCredito: String(proveedor.diasCreditoDefault)
 });
@@ -811,11 +873,15 @@ export function erroresCabecera(cabecera: CabeceraOrden, hoy: string): ErroresCa
   if (cabecera.fechaEntregaEstimada !== '' && cabecera.fechaEntregaEstimada < hoy) {
     errores.fechaEntregaEstimada = 'La fecha de entrega no puede ser anterior a hoy.';
   }
-  if (!/^[A-Z]{3}$/.test(cabecera.moneda)) {
-    errores.moneda = 'La moneda debe ser un código de 3 letras mayúsculas.';
+  const monedaValida = MONEDAS.includes(cabecera.moneda);
+  if (!monedaValida) {
+    errores.moneda = 'La moneda debe ser PEN o USD.';
   }
-  if (tipoCambioInvalido(cabecera.tipoCambio.trim())) {
+  const tipoCambio = cabecera.tipoCambio.trim();
+  if (tipoCambioInvalido(tipoCambio)) {
     errores.tipoCambio = 'El tipo de cambio debe ser mayor que cero con hasta 6 decimales.';
+  } else if (monedaValida && cabecera.moneda !== 'PEN' && tipoCambio === '') {
+    errores.tipoCambio = 'El tipo de cambio es obligatorio cuando la moneda no es PEN.';
   }
   if (cabecera.condicionPago.length > 80) {
     errores.condicionPago = 'La condición de pago no debe exceder 80 caracteres.';
@@ -958,9 +1024,9 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Produces:
   - `OrdenCabeceraForm({ valores, errores, proveedores, establecimientos, onCambiar })` con `onCambiar(campo: keyof CabeceraOrden, valor: string)`.
   - `BuscadorSku({ onElegir })` con `onElegir(sku: SkuResumen)`.
-  - `LineasEditor({ lineas, moneda, onCambiar, onQuitar })` con `onCambiar(skuId: string, cambios: CambiosLinea)` y `onQuitar(skuId: string)`.
+  - `LineasEditor({ lineas, moneda, mostrarErrores, onCambiar, onQuitar, onRestablecerImpuesto })` con `onCambiar(skuId: string, cambios: CambiosLinea)`, `onQuitar(skuId: string)` y `onRestablecerImpuesto(skuId: string)`; `mostrarErrores` controla si se muestra el mensaje de error de cada línea.
   - `TotalesOrden({ totales, moneda })`.
-- Textos exactos: cabecera con etiquetas `Proveedor` (opción `Selecciona un proveedor`), `Establecimiento de destino` (opción `Selecciona un establecimiento`), `Fecha de entrega estimada`, `Moneda`, `Tipo de cambio`, `Condición de pago`, `Días de crédito`, `Observación`; buscador con etiqueta `Buscar producto`, placeholder `Código o descripción`, botón `Buscar`, vacío `No se encontraron productos.`, error `No se pudo buscar productos.` y por resultado `{codigoInterno} — {descripcionComercial}` con botón `Agregar` (nombre accesible `Agregar {codigoInterno}`); editor con columnas `Producto`, `Cantidad`, `Precio`, `Descuento`, `Impuesto`, `Total`, `Exceso %`, `Defecto %`, `Acciones`, inputs con nombre accesible `Cantidad de {codigo}`, `Precio de {codigo}`, `Descuento de {codigo}`, `Impuesto de {codigo}`, `Tolerancia de exceso de {codigo}` y `Tolerancia de defecto de {codigo}`, botón `Quitar {codigo}`, vacío `Aún no agregaste productos.` y nota `El impuesto se sugiere al 18% en los productos afectos a IGV y puedes corregirlo.`; totales con `Subtotal`, `Descuento`, `Impuesto` y `Total`.
+- Textos exactos: cabecera con etiquetas `Proveedor` (opción `Selecciona un proveedor`), `Establecimiento de destino` (opción `Selecciona un establecimiento`), `Fecha de entrega estimada`, `Moneda`, `Tipo de cambio`, `Condición de pago`, `Días de crédito`, `Observación`; buscador con etiqueta `Buscar producto`, placeholder `Código o descripción`, botón `Buscar`, vacío `No se encontraron productos.`, error `No se pudo buscar productos.` y por resultado `{codigoInterno} — {descripcionComercial}` con botón `Agregar` (nombre accesible `Agregar {codigoInterno}`); editor con columnas `Producto`, `Cantidad`, `Precio`, `Descuento`, `Impuesto`, `Total`, `Exceso %`, `Defecto %`, `Acciones`, inputs con nombre accesible `Cantidad de {codigo}`, `Precio de {codigo}`, `Descuento de {codigo}`, `Impuesto de {codigo}`, `Tolerancia de exceso de {codigo}` y `Tolerancia de defecto de {codigo}`, botón `Quitar {codigo}`, botón `Sugerido` (nombre accesible `Usar impuesto sugerido de {codigo}`, solo en líneas con impuesto editado a mano), nota de la cabecera `Al elegir un proveedor se cargan su moneda y condiciones de pago; puedes modificarlas.`, vacío `Aún no agregaste productos.` y nota `El impuesto se sugiere al 18% en los productos afectos a IGV y puedes corregirlo.`; totales con `Subtotal`, `Descuento`, `Impuesto` y `Total`.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -1023,11 +1089,22 @@ describe('OrdenCabeceraForm', () => {
   it('notifica los cambios de moneda y días de crédito', async () => {
     const { onCambiar, user } = renderForm();
 
-    await user.type(screen.getByLabelText('Moneda'), 'X');
+    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD');
     await user.type(screen.getByLabelText('Días de crédito'), '5');
 
-    expect(onCambiar).toHaveBeenCalledWith('moneda', 'PENX');
+    expect(screen.getAllByRole('option', { name: /^(PEN|USD)$/ })).toHaveLength(2);
+    expect(onCambiar).toHaveBeenCalledWith('moneda', 'USD');
     expect(onCambiar).toHaveBeenCalledWith('diasCredito', '05');
+  });
+
+  it('avisa que al elegir proveedor se cargan sus condiciones', () => {
+    renderForm();
+
+    expect(
+      screen.getByText(
+        'Al elegir un proveedor se cargan su moneda y condiciones de pago; puedes modificarlas.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('muestra los errores recibidos bajo cada campo', () => {
@@ -1130,11 +1207,21 @@ import { LineasEditor } from './LineasEditor';
 
 const linea = { ...lineaDesdeSku(sampleSkuVenta, true), precio: '5.5', impuesto: '0.99' };
 
-function renderEditor(lineas = [linea]) {
+function renderEditor(lineas = [linea], mostrarErrores = false) {
   const onCambiar = vi.fn();
   const onQuitar = vi.fn();
-  render(<LineasEditor lineas={lineas} moneda="PEN" onCambiar={onCambiar} onQuitar={onQuitar} />);
-  return { onCambiar, onQuitar, user: userEvent.setup() };
+  const onRestablecerImpuesto = vi.fn();
+  render(
+    <LineasEditor
+      lineas={lineas}
+      moneda="PEN"
+      mostrarErrores={mostrarErrores}
+      onCambiar={onCambiar}
+      onQuitar={onQuitar}
+      onRestablecerImpuesto={onRestablecerImpuesto}
+    />
+  );
+  return { onCambiar, onQuitar, onRestablecerImpuesto, user: userEvent.setup() };
 }
 
 describe('LineasEditor', () => {
@@ -1186,13 +1273,36 @@ describe('LineasEditor', () => {
     expect(onQuitar).toHaveBeenCalledWith('sku-0001-aaaa');
   });
 
-  it('muestra el error de una línea inválida y total cero', () => {
-    renderEditor([{ ...linea, cantidad: '' }]);
+  it('muestra el error de una línea inválida y total cero cuando se piden los errores', () => {
+    renderEditor([{ ...linea, cantidad: '' }], true);
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'La cantidad debe ser mayor que cero con hasta 4 decimales.'
     );
     expect(screen.getByText(formatoMoneda(0))).toBeInTheDocument();
+  });
+
+  it('no muestra el error de una línea inválida antes de intentar crear', () => {
+    renderEditor([{ ...linea, cantidad: '' }]);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(formatoMoneda(0))).toBeInTheDocument();
+  });
+
+  it('ofrece volver al impuesto sugerido solo si se editó a mano', async () => {
+    const { onRestablecerImpuesto, user } = renderEditor([{ ...linea, impuestoManual: true }]);
+
+    await user.click(screen.getByRole('button', { name: 'Usar impuesto sugerido de MED-001' }));
+
+    expect(onRestablecerImpuesto).toHaveBeenCalledWith('sku-0001-aaaa');
+  });
+
+  it('no ofrece el impuesto sugerido mientras sigue siendo automático', () => {
+    renderEditor();
+
+    expect(
+      screen.queryByRole('button', { name: 'Usar impuesto sugerido de MED-001' })
+    ).not.toBeInTheDocument();
   });
 });
 ```
@@ -1232,7 +1342,7 @@ import { Card } from '@boticas/ui-web';
 import { SelectField, TextField } from '../../../shared/components/FormFields';
 import type { EstablishmentStructure } from '../../organizacion';
 import type { Proveedor } from '../api/proveedores.types';
-import type { CabeceraOrden, ErroresCabecera } from '../lib/orden-cabecera';
+import { MONEDAS, type CabeceraOrden, type ErroresCabecera } from '../lib/orden-cabecera';
 
 type OrdenCabeceraFormProps = {
   valores: CabeceraOrden;
@@ -1287,13 +1397,19 @@ export function OrdenCabeceraForm({
         value={valores.fechaEntregaEstimada}
         onChange={(event) => onCambiar('fechaEntregaEstimada', event.target.value)}
       />
-      <TextField
+      <SelectField
         id="orden-moneda"
         label="Moneda"
         error={errores.moneda}
         value={valores.moneda}
         onChange={(event) => onCambiar('moneda', event.target.value)}
-      />
+      >
+        {MONEDAS.map((moneda) => (
+          <option key={moneda} value={moneda}>
+            {moneda}
+          </option>
+        ))}
+      </SelectField>
       <TextField
         id="orden-tipo-cambio"
         label="Tipo de cambio"
@@ -1324,6 +1440,9 @@ export function OrdenCabeceraForm({
         value={valores.observacion}
         onChange={(event) => onCambiar('observacion', event.target.value)}
       />
+      <p className="text-xs text-neutral-500 sm:col-span-2 dark:text-neutral-400">
+        Al elegir un proveedor se cargan su moneda y condiciones de pago; puedes modificarlas.
+      </p>
     </Card>
   );
 }
@@ -1402,6 +1521,7 @@ export function BuscadorSku({ onElegir }: BuscadorSkuProps) {
 `SRC/features/compras/components/LineasEditor.tsx`:
 
 ```tsx
+import type { ReactNode } from 'react';
 import { Button, DataTable, Input } from '@boticas/ui-web';
 import { formatoImporte } from '../lib/formato-compras';
 import {
@@ -1414,8 +1534,10 @@ import {
 type LineasEditorProps = {
   lineas: LineaBorrador[];
   moneda: string;
+  mostrarErrores: boolean;
   onCambiar: (skuId: string, cambios: CambiosLinea) => void;
   onQuitar: (skuId: string) => void;
+  onRestablecerImpuesto: (skuId: string) => void;
 };
 
 type CampoEditable = keyof CambiosLinea;
@@ -1425,21 +1547,32 @@ const columnaEditable = (
   campo: CampoEditable,
   etiqueta: string,
   ancho: string,
-  onCambiar: LineasEditorProps['onCambiar']
+  onCambiar: LineasEditorProps['onCambiar'],
+  extra?: (linea: LineaBorrador) => ReactNode
 ) => ({
   header,
   cell: (linea: LineaBorrador) => (
-    <Input
-      className={`${ancho} text-right tabular-nums`}
-      inputMode="decimal"
-      aria-label={`${etiqueta} de ${linea.codigoInterno}`}
-      value={linea[campo]}
-      onChange={(event) => onCambiar(linea.skuId, { [campo]: event.target.value })}
-    />
+    <div className="flex flex-col items-end gap-1">
+      <Input
+        className={`${ancho} text-right tabular-nums`}
+        inputMode="decimal"
+        aria-label={`${etiqueta} de ${linea.codigoInterno}`}
+        value={linea[campo]}
+        onChange={(event) => onCambiar(linea.skuId, { [campo]: event.target.value })}
+      />
+      {extra?.(linea)}
+    </div>
   )
 });
 
-export function LineasEditor({ lineas, moneda, onCambiar, onQuitar }: LineasEditorProps) {
+export function LineasEditor({
+  lineas,
+  moneda,
+  mostrarErrores,
+  onCambiar,
+  onQuitar,
+  onRestablecerImpuesto
+}: LineasEditorProps) {
   return (
     <div className="space-y-3">
       <DataTable<LineaBorrador>
@@ -1455,11 +1588,22 @@ export function LineasEditor({ lineas, moneda, onCambiar, onQuitar }: LineasEdit
           columnaEditable('Cantidad', 'cantidad', 'Cantidad', 'w-24', onCambiar),
           columnaEditable('Precio', 'precio', 'Precio', 'w-28', onCambiar),
           columnaEditable('Descuento', 'descuento', 'Descuento', 'w-24', onCambiar),
-          columnaEditable('Impuesto', 'impuesto', 'Impuesto', 'w-24', onCambiar),
+          columnaEditable('Impuesto', 'impuesto', 'Impuesto', 'w-24', onCambiar, (linea) =>
+            linea.impuestoManual ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Usar impuesto sugerido de ${linea.codigoInterno}`}
+                onClick={() => onRestablecerImpuesto(linea.skuId)}
+              >
+                Sugerido
+              </Button>
+            ) : null
+          ),
           {
             header: 'Total',
             cell: (linea) => {
-              const mensaje = errorLinea(linea);
+              const mensaje = mostrarErrores ? errorLinea(linea) : null;
               return (
                 <div className="text-right">
                   <span className="font-semibold tabular-nums">
@@ -1691,6 +1835,41 @@ describe('NuevaOrdenPage', () => {
     await user.type(screen.getByLabelText('Cantidad de MED-001'), '3');
 
     expect(screen.getByLabelText('Impuesto de MED-001')).toHaveValue('2');
+
+    await user.click(screen.getByRole('button', { name: 'Usar impuesto sugerido de MED-001' }));
+
+    expect(screen.getByLabelText('Impuesto de MED-001')).toHaveValue('2.97');
+    expect(
+      screen.queryByRole('button', { name: 'Usar impuesto sugerido de MED-001' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('exige el tipo de cambio cuando la moneda no es PEN', async () => {
+    mockEntorno();
+    const enviado = vi.fn();
+    server.use(
+      http.post(ordenesUrl, () => {
+        enviado();
+        return HttpResponse.json(sampleOrden, { status: 201 });
+      })
+    );
+    const { user } = renderPage();
+    await elegirCabecera(user);
+    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD');
+    await agregarProducto(user);
+    await user.type(await screen.findByLabelText('Precio de MED-001'), '5.5');
+
+    await user.click(screen.getByRole('button', { name: 'Crear orden' }));
+
+    expect(
+      await screen.findByText('El tipo de cambio es obligatorio cuando la moneda no es PEN.')
+    ).toBeInTheDocument();
+    expect(enviado).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText('Tipo de cambio'), '3.81');
+    await user.click(screen.getByRole('button', { name: 'Crear orden' }));
+
+    await waitFor(() => expect(enviado).toHaveBeenCalledTimes(1));
   });
 
   it('no duplica un producto ya agregado y permite quitarlo', async () => {
@@ -1752,6 +1931,7 @@ describe('NuevaOrdenPage', () => {
     await elegirCabecera(user);
     await agregarProducto(user);
     await screen.findByLabelText('Precio de MED-001');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Crear orden' }));
 
@@ -1888,6 +2068,7 @@ import {
   actualizarLinea,
   agregarSku,
   quitarLinea,
+  restablecerImpuesto,
   totalesOrden,
   type LineaBorrador
 } from '../lib/orden-calculo';
@@ -1912,6 +2093,7 @@ export function NuevaOrdenPage() {
   const [intentado, setIntentado] = useState(false);
   const [errorSku, setErrorSku] = useState<string | null>(null);
   const hoy = fechaLocalISO();
+  const listaProveedores = proveedores?.items ?? [];
   const creacion = useMutacionCompras(
     (payload: CrearOrdenPayload) => crearOrden(apiClient, payload),
     (orden) => {
@@ -1921,7 +2103,7 @@ export function NuevaOrdenPage() {
 
   const cambiarCabecera = (campo: keyof CabeceraOrden, valor: string) => {
     const proveedor =
-      campo === 'proveedorId' ? proveedores?.items.find(({ id }) => id === valor) : undefined;
+      campo === 'proveedorId' ? listaProveedores.find(({ id }) => id === valor) : undefined;
     setCabecera((actual) =>
       proveedor
         ? cabeceraDesdeProveedor(actual, proveedor)
@@ -1954,7 +2136,7 @@ export function NuevaOrdenPage() {
       <OrdenCabeceraForm
         valores={cabecera}
         errores={intentado ? erroresCabecera(cabecera, hoy) : {}}
-        proveedores={proveedores?.items ?? []}
+        proveedores={listaProveedores}
         establecimientos={establecimientos}
         onCambiar={cambiarCabecera}
       />
@@ -1969,10 +2151,14 @@ export function NuevaOrdenPage() {
         <LineasEditor
           lineas={lineas}
           moneda={cabecera.moneda}
+          mostrarErrores={intentado}
           onCambiar={(skuId, cambios) =>
             setLineas((actuales) => actualizarLinea(actuales, skuId, cambios))
           }
           onQuitar={(skuId) => setLineas((actuales) => quitarLinea(actuales, skuId))}
+          onRestablecerImpuesto={(skuId) =>
+            setLineas((actuales) => restablecerImpuesto(actuales, skuId))
+          }
         />
         {intentado && lineas.length === 0 ? <FormError message="Agrega al menos un producto." /> : null}
       </section>
@@ -1990,8 +2176,6 @@ export function NuevaOrdenPage() {
   );
 }
 ```
-
-Nota: `cabecera.moneda` puede quedar inválida (por ejemplo `pen`) mientras se escribe; `formatoImporte` ya cae a `CODIGO 0.00` cuando la moneda es inválida, así que la página no se rompe.
 
 `SRC/features/compras/pages/OrdenesPage.tsx`: importar `Link` de `react-router` y `buttonClassName` de `@boticas/ui-web` (junto a `PageHeader`) y agregar al `PageHeader` la propiedad:
 
@@ -2035,6 +2219,8 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Cobertura del spec (sección Crear orden):** proveedor activo (lista de hasta 100), establecimiento destino con `useEstablecimientos`, fecha de entrega, moneda, tipo de cambio, condición de pago, días de crédito y observación (Task 2 y 3); editor de líneas con búsqueda de SKU por `skusQuery`, cantidad, precio, descuento, impuesto y tolerancias, unidad de venta del SKU, máximo de 200 líneas (Task 1 y 2); IGV sugerido del 18% editable y recalculado hasta que se edite a mano, aislado en `lib/igv.ts` y rotulado como sugerido (Task 1, 2 y 3); totales en vivo con redondeo a dos decimales (Task 1 y 2); navegación al detalle tras crear (Task 3); reglas espejo del backend (Task 1); cobertura 100% y e2e (Task 3).
 
+**Ajustes de revisión:** tipo de cambio obligatorio si la moneda válida no es `PEN` (POR_VALIDAR); errores de línea solo tras intentar crear (`mostrarErrores`); botón `Sugerido` y `restablecerImpuesto` para volver al IGV sugerido; moneda restringida a `PEN` y `USD` con un select (`MONEDAS`; la moneda por defecto del proveedor cae a `PEN` si no es soportada); nota de la cabecera sobre la precarga del proveedor; `listaProveedores` calculada una vez para no dejar una rama de `?.` sin cubrir.
+
 **Escaneo de placeholders:** todo paso de código incluye el código. Los ajustes permitidos están acotados a casos concretos (tipo de retorno del mock de MSW, comportamiento de `user.type` sobre campos controlados). No hay "TBD".
 
-**Consistencia de tipos:** `LineaBorrador`, `CambiosLinea`, `TotalesOrden`, `CabeceraOrden`, `ErroresCabecera`, `LineaOrdenPayload`, `CrearOrdenPayload`, `crearOrden`, `agregarSku`, `actualizarLinea`, `quitarLinea`, `errorLinea`, `totalLinea`, `totalesOrden`, `toLineasPayload`, `cabeceraDesdeProveedor`, `erroresCabecera`, `puedeCrear`, `fechaLocalISO`, `toCrearOrdenPayload` y `useMutacionCompras(fn, onSuccess(data))` se usan con las mismas firmas en las tres tareas; `useMutacionCompras` cambia en esta parte a `onSuccess?: (data: TData) => void`, compatible con los usos de la parte 3 (`onClose` sin parámetros).
+**Consistencia de tipos:** `LineaBorrador`, `CambiosLinea`, `TotalesOrden`, `CabeceraOrden`, `ErroresCabecera`, `LineaOrdenPayload`, `CrearOrdenPayload`, `crearOrden`, `agregarSku`, `actualizarLinea`, `quitarLinea`, `restablecerImpuesto`, `errorLinea`, `totalLinea`, `totalesOrden`, `toLineasPayload`, `cabeceraDesdeProveedor`, `erroresCabecera`, `puedeCrear`, `fechaLocalISO`, `toCrearOrdenPayload` y `useMutacionCompras(fn, onSuccess(data))` se usan con las mismas firmas en las tres tareas; `useMutacionCompras` cambia en esta parte a `onSuccess?: (data: TData) => void`, compatible con los usos de la parte 3 (`onClose` sin parámetros).
