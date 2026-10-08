@@ -1,4 +1,5 @@
 import type { Proveedor } from '../features/compras/api/proveedores.types';
+import type { Recepcion } from '../features/compras/api/recepciones.types';
 import type { Orden, OrdenResumen } from '../features/compras/api/ordenes.types';
 
 export const sampleProveedor: Proveedor = {
@@ -72,4 +73,42 @@ export const sampleOrdenResumen: OrdenResumen = {
   moneda: 'PEN',
   total: 64.9,
   estado: 'EMITIDA'
+};
+
+export const sampleRecepcion: Recepcion = {
+  id: 'rec-1',
+  numero: 'REC-2026-000001',
+  ordenCompraId: 'orden-1',
+  proveedorId: 'prov-1',
+  establecimientoId: 'est-1',
+  almacenId: 'alm-1',
+  documentoProveedorTipo: '01',
+  documentoProveedorSerie: 'F001',
+  documentoProveedorNumero: '123',
+  guiaRemisionRemitente: null,
+  guiaRemisionTransportista: null,
+  fechaRecepcion: '2026-10-08T15:00:00Z',
+  temperaturaRecepcionC: null,
+  humedadRelativaPct: null,
+  estado: 'CONFIRMADA',
+  observacion: null,
+  lineas: [
+    {
+      id: 'rec-linea-1',
+      numeroLinea: 1,
+      numeroLineaOrden: 1,
+      skuId: 'sku-0001-aaaa',
+      numeroLote: 'L2026-01',
+      fechaFabricacion: null,
+      fechaVencimiento: '2028-12-31',
+      cantidadRecibida: 4,
+      cantidadAceptada: 4,
+      cantidadRechazada: 0,
+      costoUnitario: 5.5,
+      decisionCalidad: 'ACEPTADO',
+      motivoDecision: null,
+      observacion: null,
+      loteId: 'lote-9'
+    }
+  ]
 };

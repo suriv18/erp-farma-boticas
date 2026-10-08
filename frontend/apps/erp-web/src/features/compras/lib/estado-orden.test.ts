@@ -4,6 +4,7 @@ import {
   puedeAnular,
   puedeAprobar,
   puedeEmitir,
+  puedeRecibir,
   tonoEstadoOrden
 } from './estado-orden';
 
@@ -46,5 +47,9 @@ describe('estado-orden', () => {
       'APROBADA',
       'EMITIDA'
     ]);
+  });
+
+  it('recibir solo cuando está emitida o parcialmente recibida', () => {
+    expect(ESTADOS_ORDEN.filter(puedeRecibir)).toEqual(['EMITIDA', 'PARCIALMENTE_RECIBIDA']);
   });
 });

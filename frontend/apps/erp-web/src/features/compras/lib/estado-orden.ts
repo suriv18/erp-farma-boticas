@@ -26,6 +26,8 @@ const TONOS = {
 
 const ANULABLES: readonly EstadoOrden[] = ['BORRADOR', 'EN_APROBACION', 'APROBADA', 'EMITIDA'];
 
+const RECEPCIONABLES: readonly EstadoOrden[] = ['EMITIDA', 'PARCIALMENTE_RECIBIDA'];
+
 export const etiquetaEstadoOrden = (estado: EstadoOrden): string => ETIQUETAS[estado];
 
 export const tonoEstadoOrden = (estado: EstadoOrden): Tono => TONOS[estado];
@@ -36,3 +38,5 @@ export const puedeAprobar = (estado: EstadoOrden): boolean =>
 export const puedeEmitir = (estado: EstadoOrden): boolean => estado === 'APROBADA';
 
 export const puedeAnular = (estado: EstadoOrden): boolean => ANULABLES.includes(estado);
+
+export const puedeRecibir = (estado: EstadoOrden): boolean => RECEPCIONABLES.includes(estado);

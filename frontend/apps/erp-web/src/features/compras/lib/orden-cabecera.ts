@@ -1,6 +1,7 @@
-import { emptyToUndefined } from '../../../shared/lib/form-values';
+import { emptyToUndefined, numeroOpcional } from '../../../shared/lib/form-values';
 import type { CrearOrdenPayload } from '../api/ordenes.types';
 import type { Proveedor } from '../api/proveedores.types';
+import { esPrecio } from './numeros-compras';
 import { errorLinea, toLineasPayload, type LineaBorrador } from './orden-calculo';
 
 export type CabeceraOrden = {
@@ -27,8 +28,6 @@ export const CABECERA_VACIA: CabeceraOrden = {
   observacion: ''
 };
 
-const PATRON_TIPO_CAMBIO = /^\d{1,10}(\.\d{1,6})?$/;
-
 export const MONEDAS: readonly string[] = ['PEN', 'USD'];
 
 const monedaSoportada = (moneda: string | null): string =>
@@ -52,7 +51,7 @@ export function fechaLocalISO(ahora: Date = new Date()): string {
 }
 
 const tipoCambioInvalido = (texto: string) =>
-  texto !== '' && !(PATRON_TIPO_CAMBIO.test(texto) && Number(texto) > 0);
+  texto !== '' && !(esPrecio(texto) && Number(texto) > 0);
 
 export function erroresCabecera(cabecera: CabeceraOrden, hoy: string): ErroresCabecera {
   const errores: ErroresCabecera = {};
@@ -94,11 +93,6 @@ export const puedeCrear = (
   lineas.length > 0 &&
   lineas.every((linea) => errorLinea(linea) === null);
 
-const tipoCambioOpcional = (texto: string): number | undefined => {
-  const limpio = emptyToUndefined(texto);
-  return limpio === undefined ? undefined : Number(limpio);
-};
-
 export const toCrearOrdenPayload = (
   cabecera: CabeceraOrden,
   lineas: LineaBorrador[]
@@ -107,7 +101,7 @@ export const toCrearOrdenPayload = (
   establecimientoDestinoId: cabecera.establecimientoDestinoId,
   fechaEntregaEstimada: emptyToUndefined(cabecera.fechaEntregaEstimada),
   moneda: cabecera.moneda,
-  tipoCambio: tipoCambioOpcional(cabecera.tipoCambio),
+  tipoCambio: numeroOpcional(cabecera.tipoCambio),
   condicionPago: emptyToUndefined(cabecera.condicionPago),
   diasCredito: Number(cabecera.diasCredito),
   observacion: emptyToUndefined(cabecera.observacion),

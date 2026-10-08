@@ -2,6 +2,7 @@ import { redondear } from '../../../shared/lib/redondeo';
 import type { SkuResumen } from '../../catalogo';
 import type { LineaOrdenPayload } from '../api/ordenes.types';
 import { impuestoSugerido } from './igv';
+import { esCantidad, esMonto, esPrecio, esTolerancia } from './numeros-compras';
 
 export const MAX_LINEAS_ORDEN = 200;
 
@@ -33,16 +34,6 @@ export type TotalesOrden = {
   impuesto: number;
   total: number;
 };
-
-const PATRON_CANTIDAD = /^\d{1,9}(\.\d{1,4})?$/;
-const PATRON_PRECIO = /^\d{1,10}(\.\d{1,6})?$/;
-const PATRON_MONTO = /^\d{1,10}(\.\d{1,2})?$/;
-const PATRON_TOLERANCIA = /^\d{1,3}(\.\d{1,4})?$/;
-
-const esCantidad = (texto: string) => PATRON_CANTIDAD.test(texto) && Number(texto) > 0;
-const esPrecio = (texto: string) => PATRON_PRECIO.test(texto);
-const esMonto = (texto: string) => PATRON_MONTO.test(texto);
-const esTolerancia = (texto: string) => PATRON_TOLERANCIA.test(texto) && Number(texto) <= 100;
 
 export const importeBruto = (linea: LineaBorrador): number =>
   esCantidad(linea.cantidad) && esPrecio(linea.precio)
