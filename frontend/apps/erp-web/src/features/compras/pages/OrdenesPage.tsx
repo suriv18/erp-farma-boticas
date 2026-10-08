@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader } from '@boticas/ui-web';
+import { Link } from 'react-router';
+import { PageHeader, buttonClassName } from '@boticas/ui-web';
 import { ordenesQuery } from '../api/ordenes.api';
 import { proveedoresQuery } from '../api/proveedores.api';
 import { FiltrosOrdenes } from '../components/FiltrosOrdenes';
@@ -24,6 +25,11 @@ export function OrdenesPage() {
         title="Órdenes de compra"
         context="Compras / Órdenes"
         description="Seguimiento de las órdenes de compra y su recepción."
+        actions={
+          <Link to="/compras/ordenes/nueva" className={buttonClassName()}>
+            Nueva orden
+          </Link>
+        }
       />
       <FiltrosOrdenes
         proveedores={proveedores?.items ?? []}

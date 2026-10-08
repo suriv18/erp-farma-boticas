@@ -29,6 +29,17 @@ function capturar() {
 }
 
 describe('OrdenesPage', () => {
+  it('ofrece crear una orden nueva', async () => {
+    server.use(http.get(ordenesUrl, () => HttpResponse.json(pagina([]))));
+
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: 'Nueva orden' })).toHaveAttribute(
+      'href',
+      '/compras/ordenes/nueva'
+    );
+  });
+
   it('lista las órdenes con enlace al detalle', async () => {
     server.use(http.get(ordenesUrl, () => HttpResponse.json(pagina([sampleOrdenResumen]))));
 

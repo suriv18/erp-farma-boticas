@@ -37,6 +37,13 @@ export const purchasesRoutes = [
     }
   },
   {
+    path: 'compras/ordenes/nueva',
+    lazy: async () => {
+      const { NuevaOrdenPage } = await import('./pages/NuevaOrdenPage');
+      return { Component: NuevaOrdenPage };
+    }
+  },
+  {
     path: 'compras/ordenes/:ordenId',
     lazy: async () => {
       const { OrdenDetailPage } = await import('./pages/OrdenDetailPage');

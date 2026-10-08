@@ -48,4 +48,23 @@ test.describe('Compras', () => {
     await expect(page.getByText('Cancelada').first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
+
+  test('crea una orden de compra con IGV sugerido', async ({ page }) => {
+    await abrirComprasEn(page, '/compras/ordenes');
+
+    await page.getByRole('link', { name: 'Nueva orden' }).click();
+    await expect(page.getByRole('heading', { name: 'Nueva orden de compra' })).toBeVisible();
+    await page.getByLabel('Proveedor').selectOption('prov-1');
+    await page.getByLabel('Establecimiento de destino').selectOption('est-1');
+    await page.getByLabel('Buscar producto').fill('paracetamol');
+    await page.getByRole('button', { name: 'Buscar' }).click();
+    await page.getByRole('button', { name: 'Agregar MED-001' }).click();
+    await page.getByLabel('Precio de MED-001').fill('5.5');
+    await expect(page.getByLabel('Impuesto de MED-001')).toHaveValue('0.99');
+    await expectNoHorizontalOverflow(page);
+
+    await page.getByRole('button', { name: 'Crear orden' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
+  });
 });

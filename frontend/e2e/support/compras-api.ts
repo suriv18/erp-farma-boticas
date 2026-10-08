@@ -4,6 +4,7 @@ import {
   sampleOrdenResumen,
   sampleProveedor
 } from '../../apps/erp-web/src/test/compras-fixtures';
+import { sampleSkuVenta } from '../../apps/erp-web/src/test/ventas-fixtures';
 import { sampleEstructura } from '../../apps/erp-web/src/test/inventario-fixtures';
 import type { Orden } from '../../apps/erp-web/src/features/compras/api/ordenes.types';
 import type { Proveedor } from '../../apps/erp-web/src/features/compras/api/proveedores.types';
@@ -49,7 +50,19 @@ export async function mockComprasApi(page: Page) {
     json(route, 200, sampleEstructura)
   );
   await page.route(/\/api\/v1\/compras\/ordenes(\?|$)/, (route) =>
-    json(route, 200, pagina([{ ...sampleOrdenResumen, estado: orden.estado, total: orden.total }]))
+    route.request().method() === 'POST'
+      ? json(route, 201, sampleOrden)
+      : json(
+          route,
+          200,
+          pagina([{ ...sampleOrdenResumen, estado: orden.estado, total: orden.total }])
+        )
+  );
+  await page.route(/\/api\/v1\/catalogo\/skus(\?|$)/, (route) =>
+    json(route, 200, pagina([sampleSkuVenta]))
+  );
+  await page.route(/\/api\/v1\/catalogo\/skus\/sku-0001-aaaa$/, (route) =>
+    json(route, 200, { id: 'sku-0001-aaaa', afectoIgv: true })
   );
   await page.route(
     /\/api\/v1\/compras\/ordenes\/orden-1(\/(aprobacion|emision|anulacion))?(\?|$)/,
