@@ -2,6 +2,7 @@ import { Card } from '@boticas/ui-web';
 import { SelectField } from '../../../shared/components/FormFields';
 import {
   TerminalSelector,
+  almacenesDeEstablecimiento,
   cambiarTerminal,
   useEstablecimientos,
   type PuestoTrabajo
@@ -13,8 +14,7 @@ type PuestoVentaProps = {
 };
 
 export function PuestoVenta({ puesto, onChange }: PuestoVentaProps) {
-  const almacenes =
-    useEstablecimientos().find(({ id }) => id === puesto.establecimientoId)?.warehouses ?? [];
+  const almacenes = almacenesDeEstablecimiento(useEstablecimientos(), puesto.establecimientoId);
 
   return (
     <Card className="grid gap-4 p-5 md:grid-cols-3 md:[&>*:first-child]:col-span-2">

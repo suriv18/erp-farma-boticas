@@ -1,6 +1,7 @@
 import { sampleOrden } from '../../../test/compras-fixtures';
 import {
   actualizarItem,
+  diagnosticoItem,
   errorItem,
   itemIncluido,
   itemsDesdeOrden,
@@ -240,6 +241,30 @@ describe('errorItem', () => {
         HOY
       )
     ).toBeNull();
+  });
+});
+
+describe('diagnosticoItem', () => {
+  it.each([
+    [{ numeroLote: '' }, 'numeroLote'],
+    [{ fechaVencimiento: '' }, 'fechaVencimiento'],
+    [{ fechaFabricacion: '2027-12-31' }, 'fechaVencimiento'],
+    [{ cantidadRecibida: '' }, 'cantidadRecibida'],
+    [{ cantidadRecibida: '0' }, 'cantidadRecibida'],
+    [{ cantidadRechazada: '9' }, 'cantidadRechazada'],
+    [{ cantidadRechazada: '1' }, 'motivoRechazo'],
+    [{ cantidadRechazada: '1', motivoRechazo: 'm'.repeat(1001) }, 'motivoRechazo'],
+    [{ costoUnitario: '-1' }, 'costoUnitario'],
+    [{ fechaVencimiento: '2026-10-07' }, 'fechaVencimiento']
+  ] as [Partial<ItemBorrador>, string][])('señala el campo con error para %j', (cambios, campo) => {
+    const diagnostico = diagnosticoItem(valido(cambios), HOY);
+
+    expect(diagnostico?.campo).toBe(campo);
+    expect(diagnostico?.mensaje).toBe(errorItem(valido(cambios), HOY));
+  });
+
+  it('no devuelve diagnóstico en un ítem válido', () => {
+    expect(diagnosticoItem(valido(), HOY)).toBeNull();
   });
 });
 

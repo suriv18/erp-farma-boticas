@@ -70,9 +70,45 @@ describe('ItemsRecepcionEditor', () => {
   it('muestra el error de una línea con cantidad cuando se piden los errores', () => {
     renderEditor([{ ...ITEM, cantidadRecibida: '4' }], true);
 
-    expect(bloque().getByRole('alert')).toHaveTextContent(
-      'El número de lote es obligatorio y admite hasta 120 caracteres.'
+    expect(
+      bloque().getByText('El número de lote es obligatorio y admite hasta 120 caracteres.')
+    ).toBeInTheDocument();
+  });
+
+  it('marca solo el campo con error y lo vincula con el mensaje de su línea, sin role alert', () => {
+    renderEditor([{ ...ITEM, cantidadRecibida: '4' }], true);
+
+    const lote = bloque().getByLabelText('Número de lote');
+    expect(lote).toHaveAttribute('aria-invalid', 'true');
+    expect(lote).toHaveAttribute('aria-describedby', 'recepcion-linea-1-error');
+    expect(document.getElementById('recepcion-linea-1-error')).toHaveTextContent(
+      'El número de lote es obligatorio'
     );
+    expect(bloque().getByLabelText('Cantidad recibida')).not.toHaveAttribute('aria-invalid');
+    expect(bloque().getByLabelText('Cantidad recibida')).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('usa ids de mensaje distintos por línea', () => {
+    renderEditor(
+      [
+        { ...ITEM, cantidadRecibida: '4' },
+        { ...ITEM, numeroLineaOrden: 2, descripcion: 'Ibuprofeno', cantidadRecibida: '4' }
+      ],
+      true
+    );
+
+    expect(document.getElementById('recepcion-linea-1-error')).toBeInTheDocument();
+    expect(document.getElementById('recepcion-linea-2-error')).toBeInTheDocument();
+  });
+
+  it('señala la cantidad recibida de una línea con datos pero sin cantidad', () => {
+    renderEditor([{ ...ITEM, numeroLote: 'L1' }], true);
+
+    expect(bloque().getByLabelText('Cantidad recibida')).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      bloque().getByText('Ingresa la cantidad recibida o deja la línea sin datos.')
+    ).toBeInTheDocument();
   });
 
   it('no valida las líneas sin cantidad recibida', () => {

@@ -38,10 +38,6 @@ export function recepcionesQuery(params: FetchRecepcionesParams) {
   });
 }
 
-export function fetchRecepcion(client: ApiClient, recepcionId: string): Promise<Recepcion> {
-  return client.get<Recepcion>(`/compras/recepciones/${recepcionId}`);
-}
-
 export function registrarRecepcion(
   client: ApiClient,
   payload: RegistrarRecepcionPayload,

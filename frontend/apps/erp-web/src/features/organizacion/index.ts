@@ -14,5 +14,6 @@ export {
   PUESTO_VACIO,
   type PuestoTrabajo
 } from './lib/use-puesto-trabajo';
-export { useEstablecimientos } from './lib/use-establecimientos';
+export { useEstablecimientos, useEstablecimientosEstado } from './lib/use-establecimientos';
+export { almacenesDeEstablecimiento } from './lib/almacenes-de-establecimiento';
 export { TerminalSelector } from './components/TerminalSelector';

@@ -7,7 +7,7 @@ import { FormError } from '../../../shared/components/FormError';
 import { useClaveIdempotencia } from '../../../shared/lib/use-clave-idempotencia';
 import { useRouteParam } from '../../../shared/lib/use-route-param';
 import { invalidateInventario } from '../../inventario';
-import { useEstablecimientos } from '../../organizacion';
+import { useEstablecimientosEstado } from '../../organizacion';
 import { ordenQuery } from '../api/ordenes.api';
 import type { Orden } from '../api/ordenes.types';
 import { registrarRecepcion } from '../api/recepciones.api';
@@ -21,6 +21,7 @@ import {
   CABECERA_RECEPCION_VACIA,
   almacenesDeDestino,
   erroresCabeceraRecepcion,
+  estadoAlmacenes,
   puedeRegistrar,
   toRegistrarRecepcionPayload,
   type CabeceraRecepcion
@@ -36,12 +37,13 @@ import { useMutacionCompras } from '../lib/use-mutacion-compras';
 function RecepcionForm({ orden }: { orden: Orden }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const establecimientos = useEstablecimientos();
+  const { establecimientos, isPending, isError } = useEstablecimientosEstado();
   const { claveDe, reiniciar } = useClaveIdempotencia();
   const [cabecera, setCabecera] = useState<CabeceraRecepcion>(CABECERA_RECEPCION_VACIA);
   const [items, setItems] = useState<ItemBorrador[]>(() => itemsDesdeOrden(orden));
   const [intentado, setIntentado] = useState(false);
   const hoy = fechaUtcISO();
+  const almacenes = almacenesDeDestino(establecimientos, orden.establecimientoDestinoId);
   const detalle = `/compras/ordenes/${orden.id}`;
   const registro = useMutacionCompras(
     (payload: RegistrarRecepcionPayload) =>
@@ -53,9 +55,15 @@ function RecepcionForm({ orden }: { orden: Orden }) {
     }
   );
 
+  const valido = puedeRegistrar(cabecera, items, hoy);
+  const mensajeValidacion = items.some(itemIncluido)
+    ? 'Corrige los errores indicados antes de registrar la recepción.'
+    : 'Ingresa la cantidad recibida de al menos un producto.';
+  const mensajeAccion = intentado && !valido ? mensajeValidacion : registro.mensajeError;
+
   const registrar = () => {
     setIntentado(true);
-    if (puedeRegistrar(cabecera, items, hoy)) {
+    if (valido) {
       registro.mutate(toRegistrarRecepcionPayload(orden.id, cabecera, items));
     }
   };
@@ -65,7 +73,8 @@ function RecepcionForm({ orden }: { orden: Orden }) {
       <RecepcionCabeceraForm
         valores={cabecera}
         errores={intentado ? erroresCabeceraRecepcion(cabecera) : {}}
-        almacenes={almacenesDeDestino(establecimientos, orden.establecimientoDestinoId)}
+        almacenes={almacenes}
+        estadoAlmacenes={estadoAlmacenes({ isPending, isError }, almacenes.length)}
         onCambiar={(campo, valor) => setCabecera((actual) => ({ ...actual, [campo]: valor }))}
       />
       <section className="space-y-4">
@@ -78,18 +87,17 @@ function RecepcionForm({ orden }: { orden: Orden }) {
             setItems((actuales) => actualizarItem(actuales, numeroLineaOrden, cambios))
           }
         />
-        {intentado && !items.some(itemIncluido) ? (
-          <FormError message="Ingresa la cantidad recibida de al menos un producto." />
-        ) : null}
       </section>
-      {registro.mensajeError ? <FormError message={registro.mensajeError} /> : null}
-      <div className="flex flex-wrap gap-3">
-        <Button disabled={registro.isPending} onClick={registrar}>
-          Registrar recepción
-        </Button>
-        <Button variant="secondary" onClick={() => void navigate(detalle)}>
-          Cancelar
-        </Button>
+      <div role="group" aria-label="Acciones de la recepción" className="space-y-3">
+        {mensajeAccion ? <FormError message={mensajeAccion} /> : null}
+        <div className="flex flex-wrap gap-3">
+          <Button disabled={registro.isPending} onClick={registrar}>
+            Registrar recepción
+          </Button>
+          <Button variant="secondary" onClick={() => void navigate(detalle)}>
+            Cancelar
+          </Button>
+        </div>
       </div>
     </>
   );

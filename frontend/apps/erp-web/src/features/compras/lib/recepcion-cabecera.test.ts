@@ -4,6 +4,7 @@ import {
   TIPOS_DOCUMENTO_PROVEEDOR,
   almacenesDeDestino,
   erroresCabeceraRecepcion,
+  estadoAlmacenes,
   puedeRegistrar,
   toRegistrarRecepcionPayload
 } from './recepcion-cabecera';
@@ -207,5 +208,16 @@ describe('toRegistrarRecepcionPayload', () => {
       humedadRelativaPct: 60,
       observacion: 'Cajas completas'
     });
+  });
+});
+
+describe('estadoAlmacenes', () => {
+  it.each([
+    [{ isPending: true, isError: false }, 2, 'cargando'],
+    [{ isPending: false, isError: true }, 0, 'error'],
+    [{ isPending: false, isError: false }, 0, 'vacio'],
+    [{ isPending: false, isError: false }, 2, 'listo']
+  ] as const)('con %j y %i almacenes es "%s"', (consulta, cantidad, esperado) => {
+    expect(estadoAlmacenes(consulta, cantidad)).toBe(esperado);
   });
 });

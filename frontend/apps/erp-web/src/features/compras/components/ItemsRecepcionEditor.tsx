@@ -1,7 +1,7 @@
 import { Card } from '@boticas/ui-web';
 import { TextField } from '../../../shared/components/FormFields';
 import {
-  errorItem,
+  diagnosticoItem,
   itemIncluido,
   type CambiosItem,
   type ItemBorrador
@@ -46,7 +46,9 @@ export function ItemsRecepcionEditor({
   return (
     <div className="space-y-4">
       {items.map((item) => {
-        const mensaje = mostrarErrores && itemIncluido(item) ? errorItem(item, hoy) : null;
+        const diagnostico =
+          mostrarErrores && itemIncluido(item) ? diagnosticoItem(item, hoy) : null;
+        const idMensaje = `recepcion-linea-${item.numeroLineaOrden}-error`;
         return (
           <Card key={item.numeroLineaOrden} className="p-5">
             <fieldset className="min-w-0 space-y-4">
@@ -65,18 +67,21 @@ export function ItemsRecepcionEditor({
                     type={type}
                     inputMode={inputMode}
                     value={item[campo]}
+                    {...(diagnostico?.campo === campo
+                      ? { 'aria-invalid': true, 'aria-describedby': idMensaje }
+                      : {})}
                     onChange={(event) =>
                       onCambiar(item.numeroLineaOrden, { [campo]: event.target.value })
                     }
                   />
                 ))}
               </div>
-              {mensaje ? (
+              {diagnostico ? (
                 <p
-                  role="alert"
+                  id={idMensaje}
                   className="text-danger-600 dark:text-danger-400 text-xs font-medium"
                 >
-                  {mensaje}
+                  {diagnostico.mensaje}
                 </p>
               ) : null}
             </fieldset>

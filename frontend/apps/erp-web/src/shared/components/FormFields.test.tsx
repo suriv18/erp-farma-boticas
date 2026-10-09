@@ -19,6 +19,24 @@ describe('TextField', () => {
     expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('vincula el input con su mensaje de error y no lo vincula sin error', () => {
+    const { rerender } = render(<TextField id="campo" label="Nombre" error="Es obligatorio." />);
+
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-describedby', 'campo-error');
+    expect(document.getElementById('campo-error')).toHaveTextContent('Es obligatorio.');
+
+    rerender(<TextField id="campo" label="Nombre" />);
+
+    expect(screen.getByLabelText('Nombre')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('permite que quien lo usa gobierne aria-invalid y aria-describedby', () => {
+    render(<TextField id="campo" label="Nombre" aria-invalid aria-describedby="otro" />);
+
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-describedby', 'otro');
+  });
+
   it('reenvía props del input como readOnly y placeholder', () => {
     render(<TextField id="campo" label="Nombre" readOnly placeholder="Escribe" />);
 
@@ -54,6 +72,7 @@ describe('SelectField', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Selecciona un tipo.');
     expect(screen.getByLabelText('Tipo')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Tipo')).toHaveAttribute('aria-describedby', 'tipo-error');
   });
 });
 

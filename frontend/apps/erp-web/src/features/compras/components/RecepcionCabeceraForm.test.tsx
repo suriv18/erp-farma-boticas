@@ -15,6 +15,7 @@ function renderForm(overrides: Partial<Parameters<typeof RecepcionCabeceraForm>[
       valores={CABECERA_RECEPCION_VACIA}
       errores={{}}
       almacenes={almacenes}
+      estadoAlmacenes="listo"
       onCambiar={onCambiar}
       {...overrides}
     />
@@ -70,5 +71,41 @@ describe('RecepcionCabeceraForm', () => {
     expect(
       screen.getByText('La temperatura debe estar entre -50 y 100 °C con hasta 2 decimales.')
     ).toBeInTheDocument();
+  });
+
+  it.each([
+    ['cargando', 'Cargando almacenes…'],
+    ['error', 'No se pudieron cargar los almacenes. Recarga la página para reintentar.'],
+    ['vacio', 'El establecimiento de destino no tiene almacenes operativos.']
+  ] as const)('con almacenes "%s" deshabilita la selección y lo explica', (estado, mensaje) => {
+    renderForm({ estadoAlmacenes: estado, almacenes: [] });
+
+    expect(screen.getByLabelText('Almacén')).toBeDisabled();
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByLabelText('Almacén')).toHaveAttribute(
+      'aria-describedby',
+      'recepcion-almacen-estado'
+    );
+  });
+
+  it('con almacenes listos no muestra aviso y deja elegir', () => {
+    renderForm();
+
+    expect(screen.getByLabelText('Almacén')).toBeEnabled();
+    expect(screen.getByLabelText('Almacén')).not.toHaveAttribute('aria-describedby');
+    expect(document.getElementById('recepcion-almacen-estado')).not.toBeInTheDocument();
+  });
+
+  it('vincula el error de validación del almacén aunque no haya almacenes', () => {
+    renderForm({
+      estadoAlmacenes: 'vacio',
+      almacenes: [],
+      errores: { almacenId: 'Selecciona el almacén de recepción.' }
+    });
+
+    expect(screen.getByLabelText('Almacén')).toHaveAttribute(
+      'aria-describedby',
+      'recepcion-almacen-error'
+    );
   });
 });

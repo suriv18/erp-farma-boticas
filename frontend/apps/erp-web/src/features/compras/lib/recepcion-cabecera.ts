@@ -1,5 +1,9 @@
 import { emptyToUndefined, numeroOpcional } from '../../../shared/lib/form-values';
-import type { EstablishmentStructure, OrganizationalNode } from '../../organizacion';
+import {
+  almacenesDeEstablecimiento,
+  type EstablishmentStructure,
+  type OrganizationalNode
+} from '../../organizacion';
 import type { RegistrarRecepcionPayload } from '../api/recepciones.types';
 import { errorItem, itemIncluido, toItemsPayload, type ItemBorrador } from './recepcion-items';
 
@@ -52,13 +56,24 @@ const fueraDeRango = (texto: string, minimo: number, maximo: number): boolean =>
   );
 };
 
+export type EstadoAlmacenes = 'cargando' | 'error' | 'vacio' | 'listo';
+
 export const almacenesDeDestino = (
   establecimientos: EstablishmentStructure[],
   establecimientoId: string
 ): OrganizationalNode[] =>
-  (establecimientos.find(({ id }) => id === establecimientoId)?.warehouses ?? []).filter(
+  almacenesDeEstablecimiento(establecimientos, establecimientoId).filter(
     ({ status }) => status === 'ACTIVE'
   );
+
+export function estadoAlmacenes(
+  { isPending, isError }: { isPending: boolean; isError: boolean },
+  cantidad: number
+): EstadoAlmacenes {
+  if (isPending) return 'cargando';
+  if (isError) return 'error';
+  return cantidad === 0 ? 'vacio' : 'listo';
+}
 
 export function erroresCabeceraRecepcion(cabecera: CabeceraRecepcion): ErroresCabeceraRecepcion {
   const errores: ErroresCabeceraRecepcion = {};

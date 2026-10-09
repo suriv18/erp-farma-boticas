@@ -4,13 +4,15 @@ import type { OrganizationalNode } from '../../organizacion';
 import {
   TIPOS_DOCUMENTO_PROVEEDOR,
   type CabeceraRecepcion,
-  type ErroresCabeceraRecepcion
+  type ErroresCabeceraRecepcion,
+  type EstadoAlmacenes
 } from '../lib/recepcion-cabecera';
 
 type RecepcionCabeceraFormProps = {
   valores: CabeceraRecepcion;
   errores: ErroresCabeceraRecepcion;
   almacenes: OrganizationalNode[];
+  estadoAlmacenes: EstadoAlmacenes;
   onCambiar: (campo: keyof CabeceraRecepcion, valor: string) => void;
 };
 
@@ -31,28 +33,54 @@ const CAMPOS_TEXTO: readonly { campo: CampoTexto; label: string; inputMode: 'tex
     { campo: 'observacion', label: 'Observación', inputMode: 'text' }
   ];
 
+const ID_ESTADO_ALMACENES = 'recepcion-almacen-estado';
+
+const MENSAJES_ALMACENES: Partial<Record<EstadoAlmacenes, string>> = {
+  cargando: 'Cargando almacenes…',
+  error: 'No se pudieron cargar los almacenes. Recarga la página para reintentar.',
+  vacio: 'El establecimiento de destino no tiene almacenes operativos.'
+};
+
 export function RecepcionCabeceraForm({
   valores,
   errores,
   almacenes,
+  estadoAlmacenes,
   onCambiar
 }: RecepcionCabeceraFormProps) {
+  const mensajeAlmacenes = MENSAJES_ALMACENES[estadoAlmacenes];
+
   return (
     <Card className="grid gap-4 p-6 sm:grid-cols-2">
-      <SelectField
-        id="recepcion-almacen"
-        label="Almacén"
-        error={errores.almacenId}
-        value={valores.almacenId}
-        onChange={(event) => onCambiar('almacenId', event.target.value)}
-      >
-        <option value="">Selecciona un almacén</option>
-        {almacenes.map(({ id, name }) => (
-          <option key={id} value={id}>
-            {name}
-          </option>
-        ))}
-      </SelectField>
+      <div>
+        <SelectField
+          id="recepcion-almacen"
+          label="Almacén"
+          error={errores.almacenId}
+          value={valores.almacenId}
+          disabled={mensajeAlmacenes !== undefined}
+          onChange={(event) => onCambiar('almacenId', event.target.value)}
+          {...(mensajeAlmacenes && !errores.almacenId
+            ? { 'aria-describedby': ID_ESTADO_ALMACENES }
+            : {})}
+        >
+          <option value="">Selecciona un almacén</option>
+          {almacenes.map(({ id, name }) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </SelectField>
+        {mensajeAlmacenes ? (
+          <p
+            id={ID_ESTADO_ALMACENES}
+            role="status"
+            className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400"
+          >
+            {mensajeAlmacenes}
+          </p>
+        ) : null}
+      </div>
       <SelectField
         id="recepcion-tipo-documento"
         label="Tipo de documento"

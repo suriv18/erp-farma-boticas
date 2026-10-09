@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type HttpResponseResolver } from 'msw';
 import { server } from '../../../test/mocks/server';
 import { sampleEstructura } from '../../../test/inventario-fixtures';
 import { sampleOrden, sampleRecepcion } from '../../../test/compras-fixtures';
@@ -30,6 +30,8 @@ function renderPage() {
 type Usuario = ReturnType<typeof renderPage>['user'];
 
 const linea1 = () => within(screen.getByRole('group', { name: 'Línea 1 — Paracetamol 500 mg' }));
+
+const acciones = () => within(screen.getByRole('group', { name: 'Acciones de la recepción' }));
 
 const registrar = () => screen.getByRole('button', { name: 'Registrar recepción' });
 
@@ -117,7 +119,8 @@ describe('RecepcionPage', () => {
 
     await user.click(registrar());
 
-    expect(await linea1().findByRole('alert')).toHaveTextContent('Indica el motivo del rechazo.');
+    expect(await linea1().findByText('Indica el motivo del rechazo.')).toBeInTheDocument();
+    expect(linea1().getByLabelText('Motivo del rechazo')).toHaveAttribute('aria-invalid', 'true');
     expect(enviado).not.toHaveBeenCalled();
 
     await user.type(linea1().getByLabelText('Motivo del rechazo'), 'Empaque dañado');
@@ -145,9 +148,60 @@ describe('RecepcionPage', () => {
 
     expect(await screen.findByText('Selecciona el almacén de recepción.')).toBeInTheDocument();
     expect(
-      screen.getByText('Ingresa la cantidad recibida de al menos un producto.')
+      acciones().getByText('Ingresa la cantidad recibida de al menos un producto.')
     ).toBeInTheDocument();
     expect(enviado).not.toHaveBeenCalled();
+  });
+
+  it('resume los errores de las líneas en un único aviso junto al botón Registrar', async () => {
+    mockEntorno();
+    const { user } = renderPage();
+    await screen.findByRole('option', { name: 'Almacén Central' });
+    await user.selectOptions(screen.getByLabelText('Almacén'), 'alm-1');
+    await user.type(linea1().getByLabelText('Cantidad recibida'), '4');
+
+    await user.click(registrar());
+
+    expect(
+      await acciones().findByText('Corrige los errores indicados antes de registrar la recepción.')
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('quita el resumen cuando los errores se corrigen', async () => {
+    mockEntorno();
+    const { user } = renderPage();
+    await screen.findByRole('option', { name: 'Almacén Central' });
+    await user.click(registrar());
+    await acciones().findByText('Ingresa la cantidad recibida de al menos un producto.');
+
+    await completarRecepcion(user);
+
+    expect(acciones().queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it.each<[string, HttpResponseResolver, string]>([
+    ['cargando', () => new Promise<never>(() => undefined), 'Cargando almacenes…'],
+    [
+      'con error',
+      () => HttpResponse.json({ title: 'Error' }, { status: 500 }),
+      'No se pudieron cargar los almacenes. Recarga la página para reintentar.'
+    ],
+    [
+      'vacío',
+      () => HttpResponse.json({ ...sampleEstructura, companies: [] }),
+      'El establecimiento de destino no tiene almacenes operativos.'
+    ]
+  ])('informa cuando los almacenes están %s', async (_nombre, respuesta, mensaje) => {
+    server.use(
+      http.get(ordenUrl, () => HttpResponse.json({ ...sampleOrden, estado: 'EMITIDA' })),
+      http.get('*/api/v1/estructura-corporativa', respuesta)
+    );
+
+    renderPage();
+
+    expect(await screen.findByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByLabelText('Almacén')).toBeDisabled();
   });
 
   it('no omite en silencio una línea con datos pero sin cantidad recibida', async () => {
@@ -265,6 +319,9 @@ describe('RecepcionPage', () => {
       )
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/compras/ordenes/orden-1/recepcion');
+    expect(acciones().getByRole('alert')).toHaveTextContent(
+      'La cantidad recibida excede lo pendiente de la orden más su tolerancia.'
+    );
   });
 
   it('avisa cuando la orden no admite recepciones', async () => {

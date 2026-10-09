@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
 import { sampleRecepcion } from '../../../test/compras-fixtures';
@@ -34,7 +34,8 @@ describe('RecepcionesOrden', () => {
     expect(contenido).toContain('L2026-01');
     expect(contenido).toContain(texto(formatoFecha('2028-12-31')));
     expect(parametros?.get('ordenCompraId')).toBe('orden-1');
-    expect(parametros?.get('size')).toBe('100');
+    expect(parametros?.get('page')).toBe('0');
+    expect(parametros?.get('size')).toBe('20');
   });
 
   it('indica cuando la orden aún no tiene recepciones', async () => {
@@ -55,5 +56,36 @@ describe('RecepcionesOrden', () => {
     expect(
       await screen.findByText('No se pudo cargar las recepciones de la orden.')
     ).toBeInTheDocument();
+  });
+
+  it('pagina las recepciones de la orden con la clave bajo compras', async () => {
+    const paginas: (string | null)[] = [];
+    server.use(
+      http.get(recepcionesUrl, ({ request }) => {
+        const url = new URL(request.url);
+        paginas.push(url.searchParams.get('page'));
+        const numero = url.searchParams.get('page') === '1' ? 'REC-2026-000021' : 'REC-2026-000001';
+        return HttpResponse.json(
+          pagina([{ ...sampleRecepcion, numero }], {
+            page: Number(url.searchParams.get('page')),
+            totalElements: 25
+          })
+        );
+      })
+    );
+
+    const { user, queryClient } = renderTabla();
+    await screen.findByText('REC-2026-000001');
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }));
+
+    expect(await screen.findByText('REC-2026-000021')).toBeInTheDocument();
+    expect(paginas).toEqual(['0', '1']);
+    expect(
+      queryClient
+        .getQueryCache()
+        .findAll({ queryKey: ['compras'] })
+        .map(({ queryKey }) => queryKey)
+    ).toContainEqual(['compras', 'recepciones', 'orden', 'orden-1', 1, 20]);
+    await waitFor(() => expect(screen.getByText('21–25 de 25')).toBeInTheDocument());
   });
 });

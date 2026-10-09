@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable } from '@boticas/ui-web';
 import { formatoFechaHora } from '../../../shared/lib/format';
@@ -7,9 +8,13 @@ import { formatoFecha } from '../lib/formato-compras';
 
 type FilaRecepcion = { recepcion: Recepcion; linea: LineaRecepcion };
 
+const TAMANO_PAGINA = 20;
+
 export function RecepcionesOrden({ ordenId }: { ordenId: string }) {
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(TAMANO_PAGINA);
   const { data, isPending, isError } = useQuery(
-    recepcionesQuery({ ordenCompraId: ordenId, size: 100 })
+    recepcionesQuery({ ordenCompraId: ordenId, page, size })
   );
   const filas = (data?.items ?? []).flatMap((recepcion) =>
     recepcion.lineas.map((linea) => ({ recepcion, linea }))
@@ -33,6 +38,13 @@ export function RecepcionesOrden({ ordenId }: { ordenId: string }) {
       isLoading={isPending}
       isError={isError}
       errorMessage="No se pudo cargar las recepciones de la orden."
+      pagination={{
+        page,
+        size,
+        totalElements: data?.totalElements ?? 0,
+        onPageChange: setPage,
+        onSizeChange: setSize
+      }}
     />
   );
 }

@@ -11,7 +11,12 @@ type FieldProps = {
 export function TextField({ id, label, error, ...props }: FieldProps & Omit<InputProps, 'id'>) {
   return (
     <FormField label={label} htmlFor={id} error={error}>
-      <Input id={id} aria-invalid={error ? true : undefined} {...props} />
+      <Input
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        {...props}
+      />
     </FormField>
   );
 }
@@ -25,7 +30,12 @@ export function SelectField({
 }: FieldProps & Omit<SelectProps, 'id'>) {
   return (
     <FormField label={label} htmlFor={id} error={error}>
-      <Select id={id} aria-invalid={error ? true : undefined} {...props}>
+      <Select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        {...props}
+      >
         {children}
       </Select>
     </FormField>

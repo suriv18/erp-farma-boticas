@@ -5,12 +5,7 @@ import { setupServer } from 'msw/node';
 import { apiClient } from '../../../app/api';
 import { sampleRecepcion } from '../../../test/compras-fixtures';
 import { pagina } from '../../../test/organizacion-fixtures';
-import {
-  fetchRecepcion,
-  fetchRecepciones,
-  recepcionesQuery,
-  registrarRecepcion
-} from './recepciones.api';
+import { fetchRecepciones, recepcionesQuery, registrarRecepcion } from './recepciones.api';
 
 const server = setupServer();
 
@@ -82,16 +77,6 @@ describe('recepciones.api', () => {
     await fetchRecepciones(client, { ordenCompraId: 'orden-1' });
 
     expect(recibido?.search).toBe('?ordenCompraId=orden-1&page=0&size=20');
-  });
-
-  it('fetchRecepcion obtiene el detalle', async () => {
-    server.use(
-      http.get('http://localhost/api/v1/compras/recepciones/rec-1', () =>
-        HttpResponse.json(sampleRecepcion)
-      )
-    );
-
-    await expect(fetchRecepcion(client, 'rec-1')).resolves.toEqual(sampleRecepcion);
   });
 
   it('recepcionesQuery arma la clave bajo compras y consulta con el cliente de la aplicación', async () => {

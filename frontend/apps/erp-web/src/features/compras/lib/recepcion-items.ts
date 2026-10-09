@@ -80,37 +80,63 @@ export const itemIncluido = (item: ItemBorrador): boolean =>
 const cantidadAceptada = (item: ItemBorrador): number =>
   redondear(Number(item.cantidadRecibida) - Number(item.cantidadRechazada), 4);
 
-export function errorItem(item: ItemBorrador, hoy: string): string | null {
+export type DiagnosticoItem = { campo: keyof CambiosItem; mensaje: string };
+
+const falla = (campo: keyof CambiosItem, mensaje: string): DiagnosticoItem => ({ campo, mensaje });
+
+export function diagnosticoItem(item: ItemBorrador, hoy: string): DiagnosticoItem | null {
   if (item.cantidadRecibida.trim() === '') {
-    return 'Ingresa la cantidad recibida o deja la línea sin datos.';
+    return falla('cantidadRecibida', 'Ingresa la cantidad recibida o deja la línea sin datos.');
   }
   const lote = item.numeroLote.trim();
   if (lote === '' || lote.length > 120) {
-    return 'El número de lote es obligatorio y admite hasta 120 caracteres.';
+    return falla('numeroLote', 'El número de lote es obligatorio y admite hasta 120 caracteres.');
   }
-  if (item.fechaVencimiento === '') return 'La fecha de vencimiento es obligatoria.';
+  if (item.fechaVencimiento === '') {
+    return falla('fechaVencimiento', 'La fecha de vencimiento es obligatoria.');
+  }
   if (item.fechaFabricacion !== '' && item.fechaFabricacion >= item.fechaVencimiento) {
-    return 'La fecha de vencimiento debe ser posterior a la de fabricación.';
+    return falla(
+      'fechaVencimiento',
+      'La fecha de vencimiento debe ser posterior a la de fabricación.'
+    );
   }
   if (!esCantidad(item.cantidadRecibida.trim())) {
-    return 'La cantidad recibida debe ser mayor que cero con hasta 4 decimales.';
+    return falla(
+      'cantidadRecibida',
+      'La cantidad recibida debe ser mayor que cero con hasta 4 decimales.'
+    );
   }
   const rechazada = item.cantidadRechazada.trim() || '0';
   if (!esCantidadNoNegativa(rechazada) || Number(rechazada) > Number(item.cantidadRecibida)) {
-    return 'La cantidad rechazada debe estar entre 0 y la cantidad recibida con hasta 4 decimales.';
+    return falla(
+      'cantidadRechazada',
+      'La cantidad rechazada debe estar entre 0 y la cantidad recibida con hasta 4 decimales.'
+    );
   }
   const motivo = item.motivoRechazo.trim();
   const rechaza = Number(rechazada) > 0;
-  if (rechaza && motivo === '') return 'Indica el motivo del rechazo.';
-  if (rechaza && motivo.length > 1000) return 'El motivo del rechazo admite hasta 1000 caracteres.';
+  if (rechaza && motivo === '') return falla('motivoRechazo', 'Indica el motivo del rechazo.');
+  if (rechaza && motivo.length > 1000) {
+    return falla('motivoRechazo', 'El motivo del rechazo admite hasta 1000 caracteres.');
+  }
   const costo = item.costoUnitario.trim();
   if (costo !== '' && !esPrecio(costo)) {
-    return 'El costo unitario debe ser mayor o igual a cero con hasta 6 decimales.';
+    return falla(
+      'costoUnitario',
+      'El costo unitario debe ser mayor o igual a cero con hasta 6 decimales.'
+    );
   }
   return cantidadAceptada(item) > 0 && item.fechaVencimiento < hoy
-    ? 'No se puede ingresar un lote vencido; recházalo por completo o corrige la fecha.'
+    ? falla(
+        'fechaVencimiento',
+        'No se puede ingresar un lote vencido; recházalo por completo o corrige la fecha.'
+      )
     : null;
 }
+
+export const errorItem = (item: ItemBorrador, hoy: string): string | null =>
+  diagnosticoItem(item, hoy)?.mensaje ?? null;
 
 export const toItemsPayload = (items: ItemBorrador[]): ItemRecepcionPayload[] =>
   items.filter(itemIncluido).map((item) => {
