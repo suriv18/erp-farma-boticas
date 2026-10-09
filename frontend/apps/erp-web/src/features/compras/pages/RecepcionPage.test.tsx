@@ -150,6 +150,50 @@ describe('RecepcionPage', () => {
     expect(enviado).not.toHaveBeenCalled();
   });
 
+  it('no omite en silencio una línea con datos pero sin cantidad recibida', async () => {
+    mockEntorno();
+    const enviado = vi.fn();
+    server.use(
+      http.post(recepcionesUrl, () => {
+        enviado();
+        return HttpResponse.json(sampleRecepcion, { status: 201 });
+      })
+    );
+    const { user } = renderPage();
+    await screen.findByRole('option', { name: 'Almacén Central' });
+    await user.selectOptions(screen.getByLabelText('Almacén'), 'alm-1');
+    await user.type(linea1().getByLabelText('Número de lote'), 'L2026-01');
+
+    await user.click(registrar());
+
+    expect(
+      await screen.findByText('Ingresa la cantidad recibida o deja la línea sin datos.')
+    ).toBeInTheDocument();
+    expect(enviado).not.toHaveBeenCalled();
+  });
+
+  it('muestra una línea sin pendiente que aún admite recibir por la tolerancia de exceso', async () => {
+    server.use(
+      http.get(ordenUrl, () =>
+        HttpResponse.json({
+          ...sampleOrden,
+          estado: 'PARCIALMENTE_RECIBIDA',
+          lineas: sampleOrden.lineas.map((linea) => ({
+            ...linea,
+            cantidadRecibida: 10,
+            cantidadPendiente: 0,
+            toleranciaExcesoPct: 10
+          }))
+        })
+      ),
+      http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura))
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Pendiente: 0 UND')).toBeInTheDocument();
+  });
+
   it('valida el vencimiento contra la fecha de hoy en UTC como inventario', async () => {
     mockEntorno();
     const enviado = vi.fn();

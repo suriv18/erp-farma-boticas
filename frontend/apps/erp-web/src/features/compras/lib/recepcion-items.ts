@@ -1,6 +1,6 @@
-import { emptyToUndefined } from '../../../shared/lib/form-values';
+import { emptyToUndefined, numeroOpcional } from '../../../shared/lib/form-values';
 import { redondear } from '../../../shared/lib/redondeo';
-import type { Orden } from '../api/ordenes.types';
+import type { LineaOrden, Orden } from '../api/ordenes.types';
 import type { ItemRecepcionPayload } from '../api/recepciones.types';
 import { esCantidad, esCantidadNoNegativa, esPrecio } from './numeros-compras';
 
@@ -31,9 +31,20 @@ export type CambiosItem = Partial<
   >
 >;
 
+const DECIMALES_CANTIDAD = 4;
+
+const maximoRecibible = (linea: LineaOrden): number =>
+  Math.max(
+    0,
+    redondear(
+      linea.cantidad * (1 + (linea.toleranciaExcesoPct ?? 0) / 100) - linea.cantidadRecibida,
+      DECIMALES_CANTIDAD
+    )
+  );
+
 export const itemsDesdeOrden = (orden: Orden): ItemBorrador[] =>
   orden.lineas
-    .filter(({ cantidadPendiente }) => cantidadPendiente > 0)
+    .filter((linea) => linea.cantidadPendiente > 0 || maximoRecibible(linea) > 0)
     .map((linea) => ({
       numeroLineaOrden: linea.numeroLinea,
       descripcion: linea.descripcion,
@@ -57,15 +68,22 @@ export const actualizarItem = (
     item.numeroLineaOrden === numeroLineaOrden ? { ...item, ...cambios } : item
   );
 
-export const itemIncluido = (item: ItemBorrador): boolean => {
-  const texto = item.cantidadRecibida.trim();
-  return texto !== '' && Number(texto) !== 0;
-};
+export const itemIncluido = (item: ItemBorrador): boolean =>
+  [
+    item.numeroLote,
+    item.fechaFabricacion,
+    item.fechaVencimiento,
+    item.cantidadRecibida,
+    item.motivoRechazo
+  ].some((texto) => texto.trim() !== '') || Number(item.cantidadRechazada) !== 0;
 
 const cantidadAceptada = (item: ItemBorrador): number =>
   redondear(Number(item.cantidadRecibida) - Number(item.cantidadRechazada), 4);
 
 export function errorItem(item: ItemBorrador, hoy: string): string | null {
+  if (item.cantidadRecibida.trim() === '') {
+    return 'Ingresa la cantidad recibida o deja la línea sin datos.';
+  }
   const lote = item.numeroLote.trim();
   if (lote === '' || lote.length > 120) {
     return 'El número de lote es obligatorio y admite hasta 120 caracteres.';
@@ -77,7 +95,7 @@ export function errorItem(item: ItemBorrador, hoy: string): string | null {
   if (!esCantidad(item.cantidadRecibida.trim())) {
     return 'La cantidad recibida debe ser mayor que cero con hasta 4 decimales.';
   }
-  const rechazada = item.cantidadRechazada.trim();
+  const rechazada = item.cantidadRechazada.trim() || '0';
   if (!esCantidadNoNegativa(rechazada) || Number(rechazada) > Number(item.cantidadRecibida)) {
     return 'La cantidad rechazada debe estar entre 0 y la cantidad recibida con hasta 4 decimales.';
   }
@@ -85,7 +103,8 @@ export function errorItem(item: ItemBorrador, hoy: string): string | null {
   const rechaza = Number(rechazada) > 0;
   if (rechaza && motivo === '') return 'Indica el motivo del rechazo.';
   if (rechaza && motivo.length > 1000) return 'El motivo del rechazo admite hasta 1000 caracteres.';
-  if (!esPrecio(item.costoUnitario.trim())) {
+  const costo = item.costoUnitario.trim();
+  if (costo !== '' && !esPrecio(costo)) {
     return 'El costo unitario debe ser mayor o igual a cero con hasta 6 decimales.';
   }
   return cantidadAceptada(item) > 0 && item.fechaVencimiento < hoy
@@ -104,6 +123,6 @@ export const toItemsPayload = (items: ItemBorrador[]): ItemRecepcionPayload[] =>
       cantidadRecibida: Number(item.cantidadRecibida),
       cantidadRechazada,
       motivoRechazo: cantidadRechazada > 0 ? emptyToUndefined(item.motivoRechazo) : undefined,
-      costoUnitario: Number(item.costoUnitario)
+      costoUnitario: numeroOpcional(item.costoUnitario)
     };
   });

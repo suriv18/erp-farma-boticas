@@ -35,6 +35,46 @@ describe('itemsDesdeOrden', () => {
     expect(itemsDesdeOrden(sampleOrden)).toEqual([ITEM]);
   });
 
+  it('omite las líneas que ya no pueden recibir nada, ni con la tolerancia de exceso', () => {
+    const base = sampleOrden.lineas[0]!;
+    const orden = {
+      ...sampleOrden,
+      lineas: [
+        { ...base, numeroLinea: 1, cantidadRecibida: 10, cantidadPendiente: 0 },
+        {
+          ...base,
+          numeroLinea: 2,
+          cantidadRecibida: 10,
+          cantidadPendiente: 0,
+          toleranciaExcesoPct: 10
+        },
+        {
+          ...base,
+          numeroLinea: 3,
+          cantidadRecibida: 11,
+          cantidadPendiente: 0,
+          toleranciaExcesoPct: 10
+        },
+        {
+          ...base,
+          numeroLinea: 4,
+          cantidadRecibida: 10,
+          cantidadPendiente: 0,
+          toleranciaExcesoPct: null
+        },
+        {
+          ...base,
+          numeroLinea: 5,
+          cantidadRecibida: 5,
+          cantidadPendiente: 5,
+          toleranciaExcesoPct: null
+        }
+      ]
+    };
+
+    expect(itemsDesdeOrden(orden).map(({ numeroLineaOrden }) => numeroLineaOrden)).toEqual([2, 5]);
+  });
+
   it('omite las líneas sin pendiente', () => {
     const orden = {
       ...sampleOrden,
@@ -73,19 +113,30 @@ describe('actualizarItem e itemIncluido', () => {
     expect(resultado[1]).toBe(otro);
   });
 
-  it.each(['', '   ', '0', '0.0'])(
-    'no incluye un ítem con cantidad recibida "%s"',
+  it.each(['', '   '])(
+    'no incluye un ítem sin datos y con cantidad recibida "%s"',
     (cantidadRecibida) => {
       expect(itemIncluido({ ...ITEM, cantidadRecibida })).toBe(false);
+      expect(itemIncluido({ ...ITEM, cantidadRecibida, cantidadRechazada: '' })).toBe(false);
     }
   );
 
-  it.each(['4', ' 4 ', 'abc', '-1'])(
+  it.each(['4', ' 4 ', 'abc', '-1', '0', '0.0'])(
     'incluye un ítem con cantidad recibida "%s"',
     (cantidadRecibida) => {
       expect(itemIncluido({ ...ITEM, cantidadRecibida })).toBe(true);
     }
   );
+
+  it.each([
+    { numeroLote: 'L1' },
+    { numeroLote: '  ', cantidadRechazada: '1' },
+    { fechaFabricacion: '2026-01-01' },
+    { fechaVencimiento: '2027-12-31' },
+    { motivoRechazo: 'Dañado' }
+  ])('incluye un ítem sin cantidad recibida pero con datos %j', (cambios) => {
+    expect(itemIncluido({ ...ITEM, ...cambios })).toBe(true);
+  });
 });
 
 describe('errorItem', () => {
@@ -109,13 +160,20 @@ describe('errorItem', () => {
   });
 
   it.each(['2027-12-31', '2028-01-01'])(
-    'exige un vencimiento posterior a la fabricación %s',
+    'rechaza una fabricación %s igual o posterior al vencimiento 2027-12-31',
     (fechaFabricacion) => {
       expect(errorItem(valido({ fechaFabricacion }), HOY)).toBe(
         'La fecha de vencimiento debe ser posterior a la de fabricación.'
       );
     }
   );
+
+  it('pide la cantidad recibida de una línea con datos pero sin cantidad, antes que otros errores', () => {
+    const mensaje = 'Ingresa la cantidad recibida o deja la línea sin datos.';
+
+    expect(errorItem(valido({ cantidadRecibida: '' }), HOY)).toBe(mensaje);
+    expect(errorItem(valido({ cantidadRecibida: '   ', numeroLote: '' }), HOY)).toBe(mensaje);
+  });
 
   it.each(['abc', '-1', '1.23456', '0'])(
     'rechaza la cantidad recibida "%s"',
@@ -126,14 +184,15 @@ describe('errorItem', () => {
     }
   );
 
-  it.each(['', '-1', '4.5', '0.00001'])(
-    'rechaza la cantidad rechazada "%s"',
-    (cantidadRechazada) => {
-      expect(errorItem(valido({ cantidadRechazada }), HOY)).toBe(
-        'La cantidad rechazada debe estar entre 0 y la cantidad recibida con hasta 4 decimales.'
-      );
-    }
-  );
+  it.each(['', '  '])('toma la cantidad rechazada "%s" como cero', (cantidadRechazada) => {
+    expect(errorItem(valido({ cantidadRechazada }), HOY)).toBeNull();
+  });
+
+  it.each(['-1', '4.5', '0.00001'])('rechaza la cantidad rechazada "%s"', (cantidadRechazada) => {
+    expect(errorItem(valido({ cantidadRechazada }), HOY)).toBe(
+      'La cantidad rechazada debe estar entre 0 y la cantidad recibida con hasta 4 decimales.'
+    );
+  });
 
   it('exige el motivo cuando hay rechazo', () => {
     expect(errorItem(valido({ cantidadRechazada: '1' }), HOY)).toBe(
@@ -154,7 +213,14 @@ describe('errorItem', () => {
     expect(errorItem(valido({ motivoRechazo: 'm'.repeat(1001) }), HOY)).toBeNull();
   });
 
-  it.each(['', '-1', '1.1234567', 'abc'])('rechaza el costo "%s"', (costoUnitario) => {
+  it.each(['', '  '])(
+    'acepta el costo unitario vacío "%s" para que el backend lo resuelva',
+    (costoUnitario) => {
+      expect(errorItem(valido({ costoUnitario }), HOY)).toBeNull();
+    }
+  );
+
+  it.each(['-1', '1.1234567', 'abc'])('rechaza el costo "%s"', (costoUnitario) => {
     expect(errorItem(valido({ costoUnitario }), HOY)).toBe(
       'El costo unitario debe ser mayor o igual a cero con hasta 6 decimales.'
     );
@@ -178,6 +244,21 @@ describe('errorItem', () => {
 });
 
 describe('toItemsPayload', () => {
+  it('omite el costo unitario vacío y toma la cantidad rechazada vacía como cero', () => {
+    expect(toItemsPayload([valido({ costoUnitario: ' ', cantidadRechazada: '' })])).toEqual([
+      {
+        numeroLineaOrden: 1,
+        numeroLote: 'L2026-01',
+        fechaFabricacion: undefined,
+        fechaVencimiento: '2027-12-31',
+        cantidadRecibida: 4,
+        cantidadRechazada: 0,
+        motivoRechazo: undefined,
+        costoUnitario: undefined
+      }
+    ]);
+  });
+
   it('envía solo los ítems recibidos, con números, lote recortado y motivo solo si hay rechazo', () => {
     expect(
       toItemsPayload([

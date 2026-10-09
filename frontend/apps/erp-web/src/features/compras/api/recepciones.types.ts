@@ -44,7 +44,7 @@ export type ItemRecepcionPayload = {
   cantidadRecibida: number;
   cantidadRechazada: number;
   motivoRechazo?: string | undefined;
-  costoUnitario: number;
+  costoUnitario?: number | undefined;
 };
 
 export type RegistrarRecepcionPayload = {
