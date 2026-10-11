@@ -74,14 +74,11 @@ La visibilidad se calcula con `useWatch` sobre `tipoSku` y `permiteVentaFraccion
 | `productoReguladoId` | `tipoSku === 'REGULADO'` |
 | `factorFraccion`, `unidadFraccionCodigo` | `permiteVentaFraccion === true` |
 
-Al ocultarse, los valores se vacían en el mismo evento de cambio del campo controlador, no en un efecto:
+Los valores de los campos ocultos se descartan antes de validar y de enviar: una función pura `aplicarVisibilidad(values)` los pone en `''` (`productoReguladoId` si el tipo no es REGULADO; `factorFraccion` y `unidadFraccionCodigo` si no se permite fracción). El resolver del formulario la aplica a los valores antes de pasarlos a `skuSchema`, y `handleSubmit` entrega al `onSubmit` el resultado ya normalizado.
 
-- Al elegir `NO_REGULADO` en `tipoSku`, `setValue('productoReguladoId', '')`.
-- Al desmarcar `permiteVentaFraccion`, `setValue` a `''` de `factorFraccion` y `unidadFraccionCodigo`.
+Con esto el valor enviado es siempre coherente con lo que ve el usuario y `skuSchema` no necesita cambios. No se usan efectos ni `setValue`, y `CamposFormulario` no cambia. Si el usuario vuelve a activar la opción antes de guardar, el valor que había escrito reaparece.
 
-Con esto el valor enviado es siempre coherente con lo que ve el usuario y `skuSchema` no necesita cambios. El onChange se compone con el de `register` para que la validación y el estado de `react-hook-form` sigan funcionando.
-
-Por esa condicionalidad, la definición de grupos pasa a una función pura que recibe los valores observados y devuelve los campos visibles, en `lib/sku-secciones.ts`. Así se prueba sin renderizar.
+Por esa condicionalidad, la definición de grupos pasa a una función pura que recibe los valores observados y devuelve los campos visibles, en `lib/sku-secciones.ts`, junto con `aplicarVisibilidad`. Así se prueban sin renderizar.
 
 ### Páginas
 
