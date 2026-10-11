@@ -20,6 +20,7 @@ public interface ReferenciasVentasPort {
     }
 
     record SkuVentaRef(
-            UUID id, String descripcion, String unidadVentaCodigo, boolean permiteFraccion, boolean operable) {
+            UUID id, String descripcion, String unidadVentaCodigo, boolean permiteFraccion, boolean operable,
+            boolean requiereDispensacion) {
     }
 }

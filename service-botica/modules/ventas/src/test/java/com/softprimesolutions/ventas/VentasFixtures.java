@@ -68,7 +68,11 @@ public final class VentasFixtures {
     }
 
     public static SkuVentaRef skuRef(UUID id, boolean operable) {
-        return new SkuVentaRef(id, "Paracetamol 500 mg", "UND", false, operable);
+        return new SkuVentaRef(id, "Paracetamol 500 mg", "UND", false, operable, false);
+    }
+
+    public static SkuVentaRef skuRefConDispensacion(UUID id) {
+        return new SkuVentaRef(id, "Amoxicilina 500 mg", "UND", false, true, true);
     }
 
     public static Venta venta() {

@@ -319,6 +319,47 @@ class VentaApiIntegrationTest {
     }
 
     @Test
+    void rejectsASkuWhoseProductRequiresAPrescriptionWithoutSellingOrDiscountingStock() throws Exception {
+        ingresar("10", "L-001", LocalDate.now().plusYears(1));
+        var conReceta = skuRegulado("VEN-CON-RECETA");
+
+        mockMvc.perform(post(VENTAS).header("Authorization", bearer).header("Idempotency-Key", "clave-receta")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(ventaJson(conReceta, "1", "5", "10")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VEN_SKU_REQUIERE_DISPENSACION"));
+
+        mockMvc.perform(get(VENTAS).header("Authorization", bearer).param("establecimientoId",
+                        establecimientoId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        vender("clave-normal", "1", "5", "10").andExpect(status().isCreated());
+    }
+
+    private UUID skuRegulado(String codigo) {
+        var condicion = codigo.toUpperCase();
+        jdbcClient.sql("""
+                        INSERT INTO sch_catalogo.condicion_venta (codigo, denominacion, requiere_receta)
+                        VALUES (:codigo, :codigo, TRUE)
+                        """).param("codigo", condicion).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_catalogo.producto_regulado (tipo_producto, denominacion, condicion_venta_codigo)
+                        VALUES ('MEDICAMENTO', :codigo, :codigo)
+                        """).param("codigo", condicion).update();
+        var sku = UUID.randomUUID();
+        jdbcClient.sql("""
+                        INSERT INTO sch_catalogo.sku_comercial
+                            (uuid_publico, tenant_id, tipo_sku, producto_regulado_id, codigo_interno,
+                             descripcion_comercial, unidad_venta_codigo)
+                        SELECT :skuId, t.id, 'REGULADO', pr.id, :codigo, :codigo, :unidad
+                          FROM sch_admin.tenant t, sch_catalogo.producto_regulado pr
+                         WHERE t.uuid_publico = :tenantId AND pr.denominacion = :codigo
+                        """).param("skuId", sku).param("codigo", condicion).param("unidad", UNIDAD)
+                .param("tenantId", TENANT_ID).update();
+        return sku;
+    }
+
+    @Test
     void deniesAccessWithoutThePermissionOrTheToken() throws Exception {
         mockMvc.perform(post(VENTAS).with(csrf()).header("Authorization", noPermissions)
                         .header("Idempotency-Key", "clave-1").contentType(MediaType.APPLICATION_JSON)

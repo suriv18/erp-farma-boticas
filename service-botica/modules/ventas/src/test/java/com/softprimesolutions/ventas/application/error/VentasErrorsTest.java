@@ -68,6 +68,9 @@ class VentasErrorsTest {
         assertThat(VentasErrors.skuNoOperable(id).code()).isEqualTo("VEN_SKU_NO_OPERABLE");
         assertThat(VentasErrors.skuNoOperable(id).category()).isEqualTo(ErrorCategory.CONFLICT);
         assertThat(VentasErrors.skuNoOperable(id).metadata()).containsEntry("skuId", id);
+        assertThat(VentasErrors.skuRequiereDispensacion(id).code()).isEqualTo("VEN_SKU_REQUIERE_DISPENSACION");
+        assertThat(VentasErrors.skuRequiereDispensacion(id).category()).isEqualTo(ErrorCategory.CONFLICT);
+        assertThat(VentasErrors.skuRequiereDispensacion(id).metadata()).containsEntry("skuId", id);
         assertThat(VentasErrors.claveIdempotenciaInvalida().code()).isEqualTo("VEN_IDEMPOTENCY_KEY_INVALID");
         assertThat(VentasErrors.claveIdempotenciaInvalida().category()).isEqualTo(ErrorCategory.VALIDATION);
         assertThat(VentasErrors.conflictoIdempotencia().code()).isEqualTo("VEN_IDEMPOTENCY_CONFLICT");

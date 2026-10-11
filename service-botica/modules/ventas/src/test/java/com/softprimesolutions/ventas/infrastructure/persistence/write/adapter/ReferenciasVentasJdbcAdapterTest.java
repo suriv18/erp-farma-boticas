@@ -24,6 +24,7 @@ class ReferenciasVentasJdbcAdapterTest {
         row.put("uuid_publico", TERMINAL);
         row.put("establecimiento_uuid", ESTABLECIMIENTO);
         row.put("operable", true);
+        row.put("requiere_dispensacion", true);
         jdbc.rows("FROM sch_organizacion.terminal_pos tp", row);
 
         var terminal = adapter.terminal(TENANT, TERMINAL).orElseThrow();
@@ -46,6 +47,7 @@ class ReferenciasVentasJdbcAdapterTest {
         row.put("uuid_publico", ALMACEN);
         row.put("establecimiento_uuid", ESTABLECIMIENTO);
         row.put("operable", true);
+        row.put("requiere_dispensacion", true);
         jdbc.rows("FROM sch_organizacion.almacen a", row);
 
         var almacen = adapter.almacen(TENANT, ALMACEN).orElseThrow();
@@ -67,6 +69,7 @@ class ReferenciasVentasJdbcAdapterTest {
         row.put("unidad_venta_codigo", "UND");
         row.put("permite_venta_fraccion", true);
         row.put("operable", true);
+        row.put("requiere_dispensacion", true);
         jdbc.rows("FROM sch_catalogo.sku_comercial k", row);
 
         var skus = adapter.skus(TENANT, List.of(SKU, OTRO_SKU));
@@ -77,6 +80,7 @@ class ReferenciasVentasJdbcAdapterTest {
         assertThat(sku.unidadVentaCodigo()).isEqualTo("UND");
         assertThat(sku.permiteFraccion()).isTrue();
         assertThat(sku.operable()).isTrue();
+        assertThat(sku.requiereDispensacion()).isTrue();
         assertThat(jdbc.statementContaining("FROM sch_catalogo.sku_comercial k").params())
                 .containsEntry("tenantId", TENANT).containsEntry("skuIds", List.of(SKU, OTRO_SKU));
     }

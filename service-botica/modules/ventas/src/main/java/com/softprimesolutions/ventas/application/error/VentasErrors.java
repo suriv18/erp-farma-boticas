@@ -79,6 +79,13 @@ public final class VentasErrors {
                 Map.of("skuId", skuId));
     }
 
+    public static ApplicationError skuRequiereDispensacion(UUID skuId) {
+        return new StandardApplicationError(
+                "VEN_SKU_REQUIERE_DISPENSACION",
+                "El SKU requiere receta, retencion o dispensacion especial, que la venta presencial aun no soporta.",
+                ErrorCategory.CONFLICT, Map.of("skuId", skuId));
+    }
+
     public static ApplicationError claveIdempotenciaInvalida() {
         return new StandardApplicationError(
                 "VEN_IDEMPOTENCY_KEY_INVALID", "La cabecera Idempotency-Key debe tener entre 1 y 160 caracteres.",

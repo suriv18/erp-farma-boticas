@@ -135,6 +135,7 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
     private static Optional<ApplicationError> errorDeSku(UUID skuId, SkuVentaRef sku) {
         if (sku == null) return Optional.of(VentasErrors.skuNoEncontrado(skuId));
         if (!sku.operable()) return Optional.of(VentasErrors.skuNoOperable(skuId));
+        if (sku.requiereDispensacion()) return Optional.of(VentasErrors.skuRequiereDispensacion(skuId));
         return Optional.empty();
     }
 

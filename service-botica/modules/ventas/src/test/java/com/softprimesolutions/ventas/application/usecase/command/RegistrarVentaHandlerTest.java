@@ -15,6 +15,7 @@ import static com.softprimesolutions.ventas.VentasFixtures.VENTA;
 import static com.softprimesolutions.ventas.VentasFixtures.dec;
 import static com.softprimesolutions.ventas.VentasFixtures.ok;
 import static com.softprimesolutions.ventas.VentasFixtures.skuRef;
+import static com.softprimesolutions.ventas.VentasFixtures.skuRefConDispensacion;
 import static com.softprimesolutions.ventas.VentasFixtures.turno;
 import static com.softprimesolutions.ventas.VentasFixtures.ventaResult;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -262,6 +263,11 @@ class RegistrarVentaHandlerTest {
 
         when(referencias.skus(eq(TENANT), anyCollection())).thenReturn(Map.of(SKU, skuRef(SKU, false)));
         assertThat(error(handler.execute(unaLinea())).code()).isEqualTo("VEN_SKU_NO_OPERABLE");
+
+        when(referencias.skus(eq(TENANT), anyCollection())).thenReturn(Map.of(SKU, skuRefConDispensacion(SKU)));
+        var conDispensacion = error(handler.execute(unaLinea()));
+        assertThat(conDispensacion.code()).isEqualTo("VEN_SKU_REQUIERE_DISPENSACION");
+        assertThat(conDispensacion.metadata()).containsEntry("skuId", SKU);
         verify(ventas, never()).insertar(any(), any(), any());
     }
 

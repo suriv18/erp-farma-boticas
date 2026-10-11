@@ -36,9 +36,15 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
             """;
     private static final String SKUS = """
             SELECT k.uuid_publico, k.descripcion_comercial, k.unidad_venta_codigo, k.permite_venta_fraccion,
-                   (k.es_activo = '1' AND k.estado_comercial = 'ACTIVO') AS operable
+                   (k.es_activo = '1' AND k.estado_comercial = 'ACTIVO') AS operable,
+                   (COALESCE(cv.requiere_receta, FALSE) OR COALESCE(cv.requiere_retencion, FALSE)
+                    OR COALESCE(cc.requiere_receta_especial, FALSE) OR COALESCE(cc.retiene_receta, FALSE))
+                       AS requiere_dispensacion
               FROM sch_catalogo.sku_comercial k
               JOIN sch_admin.tenant t ON t.id = k.tenant_id
+              LEFT JOIN sch_catalogo.producto_regulado pr ON pr.id = k.producto_regulado_id
+              LEFT JOIN sch_catalogo.condicion_venta cv ON cv.codigo = pr.condicion_venta_codigo
+              LEFT JOIN sch_catalogo.clasificacion_controlada cc ON cc.codigo = pr.clasificacion_controlada_codigo
              WHERE t.uuid_publico = :tenantId AND k.uuid_publico IN (:skuIds)
             """;
 
@@ -82,7 +88,7 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
                 .query((rs, rowNumber) -> new SkuVentaRef(
                         JdbcColumns.uuid(rs, "uuid_publico"), rs.getString("descripcion_comercial"),
                         rs.getString("unidad_venta_codigo"), rs.getBoolean("permite_venta_fraccion"),
-                        rs.getBoolean("operable")))
+                        rs.getBoolean("operable"), rs.getBoolean("requiere_dispensacion")))
                 .list()
                 .stream()
                 .collect(Collectors.toMap(SkuVentaRef::id, Function.identity()));
