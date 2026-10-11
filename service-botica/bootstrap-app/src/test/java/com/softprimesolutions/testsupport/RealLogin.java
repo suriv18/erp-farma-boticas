@@ -28,6 +28,11 @@ public final class RealLogin {
     }
 
     public Session login(UUID tenantId, String username, String permissionRegex) throws Exception {
+        return login(tenantId, username, permissionRegex, null);
+    }
+
+    public Session login(UUID tenantId, String username, String permissionRegex, UUID establecimientoId)
+            throws Exception {
         var userId = UUID.randomUUID();
         var identidadId = UUID.randomUUID();
         var roleCode = "IT_" + username.toUpperCase().replaceAll("[^A-Z0-9]", "_");
@@ -71,15 +76,19 @@ public final class RealLogin {
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.usuario_rol_ambito
                             (uuid_publico, tenant_id, membership_id, rol_id, tipo_ambito,
-                             vigente_desde, estado, created_by, created_at)
-                        SELECT :assignmentId, t.id, m.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP,
-                               'ACTIVO', 'test', CURRENT_TIMESTAMP
+                             empresa_id, establecimiento_id, vigente_desde, estado, created_by, created_at)
+                        SELECT :assignmentId, t.id, m.id, r.id,
+                               CASE WHEN est.id IS NULL THEN 'GLOBAL' ELSE 'ESTABLECIMIENTO' END,
+                               est.empresa_id, est.id, CURRENT_TIMESTAMP, 'ACTIVO', 'test', CURRENT_TIMESTAMP
                           FROM sch_admin.tenant t
                           JOIN sch_seguridad.membership m ON m.tenant_id = t.id AND m.uuid_publico = :userId
                           JOIN sch_seguridad.rol r ON r.tenant_id = t.id AND r.codigo = :roleCode
+                          LEFT JOIN sch_organizacion.establecimiento_farmaceutico est
+                            ON est.tenant_id = t.id AND est.uuid_publico = :establecimientoId
                          WHERE t.uuid_publico = :tenantId
                         """).param("assignmentId", UUID.randomUUID()).param("roleCode", roleCode)
-                .param("tenantId", tenantId).param("userId", userId).update();
+                .param("tenantId", tenantId).param("userId", userId)
+                .param("establecimientoId", establecimientoId).update();
 
         var response = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("""

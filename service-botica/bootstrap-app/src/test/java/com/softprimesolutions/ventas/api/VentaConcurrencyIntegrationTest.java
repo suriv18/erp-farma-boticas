@@ -116,6 +116,34 @@ class VentaConcurrencyIntegrationTest {
                          WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
                         """).param("actorId", actor).param("tenantId", TENANT_ID)
                 .param("identidadId", IDENTIDAD_ID).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.rol
+                            (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
+                        SELECT :roleId, id, 'VENTAS_CONC', 'Ventas concurrente', 'GLOBAL', FALSE, 'ACTIVO',
+                               CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
+                        """).param("roleId", UUID.randomUUID()).param("tenantId", TENANT_ID).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.rol_permiso
+                            (tenant_id, rol_id, permiso_id, estado, granted_at, granted_by)
+                        SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
+                          FROM sch_admin.tenant t
+                          JOIN sch_seguridad.rol r ON r.tenant_id = t.id AND r.codigo = 'VENTAS_CONC'
+                          JOIN sch_seguridad.permiso p ON p.codigo LIKE 'ventas.%' AND p.es_activo = '1'
+                         WHERE t.uuid_publico = :tenantId
+                        """).param("tenantId", TENANT_ID).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.usuario_rol_ambito
+                            (uuid_publico, tenant_id, membership_id, rol_id, tipo_ambito, vigente_desde, estado,
+                             created_by, created_at)
+                        SELECT :assignmentId, t.id, m.id, r.id, 'GLOBAL', CURRENT_TIMESTAMP, 'ACTIVO', 'test',
+                               CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant t
+                          JOIN sch_seguridad.membership m ON m.tenant_id = t.id AND m.uuid_publico = :actorId
+                          JOIN sch_seguridad.rol r ON r.tenant_id = t.id AND r.codigo = 'VENTAS_CONC'
+                         WHERE t.uuid_publico = :tenantId
+                        """).param("assignmentId", UUID.randomUUID()).param("actorId", actor)
+                .param("tenantId", TENANT_ID).update();
         jdbcClient.sql("INSERT INTO sch_catalogo.unidad_medida (codigo, denominacion) VALUES (:codigo, 'Unidad')")
                 .param("codigo", UNIDAD).update();
         insertSku(skuA, "SKU-VC-A");
@@ -134,7 +162,8 @@ class VentaConcurrencyIntegrationTest {
                 "sch_inventario.movimiento_inventario", "sch_inventario.posicion_inventario",
                 "sch_inventario.lote", "sch_catalogo.sku_comercial", "sch_organizacion.terminal_pos",
                 "sch_organizacion.almacen", "sch_organizacion.establecimiento_farmaceutico",
-                "sch_organizacion.empresa_operadora", "sch_seguridad.membership")) {
+                "sch_organizacion.empresa_operadora", "sch_seguridad.membership", "sch_seguridad.rol_permiso",
+                "sch_seguridad.rol")) {
             jdbcClient.sql("DELETE FROM " + table
                     + " WHERE tenant_id IN (SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantId)")
                     .param("tenantId", TENANT_ID).update();

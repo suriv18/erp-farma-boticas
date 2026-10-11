@@ -86,6 +86,12 @@ public final class VentasErrors {
                 ErrorCategory.CONFLICT, Map.of("skuId", skuId));
     }
 
+    public static ApplicationError fueraDeAmbito() {
+        return new StandardApplicationError(
+                "VEN_FUERA_DE_AMBITO", "El usuario no tiene permiso sobre el recurso indicado.",
+                ErrorCategory.FORBIDDEN);
+    }
+
     public static ApplicationError claveIdempotenciaInvalida() {
         return new StandardApplicationError(
                 "VEN_IDEMPOTENCY_KEY_INVALID", "La cabecera Idempotency-Key debe tener entre 1 y 160 caracteres.",

@@ -179,21 +179,10 @@ class VentaApiIntegrationTest {
     @Test
     void terminalsWithTheSameCodeInTwoEstablishmentsOfTheSameCompanySellWithDistinctNumbers() throws Exception {
         ingresar("10", "L-001", LocalDate.now().plusYears(1));
-        var otroEstablecimiento = created(post(ORG + "/establecimientos").content("""
-                {"tenantId":"%s","empresaId":"%s","codigo":"EST002","nombre":"Botica Norte",
-                 "tipoEstablecimiento":"BOTICA","codigoAnexoSunat":"0002","esPrincipal":false,
-                 "permiteVentaOnline":false,"permiteDelivery":false,"perfilOperacion":"ONLINE",
-                 "zonaHoraria":"America/Lima"}
-                """.formatted(TENANT_ID, empresaId)));
-        var otroAlmacen = created(post(ORG + "/almacenes").content("""
-                {"tenantId":"%s","establecimientoId":"%s","codigo":"ALM001","nombre":"Almacen Norte",
-                 "tipo":"GENERAL","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
-                 "permiteDespacho":true,"controlTemperatura":false}
-                """.formatted(TENANT_ID, otroEstablecimiento)));
-        var otraTerminal = created(post(ORG + "/terminales-pos").content("""
-                {"establecimientoId":"%s","codigo":"POS001","nombre":"Caja 1",
-                 "serieBoletaDefecto":"B002","serieFacturaDefecto":"F002","storeEdgeHabilitado":false}
-                """.formatted(otroEstablecimiento)));
+        var otra = crearOtraSede();
+        var otroEstablecimiento = otra.establecimiento();
+        var otroAlmacen = otra.almacen();
+        var otraTerminal = otra.terminal();
         abrirTurno(otraTerminal);
         ingresar(otroAlmacen, "10", "L-002", LocalDate.now().plusYears(1));
 
@@ -357,6 +346,76 @@ class VentaApiIntegrationTest {
                         """).param("skuId", sku).param("codigo", condicion).param("unidad", UNIDAD)
                 .param("tenantId", TENANT_ID).update();
         return sku;
+    }
+
+    @Test
+    void aUserScopedToOneEstablishmentCannotOperateOrReadTheOtherOneOfTheSameTenant() throws Exception {
+        ingresar("10", "L-001", LocalDate.now().plusYears(1));
+        var otra = crearOtraSede();
+        abrirTurno(otra.terminal());
+        ingresar(otra.almacen(), "10", "L-002", LocalDate.now().plusYears(1));
+        var ventaOtra = UUID.fromString(JsonPath.read(
+                vender(otra.terminal(), otra.almacen(), "clave-otra").andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString(), "$.id"));
+        var local = new RealLogin(jdbcClient, mockMvc, passwordHash)
+                .login(TENANT_ID, "venta.local", "^ventas\\.", establecimientoId).bearer();
+
+        mockMvc.perform(get(VENTAS + "/{id}", ventaOtra).header("Authorization", local))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("VEN_FUERA_DE_AMBITO"));
+        mockMvc.perform(get(VENTAS).header("Authorization", local)
+                        .param("establecimientoId", otra.establecimiento().toString()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(VENTAS).header("Authorization", local)).andExpect(status().isForbidden());
+        mockMvc.perform(post(VENTAS).header("Authorization", local).header("Idempotency-Key", "clave-intrusa")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(ventaJson(otra.terminal(), otra.almacen(), skuId, "1", "5", "10")))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("VEN_FUERA_DE_AMBITO"));
+        mockMvc.perform(post(ANULAR, ventaOtra).header("Authorization", local)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Intento fuera de ambito\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(TURNOS).header("Authorization", local).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terminalId\":\"%s\",\"fondoInicial\":10}".formatted(otra.terminal())))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(TURNOS + "/actual").header("Authorization", local)
+                        .param("terminalId", otra.terminal().toString()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get(VENTAS).header("Authorization", local)
+                        .param("establecimientoId", establecimientoId.toString()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(TURNOS + "/actual").header("Authorization", local)
+                        .param("terminalId", terminalId.toString()))
+                .andExpect(status().isOk());
+        mockMvc.perform(post(VENTAS).header("Authorization", local).header("Idempotency-Key", "clave-local")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(ventaJson(terminalId, almacenId, skuId, "1", "5", "10")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get(VENTAS + "/{id}", ventaOtra).header("Authorization", bearer)).andExpect(status().isOk());
+        mockMvc.perform(get(INV + "/posiciones").header("Authorization", bearer)
+                        .param("almacenId", otra.almacen().toString()))
+                .andExpect(jsonPath("$.items[0].cantidadFisica").value(9));
+    }
+
+    private record Sede(UUID establecimiento, UUID almacen, UUID terminal) {
+    }
+
+    private Sede crearOtraSede() throws Exception {
+        var establecimiento = created(post(ORG + "/establecimientos").content("""
+                {"tenantId":"%s","empresaId":"%s","codigo":"EST002","nombre":"Botica Norte",
+                 "tipoEstablecimiento":"BOTICA","codigoAnexoSunat":"0002","esPrincipal":false,
+                 "permiteVentaOnline":false,"permiteDelivery":false,"perfilOperacion":"ONLINE",
+                 "zonaHoraria":"America/Lima"}
+                """.formatted(TENANT_ID, empresaId)));
+        var almacen = created(post(ORG + "/almacenes").content("""
+                {"tenantId":"%s","establecimientoId":"%s","codigo":"ALM001","nombre":"Almacen Norte",
+                 "tipo":"GENERAL","permiteLotes":true,"permiteVencimiento":true,"permiteVenta":true,
+                 "permiteDespacho":true,"controlTemperatura":false}
+                """.formatted(TENANT_ID, establecimiento)));
+        var terminal = created(post(ORG + "/terminales-pos").content("""
+                {"establecimientoId":"%s","codigo":"POS001","nombre":"Caja 1",
+                 "serieBoletaDefecto":"B002","serieFacturaDefecto":"F002","storeEdgeHabilitado":false}
+                """.formatted(establecimiento)));
+        return new Sede(establecimiento, almacen, terminal);
     }
 
     @Test

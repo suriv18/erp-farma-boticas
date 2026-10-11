@@ -6,6 +6,8 @@ import static org.mockito.Mockito.mock;
 
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
+import com.softprimesolutions.ventas.application.port.out.ActorActualPort;
+import com.softprimesolutions.ventas.application.port.out.AmbitoPort;
 import com.softprimesolutions.ventas.application.port.out.AnulacionWritePort;
 import com.softprimesolutions.ventas.application.port.out.NumeracionPort;
 import com.softprimesolutions.ventas.application.port.out.ReferenciasVentasPort;
@@ -14,6 +16,7 @@ import com.softprimesolutions.ventas.application.port.out.SalidaInventarioPort;
 import com.softprimesolutions.ventas.application.port.out.TurnoWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentaWritePort;
 import com.softprimesolutions.ventas.application.port.out.VentasReadPort;
+import com.softprimesolutions.ventas.application.usecase.autorizado.ControlAmbito;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,8 @@ class VentasModuleConfigurationTest {
     private final NumeracionPort numeracion = mock(NumeracionPort.class);
     private final AnulacionWritePort anulaciones = mock(AnulacionWritePort.class);
     private final ReintegroInventarioPort reintegro = mock(ReintegroInventarioPort.class);
+    private final ActorActualPort actor = mock(ActorActualPort.class);
+    private final ControlAmbito control = configuration.controlAmbito(mock(AmbitoPort.class));
     private final ClockPort clock = configuration.ventasClockPort();
     private final IdentifierGenerator identifiers = configuration.ventasIdentifierGenerator();
 
@@ -39,29 +44,26 @@ class VentasModuleConfigurationTest {
     }
 
     @Test
-    void wiresTheTurnoUseCases() {
-        var consultas = configuration.consultarTurnosUseCase(readPort);
+    void wiresTheTurnoUseCasesWithAndWithoutScopeControl() {
+        var interna = configuration.consultarTurnosInterno(readPort);
 
-        assertThat(consultas).isNotNull();
-        assertThat(configuration.abrirTurnoUseCase(turnos, referencias, consultas, identifiers, clock)).isNotNull();
-        assertThat(configuration.cerrarTurnoUseCase(turnos, consultas, TRANSACCION_DIRECTA, clock)).isNotNull();
+        assertThat(configuration.consultarTurnosUseCase(interna, referencias, actor, control)).isNotNull();
+        var abrir = configuration.abrirTurnoInterno(turnos, referencias, interna, identifiers, clock);
+        assertThat(configuration.abrirTurnoUseCase(abrir, referencias, control)).isNotNull();
+        var cerrar = configuration.cerrarTurnoInterno(turnos, interna, TRANSACCION_DIRECTA, clock);
+        assertThat(configuration.cerrarTurnoUseCase(cerrar, readPort, control)).isNotNull();
     }
 
     @Test
-    void wiresTheVentaUseCases() {
-        var consultas = configuration.consultarVentasUseCase(readPort);
+    void wiresTheVentaUseCasesWithAndWithoutScopeControl() {
+        var interna = configuration.consultarVentasInterno(readPort);
 
-        assertThat(consultas).isNotNull();
-        assertThat(configuration.registrarVentaUseCase(
-                ventas, turnos, referencias, inventario, numeracion, consultas, TRANSACCION_DIRECTA, identifiers,
-                clock)).isNotNull();
-    }
-
-    @Test
-    void wiresTheAnularVentaUseCase() {
-        var consultas = configuration.consultarVentasUseCase(readPort);
-
-        assertThat(configuration.anularVentaUseCase(anulaciones, reintegro, consultas, TRANSACCION_DIRECTA, clock))
-                .isNotNull();
+        assertThat(configuration.consultarVentasUseCase(interna, actor, control)).isNotNull();
+        var registrar = configuration.registrarVentaInterno(
+                ventas, turnos, referencias, inventario, numeracion, interna, TRANSACCION_DIRECTA, identifiers,
+                clock);
+        assertThat(configuration.registrarVentaUseCase(registrar, referencias, control)).isNotNull();
+        var anular = configuration.anularVentaInterno(anulaciones, reintegro, interna, TRANSACCION_DIRECTA, clock);
+        assertThat(configuration.anularVentaUseCase(anular, readPort, control)).isNotNull();
     }
 }
