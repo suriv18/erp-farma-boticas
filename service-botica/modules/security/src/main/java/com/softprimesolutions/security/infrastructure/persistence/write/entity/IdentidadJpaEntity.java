@@ -26,7 +26,7 @@ public class IdentidadJpaEntity {
     @Column(columnDefinition = "citext")
     private String username;
 
-    @Column(name = "tipo_documento", length = 20)
+    @Column(name = "tipo_documento", length = 1)
     private String tipoDocumento;
 
     @Column(name = "numero_documento", length = 30)

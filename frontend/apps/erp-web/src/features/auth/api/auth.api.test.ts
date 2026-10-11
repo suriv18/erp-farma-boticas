@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { createApiClient } from '@boticas/api-client';
-import { login, logout, refresh } from './auth.api';
+import { changePassword, login, logout, refresh } from './auth.api';
 
 const server = setupServer();
 
@@ -74,5 +74,20 @@ describe('auth.api', () => {
     await logout(client);
 
     expect(called).toBe(true);
+  });
+
+  it('changePassword envia la contraseña actual y la nueva', async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post('http://localhost/api/v1/auth/password/change', async ({ request }) => {
+        receivedBody = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    const client = createApiClient({ baseUrl: 'http://localhost/api/v1' });
+    await changePassword(client, { currentPassword: 'Actual2026!', newPassword: 'Nueva2026!' });
+
+    expect(receivedBody).toEqual({ currentPassword: 'Actual2026!', newPassword: 'Nueva2026!' });
   });
 });

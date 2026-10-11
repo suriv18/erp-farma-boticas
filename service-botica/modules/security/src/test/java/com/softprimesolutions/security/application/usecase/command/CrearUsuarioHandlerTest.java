@@ -102,6 +102,11 @@ class CrearUsuarioHandlerTest {
         }
 
         @Override
+        public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public boolean scopeExists(UUID tenantId, AmbitoOrganizacional scope) {
             throw new UnsupportedOperationException();
         }

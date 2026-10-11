@@ -7,7 +7,9 @@ import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaR
 import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import java.util.List;
@@ -30,7 +32,7 @@ public class CatalogoJdbcReadRepository {
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, requiere_receta, requiere_retencion, fuente,
                                version_fuente, vigente_desde, vigente_hasta, estado
-                          FROM sch_farmacia.condicion_venta
+                          FROM sch_catalogo.condicion_venta
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -46,7 +48,7 @@ public class CatalogoJdbcReadRepository {
     public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
-                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.forma_farmaceutica
+                        SELECT codigo, denominacion, fuente, estado FROM sch_catalogo.forma_farmaceutica
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -60,7 +62,7 @@ public class CatalogoJdbcReadRepository {
     public List<ViaAdministracionResult> findViasAdministracion(String estado) {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
-                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.via_administracion
+                        SELECT codigo, denominacion, fuente, estado FROM sch_catalogo.via_administracion
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -75,7 +77,7 @@ public class CatalogoJdbcReadRepository {
         var filter = normalizeStatus(estado);
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, simbolo, permite_decimal, fuente, estado
-                          FROM sch_farmacia.unidad_medida
+                          FROM sch_catalogo.unidad_medida
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -91,7 +93,7 @@ public class CatalogoJdbcReadRepository {
         return jdbcClient.sql("""
                         SELECT codigo, denominacion, norma_fuente, requiere_receta_especial, retiene_receta,
                                vigencia_receta_dias, estado
-                          FROM sch_farmacia.clasificacion_controlada
+                          FROM sch_catalogo.clasificacion_controlada
                          WHERE :estado = '' OR estado = :estado
                          ORDER BY denominacion
                         """)
@@ -103,12 +105,39 @@ public class CatalogoJdbcReadRepository {
                 .list();
     }
 
+    private static final String TIPO_DOCUMENTO_IDENTIDAD_FILTER = """
+             WHERE :estado = '' OR estado = :estado
+            """;
+
+    public List<TipoDocumentoIdentidadResult> findTiposDocumentoIdentidad(
+            String estado, int offset, int limit) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT codigo, sigla, denominacion, max, min, estado "
+                        + "FROM sch_catalogo.tipo_documento_identidad " + TIPO_DOCUMENTO_IDENTIDAD_FILTER
+                        + " ORDER BY codigo LIMIT :limit OFFSET :offset")
+                .param("estado", filter)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, rowNumber) -> new TipoDocumentoIdentidadResult(
+                        rs.getString("codigo"), rs.getString("sigla"), rs.getString("denominacion"),
+                        (Integer) rs.getObject("max"), (Integer) rs.getObject("min"), rs.getString("estado")))
+                .list();
+    }
+
+    public long countTiposDocumentoIdentidad(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql(
+                        "SELECT COUNT(*) FROM sch_catalogo.tipo_documento_identidad " + TIPO_DOCUMENTO_IDENTIDAD_FILTER)
+                .param("estado", filter)
+                .query(Long.class).single();
+    }
+
     public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) {
         var textFilter = normalizeSearch(texto);
         var statusFilter = normalizeStatus(estado);
         return jdbcClient.sql("""
                         SELECT uuid_publico, codigo_fuente, denominacion, nombre_normalizado, fuente, estado
-                          FROM sch_farmacia.principio_activo
+                          FROM sch_catalogo.principio_activo
                          WHERE (:texto = '' OR LOWER(denominacion) LIKE :pattern)
                            AND (:estado = '' OR estado = :estado)
                          ORDER BY denominacion
@@ -123,18 +152,29 @@ public class CatalogoJdbcReadRepository {
                 .list();
     }
 
-    public List<MarcaResult> findMarcas(UUID tenantId, String estado) {
+    private static final String MARCA_FROM = """
+            FROM sch_catalogo.marca m
+            JOIN sch_admin.tenant t ON t.id = m.tenant_id
+            """;
+
+    private static final String MARCA_FILTER = """
+             WHERE t.uuid_publico = :tenantId
+               AND (:texto = '' OR LOWER(m.nombre) LIKE :pattern OR LOWER(m.codigo) LIKE :pattern)
+               AND (:estado = '' OR m.estado = :estado)
+            """;
+
+    public List<MarcaResult> findMarcas(UUID tenantId, String texto, String estado, int offset, int limit) {
+        var textFilter = normalizeSearch(texto);
         var filter = normalizeStatus(estado);
-        return jdbcClient.sql("""
-                        SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid, m.codigo, m.nombre,
-                               m.descripcion, m.estado
-                          FROM sch_farmacia.marca m
-                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
-                         WHERE t.uuid_publico = :tenantId AND (:estado = '' OR m.estado = :estado)
-                         ORDER BY m.nombre
-                        """)
+        return jdbcClient.sql("SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid, m.codigo, m.nombre, "
+                        + "m.descripcion, m.estado " + MARCA_FROM + MARCA_FILTER
+                        + " ORDER BY m.nombre LIMIT :limit OFFSET :offset")
                 .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
                 .param("estado", filter)
+                .param("limit", limit)
+                .param("offset", offset)
                 .query((rs, rowNumber) -> new MarcaResult(
                         rs.getObject("uuid_publico", UUID.class), rs.getObject("tenant_uuid", UUID.class),
                         rs.getString("codigo"), rs.getString("nombre"), rs.getString("descripcion"),
@@ -142,29 +182,109 @@ public class CatalogoJdbcReadRepository {
                 .list();
     }
 
-    public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) {
+    public long countMarcas(UUID tenantId, String texto, String estado) {
+        var textFilter = normalizeSearch(texto);
         var filter = normalizeStatus(estado);
-        return jdbcClient.sql("""
-                        SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid,
-                               padre.uuid_publico AS categoria_padre_uuid, c.codigo, c.nombre, c.descripcion,
-                               c.nivel, c.orden, c.estado
-                          FROM sch_farmacia.categoria_producto c
-                          JOIN sch_farmacia.tenant t ON t.id = c.tenant_id
-                          LEFT JOIN sch_farmacia.categoria_producto padre ON padre.id = c.categoria_padre_id
-                         WHERE t.uuid_publico = :tenantId
-                           AND (:categoriaPadreId IS NULL OR padre.uuid_publico = :categoriaPadreId)
-                           AND (:estado = '' OR c.estado = :estado)
-                         ORDER BY c.nivel, c.orden, c.nombre
-                        """)
+        return jdbcClient.sql("SELECT COUNT(*) " + MARCA_FROM + MARCA_FILTER)
                 .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("estado", filter)
+                .query(Long.class).single();
+    }
+
+    private static final String CATEGORIA_FROM = """
+            FROM sch_catalogo.categoria_producto c
+            JOIN sch_admin.tenant t ON t.id = c.tenant_id
+            LEFT JOIN sch_catalogo.categoria_producto padre ON padre.id = c.categoria_padre_id
+            """;
+
+    private static final String CATEGORIA_FILTER = """
+             WHERE t.uuid_publico = :tenantId
+               AND (:texto = '' OR LOWER(c.nombre) LIKE :pattern OR LOWER(c.codigo) LIKE :pattern)
+               AND (CAST(:categoriaPadreId AS UUID) IS NULL OR padre.uuid_publico = CAST(:categoriaPadreId AS UUID))
+               AND (:estado = '' OR c.estado = :estado)
+            """;
+
+    public List<CategoriaProductoResult> findCategoriasProducto(
+            UUID tenantId, String texto, UUID categoriaPadreId, String estado, int offset, int limit) {
+        var textFilter = normalizeSearch(texto);
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid, "
+                        + "padre.uuid_publico AS categoria_padre_uuid, c.codigo, c.nombre, c.descripcion, "
+                        + "c.nivel, c.orden, c.estado " + CATEGORIA_FROM + CATEGORIA_FILTER
+                        + " ORDER BY c.nivel, c.orden, c.nombre LIMIT :limit OFFSET :offset")
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
                 .param("categoriaPadreId", categoriaPadreId)
                 .param("estado", filter)
+                .param("limit", limit)
+                .param("offset", offset)
                 .query((rs, rowNumber) -> new CategoriaProductoResult(
                         rs.getObject("uuid_publico", UUID.class), rs.getObject("tenant_uuid", UUID.class),
                         rs.getObject("categoria_padre_uuid", UUID.class), rs.getString("codigo"),
                         rs.getString("nombre"), rs.getString("descripcion"), rs.getInt("nivel"),
                         rs.getInt("orden"), rs.getString("estado")))
                 .list();
+    }
+
+    public long countCategoriasProducto(UUID tenantId, String texto, UUID categoriaPadreId, String estado) {
+        var textFilter = normalizeSearch(texto);
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT COUNT(*) " + CATEGORIA_FROM + CATEGORIA_FILTER)
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("categoriaPadreId", categoriaPadreId)
+                .param("estado", filter)
+                .query(Long.class).single();
+    }
+
+    private static final String RUBRO_COMERCIAL_FROM = """
+            FROM sch_catalogo.rubro_comercial r
+            JOIN sch_admin.tenant t ON t.id = r.tenant_id
+            """;
+
+    private static final String RUBRO_COMERCIAL_FILTER = """
+             WHERE t.uuid_publico = :tenantId
+               AND (:texto = '' OR LOWER(r.nombre) LIKE :pattern OR LOWER(r.codigo) LIKE :pattern)
+               AND (CAST(:esFarmaceutico AS BOOLEAN) IS NULL OR r.es_farmaceutico = CAST(:esFarmaceutico AS BOOLEAN))
+               AND (:estado = '' OR r.es_activo = CASE WHEN :estado = 'ACTIVO' THEN '1' ELSE '0' END)
+            """;
+
+    public List<RubroComercialResult> findRubrosComerciales(
+            UUID tenantId, String texto, Boolean esFarmaceutico, String estado, int offset, int limit) {
+        var textFilter = normalizeSearch(texto);
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT r.uuid_publico, t.uuid_publico AS tenant_uuid, r.codigo, r.nombre, "
+                        + "r.descripcion, r.es_farmaceutico, r.orden, r.es_activo " + RUBRO_COMERCIAL_FROM
+                        + RUBRO_COMERCIAL_FILTER + " ORDER BY r.orden, r.nombre LIMIT :limit OFFSET :offset")
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("esFarmaceutico", esFarmaceutico)
+                .param("estado", filter)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, rowNumber) -> new RubroComercialResult(
+                        rs.getObject("uuid_publico", UUID.class), rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("codigo"), rs.getString("nombre"), rs.getString("descripcion"),
+                        rs.getBoolean("es_farmaceutico"), rs.getInt("orden"),
+                        "1".equals(rs.getString("es_activo")) ? "ACTIVO" : "INACTIVO"))
+                .list();
+    }
+
+    public long countRubrosComerciales(UUID tenantId, String texto, Boolean esFarmaceutico, String estado) {
+        var textFilter = normalizeSearch(texto);
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("SELECT COUNT(*) " + RUBRO_COMERCIAL_FROM + RUBRO_COMERCIAL_FILTER)
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("esFarmaceutico", esFarmaceutico)
+                .param("estado", filter)
+                .query(Long.class).single();
     }
 
     private static final String PRODUCTO_REGULADO_FILTER = """
@@ -178,7 +298,7 @@ public class CatalogoJdbcReadRepository {
         var textFilter = normalizeSearch(texto);
         return jdbcClient.sql("""
                         SELECT uuid_publico, denominacion, condicion_venta_codigo, estado_regulatorio
-                          FROM sch_farmacia.producto_regulado
+                          FROM sch_catalogo.producto_regulado
                         """ + PRODUCTO_REGULADO_FILTER + " ORDER BY denominacion LIMIT :limit OFFSET :offset")
                 .param("texto", textFilter)
                 .param("pattern", '%' + textFilter + '%')
@@ -194,7 +314,7 @@ public class CatalogoJdbcReadRepository {
 
     public long countProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio) {
         var textFilter = normalizeSearch(texto);
-        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia.producto_regulado" + PRODUCTO_REGULADO_FILTER)
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_catalogo.producto_regulado" + PRODUCTO_REGULADO_FILTER)
                 .param("texto", textFilter)
                 .param("pattern", '%' + textFilter + '%')
                 .param("condicionVentaCodigo", condicionVentaCodigo == null ? "" : condicionVentaCodigo)
@@ -203,18 +323,21 @@ public class CatalogoJdbcReadRepository {
     }
 
     private static final String SKU_FROM = """
-            FROM sch_farmacia.sku_comercial s
-            JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+            FROM sch_catalogo.sku_comercial s
+            JOIN sch_admin.tenant t ON t.id = s.tenant_id
             """;
 
     private static final String SKU_FILTER = """
              WHERE t.uuid_publico = :tenantId
                AND (:texto = '' OR LOWER(s.descripcion_comercial) LIKE :pattern
-                    OR LOWER(s.codigo_interno) LIKE :pattern)
-               AND (:categoriaId IS NULL OR s.categoria_id = (
-                       SELECT id FROM sch_farmacia.categoria_producto WHERE uuid_publico = :categoriaId))
-               AND (:marcaId IS NULL OR s.marca_id = (
-                       SELECT id FROM sch_farmacia.marca WHERE uuid_publico = :marcaId))
+                    OR LOWER(s.codigo_interno) LIKE :pattern
+                    OR EXISTS (SELECT 1 FROM sch_catalogo.sku_codigo_barra b
+                                WHERE b.tenant_id = s.tenant_id AND b.sku_id = s.id
+                                  AND LOWER(b.codigo_barra) = :texto))
+               AND (CAST(:categoriaId AS UUID) IS NULL OR s.categoria_id = (
+                       SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = CAST(:categoriaId AS UUID)))
+               AND (CAST(:marcaId AS UUID) IS NULL OR s.marca_id = (
+                       SELECT id FROM sch_catalogo.marca WHERE uuid_publico = CAST(:marcaId AS UUID)))
                AND (:tipoSku = '' OR s.tipo_sku = :tipoSku)
                AND (:estado = '' OR s.estado_comercial = :estado)
             """;
@@ -224,7 +347,8 @@ public class CatalogoJdbcReadRepository {
             int offset, int limit) {
         var textFilter = normalizeSearch(texto);
         return jdbcClient.sql("SELECT s.uuid_publico, s.codigo_interno, s.descripcion_comercial, s.tipo_sku, "
-                        + "s.estado_comercial " + SKU_FROM + SKU_FILTER
+                        + "s.estado_comercial, s.unidad_venta_codigo, s.permite_venta_fraccion, "
+                        + "s.precio_venta_referencia " + SKU_FROM + SKU_FILTER
                         + " ORDER BY s.descripcion_comercial LIMIT :limit OFFSET :offset")
                 .param("tenantId", tenantId)
                 .param("texto", textFilter)
@@ -238,7 +362,8 @@ public class CatalogoJdbcReadRepository {
                 .query((rs, rowNumber) -> new SkuResumen(
                         rs.getObject("uuid_publico", UUID.class), rs.getString("codigo_interno"),
                         rs.getString("descripcion_comercial"), rs.getString("tipo_sku"),
-                        rs.getString("estado_comercial")))
+                        rs.getString("estado_comercial"), rs.getString("unidad_venta_codigo"),
+                        rs.getBoolean("permite_venta_fraccion"), rs.getBigDecimal("precio_venta_referencia")))
                 .list();
     }
 

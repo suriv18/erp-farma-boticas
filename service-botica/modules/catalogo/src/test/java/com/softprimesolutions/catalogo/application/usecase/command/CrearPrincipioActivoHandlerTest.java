@@ -9,9 +9,11 @@ import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +53,24 @@ class CrearPrincipioActivoHandlerTest {
         }
 
         @Override
+        public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) { throw new UnsupportedOperationException(); }
+
+        @Override
         public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }
 
         @Override
@@ -85,5 +105,17 @@ class CrearPrincipioActivoHandlerTest {
 
         @Override
         public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean tipoDocumentoIdentidadExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) { throw new UnsupportedOperationException(); }
     }
 }

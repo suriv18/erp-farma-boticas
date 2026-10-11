@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
-@Table(name = "producto_regulado", schema = "sch_farmacia")
+@Table(name = "producto_regulado", schema = "sch_catalogo")
 public class ProductoReguladoJpaEntity {
 
     @Id

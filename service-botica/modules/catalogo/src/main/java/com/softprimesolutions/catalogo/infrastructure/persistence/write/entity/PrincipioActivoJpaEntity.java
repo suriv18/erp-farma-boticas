@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
-@Table(name = "principio_activo", schema = "sch_farmacia")
+@Table(name = "principio_activo", schema = "sch_catalogo")
 public class PrincipioActivoJpaEntity {
 
     @Id

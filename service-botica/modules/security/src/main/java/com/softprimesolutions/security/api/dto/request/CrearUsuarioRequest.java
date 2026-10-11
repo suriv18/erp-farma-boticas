@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record CrearUsuarioRequest(
         @NotNull UUID tenantId,
-        @Size(max = 20) String documentType,
+        @Size(max = 1) String documentType,
         @Size(max = 30) String documentNumber,
         @Size(max = 150) String firstNames,
         @Size(max = 180) String lastNames,

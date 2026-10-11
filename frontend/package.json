@@ -13,15 +13,17 @@
     "preview": "pnpm --filter @boticas/erp-web preview",
     "lint": "eslint apps packages",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "e2e": "playwright test",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "why:react": "pnpm --recursive why react"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.1",

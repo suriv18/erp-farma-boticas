@@ -9,17 +9,21 @@ import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoAsociadoResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.model.RubroComercial;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 
@@ -61,6 +65,12 @@ public final class CatalogoApplicationMapper {
                 clasificacionControlada.estado().name());
     }
 
+    public static TipoDocumentoIdentidadResult toResult(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+        return new TipoDocumentoIdentidadResult(
+                tipoDocumentoIdentidad.codigo(), tipoDocumentoIdentidad.sigla(), tipoDocumentoIdentidad.denominacion(),
+                tipoDocumentoIdentidad.max(), tipoDocumentoIdentidad.min(), tipoDocumentoIdentidad.estado().name());
+    }
+
     public static PrincipioActivoResult toResult(PrincipioActivo principioActivo) {
         return new PrincipioActivoResult(
                 principioActivo.id().value(), principioActivo.codigoFuente(), principioActivo.denominacion(),
@@ -79,6 +89,12 @@ public final class CatalogoApplicationMapper {
                 categoria.categoriaPadreId() == null ? null : categoria.categoriaPadreId().value(),
                 categoria.codigo(), categoria.nombre(), categoria.descripcion(), categoria.nivel(),
                 categoria.orden(), categoria.estado().name());
+    }
+
+    public static RubroComercialResult toResult(RubroComercial rubro) {
+        return new RubroComercialResult(
+                rubro.id().value(), rubro.tenantId().value(), rubro.codigo(), rubro.nombre(),
+                rubro.descripcion(), rubro.esFarmaceutico(), rubro.orden(), rubro.estado().name());
     }
 
     public static ProductoReguladoResult toResult(ProductoRegulado producto) {
@@ -110,8 +126,9 @@ public final class CatalogoApplicationMapper {
                 sku.tipoSku().name(), sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(),
                 sku.presentacionComercial(), sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(),
                 sku.pesoGramos(), sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(),
-                sku.factorFraccion(), sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(),
-                sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.imagenUri(),
+                sku.factorFraccion(), sku.unidadFraccionCodigo(), sku.requiereLote(), sku.requiereVencimiento(),
+                sku.afectoIgv(), sku.stockMinimoDefault(), sku.stockMaximoDefault(), sku.precioVentaReferencia(),
+                sku.imagenUri(),
                 sku.codigosBarra().stream()
                         .map(codigo -> new CodigoBarraSkuResult(
                                 codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),

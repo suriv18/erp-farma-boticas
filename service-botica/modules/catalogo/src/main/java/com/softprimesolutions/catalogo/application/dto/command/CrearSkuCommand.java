@@ -24,11 +24,13 @@ public record CrearSkuCommand(
         BigDecimal largoCm,
         boolean permiteVentaFraccion,
         BigDecimal factorFraccion,
+        String unidadFraccionCodigo,
         boolean requiereLote,
         boolean requiereVencimiento,
         boolean afectoIgv,
         BigDecimal stockMinimoDefault,
         BigDecimal stockMaximoDefault,
+        BigDecimal precioVentaReferencia,
         String imagenUri,
         String createdBy) implements Command<SkuResult> {
 }

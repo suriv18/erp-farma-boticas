@@ -104,6 +104,11 @@ class ReemplazarPermisosRolHandlerTest {
         }
 
         @Override
+        public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
+            return false;
+        }
+
+        @Override
         public boolean scopeExists(UUID tenantId, AmbitoOrganizacional scope) {
             return false;
         }

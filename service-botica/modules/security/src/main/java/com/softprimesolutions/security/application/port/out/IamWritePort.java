@@ -28,6 +28,8 @@ public interface IamWritePort {
 
     boolean roleBelongsToTenant(UUID roleId, UUID tenantId);
 
+    boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId);
+
     boolean scopeExists(UUID tenantId, AmbitoOrganizacional scope);
 
     SaveAssignmentOutcome save(AsignacionRol assignment);

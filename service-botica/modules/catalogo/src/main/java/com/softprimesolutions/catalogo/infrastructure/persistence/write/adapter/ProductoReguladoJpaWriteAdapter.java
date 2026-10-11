@@ -10,7 +10,10 @@ import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.P
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.ProductoReguladoWriteMapper;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ProductoPrincipioActivoJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ProductoReguladoJpaRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -23,14 +26,17 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
     private final ProductoReguladoJpaRepository productoReguladoRepository;
     private final ProductoPrincipioActivoJpaRepository principioActivoAsociadoRepository;
     private final JdbcClient jdbcClient;
+    private final EntityManager entityManager;
 
     public ProductoReguladoJpaWriteAdapter(
             ProductoReguladoJpaRepository productoReguladoRepository,
             ProductoPrincipioActivoJpaRepository principioActivoAsociadoRepository,
-            JdbcClient jdbcClient) {
+            JdbcClient jdbcClient,
+            EntityManager entityManager) {
         this.productoReguladoRepository = productoReguladoRepository;
         this.principioActivoAsociadoRepository = principioActivoAsociadoRepository;
         this.jdbcClient = jdbcClient;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -69,7 +75,7 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
             productoInternalId = saved.getId();
         } else {
             jdbcClient.sql("""
-                            UPDATE sch_farmacia.producto_regulado
+                            UPDATE sch_catalogo.producto_regulado
                                SET tipo_producto = :tipoProducto, rubro_codigo = :rubroCodigo,
                                    tipo_registro = :tipoRegistro, numero_registro = :numeroRegistro,
                                    denominacion = :denominacion, concentracion_texto = :concentracionTexto,
@@ -113,7 +119,7 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
                     .param("vigenteHasta", producto.vigenteHasta())
                     .param("fuente", producto.fuente())
                     .param("versionFuente", producto.versionFuente())
-                    .param("updatedAt", producto.updatedAt())
+                    .param("updatedAt", toOffsetDateTime(producto.updatedAt()))
                     .param("productoReguladoId", producto.id().value())
                     .update();
             productoInternalId = existing.get().getId();
@@ -167,26 +173,33 @@ public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
     @Override
     @Transactional
     public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) {
-        return jdbcClient.sql("""
-                        UPDATE sch_farmacia.producto_regulado SET estado_regulatorio = :status, updated_at = :changedAt
+        var updated = jdbcClient.sql("""
+                        UPDATE sch_catalogo.producto_regulado SET estado_regulatorio = :status, updated_at = :changedAt
                          WHERE uuid_publico = :productoReguladoId
                         """)
-                .param("status", status).param("changedAt", changedAt).param("productoReguladoId", productoReguladoId)
+                .param("status", status).param("changedAt", toOffsetDateTime(changedAt))
+                .param("productoReguladoId", productoReguladoId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     private boolean existsInSupportTable(String tableName, String codigo) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia." + tableName + " WHERE codigo = :codigo")
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_catalogo." + tableName + " WHERE codigo = :codigo")
                 .param("codigo", codigo).query(Long.class).single() > 0;
     }
 
     private Optional<Long> findPrincipioActivoInternalId(UUID principioActivoUuid) {
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.principio_activo WHERE uuid_publico = :principioActivoUuid")
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.principio_activo WHERE uuid_publico = :principioActivoUuid")
                 .param("principioActivoUuid", principioActivoUuid).query(Long.class).optional();
     }
 
     private UUID findPrincipioActivoUuid(Long internalId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.principio_activo WHERE id = :internalId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.principio_activo WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 }

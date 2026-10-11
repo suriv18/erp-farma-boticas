@@ -1,10 +1,18 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { server } from '../../../test/mocks/server';
 import { RequireAuthentication } from '../components/RequireAuthentication';
 import { AuthSessionProvider } from '../model/AuthSessionProvider';
+import { saveRefreshToken } from '../model/session-storage';
 import { LoginPage } from './LoginPage';
+
+afterEach(() => {
+  sessionStorage.clear();
+});
 
 function renderLogin(initialEntry = '/login') {
   const router = createMemoryRouter(
@@ -21,15 +29,17 @@ function renderLogin(initialEntry = '/login') {
   return {
     user: userEvent.setup(),
     ...render(
-      <AuthSessionProvider>
-        <RouterProvider router={router} />
-      </AuthSessionProvider>
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthSessionProvider>
+          <RouterProvider router={router} />
+        </AuthSessionProvider>
+      </QueryClientProvider>
     )
   };
 }
 
 async function fillValidCredentials(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Correo corporativo'), 'admin@boticas.pe');
+  await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'admin@boticas.pe');
   await user.type(screen.getByLabelText('Contraseña'), 'Boticas2026!');
 }
 
@@ -37,7 +47,7 @@ describe('LoginPage', () => {
   it('muestra validaciones accesibles y permite visualizar la contraseña', async () => {
     const { user } = renderLogin();
 
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByText('Ingresa un correo electrónico válido.')).toBeInTheDocument();
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeInTheDocument();
@@ -53,7 +63,7 @@ describe('LoginPage', () => {
     const { user } = renderLogin();
 
     await fillValidCredentials(user);
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByRole('heading', { name: 'Resumen operativo' })).toBeInTheDocument();
   });
@@ -61,9 +71,9 @@ describe('LoginPage', () => {
   it('muestra un mensaje de error cuando el backend rechaza las credenciales', async () => {
     const { user } = renderLogin();
 
-    await user.type(screen.getByLabelText('Correo corporativo'), 'admin@boticas.pe');
+    await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'admin@boticas.pe');
     await user.type(screen.getByLabelText('Contraseña'), 'ContrasenaIncorrecta1!');
-    await user.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(
       await screen.findByText('Credenciales incorrectas o cuenta bloqueada.')
@@ -73,6 +83,42 @@ describe('LoginPage', () => {
   it('redirige al login cuando se intenta abrir una ruta privada sin sesión', async () => {
     renderLogin('/dashboard');
 
-    expect(await screen.findByRole('heading', { name: 'Ingresa a tu cuenta' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Bienvenido de nuevo 👋' })
+    ).toBeInTheDocument();
+  });
+
+  it('no redirige al login mientras restaura la sesión desde el refresh token guardado', async () => {
+    saveRefreshToken('refresh-existing');
+    server.use(
+      http.post(
+        'http://localhost/api/v1/auth/refresh',
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve(
+                  HttpResponse.json({
+                    accessToken: 'access-1',
+                    refreshToken: 'refresh-2',
+                    tokenType: 'Bearer',
+                    accessExpiresAt: '2026-09-05T10:10:00Z',
+                    refreshExpiresAt: '2026-09-12T10:00:00Z',
+                    tenantId: 'tenant-abc',
+                    userId: 'user-xyz',
+                    sessionId: 'session-1',
+                    passwordChangeRequired: false
+                  })
+                ),
+              50
+            )
+          )
+      )
+    );
+
+    renderLogin('/dashboard');
+
+    expect(screen.queryByRole('heading', { name: 'Ingresa a tu cuenta' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Resumen operativo' })).toBeInTheDocument();
   });
 });

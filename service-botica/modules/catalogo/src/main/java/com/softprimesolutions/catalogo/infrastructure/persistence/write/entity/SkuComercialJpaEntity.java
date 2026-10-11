@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "sku_comercial", schema = "sch_farmacia")
+@Table(name = "sku_comercial", schema = "sch_catalogo")
 public class SkuComercialJpaEntity {
 
     @Id
@@ -74,6 +74,9 @@ public class SkuComercialJpaEntity {
     @Column(name = "factor_fraccion")
     private BigDecimal factorFraccion;
 
+    @Column(name = "unidad_fraccion_codigo", length = 30)
+    private String unidadFraccionCodigo;
+
     @Column(name = "requiere_lote", nullable = false)
     private boolean requiereLote;
 
@@ -88,6 +91,9 @@ public class SkuComercialJpaEntity {
 
     @Column(name = "stock_maximo_default")
     private BigDecimal stockMaximoDefault;
+
+    @Column(name = "precio_venta_referencia")
+    private BigDecimal precioVentaReferencia;
 
     @Column(name = "imagen_uri")
     private String imagenUri;
@@ -115,9 +121,10 @@ public class SkuComercialJpaEntity {
             String tipoSku, String codigoInterno, String descripcionComercial, String nombreCorto,
             String presentacionComercial, String unidadVentaCodigo, BigDecimal contenido,
             String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
-            BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, boolean requiereLote,
-            boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
-            BigDecimal stockMaximoDefault, String imagenUri, String estadoComercial, String createdBy,
+            BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, String unidadFraccionCodigo,
+            boolean requiereLote, boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
+            BigDecimal stockMaximoDefault, BigDecimal precioVentaReferencia, String imagenUri,
+            String estadoComercial, String createdBy,
             Instant createdAt, String updatedBy, Instant updatedAt) {
         this.uuidPublico = uuidPublico;
         this.tenantId = tenantId;
@@ -138,11 +145,13 @@ public class SkuComercialJpaEntity {
         this.largoCm = largoCm;
         this.permiteVentaFraccion = permiteVentaFraccion;
         this.factorFraccion = factorFraccion;
+        this.unidadFraccionCodigo = unidadFraccionCodigo;
         this.requiereLote = requiereLote;
         this.requiereVencimiento = requiereVencimiento;
         this.afectoIgv = afectoIgv;
         this.stockMinimoDefault = stockMinimoDefault;
         this.stockMaximoDefault = stockMaximoDefault;
+        this.precioVentaReferencia = precioVentaReferencia;
         this.imagenUri = imagenUri;
         this.estadoComercial = estadoComercial;
         this.createdBy = createdBy;
@@ -171,11 +180,13 @@ public class SkuComercialJpaEntity {
     public BigDecimal getLargoCm() { return largoCm; }
     public boolean isPermiteVentaFraccion() { return permiteVentaFraccion; }
     public BigDecimal getFactorFraccion() { return factorFraccion; }
+    public String getUnidadFraccionCodigo() { return unidadFraccionCodigo; }
     public boolean isRequiereLote() { return requiereLote; }
     public boolean isRequiereVencimiento() { return requiereVencimiento; }
     public boolean isAfectoIgv() { return afectoIgv; }
     public BigDecimal getStockMinimoDefault() { return stockMinimoDefault; }
     public BigDecimal getStockMaximoDefault() { return stockMaximoDefault; }
+    public BigDecimal getPrecioVentaReferencia() { return precioVentaReferencia; }
     public String getImagenUri() { return imagenUri; }
     public String getEstadoComercial() { return estadoComercial; }
     public String getCreatedBy() { return createdBy; }

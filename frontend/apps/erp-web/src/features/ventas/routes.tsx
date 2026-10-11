@@ -7,5 +7,12 @@ export const salesRoutes = [
       const { SalesPage } = await import('./pages/SalesPage');
       return { Component: SalesPage };
     }
+  },
+  {
+    path: 'ventas/:ventaId',
+    lazy: async () => {
+      const { SaleDetailPage } = await import('./pages/SaleDetailPage');
+      return { Component: SaleDetailPage };
+    }
   }
 ] satisfies RouteObject[];

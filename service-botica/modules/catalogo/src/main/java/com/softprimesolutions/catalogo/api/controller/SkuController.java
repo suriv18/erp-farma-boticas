@@ -1,7 +1,7 @@
 package com.softprimesolutions.catalogo.api.controller;
 
 import com.softprimesolutions.catalogo.api.dto.request.AgregarCodigoBarraRequest;
-import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
 import com.softprimesolutions.catalogo.application.dto.command.EliminarCodigoBarraCommand;
@@ -22,7 +22,8 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,8 +71,10 @@ public class SkuController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody SkuRequest request, Authentication authentication) {
-        return createSku.execute(CatalogoApiMapper.toCreateCommand(request, authentication.getName())).fold(
+    public ResponseEntity<?> create(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody SkuRequest request) {
+        return createSku.execute(CatalogoApiMapper.toCreateCommand(
+                        CatalogoControllerSupport.tenantOf(jwt), request, CatalogoControllerSupport.actorOf(jwt))).fold(
                 result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -79,8 +82,9 @@ public class SkuController {
     @PutMapping("/{skuId}")
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
     public ResponseEntity<?> update(
-            @PathVariable UUID skuId, @Valid @RequestBody SkuRequest request, Authentication authentication) {
-        return updateSku.execute(CatalogoApiMapper.toUpdateCommand(skuId, request, authentication.getName())).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId, @Valid @RequestBody SkuRequest request) {
+        return updateSku.execute(CatalogoApiMapper.toUpdateCommand(
+                        CatalogoControllerSupport.tenantOf(jwt), skuId, request, CatalogoControllerSupport.actorOf(jwt))).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -88,15 +92,15 @@ public class SkuController {
     @PatchMapping("/{skuId}/estado")
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
     public ResponseEntity<?> changeStatus(
-            @PathVariable UUID skuId, @Valid @RequestBody CambiarEstadoTenantRequest request) {
-        return control.changeSkuStatus(request.tenantId(), skuId, request.status()).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeSkuStatus(CatalogoControllerSupport.tenantOf(jwt), skuId, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
     }
 
     @GetMapping("/{skuId}")
     @PreAuthorize("hasAuthority('catalogo.skus.consultar')")
-    public ResponseEntity<?> get(@PathVariable UUID skuId, @RequestParam UUID tenantId) {
-        return getSku.execute(new ConsultarSkuQuery(tenantId, skuId)).fold(
+    public ResponseEntity<?> get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId) {
+        return getSku.execute(new ConsultarSkuQuery(CatalogoControllerSupport.tenantOf(jwt), skuId)).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -104,7 +108,7 @@ public class SkuController {
     @GetMapping
     @PreAuthorize("hasAuthority('catalogo.skus.consultar')")
     public ResponseEntity<?> list(
-            @RequestParam UUID tenantId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) UUID categoriaId,
             @RequestParam(required = false) UUID marcaId,
@@ -112,7 +116,7 @@ public class SkuController {
             @RequestParam(required = false) String estado,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return listSkus.execute(new ListarSkusQuery(tenantId, q, categoriaId, marcaId, tipoSku, estado, page, size))
+        return listSkus.execute(new ListarSkusQuery(CatalogoControllerSupport.tenantOf(jwt), q, categoriaId, marcaId, tipoSku, estado, page, size))
                 .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toSkuPage(result)),
                         CatalogoControllerSupport::problem);
     }
@@ -120,8 +124,10 @@ public class SkuController {
     @PostMapping("/{skuId}/codigos-barra")
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
     public ResponseEntity<?> agregarCodigoBarra(
-            @PathVariable UUID skuId, @RequestParam UUID tenantId, @Valid @RequestBody AgregarCodigoBarraRequest request) {
-        return agregarCodigoBarra.execute(CatalogoApiMapper.toCommand(tenantId, skuId, request)).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId,
+            @Valid @RequestBody AgregarCodigoBarraRequest request) {
+        return agregarCodigoBarra.execute(
+                        CatalogoApiMapper.toCommand(CatalogoControllerSupport.tenantOf(jwt), skuId, request)).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -129,8 +135,9 @@ public class SkuController {
     @DeleteMapping("/{skuId}/codigos-barra/{codigoBarra}")
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
     public ResponseEntity<?> eliminarCodigoBarra(
-            @PathVariable UUID skuId, @PathVariable String codigoBarra, @RequestParam UUID tenantId) {
-        return eliminarCodigoBarra.execute(new EliminarCodigoBarraCommand(tenantId, skuId, codigoBarra)).fold(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId, @PathVariable String codigoBarra) {
+        return eliminarCodigoBarra.execute(
+                        new EliminarCodigoBarraCommand(CatalogoControllerSupport.tenantOf(jwt), skuId, codigoBarra)).fold(
                 result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                 CatalogoControllerSupport::problem);
     }
@@ -138,9 +145,9 @@ public class SkuController {
     @PatchMapping("/{skuId}/codigos-barra/{codigoBarra}/principal")
     @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
     public ResponseEntity<?> marcarCodigoBarraPrincipal(
-            @PathVariable UUID skuId, @PathVariable String codigoBarra, @RequestParam UUID tenantId) {
-        return marcarCodigoBarraPrincipal.execute(
-                        new MarcarCodigoBarraPrincipalCommand(tenantId, skuId, codigoBarra))
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID skuId, @PathVariable String codigoBarra) {
+        return marcarCodigoBarraPrincipal.execute(new MarcarCodigoBarraPrincipalCommand(
+                        CatalogoControllerSupport.tenantOf(jwt), skuId, codigoBarra))
                 .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
                         CatalogoControllerSupport::problem);
     }

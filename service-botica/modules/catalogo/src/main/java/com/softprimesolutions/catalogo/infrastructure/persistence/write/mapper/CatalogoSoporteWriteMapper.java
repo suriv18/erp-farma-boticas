@@ -4,12 +4,14 @@ import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ClasificacionControladaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CondicionVentaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.FormaFarmaceuticaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.PrincipioActivoJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.TipoDocumentoIdentidadJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.UnidadMedidaJpaEntity;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ViaAdministracionJpaEntity;
 
@@ -49,6 +51,17 @@ public final class CatalogoSoporteWriteMapper {
                 clasificacionControlada.normaFuente(), clasificacionControlada.requiereRecetaEspecial(),
                 clasificacionControlada.retieneReceta(), clasificacionControlada.vigenciaRecetaDias(),
                 clasificacionControlada.estado().name());
+    }
+
+    public static TipoDocumentoIdentidadJpaEntity toEntity(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+        return new TipoDocumentoIdentidadJpaEntity(
+                tipoDocumentoIdentidad.codigo(), tipoDocumentoIdentidad.sigla(), tipoDocumentoIdentidad.denominacion(),
+                toShort(tipoDocumentoIdentidad.max()), toShort(tipoDocumentoIdentidad.min()),
+                tipoDocumentoIdentidad.estado().name());
+    }
+
+    private static Short toShort(Integer value) {
+        return value == null ? null : value.shortValue();
     }
 
     public static PrincipioActivoJpaEntity toEntity(PrincipioActivo principioActivo) {

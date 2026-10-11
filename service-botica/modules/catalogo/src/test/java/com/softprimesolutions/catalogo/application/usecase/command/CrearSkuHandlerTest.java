@@ -27,8 +27,8 @@ class CrearSkuHandlerTest {
 
         var result = handler.execute(new CrearSkuCommand(
                 TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
-                null, null, null, null, null, null, null, false, null, true, true, true,
-                BigDecimal.ZERO, null, null, "test"));
+                "UND", null, null, null, null, null, null, false, null, null, true, true, true,
+                BigDecimal.ZERO, null, null, null, "test"));
 
         assertTrue(result.isSuccess());
         assertEquals("Alcohol en gel", result.getOrElse(error -> null).descripcionComercial());
@@ -44,11 +44,26 @@ class CrearSkuHandlerTest {
 
         var result = handler.execute(new CrearSkuCommand(
                 TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
-                null, null, null, null, null, null, null, false, null, true, true, true,
-                BigDecimal.ZERO, null, null, "test"));
+                "UND", null, null, null, null, null, null, false, null, null, true, true, true,
+                BigDecimal.ZERO, null, null, null, "test"));
 
         assertTrue(result.isFailure());
         assertEquals("CAT_SKU_CODIGO_INTERNO_DUPLICADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void failsValidationWhenReferencePriceIsNegative() {
+        var handler = new CrearSkuHandler(
+                new FakeCatalogoComercialPort(), () -> UUID.fromString("98a1587e-27ef-4077-befd-6f5af4901589"),
+                () -> Instant.parse("2026-09-07T10:00:00Z"));
+
+        var result = handler.execute(new CrearSkuCommand(
+                TENANT_ID, null, null, null, "NO_REGULADO", "SKU-001", "Alcohol en gel", null, null,
+                "UND", null, null, null, null, null, null, false, null, null, true, true, true,
+                BigDecimal.ZERO, null, new BigDecimal("-1"), null, "test"));
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_SKU_INVALIDO", result.fold(value -> null, error -> error.code()));
     }
 
     private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
@@ -65,6 +80,12 @@ class CrearSkuHandlerTest {
 
         @Override
         public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }

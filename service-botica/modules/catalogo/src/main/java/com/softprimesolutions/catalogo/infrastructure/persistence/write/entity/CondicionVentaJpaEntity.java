@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "condicion_venta", schema = "sch_farmacia")
+@Table(name = "condicion_venta", schema = "sch_catalogo")
 public class CondicionVentaJpaEntity {
 
     @Id

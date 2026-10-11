@@ -3,9 +3,11 @@ package com.softprimesolutions.catalogo.api.controller;
 import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
 import com.softprimesolutions.catalogo.api.dto.request.CondicionVentaRequest;
 import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarCondicionVentaQuery;
 import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
 import com.softprimesolutions.catalogo.application.port.in.ActualizarCondicionVentaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarCondicionVentaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.CrearCondicionVentaUseCase;
 import com.softprimesolutions.catalogo.application.port.in.ListarCondicionesVentaUseCase;
 import jakarta.validation.Valid;
@@ -29,16 +31,19 @@ public class CondicionVentaController {
 
     private final CrearCondicionVentaUseCase crearCondicionVenta;
     private final ActualizarCondicionVentaUseCase actualizarCondicionVenta;
+    private final ConsultarCondicionVentaUseCase consultarCondicionVenta;
     private final ListarCondicionesVentaUseCase listarCondicionesVenta;
     private final CatalogoControlUseCase control;
 
     public CondicionVentaController(
             CrearCondicionVentaUseCase crearCondicionVenta,
             ActualizarCondicionVentaUseCase actualizarCondicionVenta,
+            ConsultarCondicionVentaUseCase consultarCondicionVenta,
             ListarCondicionesVentaUseCase listarCondicionesVenta,
             CatalogoControlUseCase control) {
         this.crearCondicionVenta = crearCondicionVenta;
         this.actualizarCondicionVenta = actualizarCondicionVenta;
+        this.consultarCondicionVenta = consultarCondicionVenta;
         this.listarCondicionesVenta = listarCondicionesVenta;
         this.control = control;
     }
@@ -65,6 +70,14 @@ public class CondicionVentaController {
             @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
         return control.changeCondicionVentaStatus(codigo, request.status()).fold(
                 ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> get(@PathVariable String codigo) {
+        return consultarCondicionVenta.execute(new ConsultarCondicionVentaQuery(codigo)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
     }
 
     @GetMapping

@@ -17,6 +17,8 @@ public interface CatalogoControlUseCase {
 
     Result<Unit, ApplicationError> changeClasificacionControladaStatus(String codigo, String status);
 
+    Result<Unit, ApplicationError> changeTipoDocumentoIdentidadStatus(String codigo, String status);
+
     Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status);
 
     Result<Unit, ApplicationError> changeMarcaStatus(UUID tenantId, UUID marcaId, String status);
@@ -26,4 +28,6 @@ public interface CatalogoControlUseCase {
     Result<Unit, ApplicationError> changeProductoReguladoStatus(UUID productoReguladoId, String status);
 
     Result<Unit, ApplicationError> changeSkuStatus(UUID tenantId, UUID skuId, String status);
+
+    Result<Unit, ApplicationError> changeRubroComercialStatus(UUID tenantId, UUID rubroComercialId, String status);
 }

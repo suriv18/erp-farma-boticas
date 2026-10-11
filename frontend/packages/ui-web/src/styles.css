@@ -4,3 +4,24 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .comprobante-imprimible,
+  .comprobante-imprimible * {
+    visibility: visible;
+  }
+
+  .comprobante-imprimible {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    box-shadow: none;
+  }
+}

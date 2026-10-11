@@ -35,7 +35,12 @@ public final class CrearPrincipioActivoHandler implements CrearPrincipioActivoUs
     }
 
     private Result<PrincipioActivoResult, ApplicationError> persist(PrincipioActivo principioActivo) {
-        writePort.save(principioActivo);
+        var outcome = writePort.save(principioActivo);
+        if (outcome == CatalogoSoportePort.SavePrincipioActivoOutcome.DUPLICATE_DENOMINACION) {
+            return Result.failure(new StandardApplicationError(
+                    "CAT_PRINCIPIO_ACTIVO_DUPLICADO", "Ya existe un principio activo con la denominación indicada.",
+                    ErrorCategory.CONFLICT));
+        }
         return Result.success(CatalogoApplicationMapper.toResult(principioActivo));
     }
 

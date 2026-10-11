@@ -6,14 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.application.port.out.RubroComercialPort;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
 import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.model.RubroComercial;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
 import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
 import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
 import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
 import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
 import java.time.Instant;
@@ -30,7 +33,7 @@ class CatalogoControlServiceTest {
         var soportePort = new FakeCatalogoSoportePort(true);
         var service = new CatalogoControlService(
                 soportePort, new FakeCatalogoComercialPort(true), new FakeProductoReguladoPort(true),
-                () -> Instant.parse("2026-09-07T12:00:00Z"));
+                new FakeRubroComercialPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
 
         var result = service.changeCondicionVentaStatus("SIN-RECETA", "ELIMINADO");
 
@@ -43,7 +46,7 @@ class CatalogoControlServiceTest {
         var soportePort = new FakeCatalogoSoportePort(true);
         var service = new CatalogoControlService(
                 soportePort, new FakeCatalogoComercialPort(true), new FakeProductoReguladoPort(true),
-                () -> Instant.parse("2026-09-07T12:00:00Z"));
+                new FakeRubroComercialPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
 
         var result = service.changeCondicionVentaStatus("SIN-RECETA", "INACTIVO");
 
@@ -54,7 +57,8 @@ class CatalogoControlServiceTest {
     void reportsNotFoundWhenMarcaDoesNotExist() {
         var service = new CatalogoControlService(
                 new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(false),
-                new FakeProductoReguladoPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
 
         var result = service.changeMarcaStatus(TENANT_ID, UUID.randomUUID(), "ACTIVO");
 
@@ -66,11 +70,62 @@ class CatalogoControlServiceTest {
     void changesProductoReguladoStatusSuccessfully() {
         var service = new CatalogoControlService(
                 new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
-                new FakeProductoReguladoPort(true), () -> Instant.parse("2026-09-07T12:00:00Z"));
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
 
         var result = service.changeProductoReguladoStatus(UUID.randomUUID(), "VIGENTE");
 
         assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void changesRubroComercialStatusWhenValid() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeRubroComercialStatus(TENANT_ID, UUID.randomUUID(), "INACTIVO");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void reportsNotFoundWhenRubroComercialDoesNotExist() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(false),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeRubroComercialStatus(TENANT_ID, UUID.randomUUID(), "ACTIVO");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_RUBRO_COMERCIAL_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
+    }
+
+    @Test
+    void changesTipoDocumentoIdentidadStatusSuccessfully() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(true), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeTipoDocumentoIdentidadStatus("1", "INACTIVO");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void failsWithNotFoundWhenTipoDocumentoIdentidadDoesNotExist() {
+        var service = new CatalogoControlService(
+                new FakeCatalogoSoportePort(false), new FakeCatalogoComercialPort(true),
+                new FakeProductoReguladoPort(true), new FakeRubroComercialPort(true),
+                () -> Instant.parse("2026-09-07T12:00:00Z"));
+
+        var result = service.changeTipoDocumentoIdentidadStatus("9", "INACTIVO");
+
+        assertTrue(result.isFailure());
+        assertEquals("CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", result.fold(value -> null, error -> error.code()));
     }
 
     private static final class FakeCatalogoSoportePort implements CatalogoSoportePort {
@@ -95,6 +150,24 @@ class CatalogoControlServiceTest {
 
         @Override
         public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean condicionVentaExists(String codigo) { throw new UnsupportedOperationException(); }
@@ -131,6 +204,18 @@ class CatalogoControlServiceTest {
 
         @Override
         public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) { return found; }
+
+        @Override
+        public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean tipoDocumentoIdentidadExists(String codigo) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) { return found; }
     }
 
     private static final class FakeCatalogoComercialPort implements CatalogoComercialPort {
@@ -149,6 +234,12 @@ class CatalogoControlServiceTest {
 
         @Override
         public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
@@ -179,5 +270,20 @@ class CatalogoControlServiceTest {
 
         @Override
         public boolean changeStatus(UUID productoReguladoId, String status, Instant changedAt) { return found; }
+    }
+
+    private static final class FakeRubroComercialPort implements RubroComercialPort {
+        private final boolean found;
+
+        private FakeRubroComercialPort(boolean found) { this.found = found; }
+
+        @Override
+        public SaveOutcome save(RubroComercial rubroComercial) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<RubroComercial> findById(UUID tenantId, UUID rubroComercialId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public boolean changeStatus(UUID tenantId, UUID rubroComercialId, String status, Instant changedAt) { return found; }
     }
 }

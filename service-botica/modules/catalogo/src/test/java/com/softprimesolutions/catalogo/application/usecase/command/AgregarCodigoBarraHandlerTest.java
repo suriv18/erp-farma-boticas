@@ -26,8 +26,8 @@ class AgregarCodigoBarraHandlerTest {
     void addsABarcodeSuccessfully() {
         var existing = SKUComercial.create(
                         new SkuId(SKU_ID), new TenantId(TENANT_ID), null, null, null, TipoSku.NO_REGULADO,
-                        "SKU-001", "Alcohol en gel", null, null, null, null, null, null, null, null, null,
-                        false, null, true, true, true, BigDecimal.ZERO, null, null, "test",
+                        "SKU-001", "Alcohol en gel", null, null, "UND", null, null, null, null, null, null,
+                        false, null, null, true, true, true, BigDecimal.ZERO, null, null, null, "test",
                         Instant.parse("2026-09-07T10:00:00Z"))
                 .getOrElse(error -> null);
         var writePort = new FakeCatalogoComercialPort(existing);
@@ -70,6 +70,12 @@ class AgregarCodigoBarraHandlerTest {
 
         @Override
         public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) { return Optional.ofNullable(existing); }
+
+        @Override
+        public Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }
 
         @Override
         public boolean categoriaExists(UUID tenantId, UUID categoriaId) { throw new UnsupportedOperationException(); }

@@ -9,7 +9,9 @@ import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.MarcaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.RubroComercialRequest;
 import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
+import com.softprimesolutions.catalogo.api.dto.request.TipoDocumentoIdentidadRequest;
 import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
 import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
 import com.softprimesolutions.catalogo.api.dto.response.CategoriaProductoResponse;
@@ -23,8 +25,10 @@ import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoAsociadoR
 import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.RubroComercialResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResponse;
 import com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.TipoDocumentoIdentidadResponse;
 import com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse;
 import com.softprimesolutions.catalogo.api.dto.response.ViaAdministracionResponse;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaProductoCommand;
@@ -34,7 +38,9 @@ import com.softprimesolutions.catalogo.application.dto.command.ActualizarFormaFa
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarMarcaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincipioActivoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarTipoDocumentoIdentidadCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
 import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
@@ -46,7 +52,9 @@ import com.softprimesolutions.catalogo.application.dto.command.CrearFormaFarmace
 import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearRubroComercialCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearTipoDocumentoIdentidadCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
 import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
 import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
@@ -58,8 +66,10 @@ import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
 import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
 import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.RubroComercialResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
 import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.TipoDocumentoIdentidadResult;
 import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
 import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
 import java.util.UUID;
@@ -150,6 +160,28 @@ public final class CatalogoApiMapper {
                 result.retieneReceta(), result.vigenciaRecetaDias(), result.estado());
     }
 
+    public static CrearTipoDocumentoIdentidadCommand toCreateCommand(TipoDocumentoIdentidadRequest request) {
+        return new CrearTipoDocumentoIdentidadCommand(
+                request.codigo(), request.sigla(), request.denominacion(), request.max(), request.min());
+    }
+
+    public static ActualizarTipoDocumentoIdentidadCommand toUpdateCommand(TipoDocumentoIdentidadRequest request) {
+        return new ActualizarTipoDocumentoIdentidadCommand(
+                request.codigo(), request.sigla(), request.denominacion(), request.max(), request.min());
+    }
+
+    public static TipoDocumentoIdentidadResponse toResponse(TipoDocumentoIdentidadResult result) {
+        return new TipoDocumentoIdentidadResponse(
+                result.codigo(), result.sigla(), result.denominacion(), result.max(), result.min(), result.estado());
+    }
+
+    public static PaginaResponse<TipoDocumentoIdentidadResponse> toTipoDocumentoIdentidadPage(
+            PaginaResult<TipoDocumentoIdentidadResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
     public static CrearPrincipioActivoCommand toCreateCommand(PrincipioActivoRequest request) {
         return new CrearPrincipioActivoCommand(
                 request.codigoFuente(), request.denominacion(), request.nombreNormalizado(), request.fuente());
@@ -167,13 +199,13 @@ public final class CatalogoApiMapper {
                 result.fuente(), result.estado());
     }
 
-    public static CrearMarcaCommand toCreateCommand(MarcaRequest request) {
-        return new CrearMarcaCommand(request.tenantId(), request.codigo(), request.nombre(), request.descripcion());
+    public static CrearMarcaCommand toCreateCommand(UUID tenantId, MarcaRequest request) {
+        return new CrearMarcaCommand(tenantId, request.codigo(), request.nombre(), request.descripcion());
     }
 
-    public static ActualizarMarcaCommand toUpdateCommand(UUID marcaId, MarcaRequest request) {
+    public static ActualizarMarcaCommand toUpdateCommand(UUID tenantId, UUID marcaId, MarcaRequest request) {
         return new ActualizarMarcaCommand(
-                request.tenantId(), marcaId, request.codigo(), request.nombre(), request.descripcion());
+                tenantId, marcaId, request.codigo(), request.nombre(), request.descripcion());
     }
 
     public static MarcaResponse toResponse(MarcaResult result) {
@@ -182,15 +214,22 @@ public final class CatalogoApiMapper {
                 result.estado());
     }
 
-    public static CrearCategoriaProductoCommand toCreateCommand(CategoriaProductoRequest request) {
+    public static PaginaResponse<MarcaResponse> toMarcaPage(PaginaResult<MarcaResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static CrearCategoriaProductoCommand toCreateCommand(UUID tenantId, CategoriaProductoRequest request) {
         return new CrearCategoriaProductoCommand(
-                request.tenantId(), request.categoriaPadreId(), request.codigo(), request.nombre(),
+                tenantId, request.categoriaPadreId(), request.codigo(), request.nombre(),
                 request.descripcion(), request.nivel(), request.orden());
     }
 
-    public static ActualizarCategoriaProductoCommand toUpdateCommand(UUID categoriaId, CategoriaProductoRequest request) {
+    public static ActualizarCategoriaProductoCommand toUpdateCommand(
+            UUID tenantId, UUID categoriaId, CategoriaProductoRequest request) {
         return new ActualizarCategoriaProductoCommand(
-                request.tenantId(), categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
+                tenantId, categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
                 request.descripcion(), request.nivel(), request.orden());
     }
 
@@ -198,6 +237,39 @@ public final class CatalogoApiMapper {
         return new CategoriaProductoResponse(
                 result.id(), result.tenantId(), result.categoriaPadreId(), result.codigo(), result.nombre(),
                 result.descripcion(), result.nivel(), result.orden(), result.estado());
+    }
+
+    public static PaginaResponse<CategoriaProductoResponse> toCategoriaPage(
+            PaginaResult<CategoriaProductoResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static CrearRubroComercialCommand toCreateCommand(UUID tenantId, RubroComercialRequest request) {
+        return new CrearRubroComercialCommand(
+                tenantId, request.codigo(), request.nombre(), request.descripcion(),
+                request.esFarmaceutico(), request.orden());
+    }
+
+    public static ActualizarRubroComercialCommand toUpdateCommand(
+            UUID tenantId, UUID rubroComercialId, RubroComercialRequest request) {
+        return new ActualizarRubroComercialCommand(
+                tenantId, rubroComercialId, request.codigo(), request.nombre(), request.descripcion(),
+                request.esFarmaceutico(), request.orden());
+    }
+
+    public static RubroComercialResponse toResponse(RubroComercialResult result) {
+        return new RubroComercialResponse(
+                result.id(), result.tenantId(), result.codigo(), result.nombre(), result.descripcion(),
+                result.esFarmaceutico(), result.orden(), result.estado());
+    }
+
+    public static PaginaResponse<RubroComercialResponse> toRubroComercialPage(
+            PaginaResult<RubroComercialResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(CatalogoApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
     }
 
     public static CrearProductoReguladoCommand toCreateCommand(ProductoReguladoRequest request) {
@@ -262,26 +334,29 @@ public final class CatalogoApiMapper {
                 result.page(), result.size(), result.totalElements());
     }
 
-    public static CrearSkuCommand toCreateCommand(SkuRequest request, String createdBy) {
+    public static CrearSkuCommand toCreateCommand(UUID tenantId, SkuRequest request, String createdBy) {
         return new CrearSkuCommand(
-                request.tenantId(), request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                tenantId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
                 request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
-                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
-                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), createdBy);
+                request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(), request.precioVentaReferencia(),
+                request.imagenUri(), createdBy);
     }
 
-    public static ActualizarSkuCommand toUpdateCommand(UUID skuId, SkuRequest request, String updatedBy) {
+    public static ActualizarSkuCommand toUpdateCommand(
+            UUID tenantId, UUID skuId, SkuRequest request, String updatedBy) {
         return new ActualizarSkuCommand(
-                request.tenantId(), skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                tenantId, skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
                 request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
                 request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
                 request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
                 request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
-                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
-                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), updatedBy);
+                request.unidadFraccionCodigo(), request.requiereLote(), request.requiereVencimiento(),
+                request.afectoIgv(), request.stockMinimoDefault(), request.stockMaximoDefault(), request.precioVentaReferencia(),
+                request.imagenUri(), updatedBy);
     }
 
     public static AgregarCodigoBarraCommand toCommand(UUID tenantId, UUID skuId, AgregarCodigoBarraRequest request) {
@@ -297,8 +372,9 @@ public final class CatalogoApiMapper {
                 result.nombreCorto(), result.presentacionComercial(), result.unidadVentaCodigo(),
                 result.contenido(), result.unidadContenidoCodigo(), result.pesoGramos(), result.altoCm(),
                 result.anchoCm(), result.largoCm(), result.permiteVentaFraccion(), result.factorFraccion(),
-                result.requiereLote(), result.requiereVencimiento(), result.afectoIgv(),
-                result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
+                result.unidadFraccionCodigo(), result.requiereLote(), result.requiereVencimiento(),
+                result.afectoIgv(), result.stockMinimoDefault(), result.stockMaximoDefault(), result.precioVentaReferencia(),
+                result.imagenUri(),
                 result.codigosBarra().stream()
                         .map(codigo -> new CodigoBarraSkuResponse(
                                 codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),
@@ -312,7 +388,8 @@ public final class CatalogoApiMapper {
                 result.items().stream()
                         .map(resumen -> new SkuResumenResponse(
                                 resumen.id(), resumen.codigoInterno(), resumen.descripcionComercial(),
-                                resumen.tipoSku(), resumen.estado()))
+                                resumen.tipoSku(), resumen.estado(), resumen.unidadVentaCodigo(),
+                                resumen.permiteVentaFraccion(), resumen.precioVentaReferencia()))
                         .toList(),
                 result.page(), result.size(), result.totalElements());
     }

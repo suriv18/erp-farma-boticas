@@ -4,6 +4,7 @@ import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCas
 import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
 import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
 import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.application.port.out.RubroComercialPort;
 import com.softprimesolutions.shared.application.error.ApplicationError;
 import com.softprimesolutions.shared.application.error.ErrorCategory;
 import com.softprimesolutions.shared.application.error.StandardApplicationError;
@@ -27,14 +28,16 @@ public final class CatalogoControlService implements CatalogoControlUseCase {
     private final CatalogoSoportePort soportePort;
     private final CatalogoComercialPort comercialPort;
     private final ProductoReguladoPort productoReguladoPort;
+    private final RubroComercialPort rubroComercialPort;
     private final ClockPort clock;
 
     public CatalogoControlService(
             CatalogoSoportePort soportePort, CatalogoComercialPort comercialPort,
-            ProductoReguladoPort productoReguladoPort, ClockPort clock) {
+            ProductoReguladoPort productoReguladoPort, RubroComercialPort rubroComercialPort, ClockPort clock) {
         this.soportePort = Objects.requireNonNull(soportePort, "soportePort es obligatorio");
         this.comercialPort = Objects.requireNonNull(comercialPort, "comercialPort es obligatorio");
         this.productoReguladoPort = Objects.requireNonNull(productoReguladoPort, "productoReguladoPort es obligatorio");
+        this.rubroComercialPort = Objects.requireNonNull(rubroComercialPort, "rubroComercialPort es obligatorio");
         this.clock = Objects.requireNonNull(clock, "clock es obligatorio");
     }
 
@@ -84,6 +87,15 @@ public final class CatalogoControlService implements CatalogoControlUseCase {
     }
 
     @Override
+    public Result<Unit, ApplicationError> changeTipoDocumentoIdentidadStatus(String codigo, String status) {
+        var normalized = normalizeStatus(status);
+        if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
+        return soportePort.changeTipoDocumentoIdentidadStatus(codigo, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_TIPO_DOCUMENTO_IDENTIDAD_NO_ENCONTRADO", "El tipo de documento indicado no existe.");
+    }
+
+    @Override
     public Result<Unit, ApplicationError> changePrincipioActivoStatus(UUID principioActivoId, String status) {
         var normalized = normalizeStatus(status);
         if (!SOPORTE_STATUSES.contains(normalized)) return invalidStatus(SOPORTE_STATUSES);
@@ -126,6 +138,16 @@ public final class CatalogoControlService implements CatalogoControlUseCase {
         return comercialPort.changeSkuStatus(tenantId, skuId, normalized, clock.now())
                 ? Result.success(Unit.INSTANCE)
                 : notFound("CAT_SKU_NO_ENCONTRADO", "El SKU no existe en el tenant indicado.");
+    }
+
+    @Override
+    public Result<Unit, ApplicationError> changeRubroComercialStatus(
+            UUID tenantId, UUID rubroComercialId, String status) {
+        var normalized = normalizeStatus(status);
+        if (!COMERCIAL_STATUSES.contains(normalized)) return invalidStatus(COMERCIAL_STATUSES);
+        return rubroComercialPort.changeStatus(tenantId, rubroComercialId, normalized, clock.now())
+                ? Result.success(Unit.INSTANCE)
+                : notFound("CAT_RUBRO_COMERCIAL_NO_ENCONTRADO", "El rubro comercial no existe en el tenant indicado.");
     }
 
     private static String normalizeStatus(String status) {

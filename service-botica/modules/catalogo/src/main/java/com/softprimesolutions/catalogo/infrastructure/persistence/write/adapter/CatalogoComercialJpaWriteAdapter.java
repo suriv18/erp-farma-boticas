@@ -3,7 +3,9 @@ package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter
 import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
 import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.CodigoBarraSku;
+import com.softprimesolutions.catalogo.domain.model.EstadoCategoriaProducto;
 import com.softprimesolutions.catalogo.domain.model.EstadoComercialSku;
+import com.softprimesolutions.catalogo.domain.model.EstadoMarca;
 import com.softprimesolutions.catalogo.domain.model.Marca;
 import com.softprimesolutions.catalogo.domain.model.SKUComercial;
 import com.softprimesolutions.catalogo.domain.model.TipoSku;
@@ -19,7 +21,10 @@ import com.softprimesolutions.catalogo.infrastructure.persistence.write.reposito
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.MarcaJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuCodigoBarraJpaRepository;
 import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuComercialJpaRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,18 +40,21 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     private final SkuComercialJpaRepository skuRepository;
     private final SkuCodigoBarraJpaRepository codigoBarraRepository;
     private final JdbcClient jdbcClient;
+    private final EntityManager entityManager;
 
     public CatalogoComercialJpaWriteAdapter(
             MarcaJpaRepository marcaRepository,
             CategoriaProductoJpaRepository categoriaRepository,
             SkuComercialJpaRepository skuRepository,
             SkuCodigoBarraJpaRepository codigoBarraRepository,
-            JdbcClient jdbcClient) {
+            JdbcClient jdbcClient,
+            EntityManager entityManager) {
         this.marcaRepository = marcaRepository;
         this.categoriaRepository = categoriaRepository;
         this.skuRepository = skuRepository;
         this.codigoBarraRepository = codigoBarraRepository;
         this.jdbcClient = jdbcClient;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -74,12 +82,16 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
             return SaveMarcaOutcome.DUPLICATE_CODIGO;
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.marca SET codigo = :codigo, nombre = :nombre, descripcion = :descripcion
+                        UPDATE sch_catalogo.marca
+                           SET codigo = :codigo, nombre = :nombre, descripcion = :descripcion,
+                               updated_by = :updatedBy, updated_at = :updatedAt
                          WHERE uuid_publico = :marcaId
                         """)
                 .param("codigo", marca.codigo())
                 .param("nombre", marca.nombre())
                 .param("descripcion", marca.descripcion())
+                .param("updatedBy", "SYSTEM")
+                .param("updatedAt", toOffsetDateTime(Instant.now()))
                 .param("marcaId", marca.id().value())
                 .update();
         return SaveMarcaOutcome.UPDATED;
@@ -118,9 +130,10 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
             return SaveCategoriaOutcome.DUPLICATE_CODIGO;
         }
         jdbcClient.sql("""
-                        UPDATE sch_farmacia.categoria_producto
+                        UPDATE sch_catalogo.categoria_producto
                            SET categoria_padre_id = :categoriaPadreId, codigo = :codigo, nombre = :nombre,
-                               descripcion = :descripcion, nivel = :nivel, orden = :orden
+                               descripcion = :descripcion, nivel = :nivel, orden = :orden,
+                               updated_by = :updatedBy, updated_at = :updatedAt
                          WHERE uuid_publico = :categoriaId
                         """)
                 .param("categoriaPadreId", categoriaPadreInternalId)
@@ -129,6 +142,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 .param("descripcion", categoria.descripcion())
                 .param("nivel", categoria.nivel())
                 .param("orden", categoria.orden())
+                .param("updatedBy", "SYSTEM")
+                .param("updatedAt", toOffsetDateTime(Instant.now()))
                 .param("categoriaId", categoria.id().value())
                 .update();
         return SaveCategoriaOutcome.UPDATED;
@@ -181,7 +196,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 return SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
             }
             jdbcClient.sql("""
-                            UPDATE sch_farmacia.sku_comercial
+                            UPDATE sch_catalogo.sku_comercial
                                SET producto_regulado_id = :productoReguladoId, categoria_id = :categoriaId,
                                    marca_id = :marcaId, tipo_sku = :tipoSku, codigo_interno = :codigoInterno,
                                    descripcion_comercial = :descripcionComercial, nombre_corto = :nombreCorto,
@@ -190,10 +205,12 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                                    unidad_contenido_codigo = :unidadContenidoCodigo, peso_gramos = :pesoGramos,
                                    alto_cm = :altoCm, ancho_cm = :anchoCm, largo_cm = :largoCm,
                                    permite_venta_fraccion = :permiteVentaFraccion,
-                                   factor_fraccion = :factorFraccion, requiere_lote = :requiereLote,
+                                   factor_fraccion = :factorFraccion,
+                                   unidad_fraccion_codigo = :unidadFraccionCodigo, requiere_lote = :requiereLote,
                                    requiere_vencimiento = :requiereVencimiento, afecto_igv = :afectoIgv,
                                    stock_minimo_default = :stockMinimoDefault,
-                                   stock_maximo_default = :stockMaximoDefault, imagen_uri = :imagenUri,
+                                   stock_maximo_default = :stockMaximoDefault,
+                                   precio_venta_referencia = :precioVentaReferencia, imagen_uri = :imagenUri,
                                    updated_by = :updatedBy, updated_at = :updatedAt
                              WHERE uuid_publico = :skuId
                             """)
@@ -214,14 +231,16 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                     .param("largoCm", sku.largoCm())
                     .param("permiteVentaFraccion", sku.permiteVentaFraccion())
                     .param("factorFraccion", sku.factorFraccion())
+                    .param("unidadFraccionCodigo", sku.unidadFraccionCodigo())
                     .param("requiereLote", sku.requiereLote())
                     .param("requiereVencimiento", sku.requiereVencimiento())
                     .param("afectoIgv", sku.afectoIgv())
                     .param("stockMinimoDefault", sku.stockMinimoDefault())
                     .param("stockMaximoDefault", sku.stockMaximoDefault())
+                    .param("precioVentaReferencia", sku.precioVentaReferencia())
                     .param("imagenUri", sku.imagenUri())
                     .param("updatedBy", sku.updatedBy())
-                    .param("updatedAt", sku.updatedAt())
+                    .param("updatedAt", toOffsetDateTime(sku.updatedAt()))
                     .param("skuId", sku.id().value())
                     .update();
             skuInternalId = entity.getId();
@@ -234,7 +253,8 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
             }
             codigoBarraRepository.save(new SkuCodigoBarraJpaEntity(
                     tenantId.get(), skuInternalId, codigo.tipoCodigo(), codigo.codigoBarra(),
-                    codigo.esPrincipal(), codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name()));
+                    codigo.esPrincipal(), codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name(),
+                    "SYSTEM", Instant.now()));
         }
         return existing.isEmpty() ? SaveSkuOutcome.CREATED : SaveSkuOutcome.UPDATED;
     }
@@ -273,8 +293,10 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
                 entity.get().getContenido(), entity.get().getUnidadContenidoCodigo(),
                 entity.get().getPesoGramos(), entity.get().getAltoCm(), entity.get().getAnchoCm(),
                 entity.get().getLargoCm(), entity.get().isPermiteVentaFraccion(), entity.get().getFactorFraccion(),
-                entity.get().isRequiereLote(), entity.get().isRequiereVencimiento(), entity.get().isAfectoIgv(),
+                entity.get().getUnidadFraccionCodigo(), entity.get().isRequiereLote(),
+                entity.get().isRequiereVencimiento(), entity.get().isAfectoIgv(),
                 entity.get().getStockMinimoDefault(), entity.get().getStockMaximoDefault(),
+                entity.get().getPrecioVentaReferencia(),
                 entity.get().getImagenUri(), codigos,
                 EstadoComercialSku.valueOf(entity.get().getEstadoComercial()),
                 entity.get().getCreatedBy(), entity.get().getCreatedAt(), entity.get().getUpdatedBy(),
@@ -283,11 +305,50 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Marca> findMarcaById(UUID tenantId, UUID marcaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return Optional.empty();
+        var entity = marcaRepository.findByUuidPublico(marcaId);
+        if (entity.isEmpty() || !entity.get().getTenantId().equals(tenantInternalId.get())) {
+            return Optional.empty();
+        }
+
+        var marca = Marca.restore(
+                new MarcaId(entity.get().getUuidPublico()), new TenantId(tenantId), entity.get().getCodigo(),
+                entity.get().getNombre(), entity.get().getDescripcion(),
+                EstadoMarca.valueOf(entity.get().getEstado()));
+        return Optional.of(marca);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CategoriaProducto> findCategoriaById(UUID tenantId, UUID categoriaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return Optional.empty();
+        var entity = categoriaRepository.findByUuidPublico(categoriaId);
+        if (entity.isEmpty() || !entity.get().getTenantId().equals(tenantInternalId.get())) {
+            return Optional.empty();
+        }
+
+        var categoriaPadreId = entity.get().getCategoriaPadreId() == null ? null
+                : findCategoriaUuid(entity.get().getCategoriaPadreId());
+
+        var categoria = CategoriaProducto.restore(
+                new CategoriaProductoId(entity.get().getUuidPublico()), new TenantId(tenantId),
+                categoriaPadreId == null ? null : new CategoriaProductoId(categoriaPadreId),
+                entity.get().getCodigo(), entity.get().getNombre(), entity.get().getDescripcion(),
+                entity.get().getNivel(), entity.get().getOrden(),
+                EstadoCategoriaProducto.valueOf(entity.get().getEstado()));
+        return Optional.of(categoria);
+    }
+
+    @Override
     public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
         return jdbcClient.sql("""
-                        SELECT COUNT(*) FROM sch_farmacia.categoria_producto
+                        SELECT COUNT(*) FROM sch_catalogo.categoria_producto
                          WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
                         """)
                 .param("tenantId", tenantInternalId.get()).param("categoriaId", categoriaId)
@@ -299,7 +360,7 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
         return jdbcClient.sql("""
-                        SELECT COUNT(*) FROM sch_farmacia.marca WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
+                        SELECT COUNT(*) FROM sch_catalogo.marca WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
                         """)
                 .param("tenantId", tenantInternalId.get()).param("marcaId", marcaId)
                 .query(Long.class).single() > 0;
@@ -310,12 +371,14 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
-                        UPDATE sch_farmacia.marca SET estado = :status
+        var updated = jdbcClient.sql("""
+                        UPDATE sch_catalogo.marca SET estado = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("marcaId", marcaId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     @Override
@@ -323,12 +386,14 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
-                        UPDATE sch_farmacia.categoria_producto SET estado = :status
+        var updated = jdbcClient.sql("""
+                        UPDATE sch_catalogo.categoria_producto SET estado = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("categoriaId", categoriaId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     @Override
@@ -336,50 +401,56 @@ public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
     public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) {
         var tenantInternalId = findTenantId(tenantId);
         if (tenantInternalId.isEmpty()) return false;
-        return jdbcClient.sql("""
-                        UPDATE sch_farmacia.sku_comercial SET estado_comercial = :status
+        var updated = jdbcClient.sql("""
+                        UPDATE sch_catalogo.sku_comercial SET estado_comercial = :status
                          WHERE tenant_id = :tenantId AND uuid_publico = :skuId
                         """)
                 .param("status", status).param("tenantId", tenantInternalId.get()).param("skuId", skuId)
                 .update() == 1;
+        if (updated) entityManager.clear();
+        return updated;
     }
 
     private Optional<Long> findTenantId(UUID tenantUuid) {
         if (tenantUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantUuid")
+        return jdbcClient.sql("SELECT id FROM sch_admin.tenant WHERE uuid_publico = :tenantUuid")
                 .param("tenantUuid", tenantUuid).query(Long.class).optional();
     }
 
     private Optional<Long> findCategoriaInternalId(UUID categoriaUuid) {
         if (categoriaUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.categoria_producto WHERE uuid_publico = :categoriaUuid")
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.categoria_producto WHERE uuid_publico = :categoriaUuid")
                 .param("categoriaUuid", categoriaUuid).query(Long.class).optional();
     }
 
     private Optional<Long> findMarcaInternalId(UUID marcaUuid) {
         if (marcaUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.marca WHERE uuid_publico = :marcaUuid")
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.marca WHERE uuid_publico = :marcaUuid")
                 .param("marcaUuid", marcaUuid).query(Long.class).optional();
     }
 
     private Optional<Long> findProductoReguladoInternalId(UUID productoReguladoUuid) {
         if (productoReguladoUuid == null) return Optional.empty();
-        return jdbcClient.sql("SELECT id FROM sch_farmacia.producto_regulado WHERE uuid_publico = :productoReguladoUuid")
+        return jdbcClient.sql("SELECT id FROM sch_catalogo.producto_regulado WHERE uuid_publico = :productoReguladoUuid")
                 .param("productoReguladoUuid", productoReguladoUuid).query(Long.class).optional();
     }
 
     private UUID findProductoReguladoUuid(Long internalId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.producto_regulado WHERE id = :internalId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.producto_regulado WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
     }
 
     private UUID findCategoriaUuid(Long internalId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.categoria_producto WHERE id = :internalId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.categoria_producto WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
     }
 
     private UUID findMarcaUuid(Long internalId) {
-        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.marca WHERE id = :internalId")
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_catalogo.marca WHERE id = :internalId")
                 .param("internalId", internalId).query(UUID.class).single();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : value.atOffset(ZoneOffset.UTC);
     }
 }
