@@ -1,6 +1,7 @@
 package com.softprimesolutions.inventario.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
@@ -96,6 +98,58 @@ class InventarioApiIntegrationTest {
                         SELECT :skuId, t.id, 'NO_REGULADO', 'SKU-INV-1', 'Producto de prueba', :unidad
                           FROM sch_admin.tenant t WHERE t.uuid_publico = :tenantId
                         """).param("skuId", skuId).param("unidad", UNIDAD).param("tenantId", TENANT_ID).update();
+    }
+
+    @Test
+    void theDatabaseRejectsAPosicionWhoseLoteBelongsToAnotherSkuOfTheSameTenant() throws Exception {
+        var ingreso = movimiento("AJUSTE_INGRESO", "10", "Saldo inicial", null, "L-001", LocalDate.now().plusYears(1))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        assertThat((String) JsonPath.read(ingreso, "$.loteId")).isNotBlank();
+        var otroSku = UUID.randomUUID();
+        jdbcClient.sql("""
+                        INSERT INTO sch_catalogo.sku_comercial
+                            (uuid_publico, tenant_id, tipo_sku, codigo_interno, descripcion_comercial,
+                             unidad_venta_codigo)
+                        SELECT :skuId, t.id, 'NO_REGULADO', 'SKU-INV-2', 'Otro producto', :unidad
+                          FROM sch_admin.tenant t WHERE t.uuid_publico = :tenantId
+                        """).param("skuId", otroSku).param("unidad", UNIDAD).param("tenantId", TENANT_ID).update();
+
+        assertThat(copiarPosicionConSku(skuId, "CUARENTENA")).isEqualTo(1);
+        assertThatThrownBy(() -> copiarPosicionConSku(otroSku, "BLOQUEADO"))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("fk_posicion_lote_sku");
+    }
+
+    @Test
+    void everyTableThatKeepsBothSkuAndLoteReferencesTheCompositeLoteKey() {
+        var compuestas = jdbcClient.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE contype = 'f' AND confrelid = 'sch_inventario.lote'::regclass
+                           AND array_length(conkey, 1) = 3
+                           AND conname IN ('fk_posicion_lote_sku', 'fk_movimiento_lote_sku', 'fk_reserva_lote_sku',
+                                           'fk_conteo_linea_lote_sku', 'fk_mov_ctrl_lote_sku')
+                        """).query(Long.class).single();
+        var anteriores = jdbcClient.sql("""
+                        SELECT COUNT(*) FROM pg_constraint
+                         WHERE conname IN ('fk_posicion_lote', 'fk_movimiento_lote', 'fk_reserva_lote',
+                                           'fk_conteo_linea_lote', 'fk_mov_ctrl_lote')
+                        """).query(Long.class).single();
+
+        assertThat(compuestas).isEqualTo(5L);
+        assertThat(anteriores).isZero();
+    }
+
+    private int copiarPosicionConSku(UUID sku, String estado) {
+        return jdbcClient.sql("""
+                        INSERT INTO sch_inventario.posicion_inventario
+                            (tenant_id, empresa_id, establecimiento_id, almacen_id, sku_id, lote_id,
+                             estado_inventario)
+                        SELECT p.tenant_id, p.empresa_id, p.establecimiento_id, p.almacen_id, k.id, p.lote_id,
+                               :estado
+                          FROM sch_inventario.posicion_inventario p, sch_catalogo.sku_comercial k
+                         WHERE k.uuid_publico = :skuId AND p.estado_inventario = 'DISPONIBLE'
+                           AND p.sku_id = (SELECT id FROM sch_catalogo.sku_comercial WHERE uuid_publico = :original)
+                        """).param("estado", estado).param("skuId", sku).param("original", skuId).update();
     }
 
     @Test
