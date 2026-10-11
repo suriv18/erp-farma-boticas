@@ -14,7 +14,9 @@ const session: AuthSession = {
   accessToken: 'token',
   tenantId: TEST_TENANT,
   userId: 'user-1',
+  passwordChangeRequired: false,
   authenticate: vi.fn(),
+  changePassword: vi.fn(),
   signOut: vi.fn()
 };
 

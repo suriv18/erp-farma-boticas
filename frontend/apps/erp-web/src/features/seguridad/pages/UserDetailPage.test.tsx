@@ -13,7 +13,9 @@ const authenticatedSession = {
   accessToken: 'token',
   tenantId: 'tenant-1',
   userId: 'admin-1',
+  passwordChangeRequired: false,
   authenticate: vi.fn(),
+  changePassword: vi.fn(),
   signOut: vi.fn()
 };
 

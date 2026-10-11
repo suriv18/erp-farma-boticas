@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuthSession } from '../model/useAuthSession';
 
 export function RequireAuthentication() {
-  const { status } = useAuthSession();
+  const { status, passwordChangeRequired } = useAuthSession();
   const location = useLocation();
 
   if (status === 'loading') {
@@ -11,6 +11,10 @@ export function RequireAuthentication() {
 
   if (status === 'unauthenticated') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (passwordChangeRequired) {
+    return <Navigate to="/cambiar-contrasena" replace />;
   }
 
   return <Outlet />;

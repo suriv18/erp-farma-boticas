@@ -40,6 +40,7 @@ export function LoginPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const passwordChanged = (location.state as { passwordChanged?: unknown } | null)?.passwordChanged === true;
 
   async function handleAuthentication(credentials: LoginCredentials) {
     setSubmitError(null);
@@ -178,6 +179,15 @@ export function LoginPage() {
           <p className="mt-3 max-w-sm text-sm leading-6 text-neutral-500 dark:text-neutral-400">
             Ingresa tus credenciales para acceder al panel de tu botica.
           </p>
+
+          {passwordChanged ? (
+            <p
+              role="status"
+              className="border-success-200 bg-success-50 text-success-800 mt-6 rounded-xl border px-3.5 py-3 text-xs font-medium"
+            >
+              Contraseña actualizada. Inicia sesión con tu nueva contraseña.
+            </p>
+          ) : null}
 
           <LoginForm onAuthenticate={handleAuthentication} submitError={submitError} />
         </div>
