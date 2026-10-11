@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { apiClient, refreshApiClient } from '../../../app/api';
 import { login as loginRequest, logout as logoutRequest, refresh as refreshRequest } from '../api/auth.api';
@@ -11,6 +12,12 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [userId, setUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthSessionStatus>(() => (readRefreshToken() ? 'loading' : 'unauthenticated'));
   const pendingRefresh = useRef<Promise<string | null> | null>(null);
+  const queryClient = useQueryClient();
+
+  const resetPrivateCache = useCallback(async () => {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+  }, [queryClient]);
 
   const doRefresh = useCallback(async (): Promise<string | null> => {
     const storedRefreshToken = readRefreshToken();
@@ -33,9 +40,10 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       setTenantId(null);
       setUserId(null);
       setStatus('unauthenticated');
+      await resetPrivateCache();
       return null;
     }
-  }, []);
+  }, [resetPrivateCache]);
 
   const performRefresh = useCallback((): Promise<string | null> => {
     if (!pendingRefresh.current) {
@@ -68,12 +76,13 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       login: credentials.email,
       password: credentials.password
     });
+    await resetPrivateCache();
     setAccessToken(response.accessToken);
     setTenantId(response.tenantId);
     setUserId(response.userId);
     saveRefreshToken(response.refreshToken);
     setStatus('authenticated');
-  }, []);
+  }, [resetPrivateCache]);
 
   const signOut = useCallback(async () => {
     try {
@@ -86,7 +95,8 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     setUserId(null);
     clearRefreshToken();
     setStatus('unauthenticated');
-  }, []);
+    await resetPrivateCache();
+  }, [resetPrivateCache]);
 
   const session = useMemo<AuthSession>(
     () => ({

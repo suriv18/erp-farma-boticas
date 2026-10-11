@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -28,9 +29,11 @@ function renderLogin(initialEntry = '/login') {
   return {
     user: userEvent.setup(),
     ...render(
-      <AuthSessionProvider>
-        <RouterProvider router={router} />
-      </AuthSessionProvider>
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthSessionProvider>
+          <RouterProvider router={router} />
+        </AuthSessionProvider>
+      </QueryClientProvider>
     )
   };
 }

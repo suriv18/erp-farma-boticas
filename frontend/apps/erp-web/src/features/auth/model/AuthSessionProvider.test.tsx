@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -51,15 +52,21 @@ function Probe() {
   );
 }
 
+function renderProvider(queryClient = new QueryClient()) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>
+    </QueryClientProvider>
+  );
+}
+
 describe('AuthSessionProvider', () => {
   it('autentica exitosamente y guarda el refresh token en sessionStorage', async () => {
     server.use(http.post('http://localhost/api/v1/auth/login', () => HttpResponse.json(tokenResponse)));
 
-    render(
-      <AuthSessionProvider>
-        <Probe />
-      </AuthSessionProvider>
-    );
+    renderProvider();
 
     act(() => {
       screen.getByRole('button', { name: 'login' }).click();
@@ -86,11 +93,7 @@ describe('AuthSessionProvider', () => {
       )
     );
 
-    render(
-      <AuthSessionProvider>
-        <Probe />
-      </AuthSessionProvider>
-    );
+    renderProvider();
 
     act(() => {
       screen.getByRole('button', { name: 'login' }).click();
@@ -105,11 +108,7 @@ describe('AuthSessionProvider', () => {
     saveRefreshToken('refresh-existing');
     server.use(http.post('http://localhost/api/v1/auth/refresh', () => HttpResponse.json(tokenResponse)));
 
-    render(
-      <AuthSessionProvider>
-        <Probe />
-      </AuthSessionProvider>
-    );
+    renderProvider();
 
     await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
   });
@@ -117,17 +116,16 @@ describe('AuthSessionProvider', () => {
   it('no autentica al montar si el refresh guardado ya no es valido', async () => {
     saveRefreshToken('refresh-invalid');
     server.use(http.post('http://localhost/api/v1/auth/refresh', () => HttpResponse.json({}, { status: 401 })));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['ventas', 'lista'], 'datos-privados');
 
-    render(
-      <AuthSessionProvider>
-        <Probe />
-      </AuthSessionProvider>
-    );
+    renderProvider(queryClient);
 
     await waitFor(() => {
       expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
       expect(readRefreshToken()).toBeNull();
     });
+    await waitFor(() => expect(queryClient.getQueryData(['ventas', 'lista'])).toBeUndefined());
   });
 
   it('signOut limpia la sesion y el refresh token', async () => {
@@ -136,11 +134,7 @@ describe('AuthSessionProvider', () => {
       http.post('http://localhost/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 }))
     );
 
-    render(
-      <AuthSessionProvider>
-        <Probe />
-      </AuthSessionProvider>
-    );
+    renderProvider();
 
     act(() => {
       screen.getByRole('button', { name: 'login' }).click();
@@ -153,5 +147,51 @@ describe('AuthSessionProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('false'));
     expect(readRefreshToken()).toBeNull();
+  });
+
+  it('signOut elimina la cache de consultas privadas', async () => {
+    server.use(
+      http.post('http://localhost/api/v1/auth/login', () => HttpResponse.json(tokenResponse)),
+      http.post('http://localhost/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 }))
+    );
+    const queryClient = new QueryClient();
+
+    renderProvider(queryClient);
+
+    act(() => {
+      screen.getByRole('button', { name: 'login' }).click();
+    });
+    await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
+    queryClient.setQueryData(['ventas', 'lista'], 'datos-cuenta-1');
+
+    act(() => {
+      screen.getByRole('button', { name: 'logout' }).click();
+    });
+
+    await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('false'));
+    await waitFor(() => expect(queryClient.getQueryData(['ventas', 'lista'])).toBeUndefined());
+  });
+
+  it('un nuevo login no hereda la cache de la sesion anterior ni acepta respuestas pendientes', async () => {
+    server.use(http.post('http://localhost/api/v1/auth/login', () => HttpResponse.json(tokenResponse)));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['ventas', 'lista'], 'datos-cuenta-1');
+    let release: (value: string) => void = () => undefined;
+    const pending = queryClient.fetchQuery({
+      queryKey: ['ventas', 'detalle', 'v1'],
+      queryFn: () => new Promise<string>((resolve) => { release = resolve; })
+    });
+    pending.catch(() => undefined);
+
+    renderProvider(queryClient);
+
+    act(() => {
+      screen.getByRole('button', { name: 'login' }).click();
+    });
+    await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
+
+    release('respuesta-tardia-cuenta-1');
+    expect(queryClient.getQueryData(['ventas', 'lista'])).toBeUndefined();
+    expect(queryClient.getQueryData(['ventas', 'detalle', 'v1'])).toBeUndefined();
   });
 });
