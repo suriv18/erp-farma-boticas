@@ -61,7 +61,7 @@ describe('featureRoutes', () => {
   });
 
   it('mantiene autenticación fuera del shell privado', () => {
-    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login']);
+    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login', '/cambiar-contrasena']);
     expect(publicFeatureRoutes.every(({ lazy }) => typeof lazy === 'function')).toBe(true);
   });
 });
