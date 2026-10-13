@@ -365,7 +365,9 @@ class VentaApiIntegrationTest {
         mockMvc.perform(get(VENTAS).header("Authorization", local)
                         .param("establecimientoId", otra.establecimiento().toString()))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get(VENTAS).header("Authorization", local)).andExpect(status().isForbidden());
+        mockMvc.perform(get(VENTAS).header("Authorization", local))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VEN_ESTABLECIMIENTO_REQUERIDO"));
         mockMvc.perform(post(VENTAS).header("Authorization", local).header("Idempotency-Key", "clave-intrusa")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ventaJson(otra.terminal(), otra.almacen(), skuId, "1", "5", "10")))
