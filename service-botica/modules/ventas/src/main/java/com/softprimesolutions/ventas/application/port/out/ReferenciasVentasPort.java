@@ -1,5 +1,6 @@
 package com.softprimesolutions.ventas.application.port.out;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +22,6 @@ public interface ReferenciasVentasPort {
 
     record SkuVentaRef(
             UUID id, String descripcion, String unidadVentaCodigo, boolean permiteFraccion, boolean operable,
-            boolean requiereDispensacion) {
+            boolean requiereDispensacion, BigDecimal precioReferencia) {
     }
 }

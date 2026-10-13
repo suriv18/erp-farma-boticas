@@ -1,5 +1,7 @@
 package com.softprimesolutions.ventas.infrastructure.persistence.write.adapter;
 
+import static com.softprimesolutions.ventas.infrastructure.persistence.JdbcEscrituras.exigirUnaFila;
+
 import com.softprimesolutions.ventas.application.port.out.AnulacionWritePort;
 import com.softprimesolutions.ventas.domain.model.EstadoTurno;
 import com.softprimesolutions.ventas.domain.model.EstadoVenta;
@@ -72,10 +74,10 @@ public class AnulacionJdbcWriteAdapter implements AnulacionWritePort {
                 .param("fecha", JdbcColumns.offset(ahora))
                 .update();
         if (actualizadas != 1) return false;
-        jdbcClient.sql(REVERSAR_PAGO)
+        exigirUnaFila(REVERSAR_PAGO, jdbcClient.sql(REVERSAR_PAGO)
                 .param("tenantId", tenantId)
                 .param("ventaId", ventaId)
-                .update();
+                .update());
         return true;
     }
 }

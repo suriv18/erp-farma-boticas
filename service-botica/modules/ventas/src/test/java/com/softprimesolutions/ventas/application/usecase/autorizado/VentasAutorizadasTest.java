@@ -167,9 +167,18 @@ class VentasAutorizadasTest {
 
     @Test
     void rejectsListingOutsideTheScope() {
-        var query = new ListarVentasQuery(TENANT, null, null, null, 0, 20);
+        var query = new ListarVentasQuery(TENANT, ESTABLECIMIENTO, null, null, 0, 20);
 
         assertThat(error(consultar(new AmbitoDouble(false)).listar(query)).code()).isEqualTo("VEN_FUERA_DE_AMBITO");
+        verify(consultar, never()).listar(any());
+    }
+
+    @Test
+    void asksForTheEstablishmentWhenListingWithoutOneIsOutsideTheScope() {
+        var query = new ListarVentasQuery(TENANT, null, null, null, 0, 20);
+
+        assertThat(error(consultar(new AmbitoDouble(false)).listar(query)).code())
+                .isEqualTo("VEN_ESTABLECIMIENTO_REQUERIDO");
         verify(consultar, never()).listar(any());
     }
 }

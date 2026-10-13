@@ -18,7 +18,13 @@ public final class ControlAmbito {
     }
 
     <T> Result<T, ApplicationError> antes(Ambito solicitado, Supplier<Result<T, ApplicationError>> operacion) {
-        return ambito.permite(solicitado) ? operacion.get() : Result.failure(VentasErrors.fueraDeAmbito());
+        return antes(solicitado, operacion, VentasErrors::fueraDeAmbito);
+    }
+
+    <T> Result<T, ApplicationError> antes(
+            Ambito solicitado, Supplier<Result<T, ApplicationError>> operacion,
+            Supplier<ApplicationError> denegado) {
+        return ambito.permite(solicitado) ? operacion.get() : Result.failure(denegado.get());
     }
 
     <T> Result<T, ApplicationError> despues(

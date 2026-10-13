@@ -70,6 +70,7 @@ class ReferenciasVentasJdbcAdapterTest {
         row.put("permite_venta_fraccion", true);
         row.put("operable", true);
         row.put("requiere_dispensacion", true);
+        row.put("precio_venta_referencia", new java.math.BigDecimal("2.5000"));
         jdbc.rows("FROM sch_catalogo.sku_comercial k", row);
 
         var skus = adapter.skus(TENANT, List.of(SKU, OTRO_SKU));
@@ -81,6 +82,8 @@ class ReferenciasVentasJdbcAdapterTest {
         assertThat(sku.permiteFraccion()).isTrue();
         assertThat(sku.operable()).isTrue();
         assertThat(sku.requiereDispensacion()).isTrue();
+        assertThat(sku.precioReferencia()).isEqualByComparingTo("2.5");
+        assertThat(sku.precioReferencia()).isEqualByComparingTo("2.5");
         assertThat(jdbc.statementContaining("FROM sch_catalogo.sku_comercial k").params())
                 .containsEntry("tenantId", TENANT).containsEntry("skuIds", List.of(SKU, OTRO_SKU));
     }

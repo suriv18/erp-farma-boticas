@@ -36,6 +36,7 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
             """;
     private static final String SKUS = """
             SELECT k.uuid_publico, k.descripcion_comercial, k.unidad_venta_codigo, k.permite_venta_fraccion,
+                   k.precio_venta_referencia,
                    (k.es_activo = '1' AND k.estado_comercial = 'ACTIVO') AS operable,
                    (COALESCE(cv.requiere_receta, FALSE) OR COALESCE(cv.requiere_retencion, FALSE)
                     OR COALESCE(cc.requiere_receta_especial, FALSE) OR COALESCE(cc.retiene_receta, FALSE))
@@ -88,7 +89,8 @@ public class ReferenciasVentasJdbcAdapter implements ReferenciasVentasPort {
                 .query((rs, rowNumber) -> new SkuVentaRef(
                         JdbcColumns.uuid(rs, "uuid_publico"), rs.getString("descripcion_comercial"),
                         rs.getString("unidad_venta_codigo"), rs.getBoolean("permite_venta_fraccion"),
-                        rs.getBoolean("operable"), rs.getBoolean("requiere_dispensacion")))
+                        rs.getBoolean("operable"), rs.getBoolean("requiere_dispensacion"),
+                        rs.getBigDecimal("precio_venta_referencia")))
                 .list()
                 .stream()
                 .collect(Collectors.toMap(SkuVentaRef::id, Function.identity()));

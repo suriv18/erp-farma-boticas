@@ -7,6 +7,7 @@ import com.softprimesolutions.ventas.application.dto.query.ObtenerVentaQuery;
 import com.softprimesolutions.ventas.application.dto.result.PaginaResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResult;
 import com.softprimesolutions.ventas.application.dto.result.VentaResumenResult;
+import com.softprimesolutions.ventas.application.error.VentasErrors;
 import com.softprimesolutions.ventas.application.port.in.ConsultarVentasUseCase;
 import com.softprimesolutions.ventas.application.port.out.ActorActualPort;
 import com.softprimesolutions.ventas.application.port.out.AmbitoPort.Ambito;
@@ -40,6 +41,9 @@ public final class ConsultarVentasAutorizado implements ConsultarVentasUseCase {
     public Result<PaginaResult<VentaResumenResult>, ApplicationError> listar(ListarVentasQuery query) {
         return control.antes(
                 new Ambito(query.tenantId(), actor.actorId(), PERMISO, query.establecimientoId(), null, null),
-                () -> delegado.listar(query));
+                () -> delegado.listar(query),
+                () -> query.establecimientoId() == null
+                        ? VentasErrors.establecimientoRequerido()
+                        : VentasErrors.fueraDeAmbito());
     }
 }

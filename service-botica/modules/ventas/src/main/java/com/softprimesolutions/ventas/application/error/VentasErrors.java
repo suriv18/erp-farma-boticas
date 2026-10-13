@@ -86,6 +86,18 @@ public final class VentasErrors {
                 ErrorCategory.CONFLICT, Map.of("skuId", skuId));
     }
 
+    public static ApplicationError precioDifiereReferencia(UUID skuId) {
+        return new StandardApplicationError(
+                "VEN_PRECIO_DIFIERE_REFERENCIA", "El precio unitario debe coincidir con el precio de venta del SKU.",
+                ErrorCategory.VALIDATION, Map.of("skuId", skuId));
+    }
+
+    public static ApplicationError establecimientoRequerido() {
+        return new StandardApplicationError(
+                "VEN_ESTABLECIMIENTO_REQUERIDO", "Debe indicar el establecimiento a consultar.",
+                ErrorCategory.VALIDATION);
+    }
+
     public static ApplicationError fueraDeAmbito() {
         return new StandardApplicationError(
                 "VEN_FUERA_DE_AMBITO", "El usuario no tiene permiso sobre el recurso indicado.",

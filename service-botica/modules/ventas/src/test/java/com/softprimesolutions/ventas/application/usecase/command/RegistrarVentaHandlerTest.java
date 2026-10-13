@@ -272,6 +272,22 @@ class RegistrarVentaHandlerTest {
     }
 
     @Test
+    void requiresTheUnitPriceToMatchTheSkuReferencePriceWhenItIsDefined() {
+        var conReferencia = new ReferenciasVentasPort.SkuVentaRef(
+                SKU, "Paracetamol 500 mg", "UND", false, true, false, dec("2.5000"));
+        when(referencias.skus(eq(TENANT), anyCollection())).thenReturn(Map.of(SKU, conReferencia));
+
+        var distinto = error(handler.execute(command(CLAVE, "20", linea(SKU, "5", "0.01"))));
+        assertThat(distinto.code()).isEqualTo("VEN_PRECIO_DIFIERE_REFERENCIA");
+        assertThat(distinto.metadata()).containsEntry("skuId", SKU);
+        var sinPrecio = error(handler.execute(command(CLAVE, "20", new LineaVentaInput(SKU, dec("5"), null))));
+        assertThat(sinPrecio.code()).isEqualTo("VEN_PRECIO_DIFIERE_REFERENCIA");
+        verify(ventas, never()).insertar(any(), any(), any());
+
+        assertThat(handler.execute(unaLinea()).isSuccess()).isTrue();
+    }
+
+    @Test
     void rejectsInvalidLinesAnEmptySaleAndAnInsufficientCashAmountWithoutInserting() {
         assertThat(error(handler.execute(command(CLAVE, "20", linea(SKU, "0", "2.50")))).code())
                 .isEqualTo("VEN_CANTIDAD_INVALIDA");

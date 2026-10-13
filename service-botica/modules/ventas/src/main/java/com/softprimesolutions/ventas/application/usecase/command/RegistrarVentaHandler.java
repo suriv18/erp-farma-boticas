@@ -117,7 +117,7 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
                 command.tenantId(),
                 command.lineas().stream().map(LineaVentaInput::skuId).collect(Collectors.toSet()));
         var errorSku = command.lineas().stream()
-                .map(linea -> errorDeSku(linea.skuId(), skus.get(linea.skuId())))
+                .map(linea -> errorDeSku(linea, skus.get(linea.skuId())))
                 .flatMap(Optional::stream)
                 .findFirst();
         if (errorSku.isPresent()) return Result.failure(errorSku.get());
@@ -132,11 +132,19 @@ public final class RegistrarVentaHandler implements RegistrarVentaUseCase {
         return Optional.empty();
     }
 
-    private static Optional<ApplicationError> errorDeSku(UUID skuId, SkuVentaRef sku) {
+    private static Optional<ApplicationError> errorDeSku(LineaVentaInput linea, SkuVentaRef sku) {
+        var skuId = linea.skuId();
         if (sku == null) return Optional.of(VentasErrors.skuNoEncontrado(skuId));
         if (!sku.operable()) return Optional.of(VentasErrors.skuNoOperable(skuId));
         if (sku.requiereDispensacion()) return Optional.of(VentasErrors.skuRequiereDispensacion(skuId));
+        if (difiereDeReferencia(linea.precioUnitario(), sku.precioReferencia())) {
+            return Optional.of(VentasErrors.precioDifiereReferencia(skuId));
+        }
         return Optional.empty();
+    }
+
+    private static boolean difiereDeReferencia(BigDecimal precio, BigDecimal referencia) {
+        return referencia != null && (precio == null || precio.compareTo(referencia) != 0);
     }
 
     private Result<Venta, ApplicationError> construir(RegistrarVentaCommand command, Contexto contexto) {

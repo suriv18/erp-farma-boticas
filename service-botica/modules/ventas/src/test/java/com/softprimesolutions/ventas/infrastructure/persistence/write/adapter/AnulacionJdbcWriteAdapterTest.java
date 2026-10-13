@@ -8,12 +8,14 @@ import static com.softprimesolutions.ventas.VentasFixtures.TURNO;
 import static com.softprimesolutions.ventas.VentasFixtures.VENTA;
 import static com.softprimesolutions.ventas.infrastructure.persistence.Rows.MOMENTO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.softprimesolutions.ventas.domain.model.EstadoTurno;
 import com.softprimesolutions.ventas.domain.model.EstadoVenta;
 import com.softprimesolutions.ventas.infrastructure.persistence.JdbcClientStub;
 import java.util.HashMap;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.JdbcUpdateAffectedIncorrectNumberOfRowsException;
 
 class AnulacionJdbcWriteAdapterTest {
 
@@ -65,6 +67,14 @@ class AnulacionJdbcWriteAdapterTest {
                 .contains("p.tenant_id = v.tenant_id AND p.venta_id = v.id")
                 .contains("p.es_activo = '1' AND p.estado = 'CONFIRMADO'");
         assertThat(pago.params()).containsEntry("ventaId", VENTA).containsEntry("tenantId", TENANT);
+    }
+
+    @Test
+    void failsWhenThePaymentOfTheAnnulledSaleCannotBeReversed() {
+        jdbc.updates(REVERSAR_PAGO, 0);
+
+        assertThatThrownBy(() -> adapter.marcarAnulada(TENANT, VENTA, ACTOR, "Error de cobro", AHORA))
+                .isInstanceOf(JdbcUpdateAffectedIncorrectNumberOfRowsException.class);
     }
 
     @Test
