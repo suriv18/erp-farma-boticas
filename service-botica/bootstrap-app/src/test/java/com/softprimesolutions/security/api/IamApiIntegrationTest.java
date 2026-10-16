@@ -518,6 +518,59 @@ class IamApiIntegrationTest {
                         .header("Authorization", "Bearer " + accessToken)
                         .param("tenantId", TENANT_ID.toString()))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.displayName").value("Cajero de tienda"))
+                .andExpect(jsonPath("$.username").value("tienda.cajero"))
+                .andExpect(jsonPath("$.assignments.length()").value(1))
+                .andExpect(jsonPath("$.assignments[0].roleCode").value("TIENDA"))
+                .andExpect(jsonPath("$.assignments[0].roleName").value("Tienda"))
+                .andExpect(jsonPath("$.assignments[0].scopeType").value("ESTABLECIMIENTO"))
+                .andExpect(jsonPath("$.assignments[0].scopeName").value("Establecimiento de prueba"));
+    }
+
+    @Test
+    void returnsTheProfileFallingBackToThePersonNamesWhenThereIsNoDisplayName() throws Exception {
+        var userId = UUID.randomUUID();
+        var identidadId = UUID.randomUUID();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.identidad
+                            (uuid_publico, email, username, nombres, apellidos, created_at)
+                        VALUES (:identidadId, 'luis.paredes@example.test', 'luis.paredes',
+                                'Luis', 'Paredes Soto', CURRENT_TIMESTAMP)
+                        """).param("identidadId", identidadId).update();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.membership
+                            (uuid_publico, tenant_id, identidad_id, requiere_cambio_credencial,
+                             mfa_requerido, estado, created_at)
+                        SELECT :userId, t.id, i.id, FALSE, FALSE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant t, sch_seguridad.identidad i
+                         WHERE t.uuid_publico = :tenantId AND i.uuid_publico = :identidadId
+                        """).param("userId", userId).param("tenantId", TENANT_ID)
+                .param("identidadId", identidadId).update();
+        mockMvc.perform(post("/api/v1/usuarios/{userId}/credencial-local", userId)
+                        .with(admin()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"tenantId":"%s","password":"LuisPass!2026","requireChange":false}
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isNoContent());
+        var login = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"login":"luis.paredes","password":"LuisPass!2026","channel":"WEB"}
+                        """))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String accessToken = JsonPath.read(login, "$.accessToken");
+
+        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Luis Paredes Soto"))
+                .andExpect(jsonPath("$.assignments").isEmpty());
+    }
+
+    @Test
+    void rejectsTheProfileRequestWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me")).andExpect(status().isUnauthorized());
     }
 
     @Test

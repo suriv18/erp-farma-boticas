@@ -1,5 +1,6 @@
 package com.softprimesolutions.security.infrastructure.persistence.read.repository;
 
+import com.softprimesolutions.security.infrastructure.persistence.read.projection.PerfilProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.PermisoProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.RolProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.UsuarioProjection;
@@ -181,6 +182,57 @@ public class IamJdbcReadRepository {
                 .param("pattern", '%' + filter + '%')
                 .query(Long.class)
                 .single();
+    }
+
+    public java.util.Optional<PerfilProjection> findProfile(UUID tenantId, UUID userId) {
+        return jdbcClient.sql("""
+                        SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               COALESCE(NULLIF(TRIM(m.nombre_mostrar), ''),
+                                        NULLIF(TRIM(CONCAT_WS(' ', i.nombres, i.apellidos)), ''),
+                                        CAST(i.username AS VARCHAR), CAST(i.email AS VARCHAR)) AS nombre_perfil,
+                               i.username, i.email
+                          FROM sch_seguridad.membership m
+                          JOIN sch_seguridad.identidad i ON i.id = m.identidad_id
+                          JOIN sch_admin.tenant t ON t.id = m.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
+                        """)
+                .param("tenantId", tenantId)
+                .param("userId", userId)
+                .query((rs, rowNumber) -> new PerfilProjection(
+                        rs.getObject("uuid_publico", UUID.class),
+                        rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("nombre_perfil"),
+                        rs.getString("username"),
+                        rs.getString("email"),
+                        findProfileAssignments(tenantId, userId)))
+                .optional();
+    }
+
+    private List<PerfilProjection.Asignacion> findProfileAssignments(UUID tenantId, UUID userId) {
+        return jdbcClient.sql("""
+                        SELECT r.codigo, r.nombre, a.tipo_ambito,
+                               COALESCE(p.nombre, w.nombre, s.nombre, e.nombre_comercial, e.razon_social)
+                                   AS nombre_ambito
+                          FROM sch_seguridad.usuario_rol_ambito a
+                          JOIN sch_seguridad.membership m ON m.id = a.membership_id AND m.tenant_id = a.tenant_id
+                          JOIN sch_seguridad.rol r ON r.id = a.rol_id AND r.tenant_id = a.tenant_id
+                          JOIN sch_admin.tenant t ON t.id = a.tenant_id
+                     LEFT JOIN sch_organizacion.empresa_operadora e ON e.id = a.empresa_id
+                     LEFT JOIN sch_organizacion.establecimiento_farmaceutico s ON s.id = a.establecimiento_id
+                     LEFT JOIN sch_organizacion.almacen w ON w.id = a.almacen_id
+                     LEFT JOIN sch_organizacion.terminal_pos p ON p.id = a.terminal_id
+                         WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :userId
+                           AND a.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
+                           AND a.vigente_desde <= CURRENT_TIMESTAMP
+                           AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= CURRENT_TIMESTAMP)
+                      ORDER BY a.created_at, a.id
+                        """)
+                .param("tenantId", tenantId)
+                .param("userId", userId)
+                .query((rs, rowNumber) -> new PerfilProjection.Asignacion(
+                        rs.getString("codigo"), rs.getString("nombre"),
+                        rs.getString("tipo_ambito"), rs.getString("nombre_ambito")))
+                .list();
     }
 
     private LinkedHashSet<String> findPermissionCodes(UUID roleId) {

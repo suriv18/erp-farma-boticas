@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.softprimesolutions.security.application.dto.query.ListarPermisosQuery;
 import com.softprimesolutions.security.application.dto.result.PaginaResult;
+import com.softprimesolutions.security.application.dto.result.PerfilResult;
 import com.softprimesolutions.security.application.dto.result.PermisoResult;
 import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
@@ -76,6 +77,11 @@ class ListarPermisosHandlerTest {
 
         @Override
         public Optional<RolResult> findRoleById(UUID tenantId, UUID roleId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<PerfilResult> findProfile(UUID tenantId, UUID userId) {
             throw new UnsupportedOperationException();
         }
     }

@@ -1,6 +1,7 @@
 package com.softprimesolutions.security.infrastructure.persistence.read.adapter;
 
 import com.softprimesolutions.security.application.dto.result.PaginaResult;
+import com.softprimesolutions.security.application.dto.result.PerfilResult;
 import com.softprimesolutions.security.application.dto.result.PermisoResult;
 import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
@@ -52,5 +53,11 @@ public class IamJdbcReadAdapter implements IamReadPort {
     @Transactional(readOnly = true)
     public Optional<RolResult> findRoleById(UUID tenantId, UUID roleId) {
         return repository.findRoleById(tenantId, roleId).map(IamReadMapper::toResult);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PerfilResult> findProfile(UUID tenantId, UUID userId) {
+        return repository.findProfile(tenantId, userId).map(IamReadMapper::toResult);
     }
 }

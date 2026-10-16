@@ -18,6 +18,23 @@ export const handlers = [
       passwordChangeRequired: false
     });
   }),
+  http.get('*/api/v1/auth/me', () =>
+    HttpResponse.json({
+      userId: '22222222-2222-2222-2222-222222222222',
+      tenantId: '11111111-1111-1111-1111-111111111111',
+      displayName: 'María Rojas',
+      username: 'mrojas',
+      email: 'maria.rojas@boticas.pe',
+      assignments: [
+        {
+          roleCode: 'ADMIN',
+          roleName: 'Administradora',
+          scopeType: 'GLOBAL',
+          scopeName: null
+        }
+      ]
+    })
+  ),
   http.get('*/api/v1/dashboard/summary', () =>
     HttpResponse.json({
       salesToday: 8420.5,

@@ -33,7 +33,7 @@ import {
   ThemeToggle,
   Modal
 } from '@boticas/ui-web';
-import { useAuthSession } from '../../features/auth';
+import { useAuthSession, useProfile } from '../../features/auth';
 
 type NavigationItem = {
   label: string;
@@ -54,7 +54,13 @@ const navigation: NavigationItem[] = [
   { label: 'Organización', to: '/organizacion', icon: Building2 }
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  branchLabel
+}: {
+  onNavigate?: () => void;
+  branchLabel: string | null;
+}) {
   return (
     <>
       <div className="flex h-20 items-center gap-3 border-b border-white/10 px-6">
@@ -94,10 +100,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
-      <div className="m-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-        <p className="text-xs font-semibold text-white">Sucursal activa</p>
-        <p className="text-primary-50/70 mt-1 text-sm">Botica Central · Lima</p>
-      </div>
+      {branchLabel && (
+        <div className="m-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs font-semibold text-white">Sucursal activa</p>
+          <p className="text-primary-50/70 mt-1 text-sm">{branchLabel}</p>
+        </div>
+      )}
     </>
   );
 }
@@ -105,11 +113,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { signOut } = useAuthSession();
+  const profile = useProfile();
 
   return (
     <div className="erp-shell min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <aside className="bg-primary-950 erp-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col lg:flex">
-        <SidebarContent />
+        <SidebarContent branchLabel={profile.branchLabel} />
       </aside>
 
       <Modal
@@ -119,7 +128,10 @@ export function AppShell() {
         size="drawer"
       >
         <div className="bg-primary-950 -mx-6 -mb-6 flex min-h-full flex-col">
-          <SidebarContent onNavigate={() => setMobileMenuOpen(false)} />
+          <SidebarContent
+            onNavigate={() => setMobileMenuOpen(false)}
+            branchLabel={profile.branchLabel}
+          />
         </div>
       </Modal>
 
@@ -154,17 +166,21 @@ export function AppShell() {
             <DropdownMenu
               trigger={
                 <button
-                  aria-label="Menú de perfil de María Rojas"
+                  aria-label={`Menú de perfil de ${profile.name}`}
                   className="flex items-center gap-3 rounded-xl p-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
                 >
                   <div className="bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200 grid size-9 place-items-center rounded-xl text-sm font-bold">
-                    MR
+                    {profile.initials}
                   </div>
                   <div className="hidden sm:block">
                     <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                      María Rojas
+                      {profile.name}
                     </p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Administradora</p>
+                    {profile.roleLabel && (
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        {profile.roleLabel}
+                      </p>
+                    )}
                   </div>
                   <ChevronDown className="hidden size-4 text-neutral-400 sm:block" />
                 </button>
@@ -172,11 +188,13 @@ export function AppShell() {
             >
               <div className="bg-primary-600 flex items-center gap-3 px-4 py-3.5 text-white">
                 <div className="text-primary-700 grid size-9 place-items-center rounded-full bg-white text-sm font-bold">
-                  MR
+                  {profile.initials}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">María Rojas</p>
-                  <p className="text-primary-100 text-xs">Administradora</p>
+                  <p className="text-sm font-semibold">{profile.name}</p>
+                  {profile.roleLabel && (
+                    <p className="text-primary-100 text-xs">{profile.roleLabel}</p>
+                  )}
                 </div>
               </div>
 

@@ -1,5 +1,9 @@
 package com.softprimesolutions.security.api.controller;
 
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.sessionId;
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.tenantId;
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.userId;
+
 import com.softprimesolutions.security.api.dto.request.CambiarPasswordRequest;
 import com.softprimesolutions.security.api.dto.request.LoginRequest;
 import com.softprimesolutions.security.api.dto.request.ProvisionarCredencialLocalRequest;
@@ -106,17 +110,5 @@ public class LocalAuthController {
                 .cacheControl(CacheControl.noStore())
                 .header("Pragma", "no-cache")
                 .body(body);
-    }
-
-    private static UUID tenantId(Jwt jwt) {
-        return UUID.fromString(jwt.getClaimAsString("tid"));
-    }
-
-    private static UUID userId(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
-    }
-
-    private static UUID sessionId(Jwt jwt) {
-        return UUID.fromString(jwt.getClaimAsString("sid"));
     }
 }
