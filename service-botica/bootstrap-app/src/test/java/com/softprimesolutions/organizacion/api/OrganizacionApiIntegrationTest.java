@@ -180,12 +180,16 @@ class OrganizacionApiIntegrationTest {
                 "/terminales-pos/" + terminalId}) {
             mockMvc.perform(get(BASE + path).header("Authorization", otherToken)
                             .param("tenantId", TENANT_ID.toString()))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(get(BASE + path).header("Authorization", otherToken))
                     .andExpect(status().isNotFound());
             mockMvc.perform(get(BASE + path).header("Authorization", bearer())).andExpect(status().isOk());
         }
         for (var path : new String[] {"/empresas", "/establecimientos", "/almacenes", "/terminales-pos"}) {
             mockMvc.perform(get(BASE + path).header("Authorization", otherToken)
                             .param("tenantId", TENANT_ID.toString()))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(get(BASE + path).header("Authorization", otherToken))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
             mockMvc.perform(get(BASE + path).header("Authorization", bearer()))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
