@@ -1,3 +1,5 @@
+import { FormError } from '../../../shared/components/FormError';
+import { describeApiError } from '../../../shared/lib/describe-api-error';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Power } from 'lucide-react';
@@ -81,12 +83,21 @@ export function RubrosComercialesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Rubros comerciales"
         context="Catálogo / Rubros comerciales"
         description="Administra los rubros comerciales del catálogo."
-        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo rubro comercial</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              createMutation.reset();
+              setCreateOpen(true);
+            }}
+          >
+            Nuevo rubro comercial
+          </Button>
+        }
       />
 
       <ListFilters
@@ -98,6 +109,12 @@ export function RubrosComercialesPage() {
           setPage(0);
         }}
       />
+
+      {statusMutation.error ? (
+        <div className="mt-4">
+          <FormError message={describeApiError(statusMutation.error)} />
+        </div>
+      ) : null}
 
       <div className="mt-6">
         <DataTable<RubroComercial>
@@ -114,7 +131,10 @@ export function RubrosComercialesPage() {
                   <IconButton
                     icon={Pencil}
                     label={`Editar ${row.nombre}`}
-                    onClick={() => setEditing(row)}
+                    onClick={() => {
+                      updateMutation.reset();
+                      setEditing(row);
+                    }}
                   />
                   <IconButton
                     icon={Power}
@@ -122,6 +142,7 @@ export function RubrosComercialesPage() {
                       row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`
                     }
                     tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
+                    disabled={statusMutation.isPending}
                     onClick={() => statusMutation.mutate(row)}
                   />
                 </div>
@@ -140,22 +161,35 @@ export function RubrosComercialesPage() {
             size,
             totalElements: data?.totalElements ?? 0,
             onPageChange: setPage,
-            onSizeChange: setSize
+            onSizeChange: (value) => {
+              setSize(value);
+              setPage(0);
+            }
           }}
         />
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo rubro comercial">
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          if (!createMutation.isPending) setCreateOpen(false);
+        }}
+        title="Nuevo rubro comercial"
+      >
         <RubroComercialForm
           onSubmit={(values) => createMutation.mutate(values)}
           submitLabel="Crear rubro comercial"
           isSubmitting={createMutation.isPending}
+          error={createMutation.error ? describeApiError(createMutation.error) : null}
+          onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
       <Modal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        onClose={() => {
+          if (!updateMutation.isPending) setEditing(null);
+        }}
         title="Editar rubro comercial"
       >
         {editing ? (
@@ -170,6 +204,8 @@ export function RubrosComercialesPage() {
             onSubmit={(values) => updateMutation.mutate(values)}
             submitLabel="Guardar cambios"
             isSubmitting={updateMutation.isPending}
+            error={updateMutation.error ? describeApiError(updateMutation.error) : null}
+            onCancel={() => setEditing(null)}
           />
         ) : null}
       </Modal>

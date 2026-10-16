@@ -20,7 +20,7 @@ describe('Button', () => {
 describe('buttonClassName', () => {
   it('devuelve las clases del boton primario por defecto', () => {
     const className = buttonClassName();
-    expect(className).toContain('bg-primary-600');
+    expect(className).toContain('bg-primary-700');
     expect(className).toContain('h-11');
   });
 

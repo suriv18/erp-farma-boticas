@@ -1,3 +1,4 @@
+import { ProductoReguladoFormPage } from './ProductoReguladoFormPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,7 +10,11 @@ import { ProductosReguladosPage } from './ProductosReguladosPage';
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([{ path: '/', Component: ProductosReguladosPage }]);
+  const router = createMemoryRouter([
+    { path: '/', Component: ProductosReguladosPage },
+    { path: '/catalogo/productos-regulados', Component: ProductosReguladosPage },
+    { path: '/catalogo/productos-regulados/nuevo', Component: ProductoReguladoFormPage }
+  ]);
   return {
     user: userEvent.setup(),
     ...render(
@@ -138,7 +143,7 @@ describe('ProductosReguladosPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('muestra el error del servidor al crear y permite cerrar el dialogo', async () => {
+  it('muestra el error del servidor al crear y permite cancelar y volver al listado', async () => {
     server.use(
       http.get('*/api/v1/catalogo/productos-regulados', () => HttpResponse.json(pagina([]))),
       http.post('*/api/v1/catalogo/productos-regulados', () =>
@@ -158,7 +163,8 @@ describe('ProductosReguladosPage', () => {
     await user.click(screen.getByRole('button', { name: 'Crear producto regulado' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('El número de registro ya existe.');
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

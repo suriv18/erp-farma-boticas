@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye } from 'lucide-react';
 import { Link } from 'react-router';
-import { Button, DataTable, EstadoBadge, Modal, PageHeader, iconButtonClassName } from '@boticas/ui-web';
+import {
+  Button,
+  DataTable,
+  EstadoBadge,
+  Modal,
+  PageHeader,
+  iconButtonClassName
+} from '@boticas/ui-web';
 import { useAuthSession } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearRol, rolesQuery } from '../api/roles.api';
@@ -39,7 +46,7 @@ export function RolesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Roles"
         context="Seguridad / Roles"

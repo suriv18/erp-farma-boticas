@@ -16,7 +16,7 @@ import { ItemsRecepcionEditor } from '../components/ItemsRecepcionEditor';
 import { RecepcionCabeceraForm } from '../components/RecepcionCabeceraForm';
 import { describeErrorCompras } from '../lib/errores-compras';
 import { puedeRecibir } from '../lib/estado-orden';
-import { fechaUtcISO } from '../lib/fecha-utc';
+import { fechaUtcISO } from '../lib/fechas-compras';
 import {
   CABECERA_RECEPCION_VACIA,
   almacenesDeDestino,
@@ -115,7 +115,7 @@ export function RecepcionPage() {
   const orden = result.data;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="erp-page erp-page--form space-y-6">
       <PageHeader
         title={`Recepción de la orden ${orden.numero}`}
         context={

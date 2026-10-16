@@ -151,7 +151,7 @@ export function UserDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="erp-page">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">

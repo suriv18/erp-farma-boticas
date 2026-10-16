@@ -1,27 +1,30 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DataTable, EstadoBadge, ListFilters, Modal, PageHeader } from '@boticas/ui-web';
-import { apiClient } from '../../../app/api';
-import { describeApiError } from '../../../shared/lib/describe-api-error';
-import { crearSku, skusQuery } from '../api/skus.api';
+import { useNavigate } from 'react-router';
+import { enteroEnRango, useParametrosUrl } from '../../../shared/lib/use-filtros-url';
+import { useQuery } from '@tanstack/react-query';
+import { Button, DataTable, EstadoBadge, ListFilters, PageHeader } from '@boticas/ui-web';
+import { skusQuery } from '../api/skus.api';
 import { ESTADOS_SKU, TIPOS_SKU, type SkuResumen } from '../api/skus.types';
 import { EnlaceDetalle } from '../components/EnlaceDetalle';
 import { FiltroSelect } from '../components/FiltroSelect';
-import { SkuForm } from '../components/SkuForm';
-import { toSkuPayload } from '../lib/sku-form';
 import { opcionesDeValores, useOpcionesCategorias, useOpcionesMarcas } from '../lib/use-opciones';
-import type { SkuFormValues } from '../schemas/sku.schema';
 
 export function SkusPage() {
-  const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [tipo, setTipo] = useState('');
-  const [estado, setEstado] = useState('');
-  const [categoriaId, setCategoriaId] = useState('');
-  const [marcaId, setMarcaId] = useState('');
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(20);
+  const navigate = useNavigate();
+  const { params, actualizar } = useParametrosUrl();
+  const search = params.get('search') ?? '';
+  const setSearch = (value: string) => actualizar({ search: String(value) });
+  const tipo = params.get('tipo') ?? '';
+  const setTipo = (value: string) => actualizar({ tipo: String(value) });
+  const estado = params.get('estado') ?? '';
+  const setEstado = (value: string) => actualizar({ estado: String(value) });
+  const categoriaId = params.get('categoriaId') ?? '';
+  const setCategoriaId = (value: string) => actualizar({ categoriaId: String(value) });
+  const marcaId = params.get('marcaId') ?? '';
+  const setMarcaId = (value: string) => actualizar({ marcaId: String(value) });
+  const page = enteroEnRango(params.get('page'), 0, 1000000, 0);
+  const setPage = (value: number) => actualizar({ page: String(value) });
+  const size = enteroEnRango(params.get('size'), 1, 100, 20);
+  const setSize = (value: number) => actualizar({ size: String(value) });
   const categorias = useOpcionesCategorias();
   const marcas = useOpcionesMarcas();
 
@@ -37,21 +40,13 @@ export function SkusPage() {
     })
   );
 
-  const createMutation = useMutation({
-    mutationFn: (values: SkuFormValues) => crearSku(apiClient, toSkuPayload(values)),
-    onSuccess: () => {
-      setCreateOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ['catalogo', 'skus'] });
-    }
-  });
-
   const filtrar = (actualizar: (value: string) => void) => (value: string) => {
     actualizar(value);
     setPage(0);
   };
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="SKU comerciales"
         context="Catálogo / SKU"
@@ -59,8 +54,7 @@ export function SkusPage() {
         actions={
           <Button
             onClick={() => {
-              createMutation.reset();
-              setCreateOpen(true);
+              void navigate('/catalogo/skus/nuevo' + (params.size ? '?' + params.toString() : ''));
             }}
           >
             Nuevo SKU
@@ -106,6 +100,21 @@ export function SkusPage() {
           opciones={marcas}
           opcionVacia="Todas"
         />
+        {search || tipo || estado || categoriaId || marcaId ? (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('');
+              setTipo('');
+              setEstado('');
+              setCategoriaId('');
+              setMarcaId('');
+              setPage(0);
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        ) : null}
       </ListFilters>
 
       <div className="mt-6">
@@ -135,19 +144,13 @@ export function SkusPage() {
             size,
             totalElements: data?.totalElements ?? 0,
             onPageChange: setPage,
-            onSizeChange: setSize
+            onSizeChange: (value) => {
+              setSize(value);
+              setPage(0);
+            }
           }}
         />
       </div>
-
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo SKU" size="lg">
-        <SkuForm
-          onSubmit={(values) => createMutation.mutate(values)}
-          submitLabel="Crear SKU"
-          isSubmitting={createMutation.isPending}
-          error={createMutation.error ? describeApiError(createMutation.error) : null}
-        />
-      </Modal>
     </div>
   );
 }

@@ -44,7 +44,7 @@ export function CashRegisterPage() {
     if (turnoCerrado) return <ResultadoCierre turno={turnoCerrado} />;
     if (turno === null) {
       return (
-        <Card className="mx-auto max-w-md space-y-5 p-6">
+        <Card className="w-full max-w-md space-y-5 p-6">
           <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
             No hay un turno abierto en esta terminal.
           </p>
@@ -75,7 +75,7 @@ export function CashRegisterPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="erp-page space-y-6">
       <PageHeader
         title="Caja"
         context="Operaciones / Caja"

@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react';
 import { server } from '../../../test/mocks/server';
 import { condicionesVentaApi } from '../support-catalog/configs/condiciones-venta.config';
 import {
+  cargarOpciones,
   etiquetaDe,
   opcionesDe,
   opcionesDeValores,
@@ -58,6 +59,22 @@ describe('etiquetaDe', () => {
 });
 
 describe('use-opciones', () => {
+  it('incluye las opciones después de la primera página y no oculta páginas fallidas', async () => {
+    const fetchPage = vi.fn((page: number) =>
+      Promise.resolve({
+        items: page === 0 ? Array.from({ length: 100 }, (_, id) => id) : [100],
+        totalElements: 101
+      })
+    );
+    expect(await cargarOpciones(fetchPage)).toHaveLength(101);
+    expect(fetchPage).toHaveBeenLastCalledWith(1);
+    await expect(
+      cargarOpciones(() => Promise.resolve({ items: [], totalElements: 1 }))
+    ).rejects.toThrow('No se pudieron completar');
+    await expect(cargarOpciones(() => Promise.reject(new Error('Sin conexión')))).rejects.toThrow(
+      'Sin conexión'
+    );
+  });
   it('useOpcionesSoporte lista los codigos activos del catalogo de soporte', async () => {
     server.use(
       http.get('*/api/v1/catalogo/condiciones-venta', ({ request }) => {

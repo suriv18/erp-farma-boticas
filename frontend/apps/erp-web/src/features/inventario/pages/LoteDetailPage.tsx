@@ -29,7 +29,7 @@ export function LoteDetailPage() {
   const lote = result.data;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={`Lote ${lote.numeroLote}`}
         context={<Link to="/inventario">Inventario</Link>}

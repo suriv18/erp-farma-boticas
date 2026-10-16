@@ -44,7 +44,7 @@ export function OrdenDetailPage() {
   const mensajeError = aprobacion.mensajeError ?? emision.mensajeError;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={`Orden ${orden.numero}`}
         context={<Link to="/compras/ordenes">Compras / Órdenes</Link>}

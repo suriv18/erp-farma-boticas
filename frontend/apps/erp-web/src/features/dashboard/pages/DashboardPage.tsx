@@ -62,7 +62,7 @@ export function DashboardPage() {
   const { data, isError, isPending } = useQuery(dashboardSummaryQuery);
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">
@@ -196,13 +196,13 @@ export function DashboardPage() {
                 </p>
               </div>
             </div>
-            <div className="bg-neutral-100 dark:bg-neutral-800/60 flex gap-3 rounded-xl p-4">
-              <ReceiptText className="text-neutral-600 dark:text-neutral-400 mt-0.5 size-5 shrink-0" />
+            <div className="flex gap-3 rounded-xl bg-neutral-100 p-4 dark:bg-neutral-800/60">
+              <ReceiptText className="mt-0.5 size-5 shrink-0 text-neutral-600 dark:text-neutral-400" />
               <div>
-                <p className="text-neutral-900 dark:text-neutral-100 text-sm font-semibold">
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                   Comprobantes pendientes
                 </p>
-                <p className="text-neutral-700 dark:text-neutral-300 mt-1 text-xs leading-5">
+                <p className="mt-1 text-xs leading-5 text-neutral-700 dark:text-neutral-300">
                   3 documentos esperan confirmación.
                 </p>
               </div>

@@ -6,7 +6,7 @@ describe('Pagination', () => {
   it('muestra el rango de filas mostradas y el total', () => {
     render(<Pagination page={0} size={20} totalElements={45} onPageChange={vi.fn()} />);
 
-    expect(screen.getByText('1–20 de 45')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1–20 de 45 registros');
   });
 
   it('deshabilita Anterior en la primera pagina y Siguiente en la ultima', () => {

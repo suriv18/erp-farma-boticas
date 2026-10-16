@@ -1,24 +1,20 @@
+import { FormError } from '../../../shared/components/FormError';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
-import { Button, Card, EstadoBadge, Modal, PageHeader } from '@boticas/ui-web';
+import { Link, useNavigate, useLocation } from 'react-router';
+import { Button, EstadoBadge, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import { DatoItem } from '../../../shared/components/DatoItem';
-import { FormError } from '../../../shared/components/FormError';
+import { CatalogDetailSection } from '../components/CatalogDetailSection';
 import { describeApiError } from '../../../shared/lib/describe-api-error';
 import { valueOrDash } from '../../../shared/lib/format';
 import { useRouteParam } from '../../../shared/lib/use-route-param';
 import {
-  actualizarProductoRegulado,
   cambiarEstadoProductoRegulado,
   productoReguladoQuery
 } from '../api/productos-regulados.api';
 import { ESTADOS_REGULATORIOS, type ProductoRegulado } from '../api/productos-regulados.types';
 import { EstadoDialog } from '../components/EstadoDialog';
 import { PrincipiosAsociadosSection } from '../components/PrincipiosAsociadosSection';
-import { ProductoReguladoForm } from '../components/ProductoReguladoForm';
-import { toProductoFormValues, toProductoPayload } from '../lib/producto-regulado-form';
-import type { ProductoReguladoFormValues } from '../schemas/producto-regulado.schema';
 
 type ClaveTexto = {
   [K in keyof ProductoRegulado]: ProductoRegulado[K] extends string | null ? K : never;
@@ -54,22 +50,14 @@ const DATOS: ReadonlyArray<readonly [string, ClaveTexto]> = [
 export function ProductoReguladoDetailPage() {
   const productoReguladoId = useRouteParam('productoReguladoId');
   const queryClient = useQueryClient();
-  const [editOpen, setEditOpen] = useState(false);
+  const navigate = useNavigate();
+  const { search } = useLocation();
   const [estadoOpen, setEstadoOpen] = useState(false);
 
   const result = useQuery(productoReguladoQuery(productoReguladoId));
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['catalogo', 'productos-regulados'] });
-
-  const updateMutation = useMutation({
-    mutationFn: (values: ProductoReguladoFormValues) =>
-      actualizarProductoRegulado(apiClient, productoReguladoId, toProductoPayload(values)),
-    onSuccess: () => {
-      setEditOpen(false);
-      void invalidate();
-    }
-  });
 
   const estadoMutation = useMutation({
     mutationFn: (estado: string) =>
@@ -83,23 +71,45 @@ export function ProductoReguladoDetailPage() {
   if (result.isPending) {
     return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando…</p>;
   }
-  if (result.isError) return <FormError message={describeApiError(result.error)} />;
+  if (result.isError)
+    return (
+      <div className="erp-page space-y-4">
+        <Link
+          className="text-primary-700 dark:text-primary-300 underline"
+          to={'/catalogo/productos-regulados' + search}
+        >
+          Volver al listado
+        </Link>
+        <FormError message={describeApiError(result.error)} />
+        <Button
+          variant="secondary"
+          onClick={() => {
+            void result.refetch();
+          }}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
 
   const producto = result.data;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={producto.denominacion}
-        context={<Link to="/catalogo/productos-regulados">Catálogo / Productos regulados</Link>}
+        context={
+          <Link to={'/catalogo/productos-regulados' + search}>Catálogo / Productos regulados</Link>
+        }
         description={producto.tipoProducto}
         actions={
           <>
             <Button
               variant="secondary"
               onClick={() => {
-                updateMutation.reset();
-                setEditOpen(true);
+                void navigate(
+                  '/catalogo/productos-regulados/' + productoReguladoId + '/editar' + search
+                );
               }}
             >
               Editar
@@ -117,35 +127,37 @@ export function ProductoReguladoDetailPage() {
         }
       />
 
-      <Card className="mt-6 p-6">
-        <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DatoItem label="Estado regulatorio">
-            <EstadoBadge status={producto.estadoRegulatorio} />
-          </DatoItem>
-          {DATOS.map(([etiqueta, clave]) => (
-            <DatoItem key={clave} label={etiqueta}>
-              {valueOrDash(producto[clave])}
-            </DatoItem>
-          ))}
-        </dl>
-      </Card>
+      <CatalogDetailSection
+        title="Identificación y registro"
+        description="Información del producto y su registro sanitario."
+        items={[
+          ['Estado regulatorio', <EstadoBadge key="estado" status={producto.estadoRegulatorio} />],
+          ...DATOS.slice(0, 6).map(([label, key]) => [label, valueOrDash(producto[key])] as const)
+        ]}
+      />
+      <CatalogDetailSection
+        title="Clasificación"
+        description="Forma, vía de administración y condiciones de venta."
+        items={DATOS.slice(6, 12).map(
+          ([label, key]) => [label, valueOrDash(producto[key])] as const
+        )}
+      />
+      <CatalogDetailSection
+        title="Origen y titularidad"
+        description="Fabricación y responsables del producto."
+        items={DATOS.slice(12, 20).map(
+          ([label, key]) => [label, valueOrDash(producto[key])] as const
+        )}
+      />
+      <CatalogDetailSection
+        title="Vigencia y fuente"
+        description="Fechas de vigencia y procedencia de la información."
+        items={DATOS.slice(20, 24).map(
+          ([label, key]) => [label, valueOrDash(producto[key])] as const
+        )}
+      />
 
       <PrincipiosAsociadosSection producto={producto} />
-
-      <Modal
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        title="Editar producto regulado"
-        size="lg"
-      >
-        <ProductoReguladoForm
-          defaultValues={toProductoFormValues(producto)}
-          onSubmit={(values) => updateMutation.mutate(values)}
-          submitLabel="Guardar cambios"
-          isSubmitting={updateMutation.isPending}
-          error={updateMutation.error ? describeApiError(updateMutation.error) : null}
-        />
-      </Modal>
 
       {estadoOpen ? (
         <EstadoDialog

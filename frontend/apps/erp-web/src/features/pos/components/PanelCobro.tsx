@@ -12,6 +12,7 @@ type PanelCobroProps = {
   isSubmitting: boolean;
   error: string | null;
   onCobrar: () => void;
+  motivoBloqueo?: string | undefined;
 };
 
 export function PanelCobro({
@@ -22,10 +23,15 @@ export function PanelCobro({
   puedeCobrar,
   isSubmitting,
   error,
-  onCobrar
+  onCobrar,
+  motivoBloqueo
 }: PanelCobroProps) {
   return (
-    <Card className="space-y-5 p-5 lg:sticky lg:top-6">
+    <Card className="space-y-5 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold">Cobro</h2>
+        <span className="text-sm text-neutral-600 dark:text-neutral-300">Efectivo</span>
+      </div>
       <dl>
         <dt className="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
           Total
@@ -50,12 +56,22 @@ export function PanelCobro({
         </dd>
       </dl>
       {error ? <FormError message={error} /> : null}
+      {!puedeCobrar && motivoBloqueo ? (
+        <p
+          id="pos-motivo-cobro"
+          role="status"
+          className="text-sm text-neutral-600 dark:text-neutral-300"
+        >
+          {motivoBloqueo}
+        </p>
+      ) : null}
       <Button
         className="h-14 w-full text-base"
         disabled={!puedeCobrar || isSubmitting}
         onClick={onCobrar}
+        aria-describedby={!puedeCobrar && motivoBloqueo ? 'pos-motivo-cobro' : undefined}
       >
-        {isSubmitting ? 'Cobrando…' : 'Cobrar'}
+        {isSubmitting ? 'Cobrando…' : `Cobrar ${formatoMoneda(total)}`}
       </Button>
     </Card>
   );

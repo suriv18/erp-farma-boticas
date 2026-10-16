@@ -1,8 +1,34 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { Modal } from './Modal';
 
 describe('Modal', () => {
+  it('contiene el foco, cierra con Escape y devuelve el foco al disparador', async () => {
+    function Example() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Abrir</button>
+          <Modal open={open} onClose={() => setOpen(false)} title="Edición">
+            <input aria-label="Nombre" />
+            <button>Guardar</button>
+          </Modal>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Example />);
+    await user.click(screen.getByRole('button', { name: 'Abrir' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus());
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir' })).toHaveFocus());
+  });
   it('no renderiza nada cuando open es false', () => {
     render(
       <Modal open={false} onClose={() => {}} title="Título">

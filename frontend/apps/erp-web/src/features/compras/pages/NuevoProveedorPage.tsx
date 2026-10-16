@@ -22,7 +22,7 @@ export function NuevoProveedorPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="erp-page erp-page--form">
       <PageHeader
         title="Nuevo proveedor"
         context={<Link to="/compras/proveedores">Compras / Proveedores</Link>}

@@ -19,7 +19,7 @@ const sections = [
 
 export function PurchasesPage() {
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Compras"
         context="Operaciones / Compras"

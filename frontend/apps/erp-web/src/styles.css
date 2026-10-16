@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@boticas/ui-web/styles.css';
+@import './shared/layout/layout.css';
 @source '../../../packages/ui-web/src';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));

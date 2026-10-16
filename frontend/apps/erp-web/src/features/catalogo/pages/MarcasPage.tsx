@@ -1,3 +1,5 @@
+import { FormError } from '../../../shared/components/FormError';
+import { describeApiError } from '../../../shared/lib/describe-api-error';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Power } from 'lucide-react';
@@ -63,12 +65,21 @@ export function MarcasPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Marcas"
         context="Catálogo / Marcas"
         description="Administra las marcas comerciales del catálogo."
-        actions={<Button onClick={() => setCreateOpen(true)}>Nueva marca</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              createMutation.reset();
+              setCreateOpen(true);
+            }}
+          >
+            Nueva marca
+          </Button>
+        }
       />
 
       <ListFilters
@@ -80,6 +91,12 @@ export function MarcasPage() {
           setPage(0);
         }}
       />
+
+      {statusMutation.error ? (
+        <div className="mt-4">
+          <FormError message={describeApiError(statusMutation.error)} />
+        </div>
+      ) : null}
 
       <div className="mt-6">
         <DataTable<Marca>
@@ -96,7 +113,10 @@ export function MarcasPage() {
                   <IconButton
                     icon={Pencil}
                     label={`Editar ${row.nombre}`}
-                    onClick={() => setEditing(row)}
+                    onClick={() => {
+                      updateMutation.reset();
+                      setEditing(row);
+                    }}
                   />
                   <IconButton
                     icon={Power}
@@ -104,6 +124,7 @@ export function MarcasPage() {
                       row.estado === 'ACTIVO' ? `Desactivar ${row.nombre}` : `Activar ${row.nombre}`
                     }
                     tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
+                    disabled={statusMutation.isPending}
                     onClick={() => statusMutation.mutate(row)}
                   />
                 </div>
@@ -122,20 +143,37 @@ export function MarcasPage() {
             size,
             totalElements: data?.totalElements ?? 0,
             onPageChange: setPage,
-            onSizeChange: setSize
+            onSizeChange: (value) => {
+              setSize(value);
+              setPage(0);
+            }
           }}
         />
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nueva marca">
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          if (!createMutation.isPending) setCreateOpen(false);
+        }}
+        title="Nueva marca"
+      >
         <MarcaForm
           onSubmit={(values) => createMutation.mutate(values)}
           submitLabel="Crear marca"
           isSubmitting={createMutation.isPending}
+          error={createMutation.error ? describeApiError(createMutation.error) : null}
+          onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
-      <Modal open={editing !== null} onClose={() => setEditing(null)} title="Editar marca">
+      <Modal
+        open={editing !== null}
+        onClose={() => {
+          if (!updateMutation.isPending) setEditing(null);
+        }}
+        title="Editar marca"
+      >
         {editing ? (
           <MarcaForm
             defaultValues={{
@@ -146,6 +184,8 @@ export function MarcasPage() {
             onSubmit={(values) => updateMutation.mutate(values)}
             submitLabel="Guardar cambios"
             isSubmitting={updateMutation.isPending}
+            error={updateMutation.error ? describeApiError(updateMutation.error) : null}
+            onCancel={() => setEditing(null)}
           />
         ) : null}
       </Modal>

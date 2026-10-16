@@ -1,11 +1,8 @@
+export { numeroOpcional } from '../../../shared/lib/form-values';
+
 export function textoOpcional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-}
-
-export function numeroOpcional(value: string | undefined): number | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? Number(trimmed) : undefined;
 }
 
 export function textoDeFormulario(value: string | null | undefined): string {

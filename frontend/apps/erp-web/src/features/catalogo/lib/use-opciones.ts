@@ -1,12 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
-import { categoriasQuery } from '../api/categorias.api';
-import { marcasQuery } from '../api/marcas.api';
+import { fetchCategorias } from '../api/categorias.api';
+import { fetchMarcas } from '../api/marcas.api';
 import { principiosActivosQuery } from '../api/principios-activos.api';
-import { productosReguladosQuery } from '../api/productos-regulados.api';
+import { fetchProductosRegulados } from '../api/productos-regulados.api';
 import type { Opcion } from '../components/CamposFormulario';
 import type { SupportCatalogApi, SupportCatalogItem } from '../support-catalog';
 
-const MAX_OPCIONES = 100;
+import { apiClient } from '../../../app/api';
+
+export async function cargarOpciones<T>(
+  fetchPage: (page: number) => Promise<{ items: T[]; totalElements: number }>
+): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 0; ; page++) {
+    const result = await fetchPage(page);
+    if (!result.items.length && items.length < result.totalElements)
+      throw new Error('No se pudieron completar las opciones. Reintenta la consulta.');
+    items.push(...result.items);
+    if (items.length >= result.totalElements) return items;
+  }
+}
 
 export function opcionesDe<T>(
   items: readonly T[] | undefined,
@@ -24,42 +37,65 @@ export function etiquetaDe(opciones: readonly Opcion[], valor: string): string {
   return opciones.find((opcion) => opcion.value === valor)?.label ?? valor;
 }
 
-export function useOpcionesSoporte<T extends SupportCatalogItem & { denominacion: string }>(
+export function useSoporteOpcionesQuery<T extends SupportCatalogItem & { denominacion: string }>(
   api: Pick<SupportCatalogApi<T, unknown>, 'listQuery'>
-): Opcion[] {
-  const { data } = useQuery(api.listQuery('ACTIVO'));
-  return opcionesDe(
-    data,
-    (item) => item.codigo,
-    (item) => `${item.codigo} — ${item.denominacion}`
-  );
+) {
+  return useQuery({
+    ...api.listQuery('ACTIVO'),
+    select: (data) =>
+      opcionesDe(
+        data,
+        (item) => item.codigo,
+        (item) => `${item.codigo} — ${item.denominacion}`
+      )
+  });
 }
 
+export function useMarcasOpcionesQuery() {
+  return useQuery({
+    queryKey: ['catalogo', 'marcas', 'opciones'],
+    queryFn: async () =>
+      opcionesDe(
+        await cargarOpciones((page) =>
+          fetchMarcas(apiClient, { estado: 'ACTIVO', page, size: 100 })
+        ),
+        (item) => item.id,
+        (item) => item.nombre
+      )
+  });
+}
+export function useCategoriasOpcionesQuery() {
+  return useQuery({
+    queryKey: ['catalogo', 'categorias', 'opciones'],
+    queryFn: async () =>
+      opcionesDe(
+        await cargarOpciones((page) =>
+          fetchCategorias(apiClient, { estado: 'ACTIVO', page, size: 100 })
+        ),
+        (item) => item.id,
+        (item) => item.nombre
+      )
+  });
+}
+export function useProductosOpcionesQuery() {
+  return useQuery({
+    queryKey: ['catalogo', 'productos-regulados', 'opciones'],
+    queryFn: async () =>
+      opcionesDe(
+        await cargarOpciones((page) => fetchProductosRegulados(apiClient, { page, size: 100 })),
+        (item) => item.id,
+        (item) => item.denominacion
+      )
+  });
+}
 export function useOpcionesMarcas(): Opcion[] {
-  const { data } = useQuery(marcasQuery({ estado: 'ACTIVO', size: MAX_OPCIONES }));
-  return opcionesDe(
-    data?.items,
-    (marca) => marca.id,
-    (marca) => marca.nombre
-  );
+  return useMarcasOpcionesQuery().data ?? [];
 }
-
 export function useOpcionesCategorias(): Opcion[] {
-  const { data } = useQuery(categoriasQuery({ estado: 'ACTIVO', size: MAX_OPCIONES }));
-  return opcionesDe(
-    data?.items,
-    (categoria) => categoria.id,
-    (categoria) => categoria.nombre
-  );
+  return useCategoriasOpcionesQuery().data ?? [];
 }
-
 export function useOpcionesProductosRegulados(): Opcion[] {
-  const { data } = useQuery(productosReguladosQuery({ size: MAX_OPCIONES }));
-  return opcionesDe(
-    data?.items,
-    (producto) => producto.id,
-    (producto) => producto.denominacion
-  );
+  return useProductosOpcionesQuery().data ?? [];
 }
 
 export function useOpcionesPrincipiosActivos(): Opcion[] {
@@ -69,4 +105,10 @@ export function useOpcionesPrincipiosActivos(): Opcion[] {
     (principio) => principio.id,
     (principio) => principio.denominacion
   );
+}
+
+export function useOpcionesSoporte<T extends SupportCatalogItem & { denominacion: string }>(
+  api: Pick<SupportCatalogApi<T, unknown>, 'listQuery'>
+): Opcion[] {
+  return useSoporteOpcionesQuery(api).data ?? [];
 }

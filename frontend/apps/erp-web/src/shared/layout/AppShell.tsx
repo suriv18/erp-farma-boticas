@@ -19,7 +19,6 @@ import {
   User,
   Users,
   WalletCards,
-  X,
   type LucideIcon
 } from 'lucide-react';
 import { useState } from 'react';
@@ -31,7 +30,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  ThemeToggle
+  ThemeToggle,
+  Modal
 } from '@boticas/ui-web';
 import { useAuthSession } from '../../features/auth';
 
@@ -68,7 +68,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav aria-label="Navegación principal" className="flex-1 space-y-1 p-4">
-        <p className="text-primary-100/50 mb-3 px-3 text-[11px] font-bold tracking-[0.18em] uppercase">
+        <p className="text-primary-100/70 mb-3 px-3 text-[11px] font-bold tracking-[0.18em] uppercase">
           Operaciones
         </p>
         {navigation.map((item) => {
@@ -107,33 +107,24 @@ export function AppShell() {
   const { signOut } = useAuthSession();
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <aside className="bg-primary-950 fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
+    <div className="erp-shell min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <aside className="bg-primary-950 erp-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col lg:flex">
         <SidebarContent />
       </aside>
 
-      {mobileMenuOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            className="absolute inset-0 bg-neutral-950/50 backdrop-blur-sm"
-            aria-label="Cerrar menú"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <aside className="bg-primary-950 relative flex h-full w-72 flex-col shadow-2xl">
-            <button
-              className="text-primary-50 absolute top-5 right-4 rounded-lg p-2 hover:bg-white/10"
-              aria-label="Cerrar menú"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <X className="size-5" />
-            </button>
-            <SidebarContent onNavigate={() => setMobileMenuOpen(false)} />
-          </aside>
+      <Modal
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        title="Menú principal"
+        size="drawer"
+      >
+        <div className="bg-primary-950 -mx-6 -mb-6 flex min-h-full flex-col">
+          <SidebarContent onNavigate={() => setMobileMenuOpen(false)} />
         </div>
-      ) : null}
+      </Modal>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-neutral-200/80 bg-white/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8 dark:border-neutral-800 dark:bg-neutral-900/90">
+      <div className="erp-workspace">
+        <header className="erp-topbar sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-neutral-200/80 bg-white/90 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-900/90">
           <Button
             variant="ghost"
             size="sm"
@@ -148,6 +139,7 @@ export function AppShell() {
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
             <input
               type="search"
+              aria-label="Buscar productos, clientes o ventas"
               placeholder="Buscar productos, clientes o ventas..."
               className="focus:border-primary-600 focus:ring-primary-100 h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 pr-4 pl-10 text-sm outline-none placeholder:text-neutral-400 focus:ring-3 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
@@ -172,16 +164,14 @@ export function AppShell() {
                     <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
                       María Rojas
                     </p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Administradora
-                    </p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Administradora</p>
                   </div>
                   <ChevronDown className="hidden size-4 text-neutral-400 sm:block" />
                 </button>
               }
             >
               <div className="bg-primary-600 flex items-center gap-3 px-4 py-3.5 text-white">
-                <div className="grid size-9 place-items-center rounded-full bg-white text-sm font-bold text-primary-700">
+                <div className="text-primary-700 grid size-9 place-items-center rounded-full bg-white text-sm font-bold">
                   MR
                 </div>
                 <div>
@@ -219,7 +209,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className="erp-main">
           <Outlet />
         </main>
       </div>

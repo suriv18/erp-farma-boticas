@@ -25,10 +25,12 @@ describe('ProductoReguladoForm', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(
-      await screen.findByText('El tipo de producto debe tener al menos 2 caracteres.')
+      await screen.findByText('El tipo de producto debe tener al menos 2 caracteres.', {
+        selector: 'p'
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByText('La denominación debe tener al menos 2 caracteres.')
+      screen.getByText('La denominación debe tener al menos 2 caracteres.', { selector: 'p' })
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -69,6 +71,7 @@ describe('ProductoReguladoForm', () => {
 
     expect(screen.getByLabelText('Denominación')).toHaveValue('Ibuprofeno');
     expect(screen.getByRole('alert')).toHaveTextContent('El número de registro ya existe.');
-    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toHaveAttribute('aria-busy', 'true');
   });
 });

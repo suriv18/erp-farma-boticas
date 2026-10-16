@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react';
+import { useRef, useState, type SubmitEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { Button, Card } from '@boticas/ui-web';
@@ -16,6 +16,8 @@ type BuscadorProductosProps = {
 
 export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: BuscadorProductosProps) {
   const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const busquedaActual = useRef(0);
   const [texto, setTexto] = useState('');
   const [termino, setTermino] = useState('');
   const { data, isError, isFetching } = useQuery({
@@ -29,12 +31,14 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
     return pagina?.items.length === 1 ? pagina.items[0] : undefined;
   };
 
-  const resultados = data?.items ?? [];
+  const resultados = termino !== '' ? (data?.items ?? []) : [];
 
   const buscar = async (evento: SubmitEvent<HTMLFormElement>) => {
     evento.preventDefault();
+    const busqueda = ++busquedaActual.current;
     const buscado = texto.trim();
     const unico = esCodigoBarras(buscado) ? await buscarUnico(buscado) : undefined;
+    if (busqueda !== busquedaActual.current) return;
     if (unico === undefined) {
       setTermino(buscado);
       return;
@@ -50,13 +54,14 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
   return (
     <Card className="space-y-4 p-5">
       <form
-        className="flex items-end gap-3"
+        className="flex flex-wrap items-end gap-3"
         onSubmit={(evento) => {
           void buscar(evento);
         }}
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 basis-full sm:flex-1 sm:basis-48">
           <TextField
+            ref={inputRef}
             id="pos-buscar"
             label="Buscar producto"
             icon={Search}
@@ -67,6 +72,18 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
           />
         </div>
         <Button type="submit">Buscar</Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            busquedaActual.current += 1;
+            setTexto('');
+            setTermino('');
+            inputRef.current?.focus();
+          }}
+        >
+          Limpiar
+        </Button>
       </form>
       {buscando && isError ? (
         <p className="text-danger-600 dark:text-danger-400 text-sm">No se pudo buscar productos.</p>
@@ -77,11 +94,17 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
         </p>
       ) : null}
       {resultados.length > 0 ? (
-        <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+        <ul
+          aria-label="Resultados de productos"
+          className="max-h-72 divide-y divide-neutral-100 overflow-y-auto overscroll-contain dark:divide-neutral-800"
+        >
           {resultados.map((sku) => (
             <li key={sku.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
               <span className="min-w-0 flex-1 basis-56 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                {sku.codigoInterno} — {sku.descripcionComercial}
+                <span className="block break-words">{sku.descripcionComercial}</span>
+                <span className="block text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                  {sku.codigoInterno} · {sku.unidadVentaCodigo ?? 'UND'}
+                </span>
               </span>
               <span className="flex flex-col items-end">
                 <span className="text-sm font-semibold text-neutral-900 tabular-nums dark:text-neutral-100">

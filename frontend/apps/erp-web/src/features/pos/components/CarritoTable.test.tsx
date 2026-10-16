@@ -14,6 +14,21 @@ function renderTabla(carrito = [linea]) {
 }
 
 describe('CarritoTable', () => {
+  it('ajusta la cantidad en una unidad con los botones', async () => {
+    const { user, onCambiar } = renderTabla([{ ...linea, cantidad: '2' }]);
+    await user.click(screen.getByRole('button', { name: 'Disminuir cantidad de MED-001' }));
+    expect(onCambiar).toHaveBeenLastCalledWith(linea.skuId, { cantidad: '1' });
+    await user.click(screen.getByRole('button', { name: 'Aumentar cantidad de MED-001' }));
+    expect(onCambiar).toHaveBeenLastCalledWith(linea.skuId, { cantidad: '3' });
+  });
+
+  it('impide reducir a cero y conserva las cantidades fraccionarias', async () => {
+    const { user, onCambiar } = renderTabla([{ ...linea, permiteVentaFraccion: true, cantidad: '0.5' }]);
+    expect(screen.getByRole('button', { name: 'Disminuir cantidad de MED-001' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Aumentar cantidad de MED-001' }));
+    expect(onCambiar).toHaveBeenLastCalledWith(linea.skuId, { cantidad: '1.5' });
+  });
+
   it('muestra el vacío cuando no hay líneas', () => {
     renderTabla([]);
 
@@ -23,7 +38,7 @@ describe('CarritoTable', () => {
   it('muestra la línea con cantidad, precio y total', () => {
     renderTabla();
 
-    expect(screen.getByText('MED-001 — Paracetamol 500 mg')).toBeInTheDocument();
+    expect(screen.getByText('Paracetamol 500 mg')).toBeInTheDocument();
     expect(screen.getByLabelText('Cantidad de MED-001')).toHaveValue('1');
     expect(screen.getByLabelText('Precio de MED-001')).toHaveValue('12.5');
     expect(screen.getByText('S/ 12.50')).toBeInTheDocument();

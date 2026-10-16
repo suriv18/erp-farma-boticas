@@ -1,5 +1,12 @@
-import { useForm, type DefaultValues, type FieldValues, type Path, type Resolver } from 'react-hook-form';
-import { Button, FormField, Input } from '@boticas/ui-web';
+import { CatalogFormActions } from '../components/CatalogFormActions';
+import {
+  useForm,
+  type DefaultValues,
+  type FieldValues,
+  type Path,
+  type Resolver
+} from 'react-hook-form';
+import { FormField, Input } from '@boticas/ui-web';
 import type { FieldDef } from './support-catalog.types';
 
 function toOptionalNumber(value: string): number | undefined {
@@ -12,7 +19,9 @@ export type SupportCatalogFormProps<TInput extends FieldValues, TValues extends 
   defaultValues?: TInput;
   onSubmit: (values: TValues) => void;
   submitLabel: string;
+  onCancel?: (() => void) | undefined;
   isSubmitting?: boolean;
+  error?: string | null;
 };
 
 export function SupportCatalogForm<TInput extends FieldValues, TValues extends FieldValues>({
@@ -21,14 +30,16 @@ export function SupportCatalogForm<TInput extends FieldValues, TValues extends F
   defaultValues,
   onSubmit,
   submitLabel,
-  isSubmitting = false
+  onCancel,
+  isSubmitting = false,
+  error = null
 }: SupportCatalogFormProps<TInput, TValues>) {
   const {
     formState: { errors },
     handleSubmit,
     register
   } = useForm<TInput, unknown, TValues>({
-    mode: 'onChange',
+    mode: 'onTouched',
     resolver,
     ...(defaultValues ? { defaultValues: defaultValues as DefaultValues<TInput> } : {})
   });
@@ -48,19 +59,31 @@ export function SupportCatalogForm<TInput extends FieldValues, TValues extends F
 
         if (field.type === 'checkbox') {
           return (
-            <label
-              key={field.name}
-              htmlFor={htmlId}
-              className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300"
-            >
-              <input
-                id={htmlId}
-                type="checkbox"
-                className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
-                {...register(fieldName)}
-              />
-              {field.label}
-            </label>
+            <div key={field.name}>
+              <label
+                htmlFor={htmlId}
+                className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 dark:text-neutral-300"
+              >
+                <input
+                  id={htmlId}
+                  aria-invalid={Boolean(fieldError)}
+                  aria-describedby={fieldError ? `${htmlId}-error` : undefined}
+                  type="checkbox"
+                  className="text-primary-700 focus:ring-primary-600 size-4 rounded border-neutral-300 dark:border-neutral-600"
+                  {...register(fieldName)}
+                />
+                {field.label}
+              </label>
+              {fieldError ? (
+                <p
+                  id={`${htmlId}-error`}
+                  role="alert"
+                  className="text-danger-600 dark:text-danger-400 mt-1 text-xs"
+                >
+                  {fieldError}
+                </p>
+              ) : null}
+            </div>
           );
         }
 
@@ -69,6 +92,8 @@ export function SupportCatalogForm<TInput extends FieldValues, TValues extends F
             <FormField key={field.name} label={field.label} htmlFor={htmlId} error={fieldError}>
               <textarea
                 id={htmlId}
+                aria-invalid={Boolean(fieldError)}
+                aria-describedby={fieldError ? `${htmlId}-error` : undefined}
                 rows={3}
                 className="focus:border-primary-600 focus:ring-primary-100 dark:focus:ring-primary-900/40 w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-900 shadow-sm outline-none focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                 {...register(fieldName)}
@@ -81,16 +106,24 @@ export function SupportCatalogForm<TInput extends FieldValues, TValues extends F
           <FormField key={field.name} label={field.label} htmlFor={htmlId} error={fieldError}>
             <Input
               id={htmlId}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? `${htmlId}-error` : undefined}
               type={field.type === 'number' ? 'number' : 'text'}
-              {...register(fieldName, field.type === 'number' ? { setValueAs: toOptionalNumber } : {})}
+              {...register(
+                fieldName,
+                field.type === 'number' ? { setValueAs: toOptionalNumber } : {}
+              )}
             />
           </FormField>
         );
       })}
 
-      <Button type="submit" disabled={isSubmitting}>
-        {submitLabel}
-      </Button>
+      <CatalogFormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        error={error}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

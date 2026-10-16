@@ -69,7 +69,7 @@ test.describe('Compras', () => {
   });
 
   test('aprueba, emite y registra una recepción parcial', async ({ page }) => {
-    await abrirComprasEn(page, '/compras/ordenes/orden-1');
+    const capturas = await abrirComprasEn(page, '/compras/ordenes/orden-1');
 
     await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
     await page.getByRole('button', { name: 'Aprobar', exact: true }).click();
@@ -87,7 +87,7 @@ test.describe('Compras', () => {
     const linea = page.getByRole('group', { name: 'Línea 1 — Paracetamol 500 mg' });
     await expect(linea.getByText('Pendiente: 10 UND')).toBeVisible();
     await expect(linea.getByLabel('Costo unitario')).toHaveValue('5.5');
-    await linea.getByLabel('Número de lote').fill('L2026-01');
+    await linea.getByLabel('Número de lote').fill('L2099-77');
     await linea.getByLabel('Fecha de vencimiento').fill('2099-12-31');
     await linea.getByLabel('Cantidad recibida').fill('4');
     await expectNoHorizontalOverflow(page);
@@ -96,8 +96,25 @@ test.describe('Compras', () => {
 
     await expect(page.getByRole('heading', { name: 'Orden OC-2026-000001' })).toBeVisible();
     await expect(page.getByText('Parcialmente recibida').first()).toBeVisible();
+    expect(capturas.recepciones).toHaveLength(1);
+    expect(capturas.recepciones[0]).toMatchObject({
+      ordenCompraId: 'orden-1',
+      almacenId: 'alm-1',
+      documentoProveedorSerie: 'F001',
+      documentoProveedorNumero: '123',
+      items: [
+        {
+          numeroLineaOrden: 1,
+          numeroLote: 'L2099-77',
+          fechaVencimiento: '2099-12-31',
+          cantidadRecibida: 4,
+          cantidadRechazada: 0,
+          costoUnitario: 5.5
+        }
+      ]
+    });
     await expect(page.getByText('REC-2026-000001')).toBeVisible();
-    await expect(page.getByText('L2026-01')).toBeVisible();
+    await expect(page.getByText('L2099-77')).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 });

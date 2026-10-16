@@ -50,7 +50,7 @@ export function ProveedorDetailPage() {
   const proveedor = result.data;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="erp-page">
       <PageHeader
         title={proveedor.razonSocial}
         context={<Link to="/compras/proveedores">Compras / Proveedores</Link>}

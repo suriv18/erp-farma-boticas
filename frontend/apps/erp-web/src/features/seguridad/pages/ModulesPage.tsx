@@ -6,7 +6,7 @@ export function ModulesPage() {
   const { data, isPending, isError } = useQuery(modulosQuery());
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Módulos"
         context="Seguridad / Módulos"
@@ -20,7 +20,10 @@ export function ModulesPage() {
             { header: 'Nombre', cell: (row) => row.name },
             { header: 'Descripción', cell: (row) => row.description ?? '—' },
             { header: 'Orden', cell: (row) => row.order },
-            { header: 'Estado', cell: (row) => <EstadoBadge status={row.active ? 'ACTIVO' : 'INACTIVO'} /> }
+            {
+              header: 'Estado',
+              cell: (row) => <EstadoBadge status={row.active ? 'ACTIVO' : 'INACTIVO'} />
+            }
           ]}
           rows={data ?? []}
           rowKey={(row) => row.code}

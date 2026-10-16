@@ -41,4 +41,32 @@ describe('ComprobanteVenta', () => {
 
     expect(screen.getByText('ANULADA — Error de digitación')).toBeInTheDocument();
   });
+
+  it('muestra descuentos cuando existen y respeta la moneda y las unidades de la venta', () => {
+    const { rerender } = render(
+      <ComprobanteVenta
+        venta={{ ...sampleVenta, moneda: 'USD', descuentoTotal: 2 }}
+        nombreEstablecimiento="Botica Centro"
+        showPrintButton={false}
+      />
+    );
+    expect(screen.getByText('Descuento').nextSibling).toHaveTextContent(/(?:USD|US\$)\s*2\.00/);
+    expect(screen.getByText('Total').nextSibling).toHaveTextContent(/(?:USD|US\$)\s*25\.00/);
+    expect(screen.getByText(/· UND/)).toBeInTheDocument();
+    expect(screen.getByText('Efectivo')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    rerender(<ComprobanteVenta venta={sampleVenta} nombreEstablecimiento="" />);
+    expect(screen.queryByText('Descuento')).not.toBeInTheDocument();
+    expect(screen.queryByText('Botica Centro')).not.toBeInTheDocument();
+  });
+
+  it('identifica una anulación aun cuando no se haya recibido su motivo', () => {
+    render(
+      <ComprobanteVenta
+        venta={{ ...sampleVenta, estado: 'ANULADA', anulacion: null }}
+        nombreEstablecimiento="Botica Centro"
+      />
+    );
+    expect(screen.getByText('ANULADA')).toBeInTheDocument();
+  });
 });

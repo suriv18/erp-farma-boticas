@@ -50,7 +50,7 @@ describe('PanelCobro', () => {
   it('cobra al pulsar Cobrar cuando es posible', async () => {
     const { onCobrar, user } = renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
 
     expect(onCobrar).toHaveBeenCalledTimes(1);
   });
@@ -58,7 +58,7 @@ describe('PanelCobro', () => {
   it('deshabilita Cobrar cuando no se puede cobrar', () => {
     renderPanel({ puedeCobrar: false });
 
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Cobrar / })).toBeDisabled();
   });
 
   it('muestra Cobrando… y deshabilita el botón mientras envía', () => {

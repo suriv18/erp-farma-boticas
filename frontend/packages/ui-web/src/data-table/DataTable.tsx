@@ -33,7 +33,7 @@ export function DataTable<T>({
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto" role="region" aria-label="Tabla de resultados" tabIndex={0}>
-        <table className="w-full text-left text-sm">
+        <table aria-busy={isLoading} className="w-full text-left text-sm">
           <thead className="border-b border-neutral-100 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/60">
             <tr>
               {columns.map((column) => (
@@ -54,7 +54,7 @@ export function DataTable<T>({
                   colSpan={columns.length}
                   className="px-4 py-6 text-center text-neutral-500 dark:text-neutral-400"
                 >
-                  Cargando…
+                  <span role="status">Cargando…</span>
                 </td>
               </tr>
             ) : null}
@@ -64,7 +64,7 @@ export function DataTable<T>({
                   colSpan={columns.length}
                   className="text-danger-700 dark:text-danger-400 px-4 py-6 text-center"
                 >
-                  {errorMessage}
+                  <span role="alert">{errorMessage}</span>
                 </td>
               </tr>
             ) : null}
@@ -101,6 +101,7 @@ export function DataTable<T>({
       {pagination ? (
         <Pagination
           {...pagination}
+          isLoading={isLoading || Boolean(pagination.isLoading)}
           disabled={isLoading || isError || Boolean(pagination.disabled)}
         />
       ) : null}

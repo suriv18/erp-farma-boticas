@@ -19,7 +19,7 @@ export function ProveedoresPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Proveedores"
         context="Compras / Proveedores"

@@ -16,4 +16,8 @@ describe('form-values', () => {
     expect(numeroOpcional(' 3.81 ')).toBe(3.81);
     expect(numeroOpcional('-4.5')).toBe(-4.5);
   });
+
+  it('numeroOpcional acepta undefined como vacío', () => {
+    expect(numeroOpcional(undefined)).toBeUndefined();
+  });
 });

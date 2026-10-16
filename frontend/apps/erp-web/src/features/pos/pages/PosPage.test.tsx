@@ -56,7 +56,7 @@ async function prepararCobro(user: ReturnType<typeof renderPage>['user']) {
   await screen.findByRole('option', { name: 'Caja 1' });
   await agregarParacetamol(user);
   await user.type(screen.getByLabelText('Monto recibido'), '30');
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: /^Cobrar / })).toBeEnabled());
 }
 
 beforeEach(() => {
@@ -80,7 +80,7 @@ describe('PosPage', () => {
     await agregarParacetamol(user);
     await user.type(screen.getByLabelText('Monto recibido'), '30');
 
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Cobrar / })).toBeDisabled();
   });
 
   it('vende en efectivo, muestra el comprobante e invalida las consultas', async () => {
@@ -106,8 +106,8 @@ describe('PosPage', () => {
     expect(screen.getAllByText('S/ 25.00').length).toBeGreaterThan(0);
     await user.type(screen.getByLabelText('Monto recibido'), '30');
     expect(screen.getByText('S/ 5.00')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled());
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Cobrar / })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
 
     expect(await screen.findByText('Venta registrada')).toBeInTheDocument();
     expect(screen.getByText('EST001-T01-000001')).toBeInTheDocument();
@@ -145,9 +145,9 @@ describe('PosPage', () => {
     const { user } = renderPage();
     await prepararCobro(user);
 
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await screen.findByRole('alert');
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await screen.findByText('Venta registrada');
 
     expect(claves).toHaveLength(2);
@@ -165,12 +165,12 @@ describe('PosPage', () => {
     );
     const { user } = renderPage();
     await prepararCobro(user);
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await screen.findByRole('alert');
 
     await user.clear(screen.getByLabelText('Cantidad de MED-001'));
     await user.type(screen.getByLabelText('Cantidad de MED-001'), '2');
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await waitFor(() => expect(claves).toHaveLength(2));
 
     expect(claves[0]).not.toBe(claves[1]);
@@ -189,7 +189,7 @@ describe('PosPage', () => {
     const { user } = renderPage();
     await prepararCobro(user);
 
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No hay stock suficiente para una de las líneas. Ajusta la cantidad.'
@@ -209,11 +209,11 @@ describe('PosPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'El precio debe ser mayor o igual a cero con hasta 4 decimales.'
     );
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Cobrar / })).toBeDisabled();
 
     await user.type(screen.getByLabelText('Precio de MED-001'), '10');
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Cobrar / })).toBeEnabled());
   });
 
   it('sin terminal guardada pide seleccionarla y deshabilita agregar productos', async () => {
@@ -246,7 +246,7 @@ describe('PosPage', () => {
     server.use(http.post(ventasUrl, () => HttpResponse.json(sampleVenta, { status: 201 })));
     const { user } = renderPage();
     await prepararCobro(user);
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await screen.findByText('Venta registrada');
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
@@ -275,7 +275,7 @@ describe('PosPage', () => {
     const { user } = renderPage();
     await prepararCobro(user);
 
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
 
     expect(await screen.findByText('Venta registrada')).toBeInTheDocument();
   });
@@ -302,13 +302,13 @@ describe('PosPage', () => {
     );
     const { user } = renderPage();
     await prepararCobro(user);
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await user.click(await screen.findByRole('button', { name: 'Nueva venta' }));
 
     await agregarParacetamol(user);
     await user.type(screen.getByLabelText('Monto recibido'), '30');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled());
-    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Cobrar / })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: /^Cobrar / }));
     await screen.findByText('Venta registrada');
 
     expect(claves).toHaveLength(2);

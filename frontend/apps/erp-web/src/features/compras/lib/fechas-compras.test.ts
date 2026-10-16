@@ -1,4 +1,4 @@
-import { fechaUtcISO } from './fecha-utc';
+import { fechaLocalISO, fechaUtcISO } from './fechas-compras';
 
 describe('fechaUtcISO', () => {
   it('usa la fecha UTC aunque la hora local ya sea del día siguiente o anterior', () => {
@@ -8,5 +8,16 @@ describe('fechaUtcISO', () => {
 
   it('usa la fecha de hoy por defecto', () => {
     expect(fechaUtcISO()).toBe(fechaUtcISO(new Date()));
+  });
+});
+
+describe('fechaLocalISO', () => {
+  it('usa la fecha local con ceros a la izquierda', () => {
+    expect(fechaLocalISO(new Date(2026, 0, 5))).toBe('2026-01-05');
+    expect(fechaLocalISO(new Date(2026, 9, 6))).toBe('2026-10-06');
+  });
+
+  it('usa la fecha de hoy por defecto', () => {
+    expect(fechaLocalISO()).toBe(fechaLocalISO(new Date()));
   });
 });

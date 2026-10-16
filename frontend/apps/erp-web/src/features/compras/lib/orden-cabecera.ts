@@ -44,12 +44,6 @@ export const cabeceraDesdeProveedor = (
   diasCredito: String(proveedor.diasCreditoDefault)
 });
 
-export function fechaLocalISO(ahora: Date = new Date()): string {
-  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-  const dia = String(ahora.getDate()).padStart(2, '0');
-  return `${ahora.getFullYear()}-${mes}-${dia}`;
-}
-
 const tipoCambioInvalido = (texto: string) =>
   texto !== '' && !(esPrecio(texto) && Number(texto) > 0);
 

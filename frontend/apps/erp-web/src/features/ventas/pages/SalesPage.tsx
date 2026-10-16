@@ -21,7 +21,7 @@ export function SalesPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Ventas"
         context="Operaciones / Ventas"

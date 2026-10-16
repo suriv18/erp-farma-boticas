@@ -7,11 +7,13 @@ export function PermissionsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
-  const { data, isPending, isError } = useQuery(permisosQuery({ search: search || undefined, page, size }));
+  const { data, isPending, isError } = useQuery(
+    permisosQuery({ search: search || undefined, page, size })
+  );
   const totalElements = data?.totalElements ?? 0;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Permisos"
         context="Seguridad / Permisos"

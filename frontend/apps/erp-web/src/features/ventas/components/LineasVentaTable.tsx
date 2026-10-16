@@ -6,10 +6,38 @@ export function LineasVentaTable({ lineas }: { lineas: LineaVenta[] }) {
   return (
     <DataTable<LineaVenta>
       columns={[
-        { header: 'Producto', cell: (linea) => linea.descripcion },
-        { header: 'Cantidad', cell: (linea) => `${linea.cantidad} ${linea.unidadVentaCodigo}` },
-        { header: 'Precio', cell: (linea) => formatoMoneda(linea.precioUnitario) },
-        { header: 'Total', cell: (linea) => formatoMoneda(linea.totalLinea) },
+        {
+          header: 'Producto',
+          cell: (linea) => (
+            <span className="block max-w-md min-w-40 font-medium [overflow-wrap:anywhere]">
+              {linea.descripcion}
+            </span>
+          )
+        },
+        {
+          header: 'Cantidad',
+          cell: (linea) => (
+            <span className="whitespace-nowrap tabular-nums">
+              {linea.cantidad} {linea.unidadVentaCodigo}
+            </span>
+          )
+        },
+        {
+          header: 'Precio unitario',
+          cell: (linea) => (
+            <span className="block text-right whitespace-nowrap tabular-nums">
+              {formatoMoneda(linea.precioUnitario)}
+            </span>
+          )
+        },
+        {
+          header: 'Importe',
+          cell: (linea) => (
+            <span className="block text-right font-semibold whitespace-nowrap tabular-nums">
+              {formatoMoneda(linea.totalLinea)}
+            </span>
+          )
+        },
         {
           header: 'Lotes',
           cell: (linea) =>
@@ -18,7 +46,10 @@ export function LineasVentaTable({ lineas }: { lineas: LineaVenta[] }) {
             ) : (
               <ul>
                 {linea.lotes.map((lote) => (
-                  <li key={lote.loteId}>
+                  <li
+                    key={lote.loteId}
+                    className="min-w-32 text-xs leading-5 [overflow-wrap:anywhere]"
+                  >
                     Lote {lote.loteId} × {lote.cantidad}
                   </li>
                 ))}

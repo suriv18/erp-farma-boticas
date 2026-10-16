@@ -1,3 +1,4 @@
+import { SkuFormPage } from './SkuFormPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -14,7 +15,11 @@ function renderPage() {
     )
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([{ path: '/', Component: SkusPage }]);
+  const router = createMemoryRouter([
+    { path: '/', Component: SkusPage },
+    { path: '/catalogo/skus', Component: SkusPage },
+    { path: '/catalogo/skus/nuevo', Component: SkuFormPage }
+  ]);
   return {
     user: userEvent.setup(),
     ...render(
@@ -145,7 +150,7 @@ describe('SkusPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('muestra el error del servidor al crear y permite cerrar el dialogo', async () => {
+  it('muestra el error del servidor al crear y permite cancelar y volver al listado', async () => {
     server.use(
       http.get('*/api/v1/catalogo/skus', () => HttpResponse.json(pagina([]))),
       http.post('*/api/v1/catalogo/skus', () =>
@@ -171,7 +176,8 @@ describe('SkusPage', () => {
     await user.click(screen.getByRole('button', { name: 'Crear SKU' }));
     expect(await screen.findByText('Ya existe un SKU con ese código interno.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

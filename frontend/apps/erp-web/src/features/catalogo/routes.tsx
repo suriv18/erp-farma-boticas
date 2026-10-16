@@ -2,6 +2,34 @@ import type { RouteObject } from 'react-router';
 
 export const catalogRoutes = [
   {
+    path: 'catalogo/productos-regulados/:productoReguladoId/editar',
+    lazy: async () => {
+      const { ProductoReguladoFormPage } = await import('./pages/ProductoReguladoFormPage');
+      return { Component: ProductoReguladoFormPage };
+    }
+  },
+  {
+    path: 'catalogo/productos-regulados/nuevo',
+    lazy: async () => {
+      const { ProductoReguladoFormPage } = await import('./pages/ProductoReguladoFormPage');
+      return { Component: ProductoReguladoFormPage };
+    }
+  },
+  {
+    path: 'catalogo/skus/:skuId/editar',
+    lazy: async () => {
+      const { SkuFormPage } = await import('./pages/SkuFormPage');
+      return { Component: SkuFormPage };
+    }
+  },
+  {
+    path: 'catalogo/skus/nuevo',
+    lazy: async () => {
+      const { SkuFormPage } = await import('./pages/SkuFormPage');
+      return { Component: SkuFormPage };
+    }
+  },
+  {
     path: 'catalogo',
     lazy: async () => {
       const { CatalogPage } = await import('./pages/CatalogPage');

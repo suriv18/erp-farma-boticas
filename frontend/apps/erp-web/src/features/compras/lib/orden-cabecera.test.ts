@@ -5,7 +5,6 @@ import {
   CABECERA_VACIA,
   cabeceraDesdeProveedor,
   erroresCabecera,
-  fechaLocalISO,
   puedeCrear,
   toCrearOrdenPayload
 } from './orden-cabecera';
@@ -61,15 +60,6 @@ describe('cabecera de la orden', () => {
     expect(
       cabeceraDesdeProveedor(CABECERA_VACIA, { ...sampleProveedor, monedaDefault: 'EUR' }).moneda
     ).toBe('PEN');
-  });
-
-  it('fechaLocalISO usa la fecha local con ceros a la izquierda', () => {
-    expect(fechaLocalISO(new Date(2026, 0, 5))).toBe('2026-01-05');
-    expect(fechaLocalISO(new Date(2026, 9, 6))).toBe('2026-10-06');
-  });
-
-  it('fechaLocalISO usa la fecha de hoy por defecto', () => {
-    expect(fechaLocalISO()).toBe(fechaLocalISO(new Date()));
   });
 });
 

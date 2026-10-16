@@ -7,7 +7,7 @@ export function orEmpty(value: string | null): string {
   return value ?? '';
 }
 
-export function numeroOpcional(value: string): number | undefined {
-  const limpio = emptyToUndefined(value);
+export function numeroOpcional(value: string | undefined): number | undefined {
+  const limpio = emptyToUndefined(value ?? '');
   return limpio === undefined ? undefined : Number(limpio);
 }

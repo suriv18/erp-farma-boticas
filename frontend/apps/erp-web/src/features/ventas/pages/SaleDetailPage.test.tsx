@@ -35,8 +35,8 @@ describe('SaleDetailPage', () => {
     const resumen = seccion('Resumen');
     expect(within(resumen).getByText('CONFIRMADA')).toBeInTheDocument();
     expect(await within(resumen).findByText('Botica Central')).toBeInTheDocument();
-    expect(within(resumen).getByText('user-1')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Líneas' })).toBeInTheDocument();
+    expect(within(seccion('Datos de la operación')).getByText('user-1')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Productos vendidos' })).toBeInTheDocument();
     expect(screen.getAllByText('Paracetamol 500 mg').length).toBeGreaterThan(0);
     expect(screen.getByText('Lote lote-1 × 2')).toBeInTheDocument();
     const pago = seccion('Pago');
@@ -77,7 +77,44 @@ describe('SaleDetailPage', () => {
     renderPage();
 
     expect(await screen.findByRole('button', { name: 'Imprimir comprobante' })).toBeInTheDocument();
-    expect(screen.getByText(/Comprobante interno/)).toBeInTheDocument();
+    expect(screen.getByText('Comprobante interno — no válido como comprobante de pago')).toBeInTheDocument();
+  });
+
+  it('permite abrir y cerrar la vista previa e imprimir desde el encabezado', async () => {
+    server.use(http.get(ventaUrl, () => HttpResponse.json(sampleVenta)));
+    const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    const { user } = renderPage();
+    const toggle = await screen.findByRole('button', { name: 'Ver comprobante' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ocultar comprobante' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    await user.click(screen.getByRole('button', { name: 'Imprimir comprobante' }));
+    expect(print).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: 'Ocultar comprobante' }));
+    expect(screen.getByRole('button', { name: 'Ver comprobante' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    print.mockRestore();
+  });
+
+  it('recupera el detalle al reintentar una carga fallida', async () => {
+    let failed = true;
+    server.use(
+      http.get(ventaUrl, () =>
+        failed ? new HttpResponse(null, { status: 500 }) : HttpResponse.json(sampleVenta)
+      )
+    );
+    const { user } = renderPage();
+    await screen.findByRole('alert');
+    failed = false;
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Venta EST001-T01-000001' })
+    ).toBeInTheDocument();
   });
 
   it('muestra el error de la API cuando la venta no existe', async () => {

@@ -58,7 +58,7 @@ export function UsersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Usuarios"
         context="Seguridad / Usuarios"

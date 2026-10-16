@@ -52,7 +52,7 @@ export function EstablecimientoDetailPage() {
   const motivoSinAltas = motivoSinAltasEstablecimiento(establecimiento.estadoOperativo);
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={establecimiento.nombre}
         context={

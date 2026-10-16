@@ -23,6 +23,8 @@ import {
   type Carrito
 } from '../lib/carrito';
 import { describeErrorPos } from '../lib/errores-pos';
+import { formatoMoneda } from '../../../shared/lib/format';
+import { errorLinea } from '../lib/carrito';
 
 export function PosPage() {
   const queryClient = useQueryClient();
@@ -57,6 +59,21 @@ export function PosPage() {
 
   const total = totalCarrito(carrito);
   const sinTerminal = puesto.terminalId === '';
+  const motivoBloqueo = sinTerminal
+    ? 'Selecciona una terminal para vender.'
+    : turno === undefined
+      ? 'Comprobando el turno de caja…'
+      : turno === null
+        ? 'Abre un turno de caja para cobrar.'
+        : puesto.almacenId === ''
+          ? 'Selecciona un almacén.'
+          : carrito.length === 0
+            ? 'Agrega un producto para comenzar la venta.'
+            : carrito.some((linea) => errorLinea(linea) !== null)
+              ? 'Revisa la cantidad y el precio de los productos.'
+              : vueltoDe(total, recibido) === null
+                ? 'Ingresa un monto válido igual o mayor al total.'
+                : undefined;
 
   const vaciar = () => {
     setCarrito([]);
@@ -70,11 +87,11 @@ export function PosPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="erp-page space-y-4 pb-24 xl:pb-0">
       <PageHeader
         title="Punto de venta"
         context="Operaciones / Punto de venta"
-        description="Venta en efectivo."
+        description="Busca productos, revisa tu carrito y cobra en efectivo."
         actions={
           turno === undefined ? null : (
             <Badge tone={turno === null ? 'warning' : 'success'}>
@@ -84,13 +101,8 @@ export function PosPage() {
         }
       />
       <PuestoVenta puesto={puesto} onChange={cambiarPuesto} />
-      {sinTerminal ? (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          Selecciona una terminal para vender.
-        </p>
-      ) : null}
       {turno === null ? <AvisoTurno /> : null}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
           <BuscadorProductos
             almacenId={puesto.almacenId}
@@ -105,22 +117,43 @@ export function PosPage() {
             onQuitar={(skuId) => setCarrito((actual) => quitarLinea(actual, skuId))}
           />
         </div>
-        <PanelCobro
-          total={total}
-          recibido={recibido}
-          onRecibido={setRecibido}
-          vuelto={vueltoDe(total, recibido)}
-          puedeCobrar={puedeCobrar({
-            carrito,
-            recibido,
-            hayTurno: turno != null,
-            hayAlmacen: puesto.almacenId !== ''
-          })}
-          isSubmitting={cobro.isPending}
-          error={cobro.isError ? describeErrorPos(cobro.error) : null}
-          onCobrar={() => cobro.mutate()}
-        />
+        <section
+          id="pos-cobro"
+          aria-label="Cobro de la venta"
+          tabIndex={-1}
+          className="min-w-0 scroll-mt-6 xl:sticky xl:top-6"
+        >
+          <PanelCobro
+            motivoBloqueo={motivoBloqueo}
+            total={total}
+            recibido={recibido}
+            onRecibido={setRecibido}
+            vuelto={vueltoDe(total, recibido)}
+            puedeCobrar={puedeCobrar({
+              carrito,
+              recibido,
+              hayTurno: turno != null,
+              hayAlmacen: puesto.almacenId !== ''
+            })}
+            isSubmitting={cobro.isPending}
+            error={cobro.isError ? describeErrorPos(cobro.error) : null}
+            onCobrar={() => cobro.mutate()}
+          />
+        </section>
       </div>
+      {!cobro.data && carrito.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg lg:left-56 xl:hidden dark:border-neutral-700 dark:bg-neutral-900">
+          <span className="font-semibold tabular-nums">Total {formatoMoneda(total)}</span>
+          <Button
+            onClick={() => {
+              document.getElementById('pos-cobro')?.scrollIntoView({ block: 'start' });
+              document.getElementById('pos-recibido')?.focus({ preventScroll: true });
+            }}
+          >
+            Ir al cobro
+          </Button>
+        </div>
+      ) : null}
       {cobro.data ? (
         <Modal open onClose={vaciar} title="Venta registrada">
           <div className="space-y-4">

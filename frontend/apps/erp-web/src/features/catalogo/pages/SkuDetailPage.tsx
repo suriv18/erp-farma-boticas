@@ -1,20 +1,18 @@
+import { FormError } from '../../../shared/components/FormError';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
-import { Button, Card, EstadoBadge, Modal, PageHeader } from '@boticas/ui-web';
+import { Link, useNavigate, useLocation } from 'react-router';
+import { Button, EstadoBadge, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
-import { DatoItem } from '../../../shared/components/DatoItem';
-import { FormError } from '../../../shared/components/FormError';
+import { CatalogDetailSection } from '../components/CatalogDetailSection';
 import { describeApiError } from '../../../shared/lib/describe-api-error';
 import { formatoMoneda, valueOrDash, yesNo } from '../../../shared/lib/format';
 import { useRouteParam } from '../../../shared/lib/use-route-param';
-import { actualizarSku, cambiarEstadoSku, skuQuery } from '../api/skus.api';
+import { cambiarEstadoSku, skuQuery } from '../api/skus.api';
 import { ESTADOS_SKU } from '../api/skus.types';
 import { CodigosBarraSection } from '../components/CodigosBarraSection';
 import { EstadoDialog } from '../components/EstadoDialog';
-import { SkuForm } from '../components/SkuForm';
 import { numeroDeFormulario } from '../lib/form-values';
-import { toSkuFormValues, toSkuPayload } from '../lib/sku-form';
 import {
   etiquetaDe,
   useOpcionesCategorias,
@@ -22,7 +20,6 @@ import {
   useOpcionesProductosRegulados
 } from '../lib/use-opciones';
 import type { Opcion } from '../components/CamposFormulario';
-import type { SkuFormValues } from '../schemas/sku.schema';
 
 function nombreDe(opciones: readonly Opcion[], id: string | null): string | null {
   return id === null ? null : etiquetaDe(opciones, id);
@@ -31,7 +28,8 @@ function nombreDe(opciones: readonly Opcion[], id: string | null): string | null
 export function SkuDetailPage() {
   const skuId = useRouteParam('skuId');
   const queryClient = useQueryClient();
-  const [editOpen, setEditOpen] = useState(false);
+  const navigate = useNavigate();
+  const { search } = useLocation();
   const [estadoOpen, setEstadoOpen] = useState(false);
   const productos = useOpcionesProductosRegulados();
   const categorias = useOpcionesCategorias();
@@ -40,14 +38,6 @@ export function SkuDetailPage() {
   const result = useQuery(skuQuery(skuId));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['catalogo', 'skus'] });
-
-  const updateMutation = useMutation({
-    mutationFn: (values: SkuFormValues) => actualizarSku(apiClient, skuId, toSkuPayload(values)),
-    onSuccess: () => {
-      setEditOpen(false);
-      void invalidate();
-    }
-  });
 
   const estadoMutation = useMutation({
     mutationFn: (estado: string) => cambiarEstadoSku(apiClient, skuId, estado),
@@ -60,7 +50,26 @@ export function SkuDetailPage() {
   if (result.isPending) {
     return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando…</p>;
   }
-  if (result.isError) return <FormError message={describeApiError(result.error)} />;
+  if (result.isError)
+    return (
+      <div className="erp-page space-y-4">
+        <Link
+          className="text-primary-700 dark:text-primary-300 underline"
+          to={'/catalogo/skus' + search}
+        >
+          Volver al listado
+        </Link>
+        <FormError message={describeApiError(result.error)} />
+        <Button
+          variant="secondary"
+          onClick={() => {
+            void result.refetch();
+          }}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
 
   const sku = result.data;
   const datos: ReadonlyArray<readonly [string, string]> = [
@@ -94,18 +103,17 @@ export function SkuDetailPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={sku.descripcionComercial}
-        context={<Link to="/catalogo/skus">Catálogo / SKU</Link>}
+        context={<Link to={'/catalogo/skus' + search}>Catálogo / SKU</Link>}
         description={`Código interno ${sku.codigoInterno}`}
         actions={
           <>
             <Button
               variant="secondary"
               onClick={() => {
-                updateMutation.reset();
-                setEditOpen(true);
+                void navigate('/catalogo/skus/' + skuId + '/editar' + search);
               }}
             >
               Editar
@@ -123,30 +131,28 @@ export function SkuDetailPage() {
         }
       />
 
-      <Card className="mt-6 p-6">
-        <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DatoItem label="Estado">
-            <EstadoBadge status={sku.estado} />
-          </DatoItem>
-          {datos.map(([etiqueta, valor]) => (
-            <DatoItem key={etiqueta} label={etiqueta}>
-              {valor}
-            </DatoItem>
-          ))}
-        </dl>
-      </Card>
+      <CatalogDetailSection
+        title="Identificación comercial"
+        description="Datos principales y clasificación del SKU."
+        items={[['Estado', <EstadoBadge key="estado" status={sku.estado} />], ...datos.slice(0, 7)]}
+      />
+      <CatalogDetailSection
+        title="Unidades y medidas"
+        description="Presentación, contenido y dimensiones del producto."
+        items={datos.slice(7, 14)}
+      />
+      <CatalogDetailSection
+        title="Venta por fracción"
+        description="Configuración de unidades para la venta fraccionada."
+        items={datos.slice(14, 17)}
+      />
+      <CatalogDetailSection
+        title="Control, stock y precio"
+        description="Trazabilidad, límites de stock y precio de referencia."
+        items={datos.slice(17, 24)}
+      />
 
       <CodigosBarraSection sku={sku} />
-
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Editar SKU" size="lg">
-        <SkuForm
-          defaultValues={toSkuFormValues(sku)}
-          onSubmit={(values) => updateMutation.mutate(values)}
-          submitLabel="Guardar cambios"
-          isSubmitting={updateMutation.isPending}
-          error={updateMutation.error ? describeApiError(updateMutation.error) : null}
-        />
-      </Modal>
 
       {estadoOpen ? (
         <EstadoDialog

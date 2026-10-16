@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
+import { FormErrorSummary } from '../../../shared/components/FormErrorSummary';
+import { OptionsFeedback } from './OptionsFeedback';
+import { CatalogFormActions } from './CatalogFormActions';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
-import { FormError } from '../../../shared/components/FormError';
 import { PRODUCTO_REGULADO_VACIO } from '../lib/producto-regulado-form';
-import { useOpcionesSoporte } from '../lib/use-opciones';
+import { useSoporteOpcionesQuery } from '../lib/use-opciones';
 import {
   productoReguladoSchema,
   type ProductoReguladoFormValues
@@ -21,7 +23,10 @@ export type ProductoReguladoFormProps = {
   defaultValues?: ProductoReguladoFormValues;
   onSubmit: (values: ProductoReguladoFormValues) => void;
   submitLabel: string;
+  onCancel?: (() => void) | undefined;
   isSubmitting?: boolean;
+  fullPage?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
   error?: string | null;
 };
 
@@ -29,17 +34,25 @@ export function ProductoReguladoForm({
   defaultValues = PRODUCTO_REGULADO_VACIO,
   onSubmit,
   submitLabel,
+  onCancel,
+  fullPage = false,
+  onDirtyChange,
   isSubmitting = false,
   error = null
 }: ProductoReguladoFormProps) {
-  const formas = useOpcionesSoporte(formasFarmaceuticasApi);
-  const vias = useOpcionesSoporte(viasAdministracionApi);
-  const unidades = useOpcionesSoporte(unidadesMedidaApi);
-  const condiciones = useOpcionesSoporte(condicionesVentaApi);
-  const clasificaciones = useOpcionesSoporte(clasificacionesControladasApi);
+  const formasQuery = useSoporteOpcionesQuery(formasFarmaceuticasApi);
+  const formas = formasQuery.data ?? [];
+  const viasQuery = useSoporteOpcionesQuery(viasAdministracionApi);
+  const vias = viasQuery.data ?? [];
+  const unidadesQuery = useSoporteOpcionesQuery(unidadesMedidaApi);
+  const unidades = unidadesQuery.data ?? [];
+  const condicionesQuery = useSoporteOpcionesQuery(condicionesVentaApi);
+  const condiciones = condicionesQuery.data ?? [];
+  const clasificacionesQuery = useSoporteOpcionesQuery(clasificacionesControladasApi);
+  const clasificaciones = clasificacionesQuery.data ?? [];
 
   const {
-    formState: { errors },
+    formState: { errors, isDirty, submitCount },
     handleSubmit,
     register
   } = useForm<ProductoReguladoFormValues>({
@@ -47,6 +60,10 @@ export function ProductoReguladoForm({
     mode: 'onTouched',
     resolver: zodResolver(productoReguladoSchema)
   });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const grupos: Grupo[] = [
     {
@@ -129,9 +146,20 @@ export function ProductoReguladoForm({
         void handleSubmit((values) => onSubmit(values))(event);
       }}
     >
+      <p className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+        El tipo de producto y la denominación son obligatorios. Si informas un registro sanitario,
+        completa tanto el tipo como el número. Los demás datos son opcionales.
+      </p>
+      <OptionsFeedback
+        queries={[formasQuery, viasQuery, unidadesQuery, condicionesQuery, clasificacionesQuery]}
+      />
+      {submitCount > 0 ? <FormErrorSummary errors={errors} prefix="producto-regulado" /> : null}
       {grupos.map((grupo) => (
-        <fieldset key={grupo.titulo} className="space-y-4">
-          <legend className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
+        <fieldset
+          key={grupo.titulo}
+          className="rounded-xl border border-neutral-200 p-4 sm:p-5 dark:border-neutral-700"
+        >
+          <legend className="text-primary-700 dark:text-primary-300 px-2 text-sm font-bold">
             {grupo.titulo}
           </legend>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -144,10 +172,13 @@ export function ProductoReguladoForm({
           </div>
         </fieldset>
       ))}
-      {error ? <FormError message={error} /> : null}
-      <Button type="submit" disabled={isSubmitting}>
-        {submitLabel}
-      </Button>
+      <CatalogFormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        error={error}
+        onCancel={onCancel}
+        fullPage={fullPage}
+      />
     </form>
   );
 }

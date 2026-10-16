@@ -8,7 +8,7 @@ const monedaODash = (valor: number | null) => (valor === null ? '—' : formatoM
 
 export function ResultadoCierre({ turno }: { turno: Turno }) {
   return (
-    <Card className="mx-auto max-w-2xl p-6">
+    <Card className="w-full max-w-2xl p-6">
       <h2 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
         Turno cerrado
       </h2>

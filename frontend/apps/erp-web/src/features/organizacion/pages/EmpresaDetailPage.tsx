@@ -49,7 +49,7 @@ export function EmpresaDetailPage() {
   const motivoSinAltas = motivoSinAltasEmpresa(empresa.estado);
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={empresa.razonSocial}
         context={<Link to="/organizacion/empresas">Organización / Empresas</Link>}

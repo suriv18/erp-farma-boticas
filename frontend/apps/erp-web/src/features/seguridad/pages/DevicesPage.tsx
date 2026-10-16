@@ -31,7 +31,7 @@ export function DevicesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Dispositivos"
         context="Seguridad / Dispositivos"

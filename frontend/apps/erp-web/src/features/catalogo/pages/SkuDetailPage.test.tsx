@@ -1,3 +1,4 @@
+import { SkuFormPage } from './SkuFormPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -26,9 +27,15 @@ function renderPage() {
     )
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([{ path: '/catalogo/skus/:skuId', Component: SkuDetailPage }], {
-    initialEntries: ['/catalogo/skus/sku-1']
-  });
+  const router = createMemoryRouter(
+    [
+      { path: '/catalogo/skus/:skuId', Component: SkuDetailPage },
+      { path: '/catalogo/skus/:skuId/editar', Component: SkuFormPage }
+    ],
+    {
+      initialEntries: ['/catalogo/skus/sku-1']
+    }
+  );
   return {
     user: userEvent.setup(),
     ...render(
@@ -184,7 +191,7 @@ describe('SkuDetailPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('muestra el error del servidor al editar y permite cerrar el dialogo', async () => {
+  it('muestra el error del servidor al editar y permite cancelar', async () => {
     server.use(
       http.get('*/api/v1/catalogo/skus/sku-1', () => HttpResponse.json(skuApi())),
       http.put('*/api/v1/catalogo/skus/sku-1', () => new HttpResponse(null, { status: 403 }))
@@ -197,7 +204,7 @@ describe('SkuDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(await screen.findByText('No tienes permiso para esta acción.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

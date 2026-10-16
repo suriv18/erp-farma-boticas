@@ -7,7 +7,7 @@ import { renderRoute } from '../../../test/render-route';
 import type { EstadoOrden } from '../api/ordenes.types';
 import { RecepcionPage } from './RecepcionPage';
 
-vi.mock('../lib/fecha-utc', () => ({ fechaUtcISO: () => '2026-10-09' }));
+vi.mock('../lib/fechas-compras', () => ({ fechaUtcISO: () => '2026-10-09' }));
 
 const recepcionesUrl = '*/api/v1/compras/recepciones';
 const ordenUrl = '*/api/v1/compras/ordenes/orden-1';

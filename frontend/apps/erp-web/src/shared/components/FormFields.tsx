@@ -62,13 +62,18 @@ export function CheckboxField({
           id={id}
           type="checkbox"
           aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
           className="text-primary-600 size-4 rounded border-neutral-300"
           {...props}
         />
         {label}
       </label>
       {error ? (
-        <p role="alert" className="text-danger-600 dark:text-danger-400 mt-1 text-xs font-medium">
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="text-danger-600 dark:text-danger-400 mt-1 text-xs font-medium"
+        >
           {error}
         </p>
       ) : null}

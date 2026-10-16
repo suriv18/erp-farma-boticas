@@ -43,7 +43,7 @@ const sections = [
 
 export function SecurityPage() {
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">Módulo ERP</p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">
         Seguridad

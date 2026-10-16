@@ -113,7 +113,7 @@ export function NewUserPage() {
 
   if (phase === 'partial-failure' && createdUserId) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="erp-page erp-page--form">
         <PageHeader
           title="Nuevo usuario"
           context="Seguridad / Usuarios / Nuevo usuario"
@@ -140,7 +140,7 @@ export function NewUserPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="erp-page erp-page--form">
       <PageHeader
         title="Nuevo usuario"
         context="Seguridad / Usuarios / Nuevo usuario"

@@ -11,7 +11,7 @@ export type ButtonProps = ComponentPropsWithRef<'button'> & {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus-visible:outline-primary-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700',
+    'bg-primary-700 text-white shadow-sm hover:bg-primary-800 focus-visible:outline-primary-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700',
   secondary:
     'border border-neutral-200 bg-white text-neutral-700 shadow-sm hover:border-neutral-300 hover:bg-neutral-50 focus-visible:outline-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600 dark:hover:bg-neutral-800',
   ghost:

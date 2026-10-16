@@ -1,8 +1,18 @@
+import { FormError } from '../../../shared/components/FormError';
+import { describeApiError } from '../../../shared/lib/describe-api-error';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FieldValues, Resolver } from 'react-hook-form';
 import { Pencil, Power } from 'lucide-react';
-import { Button, DataTable, EstadoBadge, IconButton, Modal, PageHeader, ListFilters } from '@boticas/ui-web';
+import {
+  Button,
+  DataTable,
+  EstadoBadge,
+  IconButton,
+  Modal,
+  PageHeader,
+  ListFilters
+} from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { SupportCatalogForm } from './SupportCatalogForm';
 import type { SupportCatalogApi } from './support-catalog.api';
@@ -63,9 +73,15 @@ export function SupportCatalogPage<
   const filtered = useMemo(() => {
     const items = data ?? [];
     if (!search) return items;
-    const term = search.toLowerCase();
+    const normalize = (value: string) =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    const term = normalize(search);
     return items.filter((item: TItem) =>
-      searchableFields.some((field) => String(item[field]).toLowerCase().includes(term))
+      searchableFields.some((field) => normalize(String(item[field] ?? '')).includes(term))
     );
   }, [data, search, searchableFields]);
 
@@ -97,12 +113,21 @@ export function SupportCatalogPage<
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title={title}
         context={<>Catálogo / {title}</>}
         description={description}
-        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo {resourceLabel}</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              createMutation.reset();
+              setCreateOpen(true);
+            }}
+          >
+            Nuevo {resourceLabel}
+          </Button>
+        }
       />
 
       <ListFilters
@@ -135,7 +160,25 @@ export function SupportCatalogPage<
             <option value="INACTIVO">Inactivo</option>
           </select>
         </div>
+        {search || estadoFilter ? (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('');
+              setEstadoFilter('');
+              setPage(0);
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        ) : null}
       </ListFilters>
+
+      {statusMutation.error ? (
+        <div className="mt-4">
+          <FormError message={describeApiError(statusMutation.error)} />
+        </div>
+      ) : null}
 
       <div className="mt-6">
         <DataTable<TItem>
@@ -146,11 +189,21 @@ export function SupportCatalogPage<
               header: 'Acciones',
               cell: (row: TItem) => (
                 <div className="flex items-center gap-1">
-                  <IconButton icon={Pencil} label={`Editar ${row.codigo}`} onClick={() => setEditing(row)} />
+                  <IconButton
+                    icon={Pencil}
+                    label={`Editar ${row.codigo}`}
+                    onClick={() => {
+                      updateMutation.reset();
+                      setEditing(row);
+                    }}
+                  />
                   <IconButton
                     icon={Power}
-                    label={row.estado === 'ACTIVO' ? `Desactivar ${row.codigo}` : `Activar ${row.codigo}`}
+                    label={
+                      row.estado === 'ACTIVO' ? `Desactivar ${row.codigo}` : `Activar ${row.codigo}`
+                    }
                     tone={row.estado === 'ACTIVO' ? 'danger' : 'default'}
+                    disabled={statusMutation.isPending}
                     onClick={() => statusMutation.mutate(row)}
                   />
                 </div>
@@ -165,18 +218,23 @@ export function SupportCatalogPage<
           errorMessage={`No se pudo cargar el listado de ${resourceLabel}s.`}
           startIndex={currentPage * size}
           pagination={{
-            page,
+            page: currentPage,
             size,
             totalElements: filtered.length,
             onPageChange: setPage,
-            onSizeChange: setSize
+            onSizeChange: (value) => {
+              setSize(value);
+              setPage(0);
+            }
           }}
         />
       </div>
 
       <Modal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => {
+          if (!createMutation.isPending) setCreateOpen(false);
+        }}
         title={`Nuevo ${resourceLabel}`}
       >
         <SupportCatalogForm<TInput, TValues>
@@ -185,12 +243,16 @@ export function SupportCatalogPage<
           onSubmit={(values) => createMutation.mutate(values)}
           submitLabel="Crear"
           isSubmitting={createMutation.isPending}
+          error={createMutation.error ? describeApiError(createMutation.error) : null}
+          onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
       <Modal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        onClose={() => {
+          if (!updateMutation.isPending) setEditing(null);
+        }}
         title={`Editar ${resourceLabel}`}
       >
         {editing ? (
@@ -201,6 +263,8 @@ export function SupportCatalogPage<
             onSubmit={(values) => updateMutation.mutate(values)}
             submitLabel="Guardar"
             isSubmitting={updateMutation.isPending}
+            error={updateMutation.error ? describeApiError(updateMutation.error) : null}
+            onCancel={() => setEditing(null)}
           />
         ) : null}
       </Modal>

@@ -1,14 +1,16 @@
+import { useEffect } from 'react';
+import { FormErrorSummary } from '../../../shared/components/FormErrorSummary';
+import { OptionsFeedback } from './OptionsFeedback';
+import { CatalogFormActions } from './CatalogFormActions';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Button } from '@boticas/ui-web';
-import { FormError } from '../../../shared/components/FormError';
 import { TIPOS_SKU } from '../api/skus.types';
 import { SKU_VACIO } from '../lib/sku-form';
 import {
-  useOpcionesCategorias,
-  useOpcionesMarcas,
-  useOpcionesProductosRegulados,
-  useOpcionesSoporte
+  useCategoriasOpcionesQuery,
+  useMarcasOpcionesQuery,
+  useProductosOpcionesQuery,
+  useSoporteOpcionesQuery
 } from '../lib/use-opciones';
 import { skuSchema, type SkuFormValues } from '../schemas/sku.schema';
 import { unidadesMedidaApi } from '../support-catalog/configs/unidades-medida.config';
@@ -26,7 +28,10 @@ export type SkuFormProps = {
   defaultValues?: SkuFormValues;
   onSubmit: (values: SkuFormValues) => void;
   submitLabel: string;
+  onCancel?: (() => void) | undefined;
   isSubmitting?: boolean;
+  fullPage?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
   error?: string | null;
 };
 
@@ -34,16 +39,23 @@ export function SkuForm({
   defaultValues = SKU_VACIO,
   onSubmit,
   submitLabel,
+  onCancel,
+  fullPage = false,
+  onDirtyChange,
   isSubmitting = false,
   error = null
 }: SkuFormProps) {
-  const productos = useOpcionesProductosRegulados();
-  const categorias = useOpcionesCategorias();
-  const marcas = useOpcionesMarcas();
-  const unidades = useOpcionesSoporte(unidadesMedidaApi);
+  const productosQuery = useProductosOpcionesQuery();
+  const productos = productosQuery.data ?? [];
+  const categoriasQuery = useCategoriasOpcionesQuery();
+  const categorias = categoriasQuery.data ?? [];
+  const marcasQuery = useMarcasOpcionesQuery();
+  const marcas = marcasQuery.data ?? [];
+  const unidadesQuery = useSoporteOpcionesQuery(unidadesMedidaApi);
+  const unidades = unidadesQuery.data ?? [];
 
   const {
-    formState: { errors },
+    formState: { errors, isDirty, submitCount },
     handleSubmit,
     register
   } = useForm<SkuFormValues>({
@@ -51,6 +63,10 @@ export function SkuForm({
     mode: 'onTouched',
     resolver: zodResolver(skuSchema)
   });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const grupos: Grupo[] = [
     {
@@ -128,9 +144,19 @@ export function SkuForm({
         void handleSubmit((values) => onSubmit(values))(event);
       }}
     >
+      <p className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+        Completa el tipo de SKU, código interno, descripción comercial, unidad de venta y stock
+        mínimo. Asocia un producto si el SKU es regulado. Para vender por fracción, indica también
+        el factor y su unidad.
+      </p>
+      <OptionsFeedback queries={[productosQuery, categoriasQuery, marcasQuery, unidadesQuery]} />
+      {submitCount > 0 ? <FormErrorSummary errors={errors} prefix="sku" /> : null}
       {grupos.map((grupo) => (
-        <fieldset key={grupo.titulo} className="space-y-4">
-          <legend className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
+        <fieldset
+          key={grupo.titulo}
+          className="rounded-xl border border-neutral-200 p-4 sm:p-5 dark:border-neutral-700"
+        >
+          <legend className="text-primary-700 dark:text-primary-300 px-2 text-sm font-bold">
             {grupo.titulo}
           </legend>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -143,10 +169,13 @@ export function SkuForm({
           </div>
         </fieldset>
       ))}
-      {error ? <FormError message={error} /> : null}
-      <Button type="submit" disabled={isSubmitting}>
-        {submitLabel}
-      </Button>
+      <CatalogFormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        error={error}
+        onCancel={onCancel}
+        fullPage={fullPage}
+      />
     </form>
   );
 }

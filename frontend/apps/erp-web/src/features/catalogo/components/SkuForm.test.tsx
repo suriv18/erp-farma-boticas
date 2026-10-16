@@ -44,9 +44,13 @@ describe('SkuForm', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(
-      await screen.findByText('El código interno debe tener al menos 2 caracteres.')
+      await screen.findByText('El código interno debe tener al menos 2 caracteres.', {
+        selector: 'p'
+      })
     ).toBeInTheDocument();
-    expect(screen.getByText('Selecciona la unidad de venta.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Selecciona la unidad de venta.', { selector: 'p' })
+    ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -87,7 +91,9 @@ describe('SkuForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(
-      await screen.findByText('Un SKU regulado requiere un producto regulado asociado.')
+      await screen.findByText('Un SKU regulado requiere un producto regulado asociado.', {
+        selector: 'p'
+      })
     ).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Tipo de SKU'), 'NO_REGULADO');
@@ -100,6 +106,7 @@ describe('SkuForm', () => {
     renderForm({ error: 'Ya existe un SKU con ese código interno.', isSubmitting: true });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Ya existe un SKU con ese código interno.');
-    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toHaveAttribute('aria-busy', 'true');
   });
 });

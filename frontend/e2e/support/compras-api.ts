@@ -8,13 +8,41 @@ import {
 import { sampleSkuVenta } from '../../apps/erp-web/src/test/ventas-fixtures';
 import { sampleEstructura } from '../../apps/erp-web/src/test/inventario-fixtures';
 import type { Orden } from '../../apps/erp-web/src/features/compras/api/ordenes.types';
-import type { Recepcion } from '../../apps/erp-web/src/features/compras/api/recepciones.types';
+import type {
+  Recepcion,
+  RegistrarRecepcionPayload
+} from '../../apps/erp-web/src/features/compras/api/recepciones.types';
 import type { Proveedor } from '../../apps/erp-web/src/features/compras/api/proveedores.types';
 import { json, login } from './login';
 
 const pagina = <T>(items: T[]) => ({ items, page: 0, size: 20, totalElements: items.length });
 
-export async function mockComprasApi(page: Page) {
+export type ComprasApiCapturas = { recepciones: RegistrarRecepcionPayload[] };
+
+const recepcionDesdePayload = (payload: RegistrarRecepcionPayload, numero: number): Recepcion => ({
+  ...sampleRecepcion,
+  numero: `REC-2026-${String(numero).padStart(6, '0')}`,
+  ordenCompraId: payload.ordenCompraId,
+  almacenId: payload.almacenId,
+  documentoProveedorTipo: payload.documentoProveedorTipo,
+  documentoProveedorSerie: payload.documentoProveedorSerie ?? null,
+  documentoProveedorNumero: payload.documentoProveedorNumero ?? null,
+  lineas: payload.items.map((item, indice) => ({
+    ...sampleRecepcion.lineas[0]!,
+    id: `rec-linea-${indice + 1}`,
+    numeroLinea: indice + 1,
+    numeroLineaOrden: item.numeroLineaOrden,
+    numeroLote: item.numeroLote,
+    fechaVencimiento: item.fechaVencimiento,
+    cantidadRecibida: item.cantidadRecibida,
+    cantidadAceptada: item.cantidadRecibida - item.cantidadRechazada,
+    cantidadRechazada: item.cantidadRechazada,
+    costoUnitario: item.costoUnitario ?? null
+  }))
+});
+
+export async function mockComprasApi(page: Page): Promise<ComprasApiCapturas> {
+  const capturas: ComprasApiCapturas = { recepciones: [] };
   let proveedores: Proveedor[] = [sampleProveedor];
   let orden: Orden = sampleOrden;
   let recepciones: Recepcion[] = [];
@@ -84,18 +112,36 @@ export async function mockComprasApi(page: Page) {
     if (!request.headers()['idempotency-key']) {
       return json(route, 400, { title: 'Falta Idempotency-Key' });
     }
-    recepciones = [sampleRecepcion];
+    const payload = JSON.parse(request.postData() ?? '{}') as RegistrarRecepcionPayload;
+    capturas.recepciones.push(payload);
+    const recepcion = recepcionDesdePayload(payload, recepciones.length + 1);
+    recepciones = [...recepciones, recepcion];
     orden = {
       ...orden,
       estado: 'PARCIALMENTE_RECIBIDA',
-      lineas: orden.lineas.map((linea) => ({ ...linea, cantidadRecibida: 4, cantidadPendiente: 6 }))
+      lineas: orden.lineas.map((linea) => {
+        const recibida = recepcion.lineas
+          .filter(({ numeroLineaOrden }) => numeroLineaOrden === linea.numeroLinea)
+          .reduce(
+            (total, { cantidadAceptada }) => total + cantidadAceptada,
+            linea.cantidadRecibida
+          );
+        return {
+          ...linea,
+          cantidadRecibida: recibida,
+          cantidadPendiente: Math.max(0, linea.cantidad - recibida)
+        };
+      })
     };
-    return json(route, 201, sampleRecepcion);
+    return json(route, 201, recepcion);
   });
+
+  return capturas;
 }
 
-export async function abrirComprasEn(page: Page, path: string) {
-  await mockComprasApi(page);
+export async function abrirComprasEn(page: Page, path: string): Promise<ComprasApiCapturas> {
+  const capturas = await mockComprasApi(page);
   await login(page);
   await page.goto(path);
+  return capturas;
 }

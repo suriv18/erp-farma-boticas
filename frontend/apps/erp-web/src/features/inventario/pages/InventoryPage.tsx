@@ -21,7 +21,7 @@ export function InventoryPage() {
   const { data, isPending, isError } = useQuery(posicionesQuery(filtros));
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Inventario"
         context="Operaciones / Inventario"

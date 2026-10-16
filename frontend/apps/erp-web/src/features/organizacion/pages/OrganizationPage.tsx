@@ -37,7 +37,7 @@ export function OrganizationPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="text-primary-700 dark:text-primary-400 text-sm font-semibold">

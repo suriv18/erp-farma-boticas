@@ -25,11 +25,11 @@ import {
   CABECERA_VACIA,
   cabeceraDesdeProveedor,
   erroresCabecera,
-  fechaLocalISO,
   puedeCrear,
   toCrearOrdenPayload,
   type CabeceraOrden
 } from '../lib/orden-cabecera';
+import { fechaLocalISO } from '../lib/fechas-compras';
 import { useMutacionCompras } from '../lib/use-mutacion-compras';
 
 export function NuevaOrdenPage() {
@@ -74,7 +74,7 @@ export function NuevaOrdenPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="erp-page erp-page--form space-y-6">
       <PageHeader
         title="Nueva orden de compra"
         context={<Link to="/compras/ordenes">Compras / Órdenes</Link>}

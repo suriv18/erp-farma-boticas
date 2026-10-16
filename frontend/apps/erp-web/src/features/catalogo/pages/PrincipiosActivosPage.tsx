@@ -87,7 +87,7 @@ export function PrincipiosActivosPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Principios activos"
         context="Catálogo / Principios activos"

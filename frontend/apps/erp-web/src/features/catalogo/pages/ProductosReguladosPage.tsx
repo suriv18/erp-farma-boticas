@@ -1,30 +1,31 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DataTable, EstadoBadge, ListFilters, Modal, PageHeader } from '@boticas/ui-web';
-import { apiClient } from '../../../app/api';
-import { describeApiError } from '../../../shared/lib/describe-api-error';
+import { useNavigate } from 'react-router';
+import { enteroEnRango, useParametrosUrl } from '../../../shared/lib/use-filtros-url';
+import { useQuery } from '@tanstack/react-query';
+import { Button, DataTable, EstadoBadge, ListFilters, PageHeader } from '@boticas/ui-web';
 import { valueOrDash } from '../../../shared/lib/format';
-import { crearProductoRegulado, productosReguladosQuery } from '../api/productos-regulados.api';
+import { productosReguladosQuery } from '../api/productos-regulados.api';
 import {
   ESTADOS_REGULATORIOS,
   type ProductoReguladoResumen
 } from '../api/productos-regulados.types';
 import { EnlaceDetalle } from '../components/EnlaceDetalle';
 import { FiltroSelect } from '../components/FiltroSelect';
-import { ProductoReguladoForm } from '../components/ProductoReguladoForm';
-import { toProductoPayload } from '../lib/producto-regulado-form';
 import { opcionesDeValores, useOpcionesSoporte } from '../lib/use-opciones';
 import { condicionesVentaApi } from '../support-catalog/configs/condiciones-venta.config';
-import type { ProductoReguladoFormValues } from '../schemas/producto-regulado.schema';
 
 export function ProductosReguladosPage() {
-  const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [condicion, setCondicion] = useState('');
-  const [estado, setEstado] = useState('');
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(20);
+  const navigate = useNavigate();
+  const { params, actualizar } = useParametrosUrl();
+  const search = params.get('search') ?? '';
+  const setSearch = (value: string) => actualizar({ search: String(value) });
+  const condicion = params.get('condicion') ?? '';
+  const setCondicion = (value: string) => actualizar({ condicion: String(value) });
+  const estado = params.get('estado') ?? '';
+  const setEstado = (value: string) => actualizar({ estado: String(value) });
+  const page = enteroEnRango(params.get('page'), 0, 1000000, 0);
+  const setPage = (value: number) => actualizar({ page: String(value) });
+  const size = enteroEnRango(params.get('size'), 1, 100, 20);
+  const setSize = (value: number) => actualizar({ size: String(value) });
   const condiciones = useOpcionesSoporte(condicionesVentaApi);
 
   const { data, isPending, isError } = useQuery(
@@ -37,17 +38,8 @@ export function ProductosReguladosPage() {
     })
   );
 
-  const createMutation = useMutation({
-    mutationFn: (values: ProductoReguladoFormValues) =>
-      crearProductoRegulado(apiClient, toProductoPayload(values)),
-    onSuccess: () => {
-      setCreateOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ['catalogo', 'productos-regulados'] });
-    }
-  });
-
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Productos regulados"
         context="Catálogo / Productos regulados"
@@ -55,8 +47,9 @@ export function ProductosReguladosPage() {
         actions={
           <Button
             onClick={() => {
-              createMutation.reset();
-              setCreateOpen(true);
+              void navigate(
+                '/catalogo/productos-regulados/nuevo' + (params.size ? '?' + params.toString() : '')
+              );
             }}
           >
             Nuevo producto regulado
@@ -95,6 +88,19 @@ export function ProductosReguladosPage() {
           opciones={opcionesDeValores(ESTADOS_REGULATORIOS)}
           opcionVacia="Todos"
         />
+        {search || condicion || estado ? (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('');
+              setCondicion('');
+              setEstado('');
+              setPage(0);
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        ) : null}
       </ListFilters>
 
       <div className="mt-6">
@@ -129,24 +135,13 @@ export function ProductosReguladosPage() {
             size,
             totalElements: data?.totalElements ?? 0,
             onPageChange: setPage,
-            onSizeChange: setSize
+            onSizeChange: (value) => {
+              setSize(value);
+              setPage(0);
+            }
           }}
         />
       </div>
-
-      <Modal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Nuevo producto regulado"
-        size="lg"
-      >
-        <ProductoReguladoForm
-          onSubmit={(values) => createMutation.mutate(values)}
-          submitLabel="Crear producto regulado"
-          isSubmitting={createMutation.isPending}
-          error={createMutation.error ? describeApiError(createMutation.error) : null}
-        />
-      </Modal>
     </div>
   );
 }

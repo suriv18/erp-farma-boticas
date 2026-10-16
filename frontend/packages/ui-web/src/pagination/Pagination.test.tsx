@@ -23,11 +23,12 @@ describe('Pagination', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(onPageChange).toHaveBeenLastCalledWith(2);
   });
-  it('muestra el rango vacío y bloquea ambos límites', () => {
+  it('muestra cero resultados con navegación deshabilitada', () => {
     render(<Pagination page={0} size={20} totalElements={0} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('status')).toHaveTextContent('0–0 de 0');
+    expect(screen.getByRole('status')).toHaveTextContent('0 resultados');
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Página 1' })).toBeDisabled();
   });
   it('cambia el tamaño y vuelve al inicio, admite tamaños del consumidor', async () => {
     const onSizeChange = vi.fn();
@@ -60,5 +61,51 @@ describe('Pagination', () => {
     expect(screen.getByRole('combobox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+  });
+  it('permite saltar a los extremos y páginas cercanas sin renderizar todas las páginas', async () => {
+    const onPageChange = vi.fn();
+    render(<Pagination page={7} size={20} totalElements={700} onPageChange={onPageChange} />);
+    expect(screen.getByRole('button', { name: 'Página 8' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(screen.queryByRole('button', { name: 'Página 3' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('…')).toHaveLength(2);
+    await userEvent.click(screen.getByRole('button', { name: 'Página 35' }));
+    expect(onPageChange).toHaveBeenLastCalledWith(34);
+    await userEvent.click(screen.getByRole('button', { name: 'Página 1' }));
+    expect(onPageChange).toHaveBeenLastCalledWith(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Página 8' }));
+    expect(onPageChange).toHaveBeenCalledTimes(2);
+  });
+  it('conserva el selector y el resumen cuando hay una sola página', () => {
+    render(
+      <Pagination
+        page={0}
+        size={20}
+        totalElements={8}
+        itemLabel="marcas"
+        onPageChange={vi.fn()}
+        onSizeChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('1–8 de 8 marcas');
+    expect(screen.getByRole('combobox')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Página 1' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+  it('no anuncia cero resultados ni reinicia la página cuando llega un total provisional durante la carga', () => {
+    const onPageChange = vi.fn();
+    render(
+      <Pagination page={3} size={20} totalElements={0} isLoading onPageChange={onPageChange} />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando resultados…');
+    expect(screen.getByText('Página 4')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+    expect(onPageChange).not.toHaveBeenCalled();
   });
 });

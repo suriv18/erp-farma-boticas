@@ -55,6 +55,39 @@ function renderPage(pageSize = 20) {
 const sampleItem: SampleItem = { codigo: 'ORAL', denominacion: 'Vía oral', estado: 'ACTIVO' };
 
 describe('SupportCatalogPage', () => {
+  it('muestra el error de guardado y conserva los datos para reintentar', async () => {
+    server.use(
+      http.get('*/api/v1/catalogo/vias-administracion', () => HttpResponse.json([])),
+      http.post('*/api/v1/catalogo/vias-administracion', () =>
+        HttpResponse.json({ detail: 'El código ya existe.' }, { status: 409 })
+      )
+    );
+    const { user } = renderPage();
+    await user.click(screen.getByRole('button', { name: /Nuevo/ }));
+    await user.type(screen.getByLabelText('Código'), 'ORAL');
+    await user.type(screen.getByLabelText('Denominación'), 'Vía oral');
+    await user.click(screen.getByRole('button', { name: 'Crear' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByLabelText('Código')).toHaveValue('ORAL');
+    expect(screen.getByLabelText('Denominación')).toHaveValue('Vía oral');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: /Nuevo/ }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('muestra el error cuando falla un cambio de estado', async () => {
+    server.use(
+      http.get('*/api/v1/catalogo/vias-administracion', () => HttpResponse.json([sampleItem])),
+      http.patch('*/api/v1/catalogo/vias-administracion/ORAL/estado', () =>
+        HttpResponse.json({ detail: 'No se pudo actualizar el estado.' }, { status: 500 })
+      )
+    );
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Desactivar ORAL' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVO')).toBeInTheDocument();
+  });
+
   it('lista los items del catalogo', async () => {
     server.use(
       http.get('*/api/v1/catalogo/vias-administracion', () => HttpResponse.json([sampleItem]))
@@ -91,9 +124,7 @@ describe('SupportCatalogPage', () => {
       denominacion: `Vía ${index}`,
       estado: 'ACTIVO'
     }));
-    server.use(
-      http.get('*/api/v1/catalogo/vias-administracion', () => HttpResponse.json(items))
-    );
+    server.use(http.get('*/api/v1/catalogo/vias-administracion', () => HttpResponse.json(items)));
 
     renderPage(2);
 

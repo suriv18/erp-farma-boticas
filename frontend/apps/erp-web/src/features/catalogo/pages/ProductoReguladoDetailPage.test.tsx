@@ -1,3 +1,4 @@
+import { ProductoReguladoFormPage } from './ProductoReguladoFormPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,6 +13,10 @@ function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(
     [
+      {
+        path: '/catalogo/productos-regulados/:productoReguladoId/editar',
+        Component: ProductoReguladoFormPage
+      },
       {
         path: '/catalogo/productos-regulados/:productoReguladoId',
         Component: ProductoReguladoDetailPage
@@ -125,7 +130,7 @@ describe('ProductoReguladoDetailPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('muestra el error del servidor al editar y permite cerrar el dialogo', async () => {
+  it('muestra el error del servidor al editar y permite cancelar', async () => {
     usarCatalogosBase();
     server.use(
       http.get('*/api/v1/catalogo/productos-regulados/pr-1', () =>
@@ -144,7 +149,7 @@ describe('ProductoReguladoDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(await screen.findByText('No tienes permiso para esta acción.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

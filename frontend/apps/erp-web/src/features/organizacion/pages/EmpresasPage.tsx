@@ -38,7 +38,7 @@ export function EmpresasPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="erp-page">
       <PageHeader
         title="Empresas"
         context="Organización / Empresas"

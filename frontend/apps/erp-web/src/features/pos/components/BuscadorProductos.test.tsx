@@ -41,7 +41,7 @@ describe('BuscadorProductos', () => {
     await buscar(user, '  paracetamol ');
 
     expect(await screen.findByRole('button', { name: 'Agregar MED-001' })).toBeInTheDocument();
-    expect(screen.getByText('MED-001 — Paracetamol 500 mg')).toBeInTheDocument();
+    expect(screen.getByText('Paracetamol 500 mg')).toBeInTheDocument();
     expect(screen.getByText('S/ 12.50')).toBeInTheDocument();
     expect(await screen.findByText('Stock: 90')).toBeInTheDocument();
     const params = consulta.mock.calls[0]?.[0] as URLSearchParams;
