@@ -16,3 +16,9 @@
 ## Regla
 
 Un ADR aceptado documenta una decisión técnica. No se debe presentar como requisito normativo sanitario/fiscal salvo que su contexto cite la fuente correspondiente.
+
+## Diseño documental de surtido
+
+| ADR | Decisión | Estado |
+|---|---|---|
+| [ADR-011](ADR-011-surtido-trazabilidad-admisibilidad.md) | Expediente canónico, trazabilidad opcional, variantes/series, admisibilidad y confirmación online inicial | Decidido para diseño; implementación pendiente |

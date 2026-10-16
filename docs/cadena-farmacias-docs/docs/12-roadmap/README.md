@@ -12,3 +12,5 @@ El roadmap evita fijar semanas/meses hasta conocer tamaño de equipo, número de
 4. [Riesgos y dependencias](04-riesgos-dependencias.md)
 5. [Backlog de decisiones/ADR](05-backlog-decisiones-adr.md)
 6. [Matriz capacidades → releases](06-matriz-capacidades-releases.md)
+
+- [Cierre documental del surtido diverso](07-cierre-documental-surtido.md)

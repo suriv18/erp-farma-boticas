@@ -11,7 +11,7 @@ Evitar que una funcionalidad del mercado se confunda con una obligación legal o
 | D.S. 015-2025-SA | NORM | actualización art. 43; personal técnico y responsabilidad del DT | perfiles profesionales, restricciones de funciones, capacitación/supervisión |
 | D.S. 016-2011-SA | NORM | registro/control/vigilancia sanitaria y condición de venta | registro sanitario, condición de venta, atributos regulatorios |
 | D.S. 023-2001-SA | NORM | estupefacientes/psicotrópicos sujetos a fiscalización | producto controlado, receta/documento especial, registros de control |
-| DS 105-MINSA/2020/DIGEMID | NORM | proceso de dispensación | receta, validación, análisis, selección, registro, entrega/orientación |
+| RM 013-2009/MINSA [REF-25] | NORM | Manual de Buenas Prácticas de Dispensación | recepción/validación, análisis, preparación, registro y entrega/orientación |
 | DIGEMID Estándares PF 2026 | NORM/OFICIAL | catálogos: forma, vía, condición de venta, ATC, controlados, etc. | MDM farmacéutico |
 | DIGEMID Registro Sanitario | OFICIAL | consulta de producto y condición | integración/verificación maestro |
 | Observatorio de Precios | NORM/OFICIAL | reporte de precios por farmacias/boticas | pricing regulatorio/reportes |

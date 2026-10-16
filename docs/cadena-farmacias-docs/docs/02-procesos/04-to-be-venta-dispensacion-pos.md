@@ -62,7 +62,7 @@ Salida de inventario
 
 ## 4. Fuente normativa
 
-La Directiva Sanitaria N.° 105-MINSA/2020/DIGEMID establece que el proceso de dispensación incluye:
+El Manual de Buenas Prácticas de Dispensación, aprobado por R.M. N.° 013-2009/MINSA [REF-25], describe estas etapas:
 
 - recepción y validación de la prescripción;
 - análisis e interpretación;

@@ -1,0 +1,4498 @@
+# Módulo Catálogo (BC-CAT) — Persistencia y API REST Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Continuación de:** `docs/superpowers/plans/2026-09-07-catalogo-bc-cat.md` (Tasks 1-16 — migración de permisos, dominio completo, capa de aplicación completa con puertos y handlers). Este documento asume que esas 16 tareas ya están implementadas y comiteadas, y continúa la numeración desde la Task 17.
+
+**Goal:** Completar el módulo `catalogo` con persistencia real (JPA para escritura, JDBC para lectura, contra las tablas ya existentes de `sch_farmacia` vía V003) y API REST con autorización, más el test de integración end-to-end que verifica todo el módulo funcionando junto.
+
+**Architecture:** Los adapters de escritura (`CatalogoSoporteJpaWriteAdapter`, `CatalogoComercialJpaWriteAdapter`, `ProductoReguladoJpaWriteAdapter`) implementan los 3 puertos `out` de escritura ya definidos (Task 10 del documento anterior). El read side (`CatalogoJdbcReadAdapter`) implementa el único `CatalogoReadPort`. Controllers REST (`CategoriaController`... hasta `SkuController`, 6 en total) inyectan los puertos `in` ya definidos. `CatalogoModuleConfiguration` conecta los handlers con Spring.
+
+**Tech Stack:** Java 25, Spring Boot 4.1, Spring Data JPA, Spring JDBC (`JdbcClient`), PostgreSQL 18 + Flyway, JUnit 5, MockMvc, Spring Modulith 2.1.
+
+## Global Constraints
+
+- Backend: `cd service-botica && .\gradlew.bat check --warning-mode all` debe pasar (build + tests + ArchUnit + Spring Modulith verify) antes de dar por terminado el trabajo — este comando es el Step final de la Task 25 (última de este documento).
+- **Sin navegación JPA entre entidades**: nunca `@ManyToOne`, `@JoinColumn`, `@OneToMany`, `@ElementCollection`. Todas las FKs (incluidas las compuestas `(tenant_id, id)` y auto-referenciales como `categoria_padre_id`) son columnas `Long` planas en la entidad JPA — confirmado contra `AsignacionRolJpaEntity` en `modules/security`, que modela 4 FKs (`empresaId`, `establecimientoId`, `almacenId`, `terminalId`) así, sin ninguna anotación de relación.
+- **Colecciones hijas en tabla separada** (principios activos de `ProductoRegulado` vía `producto_principio_activo`; códigos de barra de `SKUComercial` vía `sku_codigo_barra`): se leen/escriben con `JdbcClient` directo en el adapter, patrón "DELETE + re-INSERT" para reemplazo completo de la colección — confirmado contra `IamJpaWriteAdapter.replacePermissions` en `modules/security`, que hace exactamente esto para `rol_permiso`.
+- Las 12 tablas reales (`sch_farmacia.condicion_venta`, `forma_farmaceutica`, `via_administracion`, `unidad_medida`, `clasificacion_controlada`, `principio_activo`, `categoria_producto`, `marca`, `producto_regulado`, `producto_principio_activo`, `sku_comercial`, `sku_codigo_barra`) ya existen — no se crea ninguna migración de esquema en este documento (la única migración del módulo, de permisos, ya se hizo en la Task 1 del documento anterior).
+- `Marca`, `CategoriaProducto`, `SKUComercial` son tenant-scoped (columna `tenant_id` BIGINT interno, resuelto desde el UUID público de `sch_farmacia.tenant` con el patrón `findTenantId(UUID): Optional<Long>` de `IamJpaWriteAdapter`). `CondicionVenta`, `FormaFarmaceutica`, `ViaAdministracion`, `UnidadMedida`, `ClasificacionControlada`, `PrincipioActivo`, `ProductoRegulado` son catálogos globales — sin resolución de tenant en sus adapters.
+- El perfil de test de integración real (Testcontainers+Postgres) usa `@ActiveProfiles("test")` + `@Import(PostgresTestContainerConfiguration.class)` + `@SpringBootTest` (+ `@AutoConfigureMockMvc` para tests HTTP) — copiar exactamente las anotaciones de clase de `IamApiIntegrationTest.java`.
+- Autorización HTTP con `@PreAuthorize("hasAuthority(...)")`, usando exactamente los 12 códigos de permiso sembrados en la Task 1 del documento anterior: `catalogo.soporte.{consultar,gestionar}`, `catalogo.principios-activos.{consultar,gestionar}`, `catalogo.marcas.{consultar,gestionar}`, `catalogo.categorias.{consultar,gestionar}`, `catalogo.productos-regulados.{consultar,gestionar}`, `catalogo.skus.{consultar,gestionar}`.
+- Endpoints de cambio de estado usan `PATCH .../estado` con body `{"tenantId":..., "status":"..."}` (solo para entidades tenant-scoped) o `{"status":"..."}` (entidades globales) — mismo patrón HTTP que `RolController`/`UsuarioController` en `security`, no dos endpoints separados de activar/desactivar.
+- Sin comentarios explicativos en el código salvo invariantes no obvias; Result pattern para errores esperables; nombres en español para el dominio de negocio, inglés para tipos técnicos ya establecidos por el framework.
+- No modificar `docs/cadena-farmacias-docs/database/migrations/*.sql` (registro histórico, incluye V003 — solo lectura de referencia para nombres exactos de columna).
+
+---
+
+## Fase 4 — Persistencia (JPA escritura, JDBC lectura)
+
+### Task 17: Entidades y repositorios JPA para las 12 tablas
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CondicionVentaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/FormaFarmaceuticaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ViaAdministracionJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/UnidadMedidaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ClasificacionControladaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/PrincipioActivoJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/MarcaJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CategoriaProductoJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoReguladoJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoPrincipioActivoJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/SkuComercialJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/SkuCodigoBarraJpaEntity.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CondicionVentaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/FormaFarmaceuticaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ViaAdministracionJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/UnidadMedidaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ClasificacionControladaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/PrincipioActivoJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/MarcaJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CategoriaProductoJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoReguladoJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoPrincipioActivoJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/SkuComercialJpaRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/SkuCodigoBarraJpaRepository.java`
+
+**Interfaces:**
+- Produces: 12 entidades JPA mapeando exactamente las columnas reales de V003 (ver Global Constraints), y 12 repositorios Spring Data con los métodos `findByX`/`existsByX` que necesitarán los adapters de las Tasks 18-20. No hay test unitario dedicado (POJOs de mapeo sin lógica); se validan indirectamente en la Task 25.
+
+- [ ] **Step 1: Crear las 5 entidades JPA de catálogos de soporte (PK `codigo` String)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CondicionVentaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "condicion_venta", schema = "sch_farmacia")
+public class CondicionVentaJpaEntity {
+
+    @Id
+    @Column(length = 30)
+    private String codigo;
+
+    @Column(nullable = false, length = 200)
+    private String denominacion;
+
+    @Column(name = "requiere_receta", nullable = false)
+    private boolean requiereReceta;
+
+    @Column(name = "requiere_retencion", nullable = false)
+    private boolean requiereRetencion;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(name = "version_fuente", length = 100)
+    private String versionFuente;
+
+    @Column(name = "vigente_desde")
+    private LocalDate vigenteDesde;
+
+    @Column(name = "vigente_hasta")
+    private LocalDate vigenteHasta;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected CondicionVentaJpaEntity() {
+    }
+
+    public CondicionVentaJpaEntity(
+            String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+            String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta,
+            String estado) {
+        this.codigo = codigo;
+        this.denominacion = denominacion;
+        this.requiereReceta = requiereReceta;
+        this.requiereRetencion = requiereRetencion;
+        this.fuente = fuente;
+        this.versionFuente = versionFuente;
+        this.vigenteDesde = vigenteDesde;
+        this.vigenteHasta = vigenteHasta;
+        this.estado = estado;
+    }
+
+    public String getCodigo() { return codigo; }
+    public String getDenominacion() { return denominacion; }
+    public boolean isRequiereReceta() { return requiereReceta; }
+    public boolean isRequiereRetencion() { return requiereRetencion; }
+    public String getFuente() { return fuente; }
+    public String getVersionFuente() { return versionFuente; }
+    public LocalDate getVigenteDesde() { return vigenteDesde; }
+    public LocalDate getVigenteHasta() { return vigenteHasta; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/FormaFarmaceuticaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "forma_farmaceutica", schema = "sch_farmacia")
+public class FormaFarmaceuticaJpaEntity {
+
+    @Id
+    @Column(length = 30)
+    private String codigo;
+
+    @Column(nullable = false, length = 200)
+    private String denominacion;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected FormaFarmaceuticaJpaEntity() {
+    }
+
+    public FormaFarmaceuticaJpaEntity(String codigo, String denominacion, String fuente, String estado) {
+        this.codigo = codigo;
+        this.denominacion = denominacion;
+        this.fuente = fuente;
+        this.estado = estado;
+    }
+
+    public String getCodigo() { return codigo; }
+    public String getDenominacion() { return denominacion; }
+    public String getFuente() { return fuente; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ViaAdministracionJpaEntity.java` (misma forma exacta que `FormaFarmaceuticaJpaEntity`, cambiando `@Table(name = "via_administracion", ...)` y el nombre de la clase):
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "via_administracion", schema = "sch_farmacia")
+public class ViaAdministracionJpaEntity {
+
+    @Id
+    @Column(length = 30)
+    private String codigo;
+
+    @Column(nullable = false, length = 200)
+    private String denominacion;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected ViaAdministracionJpaEntity() {
+    }
+
+    public ViaAdministracionJpaEntity(String codigo, String denominacion, String fuente, String estado) {
+        this.codigo = codigo;
+        this.denominacion = denominacion;
+        this.fuente = fuente;
+        this.estado = estado;
+    }
+
+    public String getCodigo() { return codigo; }
+    public String getDenominacion() { return denominacion; }
+    public String getFuente() { return fuente; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/UnidadMedidaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "unidad_medida", schema = "sch_farmacia")
+public class UnidadMedidaJpaEntity {
+
+    @Id
+    @Column(length = 30)
+    private String codigo;
+
+    @Column(nullable = false, length = 150)
+    private String denominacion;
+
+    @Column(length = 30)
+    private String simbolo;
+
+    @Column(name = "permite_decimal", nullable = false)
+    private boolean permiteDecimal;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected UnidadMedidaJpaEntity() {
+    }
+
+    public UnidadMedidaJpaEntity(
+            String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente,
+            String estado) {
+        this.codigo = codigo;
+        this.denominacion = denominacion;
+        this.simbolo = simbolo;
+        this.permiteDecimal = permiteDecimal;
+        this.fuente = fuente;
+        this.estado = estado;
+    }
+
+    public String getCodigo() { return codigo; }
+    public String getDenominacion() { return denominacion; }
+    public String getSimbolo() { return simbolo; }
+    public boolean isPermiteDecimal() { return permiteDecimal; }
+    public String getFuente() { return fuente; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ClasificacionControladaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "clasificacion_controlada", schema = "sch_farmacia")
+public class ClasificacionControladaJpaEntity {
+
+    @Id
+    @Column(length = 40)
+    private String codigo;
+
+    @Column(nullable = false, length = 200)
+    private String denominacion;
+
+    @Column(name = "norma_fuente", length = 300)
+    private String normaFuente;
+
+    @Column(name = "requiere_receta_especial", nullable = false)
+    private boolean requiereRecetaEspecial;
+
+    @Column(name = "retiene_receta", nullable = false)
+    private boolean retieneReceta;
+
+    @Column(name = "vigencia_receta_dias")
+    private Integer vigenciaRecetaDias;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected ClasificacionControladaJpaEntity() {
+    }
+
+    public ClasificacionControladaJpaEntity(
+            String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+            boolean retieneReceta, Integer vigenciaRecetaDias, String estado) {
+        this.codigo = codigo;
+        this.denominacion = denominacion;
+        this.normaFuente = normaFuente;
+        this.requiereRecetaEspecial = requiereRecetaEspecial;
+        this.retieneReceta = retieneReceta;
+        this.vigenciaRecetaDias = vigenciaRecetaDias;
+        this.estado = estado;
+    }
+
+    public String getCodigo() { return codigo; }
+    public String getDenominacion() { return denominacion; }
+    public String getNormaFuente() { return normaFuente; }
+    public boolean isRequiereRecetaEspecial() { return requiereRecetaEspecial; }
+    public boolean isRetieneReceta() { return retieneReceta; }
+    public Integer getVigenciaRecetaDias() { return vigenciaRecetaDias; }
+    public String getEstado() { return estado; }
+}
+```
+
+- [ ] **Step 2: Crear `PrincipioActivoJpaEntity`, `MarcaJpaEntity`, `CategoriaProductoJpaEntity` (PK BIGINT+UUID)**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/PrincipioActivoJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.util.UUID;
+
+@Entity
+@Table(name = "principio_activo", schema = "sch_farmacia")
+public class PrincipioActivoJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "codigo_fuente", length = 80)
+    private String codigoFuente;
+
+    @Column(nullable = false, length = 300)
+    private String denominacion;
+
+    @Column(name = "nombre_normalizado", length = 300)
+    private String nombreNormalizado;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected PrincipioActivoJpaEntity() {
+    }
+
+    public PrincipioActivoJpaEntity(
+            UUID uuidPublico, String codigoFuente, String denominacion, String nombreNormalizado,
+            String fuente, String estado) {
+        this.uuidPublico = uuidPublico;
+        this.codigoFuente = codigoFuente;
+        this.denominacion = denominacion;
+        this.nombreNormalizado = nombreNormalizado;
+        this.fuente = fuente;
+        this.estado = estado;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public String getCodigoFuente() { return codigoFuente; }
+    public String getDenominacion() { return denominacion; }
+    public String getNombreNormalizado() { return nombreNormalizado; }
+    public String getFuente() { return fuente; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/MarcaJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.util.UUID;
+
+@Entity
+@Table(name = "marca", schema = "sch_farmacia")
+public class MarcaJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false, length = 50)
+    private String codigo;
+
+    @Column(nullable = false, length = 180)
+    private String nombre;
+
+    @Column(length = 500)
+    private String descripcion;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected MarcaJpaEntity() {
+    }
+
+    public MarcaJpaEntity(
+            UUID uuidPublico, Long tenantId, String codigo, String nombre, String descripcion, String estado) {
+        this.uuidPublico = uuidPublico;
+        this.tenantId = tenantId;
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.estado = estado;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public Long getTenantId() { return tenantId; }
+    public String getCodigo() { return codigo; }
+    public String getNombre() { return nombre; }
+    public String getDescripcion() { return descripcion; }
+    public String getEstado() { return estado; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/CategoriaProductoJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.util.UUID;
+
+@Entity
+@Table(name = "categoria_producto", schema = "sch_farmacia")
+public class CategoriaProductoJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(name = "categoria_padre_id")
+    private Long categoriaPadreId;
+
+    @Column(nullable = false, length = 50)
+    private String codigo;
+
+    @Column(nullable = false, length = 180)
+    private String nombre;
+
+    @Column(length = 500)
+    private String descripcion;
+
+    @Column(nullable = false)
+    private int nivel;
+
+    @Column(nullable = false)
+    private int orden;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected CategoriaProductoJpaEntity() {
+    }
+
+    public CategoriaProductoJpaEntity(
+            UUID uuidPublico, Long tenantId, Long categoriaPadreId, String codigo, String nombre,
+            String descripcion, int nivel, int orden, String estado) {
+        this.uuidPublico = uuidPublico;
+        this.tenantId = tenantId;
+        this.categoriaPadreId = categoriaPadreId;
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.nivel = nivel;
+        this.orden = orden;
+        this.estado = estado;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public Long getTenantId() { return tenantId; }
+    public Long getCategoriaPadreId() { return categoriaPadreId; }
+    public String getCodigo() { return codigo; }
+    public String getNombre() { return nombre; }
+    public String getDescripcion() { return descripcion; }
+    public int getNivel() { return nivel; }
+    public int getOrden() { return orden; }
+    public String getEstado() { return estado; }
+}
+```
+
+- [ ] **Step 3: Crear `ProductoReguladoJpaEntity` y `ProductoPrincipioActivoJpaEntity`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoReguladoJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
+@Entity
+@Table(name = "producto_regulado", schema = "sch_farmacia")
+public class ProductoReguladoJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tipo_producto", nullable = false, length = 40)
+    private String tipoProducto;
+
+    @Column(name = "rubro_codigo", length = 50)
+    private String rubroCodigo;
+
+    @Column(name = "tipo_registro", length = 40)
+    private String tipoRegistro;
+
+    @Column(name = "numero_registro", length = 100)
+    private String numeroRegistro;
+
+    @Column(nullable = false, length = 500)
+    private String denominacion;
+
+    @Column(name = "concentracion_texto", length = 300)
+    private String concentracionTexto;
+
+    @Column(name = "presentacion_regulatoria", length = 500)
+    private String presentacionRegulatoria;
+
+    @Column(name = "forma_farmaceutica_codigo", length = 30)
+    private String formaFarmaceuticaCodigo;
+
+    @Column(name = "via_administracion_codigo", length = 30)
+    private String viaAdministracionCodigo;
+
+    @Column(name = "unidad_medida_codigo", length = 30)
+    private String unidadMedidaCodigo;
+
+    @Column(name = "condicion_venta_codigo", length = 30)
+    private String condicionVentaCodigo;
+
+    @Column(name = "clasificacion_atc", length = 30)
+    private String clasificacionAtc;
+
+    @Column(name = "clasificacion_controlada_codigo", length = 40)
+    private String clasificacionControladaCodigo;
+
+    @Column(name = "tipo_liberacion", length = 40)
+    private String tipoLiberacion;
+
+    @Column(name = "origen_fabricacion", length = 40)
+    private String origenFabricacion;
+
+    @Column(name = "pais_origen", length = 100)
+    private String paisOrigen;
+
+    @Column(name = "subpartida_nacional", length = 30)
+    private String subpartidaNacional;
+
+    @Column(name = "titular_registro", length = 300)
+    private String titularRegistro;
+
+    @Column(length = 300)
+    private String fabricante;
+
+    @Column(length = 300)
+    private String importador;
+
+    @Column(name = "establecimiento_expendio", length = 200)
+    private String establecimientoExpendio;
+
+    @Column(name = "vigente_desde")
+    private LocalDate vigenteDesde;
+
+    @Column(name = "vigente_hasta")
+    private LocalDate vigenteHasta;
+
+    @Column(name = "estado_regulatorio", nullable = false, length = 30)
+    private String estadoRegulatorio;
+
+    @Column(length = 300)
+    private String fuente;
+
+    @Column(name = "version_fuente", length = 100)
+    private String versionFuente;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    protected ProductoReguladoJpaEntity() {
+    }
+
+    public ProductoReguladoJpaEntity(
+            UUID uuidPublico, String tipoProducto, String rubroCodigo, String tipoRegistro,
+            String numeroRegistro, String denominacion, String concentracionTexto,
+            String presentacionRegulatoria, String formaFarmaceuticaCodigo, String viaAdministracionCodigo,
+            String unidadMedidaCodigo, String condicionVentaCodigo, String clasificacionAtc,
+            String clasificacionControladaCodigo, String tipoLiberacion, String origenFabricacion,
+            String paisOrigen, String subpartidaNacional, String titularRegistro, String fabricante,
+            String importador, String establecimientoExpendio, LocalDate vigenteDesde, LocalDate vigenteHasta,
+            String estadoRegulatorio, String fuente, String versionFuente, Instant createdAt,
+            Instant updatedAt) {
+        this.uuidPublico = uuidPublico;
+        this.tipoProducto = tipoProducto;
+        this.rubroCodigo = rubroCodigo;
+        this.tipoRegistro = tipoRegistro;
+        this.numeroRegistro = numeroRegistro;
+        this.denominacion = denominacion;
+        this.concentracionTexto = concentracionTexto;
+        this.presentacionRegulatoria = presentacionRegulatoria;
+        this.formaFarmaceuticaCodigo = formaFarmaceuticaCodigo;
+        this.viaAdministracionCodigo = viaAdministracionCodigo;
+        this.unidadMedidaCodigo = unidadMedidaCodigo;
+        this.condicionVentaCodigo = condicionVentaCodigo;
+        this.clasificacionAtc = clasificacionAtc;
+        this.clasificacionControladaCodigo = clasificacionControladaCodigo;
+        this.tipoLiberacion = tipoLiberacion;
+        this.origenFabricacion = origenFabricacion;
+        this.paisOrigen = paisOrigen;
+        this.subpartidaNacional = subpartidaNacional;
+        this.titularRegistro = titularRegistro;
+        this.fabricante = fabricante;
+        this.importador = importador;
+        this.establecimientoExpendio = establecimientoExpendio;
+        this.vigenteDesde = vigenteDesde;
+        this.vigenteHasta = vigenteHasta;
+        this.estadoRegulatorio = estadoRegulatorio;
+        this.fuente = fuente;
+        this.versionFuente = versionFuente;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public String getTipoProducto() { return tipoProducto; }
+    public String getRubroCodigo() { return rubroCodigo; }
+    public String getTipoRegistro() { return tipoRegistro; }
+    public String getNumeroRegistro() { return numeroRegistro; }
+    public String getDenominacion() { return denominacion; }
+    public String getConcentracionTexto() { return concentracionTexto; }
+    public String getPresentacionRegulatoria() { return presentacionRegulatoria; }
+    public String getFormaFarmaceuticaCodigo() { return formaFarmaceuticaCodigo; }
+    public String getViaAdministracionCodigo() { return viaAdministracionCodigo; }
+    public String getUnidadMedidaCodigo() { return unidadMedidaCodigo; }
+    public String getCondicionVentaCodigo() { return condicionVentaCodigo; }
+    public String getClasificacionAtc() { return clasificacionAtc; }
+    public String getClasificacionControladaCodigo() { return clasificacionControladaCodigo; }
+    public String getTipoLiberacion() { return tipoLiberacion; }
+    public String getOrigenFabricacion() { return origenFabricacion; }
+    public String getPaisOrigen() { return paisOrigen; }
+    public String getSubpartidaNacional() { return subpartidaNacional; }
+    public String getTitularRegistro() { return titularRegistro; }
+    public String getFabricante() { return fabricante; }
+    public String getImportador() { return importador; }
+    public String getEstablecimientoExpendio() { return establecimientoExpendio; }
+    public LocalDate getVigenteDesde() { return vigenteDesde; }
+    public LocalDate getVigenteHasta() { return vigenteHasta; }
+    public String getEstadoRegulatorio() { return estadoRegulatorio; }
+    public String getFuente() { return fuente; }
+    public String getVersionFuente() { return versionFuente; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ProductoPrincipioActivoJpaEntity.java` (usa `@IdClass` con PK compuesta, siguiendo `jakarta.persistence` estándar — no hay precedente exacto en `security` para PK compuesta de 2 columnas sin `id` autogenerado, pero es el mapeo natural de la tabla puente real que solo tiene `(producto_regulado_id, principio_activo_id)` como PK):
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.Table;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.Objects;
+
+@Entity
+@Table(name = "producto_principio_activo", schema = "sch_farmacia")
+@IdClass(ProductoPrincipioActivoJpaEntity.Key.class)
+public class ProductoPrincipioActivoJpaEntity {
+
+    @Id
+    @Column(name = "producto_regulado_id")
+    private Long productoReguladoId;
+
+    @Id
+    @Column(name = "principio_activo_id")
+    private Long principioActivoId;
+
+    @Column(name = "concentracion_texto", length = 200)
+    private String concentracionTexto;
+
+    private BigDecimal cantidad;
+
+    @Column(name = "unidad_medida_codigo", length = 30)
+    private String unidadMedidaCodigo;
+
+    @Column(name = "es_principal", nullable = false)
+    private boolean esPrincipal;
+
+    private short orden;
+
+    protected ProductoPrincipioActivoJpaEntity() {
+    }
+
+    public ProductoPrincipioActivoJpaEntity(
+            Long productoReguladoId, Long principioActivoId, String concentracionTexto, BigDecimal cantidad,
+            String unidadMedidaCodigo, boolean esPrincipal, short orden) {
+        this.productoReguladoId = productoReguladoId;
+        this.principioActivoId = principioActivoId;
+        this.concentracionTexto = concentracionTexto;
+        this.cantidad = cantidad;
+        this.unidadMedidaCodigo = unidadMedidaCodigo;
+        this.esPrincipal = esPrincipal;
+        this.orden = orden;
+    }
+
+    public Long getProductoReguladoId() { return productoReguladoId; }
+    public Long getPrincipioActivoId() { return principioActivoId; }
+    public String getConcentracionTexto() { return concentracionTexto; }
+    public BigDecimal getCantidad() { return cantidad; }
+    public String getUnidadMedidaCodigo() { return unidadMedidaCodigo; }
+    public boolean isEsPrincipal() { return esPrincipal; }
+    public short getOrden() { return orden; }
+
+    public static final class Key implements Serializable {
+        private Long productoReguladoId;
+        private Long principioActivoId;
+
+        public Key() {
+        }
+
+        public Key(Long productoReguladoId, Long principioActivoId) {
+            this.productoReguladoId = productoReguladoId;
+            this.principioActivoId = principioActivoId;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof Key key)) return false;
+            return Objects.equals(productoReguladoId, key.productoReguladoId)
+                    && Objects.equals(principioActivoId, key.principioActivoId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(productoReguladoId, principioActivoId);
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Crear `SkuComercialJpaEntity` y `SkuCodigoBarraJpaEntity`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/SkuComercialJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "sku_comercial", schema = "sch_farmacia")
+public class SkuComercialJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "uuid_publico", nullable = false, unique = true)
+    private UUID uuidPublico;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(name = "producto_regulado_id")
+    private Long productoReguladoId;
+
+    @Column(name = "categoria_id")
+    private Long categoriaId;
+
+    @Column(name = "marca_id")
+    private Long marcaId;
+
+    @Column(name = "tipo_sku", nullable = false, length = 30)
+    private String tipoSku;
+
+    @Column(name = "codigo_interno", nullable = false, length = 60)
+    private String codigoInterno;
+
+    @Column(name = "descripcion_comercial", nullable = false, length = 500)
+    private String descripcionComercial;
+
+    @Column(name = "nombre_corto", length = 200)
+    private String nombreCorto;
+
+    @Column(name = "presentacion_comercial", length = 300)
+    private String presentacionComercial;
+
+    @Column(name = "unidad_venta_codigo", length = 30)
+    private String unidadVentaCodigo;
+
+    private BigDecimal contenido;
+
+    @Column(name = "unidad_contenido_codigo", length = 30)
+    private String unidadContenidoCodigo;
+
+    @Column(name = "peso_gramos")
+    private BigDecimal pesoGramos;
+
+    @Column(name = "alto_cm")
+    private BigDecimal altoCm;
+
+    @Column(name = "ancho_cm")
+    private BigDecimal anchoCm;
+
+    @Column(name = "largo_cm")
+    private BigDecimal largoCm;
+
+    @Column(name = "permite_venta_fraccion", nullable = false)
+    private boolean permiteVentaFraccion;
+
+    @Column(name = "factor_fraccion")
+    private BigDecimal factorFraccion;
+
+    @Column(name = "requiere_lote", nullable = false)
+    private boolean requiereLote;
+
+    @Column(name = "requiere_vencimiento", nullable = false)
+    private boolean requiereVencimiento;
+
+    @Column(name = "afecto_igv", nullable = false)
+    private boolean afectoIgv;
+
+    @Column(name = "stock_minimo_default", nullable = false)
+    private BigDecimal stockMinimoDefault;
+
+    @Column(name = "stock_maximo_default")
+    private BigDecimal stockMaximoDefault;
+
+    @Column(name = "imagen_uri")
+    private String imagenUri;
+
+    @Column(name = "estado_comercial", nullable = false, length = 20)
+    private String estadoComercial;
+
+    @Column(name = "created_by", nullable = false, length = 100)
+    private String createdBy;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    protected SkuComercialJpaEntity() {
+    }
+
+    public SkuComercialJpaEntity(
+            UUID uuidPublico, Long tenantId, Long productoReguladoId, Long categoriaId, Long marcaId,
+            String tipoSku, String codigoInterno, String descripcionComercial, String nombreCorto,
+            String presentacionComercial, String unidadVentaCodigo, BigDecimal contenido,
+            String unidadContenidoCodigo, BigDecimal pesoGramos, BigDecimal altoCm, BigDecimal anchoCm,
+            BigDecimal largoCm, boolean permiteVentaFraccion, BigDecimal factorFraccion, boolean requiereLote,
+            boolean requiereVencimiento, boolean afectoIgv, BigDecimal stockMinimoDefault,
+            BigDecimal stockMaximoDefault, String imagenUri, String estadoComercial, String createdBy,
+            Instant createdAt, String updatedBy, Instant updatedAt) {
+        this.uuidPublico = uuidPublico;
+        this.tenantId = tenantId;
+        this.productoReguladoId = productoReguladoId;
+        this.categoriaId = categoriaId;
+        this.marcaId = marcaId;
+        this.tipoSku = tipoSku;
+        this.codigoInterno = codigoInterno;
+        this.descripcionComercial = descripcionComercial;
+        this.nombreCorto = nombreCorto;
+        this.presentacionComercial = presentacionComercial;
+        this.unidadVentaCodigo = unidadVentaCodigo;
+        this.contenido = contenido;
+        this.unidadContenidoCodigo = unidadContenidoCodigo;
+        this.pesoGramos = pesoGramos;
+        this.altoCm = altoCm;
+        this.anchoCm = anchoCm;
+        this.largoCm = largoCm;
+        this.permiteVentaFraccion = permiteVentaFraccion;
+        this.factorFraccion = factorFraccion;
+        this.requiereLote = requiereLote;
+        this.requiereVencimiento = requiereVencimiento;
+        this.afectoIgv = afectoIgv;
+        this.stockMinimoDefault = stockMinimoDefault;
+        this.stockMaximoDefault = stockMaximoDefault;
+        this.imagenUri = imagenUri;
+        this.estadoComercial = estadoComercial;
+        this.createdBy = createdBy;
+        this.createdAt = createdAt;
+        this.updatedBy = updatedBy;
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getId() { return id; }
+    public UUID getUuidPublico() { return uuidPublico; }
+    public Long getTenantId() { return tenantId; }
+    public Long getProductoReguladoId() { return productoReguladoId; }
+    public Long getCategoriaId() { return categoriaId; }
+    public Long getMarcaId() { return marcaId; }
+    public String getTipoSku() { return tipoSku; }
+    public String getCodigoInterno() { return codigoInterno; }
+    public String getDescripcionComercial() { return descripcionComercial; }
+    public String getNombreCorto() { return nombreCorto; }
+    public String getPresentacionComercial() { return presentacionComercial; }
+    public String getUnidadVentaCodigo() { return unidadVentaCodigo; }
+    public BigDecimal getContenido() { return contenido; }
+    public String getUnidadContenidoCodigo() { return unidadContenidoCodigo; }
+    public BigDecimal getPesoGramos() { return pesoGramos; }
+    public BigDecimal getAltoCm() { return altoCm; }
+    public BigDecimal getAnchoCm() { return anchoCm; }
+    public BigDecimal getLargoCm() { return largoCm; }
+    public boolean isPermiteVentaFraccion() { return permiteVentaFraccion; }
+    public BigDecimal getFactorFraccion() { return factorFraccion; }
+    public boolean isRequiereLote() { return requiereLote; }
+    public boolean isRequiereVencimiento() { return requiereVencimiento; }
+    public boolean isAfectoIgv() { return afectoIgv; }
+    public BigDecimal getStockMinimoDefault() { return stockMinimoDefault; }
+    public BigDecimal getStockMaximoDefault() { return stockMaximoDefault; }
+    public String getImagenUri() { return imagenUri; }
+    public String getEstadoComercial() { return estadoComercial; }
+    public String getCreatedBy() { return createdBy; }
+    public Instant getCreatedAt() { return createdAt; }
+    public String getUpdatedBy() { return updatedBy; }
+    public Instant getUpdatedAt() { return updatedAt; }
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/SkuCodigoBarraJpaEntity.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "sku_codigo_barra", schema = "sch_farmacia")
+public class SkuCodigoBarraJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
+    @Column(name = "sku_id", nullable = false)
+    private Long skuId;
+
+    @Column(name = "tipo_codigo", nullable = false, length = 30)
+    private String tipoCodigo;
+
+    @Column(name = "codigo_barra", nullable = false, length = 80)
+    private String codigoBarra;
+
+    @Column(name = "es_principal", nullable = false)
+    private boolean esPrincipal;
+
+    @Column(name = "vigente_desde")
+    private LocalDate vigenteDesde;
+
+    @Column(name = "vigente_hasta")
+    private LocalDate vigenteHasta;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    protected SkuCodigoBarraJpaEntity() {
+    }
+
+    public SkuCodigoBarraJpaEntity(
+            Long tenantId, Long skuId, String tipoCodigo, String codigoBarra, boolean esPrincipal,
+            LocalDate vigenteDesde, LocalDate vigenteHasta, String estado) {
+        this.tenantId = tenantId;
+        this.skuId = skuId;
+        this.tipoCodigo = tipoCodigo;
+        this.codigoBarra = codigoBarra;
+        this.esPrincipal = esPrincipal;
+        this.vigenteDesde = vigenteDesde;
+        this.vigenteHasta = vigenteHasta;
+        this.estado = estado;
+    }
+
+    public Long getId() { return id; }
+    public Long getTenantId() { return tenantId; }
+    public Long getSkuId() { return skuId; }
+    public String getTipoCodigo() { return tipoCodigo; }
+    public String getCodigoBarra() { return codigoBarra; }
+    public boolean isEsPrincipal() { return esPrincipal; }
+    public LocalDate getVigenteDesde() { return vigenteDesde; }
+    public LocalDate getVigenteHasta() { return vigenteHasta; }
+    public String getEstado() { return estado; }
+}
+```
+
+- [ ] **Step 5: Crear los 12 repositorios Spring Data**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CondicionVentaJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CondicionVentaJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface CondicionVentaJpaRepository extends JpaRepository<CondicionVentaJpaEntity, String> {
+}
+```
+
+Crear, con la misma forma (`JpaRepository<XJpaEntity, String>`, sin métodos adicionales — la PK ya es el `codigo` de negocio), los siguientes 4 repositorios:
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/FormaFarmaceuticaJpaRepository.java` → `JpaRepository<FormaFarmaceuticaJpaEntity, String>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ViaAdministracionJpaRepository.java` → `JpaRepository<ViaAdministracionJpaEntity, String>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/UnidadMedidaJpaRepository.java` → `JpaRepository<UnidadMedidaJpaEntity, String>`
+- `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ClasificacionControladaJpaRepository.java` → `JpaRepository<ClasificacionControladaJpaEntity, String>`
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/PrincipioActivoJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.PrincipioActivoJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PrincipioActivoJpaRepository extends JpaRepository<PrincipioActivoJpaEntity, Long> {
+    Optional<PrincipioActivoJpaEntity> findByUuidPublico(UUID uuidPublico);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/MarcaJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.MarcaJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface MarcaJpaRepository extends JpaRepository<MarcaJpaEntity, Long> {
+    Optional<MarcaJpaEntity> findByUuidPublico(UUID uuidPublico);
+    boolean existsByTenantIdAndCodigo(Long tenantId, String codigo);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/CategoriaProductoJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaProductoJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface CategoriaProductoJpaRepository extends JpaRepository<CategoriaProductoJpaEntity, Long> {
+    Optional<CategoriaProductoJpaEntity> findByUuidPublico(UUID uuidPublico);
+    boolean existsByTenantIdAndCodigo(Long tenantId, String codigo);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoReguladoJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoReguladoJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductoReguladoJpaRepository extends JpaRepository<ProductoReguladoJpaEntity, Long> {
+    Optional<ProductoReguladoJpaEntity> findByUuidPublico(UUID uuidPublico);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/ProductoPrincipioActivoJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoPrincipioActivoJpaEntity;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductoPrincipioActivoJpaRepository
+        extends JpaRepository<ProductoPrincipioActivoJpaEntity, ProductoPrincipioActivoJpaEntity.Key> {
+    List<ProductoPrincipioActivoJpaEntity> findByProductoReguladoId(Long productoReguladoId);
+    void deleteByProductoReguladoId(Long productoReguladoId);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/SkuComercialJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuComercialJpaEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface SkuComercialJpaRepository extends JpaRepository<SkuComercialJpaEntity, Long> {
+    Optional<SkuComercialJpaEntity> findByUuidPublico(UUID uuidPublico);
+    boolean existsByTenantIdAndCodigoInterno(Long tenantId, String codigoInterno);
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/SkuCodigoBarraJpaRepository.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.repository;
+
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuCodigoBarraJpaEntity;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface SkuCodigoBarraJpaRepository extends JpaRepository<SkuCodigoBarraJpaEntity, Long> {
+    List<SkuCodigoBarraJpaEntity> findBySkuId(Long skuId);
+    boolean existsByTenantIdAndCodigoBarra(Long tenantId, String codigoBarra);
+    void deleteBySkuId(Long skuId);
+}
+```
+
+- [ ] **Step 6: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/entity/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/repository/
+git commit -m "feat(catalogo): agregar entidades y repositorios JPA de las 12 tablas"
+```
+
+---
+
+### Task 18: `CatalogoSoporteJpaWriteAdapter` (implementa `CatalogoSoportePort` completo)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoSoporteWriteMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoSoporteJpaWriteAdapter.java`
+
+**Interfaces:**
+- Consumes: las 6 entidades de dominio de soporte (Task 3, 4 del documento anterior), sus entidades JPA y repositorios (Task 17), `CatalogoSoportePort` (Task 10 del documento anterior).
+- Produces: `CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort`, registrado como `@Repository`. Usado por Task 24 (wiring), verificado por Task 25.
+
+No hay test unitario dedicado (requiere BD real); se valida vía el test de integración de Task 25.
+
+- [ ] **Step 1: Crear `CatalogoSoporteWriteMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoSoporteWriteMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
+
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ClasificacionControladaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CondicionVentaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.FormaFarmaceuticaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.PrincipioActivoJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.UnidadMedidaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ViaAdministracionJpaEntity;
+
+public final class CatalogoSoporteWriteMapper {
+
+    private CatalogoSoporteWriteMapper() {
+    }
+
+    public static CondicionVentaJpaEntity toEntity(CondicionVenta condicionVenta) {
+        return new CondicionVentaJpaEntity(
+                condicionVenta.codigo(), condicionVenta.denominacion(), condicionVenta.requiereReceta(),
+                condicionVenta.requiereRetencion(), condicionVenta.fuente(), condicionVenta.versionFuente(),
+                condicionVenta.vigenteDesde(), condicionVenta.vigenteHasta(), condicionVenta.estado().name());
+    }
+
+    public static FormaFarmaceuticaJpaEntity toEntity(FormaFarmaceutica formaFarmaceutica) {
+        return new FormaFarmaceuticaJpaEntity(
+                formaFarmaceutica.codigo(), formaFarmaceutica.denominacion(), formaFarmaceutica.fuente(),
+                formaFarmaceutica.estado().name());
+    }
+
+    public static ViaAdministracionJpaEntity toEntity(ViaAdministracion viaAdministracion) {
+        return new ViaAdministracionJpaEntity(
+                viaAdministracion.codigo(), viaAdministracion.denominacion(), viaAdministracion.fuente(),
+                viaAdministracion.estado().name());
+    }
+
+    public static UnidadMedidaJpaEntity toEntity(UnidadMedida unidadMedida) {
+        return new UnidadMedidaJpaEntity(
+                unidadMedida.codigo(), unidadMedida.denominacion(), unidadMedida.simbolo(),
+                unidadMedida.permiteDecimal(), unidadMedida.fuente(), unidadMedida.estado().name());
+    }
+
+    public static ClasificacionControladaJpaEntity toEntity(ClasificacionControlada clasificacionControlada) {
+        return new ClasificacionControladaJpaEntity(
+                clasificacionControlada.codigo(), clasificacionControlada.denominacion(),
+                clasificacionControlada.normaFuente(), clasificacionControlada.requiereRecetaEspecial(),
+                clasificacionControlada.retieneReceta(), clasificacionControlada.vigenciaRecetaDias(),
+                clasificacionControlada.estado().name());
+    }
+
+    public static PrincipioActivoJpaEntity toEntity(PrincipioActivo principioActivo) {
+        return new PrincipioActivoJpaEntity(
+                principioActivo.id().value(), principioActivo.codigoFuente(), principioActivo.denominacion(),
+                principioActivo.nombreNormalizado(), principioActivo.fuente(), principioActivo.estado().name());
+    }
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoSoporteJpaWriteAdapter`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoSoporteJpaWriteAdapter.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoSoporteWriteMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ClasificacionControladaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CondicionVentaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.FormaFarmaceuticaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.PrincipioActivoJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.UnidadMedidaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ViaAdministracionJpaRepository;
+import java.time.Instant;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
+
+    private final CondicionVentaJpaRepository condicionVentaRepository;
+    private final FormaFarmaceuticaJpaRepository formaFarmaceuticaRepository;
+    private final ViaAdministracionJpaRepository viaAdministracionRepository;
+    private final UnidadMedidaJpaRepository unidadMedidaRepository;
+    private final ClasificacionControladaJpaRepository clasificacionControladaRepository;
+    private final PrincipioActivoJpaRepository principioActivoRepository;
+    private final JdbcClient jdbcClient;
+
+    public CatalogoSoporteJpaWriteAdapter(
+            CondicionVentaJpaRepository condicionVentaRepository,
+            FormaFarmaceuticaJpaRepository formaFarmaceuticaRepository,
+            ViaAdministracionJpaRepository viaAdministracionRepository,
+            UnidadMedidaJpaRepository unidadMedidaRepository,
+            ClasificacionControladaJpaRepository clasificacionControladaRepository,
+            PrincipioActivoJpaRepository principioActivoRepository,
+            JdbcClient jdbcClient) {
+        this.condicionVentaRepository = condicionVentaRepository;
+        this.formaFarmaceuticaRepository = formaFarmaceuticaRepository;
+        this.viaAdministracionRepository = viaAdministracionRepository;
+        this.unidadMedidaRepository = unidadMedidaRepository;
+        this.clasificacionControladaRepository = clasificacionControladaRepository;
+        this.principioActivoRepository = principioActivoRepository;
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(CondicionVenta condicionVenta) {
+        var existing = condicionVentaRepository.findById(condicionVenta.codigo());
+        if (existing.isEmpty()) {
+            try {
+                condicionVentaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(condicionVenta));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.condicion_venta
+                           SET denominacion = :denominacion, requiere_receta = :requiereReceta,
+                               requiere_retencion = :requiereRetencion, fuente = :fuente,
+                               version_fuente = :versionFuente, vigente_desde = :vigenteDesde,
+                               vigente_hasta = :vigenteHasta
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", condicionVenta.denominacion())
+                .param("requiereReceta", condicionVenta.requiereReceta())
+                .param("requiereRetencion", condicionVenta.requiereRetencion())
+                .param("fuente", condicionVenta.fuente())
+                .param("versionFuente", condicionVenta.versionFuente())
+                .param("vigenteDesde", condicionVenta.vigenteDesde())
+                .param("vigenteHasta", condicionVenta.vigenteHasta())
+                .param("codigo", condicionVenta.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(FormaFarmaceutica formaFarmaceutica) {
+        var existing = formaFarmaceuticaRepository.findById(formaFarmaceutica.codigo());
+        if (existing.isEmpty()) {
+            try {
+                formaFarmaceuticaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(formaFarmaceutica));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.forma_farmaceutica SET denominacion = :denominacion, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", formaFarmaceutica.denominacion())
+                .param("fuente", formaFarmaceutica.fuente())
+                .param("codigo", formaFarmaceutica.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(ViaAdministracion viaAdministracion) {
+        var existing = viaAdministracionRepository.findById(viaAdministracion.codigo());
+        if (existing.isEmpty()) {
+            try {
+                viaAdministracionRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(viaAdministracion));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.via_administracion SET denominacion = :denominacion, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", viaAdministracion.denominacion())
+                .param("fuente", viaAdministracion.fuente())
+                .param("codigo", viaAdministracion.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(UnidadMedida unidadMedida) {
+        var existing = unidadMedidaRepository.findById(unidadMedida.codigo());
+        if (existing.isEmpty()) {
+            try {
+                unidadMedidaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(unidadMedida));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.unidad_medida
+                           SET denominacion = :denominacion, simbolo = :simbolo,
+                               permite_decimal = :permiteDecimal, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", unidadMedida.denominacion())
+                .param("simbolo", unidadMedida.simbolo())
+                .param("permiteDecimal", unidadMedida.permiteDecimal())
+                .param("fuente", unidadMedida.fuente())
+                .param("codigo", unidadMedida.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(ClasificacionControlada clasificacionControlada) {
+        var existing = clasificacionControladaRepository.findById(clasificacionControlada.codigo());
+        if (existing.isEmpty()) {
+            try {
+                clasificacionControladaRepository.saveAndFlush(
+                        CatalogoSoporteWriteMapper.toEntity(clasificacionControlada));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.clasificacion_controlada
+                           SET denominacion = :denominacion, norma_fuente = :normaFuente,
+                               requiere_receta_especial = :requiereRecetaEspecial,
+                               retiene_receta = :retieneReceta, vigencia_receta_dias = :vigenciaRecetaDias
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", clasificacionControlada.denominacion())
+                .param("normaFuente", clasificacionControlada.normaFuente())
+                .param("requiereRecetaEspecial", clasificacionControlada.requiereRecetaEspecial())
+                .param("retieneReceta", clasificacionControlada.retieneReceta())
+                .param("vigenciaRecetaDias", clasificacionControlada.vigenciaRecetaDias())
+                .param("codigo", clasificacionControlada.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
+        var existing = principioActivoRepository.findByUuidPublico(principioActivo.id().value());
+        if (existing.isEmpty()) {
+            principioActivoRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(principioActivo));
+            return SavePrincipioActivoOutcome.CREATED;
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.principio_activo
+                           SET codigo_fuente = :codigoFuente, denominacion = :denominacion,
+                               nombre_normalizado = :nombreNormalizado, fuente = :fuente
+                         WHERE uuid_publico = :principioActivoId
+                        """)
+                .param("codigoFuente", principioActivo.codigoFuente())
+                .param("denominacion", principioActivo.denominacion())
+                .param("nombreNormalizado", principioActivo.nombreNormalizado())
+                .param("fuente", principioActivo.fuente())
+                .param("principioActivoId", principioActivo.id().value())
+                .update();
+        return SavePrincipioActivoOutcome.UPDATED;
+    }
+
+    @Override
+    public boolean condicionVentaExists(String codigo) {
+        return condicionVentaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean formaFarmaceuticaExists(String codigo) {
+        return formaFarmaceuticaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean viaAdministracionExists(String codigo) {
+        return viaAdministracionRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean unidadMedidaExists(String codigo) {
+        return unidadMedidaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean clasificacionControladaExists(String codigo) {
+        return clasificacionControladaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean principioActivoExists(UUID principioActivoId) {
+        return principioActivoRepository.findByUuidPublico(principioActivoId).isPresent();
+    }
+
+    @Override
+    @Transactional
+    public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.condicion_venta SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.forma_farmaceutica SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.via_administracion SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.unidad_medida SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.clasificacion_controlada SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_farmacia.principio_activo SET estado = :status WHERE uuid_publico = :principioActivoId")
+                .param("status", status).param("principioActivoId", principioActivoId).update() == 1;
+    }
+}
+```
+
+- [ ] **Step 3: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoSoporteWriteMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoSoporteJpaWriteAdapter.java
+git commit -m "feat(catalogo): agregar CatalogoSoporteJpaWriteAdapter"
+```
+
+---
+
+### Task 19: `CatalogoComercialJpaWriteAdapter` (Marca, CategoriaProducto, SKUComercial + códigos de barra)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoComercialWriteMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoComercialJpaWriteAdapter.java`
+
+**Interfaces:**
+- Consumes: `Marca`, `CategoriaProducto`, `SKUComercial`, `CodigoBarraSku` (Task 5, 6, 8 del documento anterior), sus entidades JPA y repositorios (Task 17), `CatalogoComercialPort` (Task 10/14 del documento anterior, con `findSkuById` agregado en la Task 14).
+- Produces: `CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort`, registrado como `@Repository`. Usado por Task 24 (wiring), verificado por Task 25.
+
+- [ ] **Step 1: Crear `CatalogoComercialWriteMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoComercialWriteMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
+
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.CategoriaProductoJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.MarcaJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuComercialJpaEntity;
+
+public final class CatalogoComercialWriteMapper {
+
+    private CatalogoComercialWriteMapper() {
+    }
+
+    public static MarcaJpaEntity toEntity(Marca marca, Long tenantId) {
+        return new MarcaJpaEntity(
+                marca.id().value(), tenantId, marca.codigo(), marca.nombre(), marca.descripcion(),
+                marca.estado().name());
+    }
+
+    public static CategoriaProductoJpaEntity toEntity(
+            CategoriaProducto categoria, Long tenantId, Long categoriaPadreId) {
+        return new CategoriaProductoJpaEntity(
+                categoria.id().value(), tenantId, categoriaPadreId, categoria.codigo(), categoria.nombre(),
+                categoria.descripcion(), categoria.nivel(), categoria.orden(), categoria.estado().name());
+    }
+
+    public static SkuComercialJpaEntity toEntity(
+            SKUComercial sku, Long tenantId, Long productoReguladoId, Long categoriaId, Long marcaId) {
+        return new SkuComercialJpaEntity(
+                sku.id().value(), tenantId, productoReguladoId, categoriaId, marcaId, sku.tipoSku().name(),
+                sku.codigoInterno(), sku.descripcionComercial(), sku.nombreCorto(), sku.presentacionComercial(),
+                sku.unidadVentaCodigo(), sku.contenido(), sku.unidadContenidoCodigo(), sku.pesoGramos(),
+                sku.altoCm(), sku.anchoCm(), sku.largoCm(), sku.permiteVentaFraccion(), sku.factorFraccion(),
+                sku.requiereLote(), sku.requiereVencimiento(), sku.afectoIgv(), sku.stockMinimoDefault(),
+                sku.stockMaximoDefault(), sku.imagenUri(), sku.estado().name(), sku.createdBy(),
+                sku.createdAt(), sku.updatedBy(), sku.updatedAt());
+    }
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoComercialJpaWriteAdapter` — parte 1: constructor, `save(Marca)`, `save(CategoriaProducto)`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoComercialJpaWriteAdapter.java`, empezando con:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoComercialPort;
+import com.softprimesolutions.catalogo.domain.model.CategoriaProducto;
+import com.softprimesolutions.catalogo.domain.model.CodigoBarraSku;
+import com.softprimesolutions.catalogo.domain.model.Marca;
+import com.softprimesolutions.catalogo.domain.model.SKUComercial;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
+import com.softprimesolutions.catalogo.domain.valueobject.CategoriaProductoId;
+import com.softprimesolutions.catalogo.domain.valueobject.MarcaId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.catalogo.domain.valueobject.SkuId;
+import com.softprimesolutions.catalogo.domain.valueobject.TenantId;
+import com.softprimesolutions.catalogo.domain.model.TipoSku;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.SkuCodigoBarraJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoComercialWriteMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CategoriaProductoJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.MarcaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuCodigoBarraJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.SkuComercialJpaRepository;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoComercialJpaWriteAdapter implements CatalogoComercialPort {
+
+    private final MarcaJpaRepository marcaRepository;
+    private final CategoriaProductoJpaRepository categoriaRepository;
+    private final SkuComercialJpaRepository skuRepository;
+    private final SkuCodigoBarraJpaRepository codigoBarraRepository;
+    private final JdbcClient jdbcClient;
+
+    public CatalogoComercialJpaWriteAdapter(
+            MarcaJpaRepository marcaRepository,
+            CategoriaProductoJpaRepository categoriaRepository,
+            SkuComercialJpaRepository skuRepository,
+            SkuCodigoBarraJpaRepository codigoBarraRepository,
+            JdbcClient jdbcClient) {
+        this.marcaRepository = marcaRepository;
+        this.categoriaRepository = categoriaRepository;
+        this.skuRepository = skuRepository;
+        this.codigoBarraRepository = codigoBarraRepository;
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional
+    public SaveMarcaOutcome save(Marca marca) {
+        var tenantId = findTenantId(marca.tenantId() == null ? null : marca.tenantId().value());
+        if (tenantId.isEmpty()) return SaveMarcaOutcome.TENANT_NOT_FOUND;
+
+        var existing = marcaRepository.findByUuidPublico(marca.id().value());
+        if (existing.isEmpty()) {
+            if (marcaRepository.existsByTenantIdAndCodigo(tenantId.get(), marca.codigo())) {
+                return SaveMarcaOutcome.DUPLICATE_CODIGO;
+            }
+            try {
+                marcaRepository.saveAndFlush(CatalogoComercialWriteMapper.toEntity(marca, tenantId.get()));
+                return SaveMarcaOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveMarcaOutcome.DUPLICATE_CODIGO;
+            }
+        }
+
+        var entity = existing.get();
+        if (!entity.getCodigo().equals(marca.codigo())
+                && marcaRepository.existsByTenantIdAndCodigo(tenantId.get(), marca.codigo())) {
+            return SaveMarcaOutcome.DUPLICATE_CODIGO;
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.marca SET codigo = :codigo, nombre = :nombre, descripcion = :descripcion
+                         WHERE uuid_publico = :marcaId
+                        """)
+                .param("codigo", marca.codigo())
+                .param("nombre", marca.nombre())
+                .param("descripcion", marca.descripcion())
+                .param("marcaId", marca.id().value())
+                .update();
+        return SaveMarcaOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional
+    public SaveCategoriaOutcome save(CategoriaProducto categoria) {
+        var tenantId = findTenantId(categoria.tenantId() == null ? null : categoria.tenantId().value());
+        if (tenantId.isEmpty()) return SaveCategoriaOutcome.TENANT_NOT_FOUND;
+
+        Long categoriaPadreInternalId = null;
+        if (categoria.categoriaPadreId() != null) {
+            var padreInternalId = findCategoriaInternalId(categoria.categoriaPadreId().value());
+            if (padreInternalId.isEmpty()) return SaveCategoriaOutcome.CATEGORIA_PADRE_NOT_FOUND;
+            categoriaPadreInternalId = padreInternalId.get();
+        }
+
+        var existing = categoriaRepository.findByUuidPublico(categoria.id().value());
+        if (existing.isEmpty()) {
+            if (categoriaRepository.existsByTenantIdAndCodigo(tenantId.get(), categoria.codigo())) {
+                return SaveCategoriaOutcome.DUPLICATE_CODIGO;
+            }
+            try {
+                categoriaRepository.saveAndFlush(CatalogoComercialWriteMapper.toEntity(
+                        categoria, tenantId.get(), categoriaPadreInternalId));
+                return SaveCategoriaOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveCategoriaOutcome.DUPLICATE_CODIGO;
+            }
+        }
+
+        var entity = existing.get();
+        if (!entity.getCodigo().equals(categoria.codigo())
+                && categoriaRepository.existsByTenantIdAndCodigo(tenantId.get(), categoria.codigo())) {
+            return SaveCategoriaOutcome.DUPLICATE_CODIGO;
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_farmacia.categoria_producto
+                           SET categoria_padre_id = :categoriaPadreId, codigo = :codigo, nombre = :nombre,
+                               descripcion = :descripcion, nivel = :nivel, orden = :orden
+                         WHERE uuid_publico = :categoriaId
+                        """)
+                .param("categoriaPadreId", categoriaPadreInternalId)
+                .param("codigo", categoria.codigo())
+                .param("nombre", categoria.nombre())
+                .param("descripcion", categoria.descripcion())
+                .param("nivel", categoria.nivel())
+                .param("orden", categoria.orden())
+                .param("categoriaId", categoria.id().value())
+                .update();
+        return SaveCategoriaOutcome.UPDATED;
+    }
+```
+
+- [ ] **Step 3: Continuar el mismo archivo — `save(SKUComercial)` y `findSkuById`**
+
+Añadir, dentro de la misma clase `CatalogoComercialJpaWriteAdapter`:
+
+```java
+    @Override
+    @Transactional
+    public SaveSkuOutcome save(SKUComercial sku) {
+        var tenantId = findTenantId(sku.tenantId() == null ? null : sku.tenantId().value());
+        if (tenantId.isEmpty()) return SaveSkuOutcome.TENANT_NOT_FOUND;
+
+        Long productoReguladoInternalId = null;
+        if (sku.productoReguladoId() != null) {
+            var internalId = findProductoReguladoInternalId(sku.productoReguladoId().value());
+            if (internalId.isEmpty()) return SaveSkuOutcome.PRODUCTO_REGULADO_NOT_FOUND;
+            productoReguladoInternalId = internalId.get();
+        }
+
+        Long categoriaInternalId = null;
+        if (sku.categoriaId() != null) {
+            var internalId = findCategoriaInternalId(sku.categoriaId().value());
+            if (internalId.isEmpty()) return SaveSkuOutcome.CATEGORIA_NOT_FOUND;
+            categoriaInternalId = internalId.get();
+        }
+
+        Long marcaInternalId = null;
+        if (sku.marcaId() != null) {
+            var internalId = findMarcaInternalId(sku.marcaId().value());
+            if (internalId.isEmpty()) return SaveSkuOutcome.MARCA_NOT_FOUND;
+            marcaInternalId = internalId.get();
+        }
+
+        var existing = skuRepository.findByUuidPublico(sku.id().value());
+        Long skuInternalId;
+        if (existing.isEmpty()) {
+            if (skuRepository.existsByTenantIdAndCodigoInterno(tenantId.get(), sku.codigoInterno())) {
+                return SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
+            }
+            try {
+                var saved = skuRepository.saveAndFlush(CatalogoComercialWriteMapper.toEntity(
+                        sku, tenantId.get(), productoReguladoInternalId, categoriaInternalId, marcaInternalId));
+                skuInternalId = saved.getId();
+            } catch (DataIntegrityViolationException exception) {
+                return SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
+            }
+        } else {
+            var entity = existing.get();
+            if (!entity.getCodigoInterno().equals(sku.codigoInterno())
+                    && skuRepository.existsByTenantIdAndCodigoInterno(tenantId.get(), sku.codigoInterno())) {
+                return SaveSkuOutcome.DUPLICATE_CODIGO_INTERNO;
+            }
+            jdbcClient.sql("""
+                            UPDATE sch_farmacia.sku_comercial
+                               SET producto_regulado_id = :productoReguladoId, categoria_id = :categoriaId,
+                                   marca_id = :marcaId, tipo_sku = :tipoSku, codigo_interno = :codigoInterno,
+                                   descripcion_comercial = :descripcionComercial, nombre_corto = :nombreCorto,
+                                   presentacion_comercial = :presentacionComercial,
+                                   unidad_venta_codigo = :unidadVentaCodigo, contenido = :contenido,
+                                   unidad_contenido_codigo = :unidadContenidoCodigo, peso_gramos = :pesoGramos,
+                                   alto_cm = :altoCm, ancho_cm = :anchoCm, largo_cm = :largoCm,
+                                   permite_venta_fraccion = :permiteVentaFraccion,
+                                   factor_fraccion = :factorFraccion, requiere_lote = :requiereLote,
+                                   requiere_vencimiento = :requiereVencimiento, afecto_igv = :afectoIgv,
+                                   stock_minimo_default = :stockMinimoDefault,
+                                   stock_maximo_default = :stockMaximoDefault, imagen_uri = :imagenUri,
+                                   updated_by = :updatedBy, updated_at = :updatedAt
+                             WHERE uuid_publico = :skuId
+                            """)
+                    .param("productoReguladoId", productoReguladoInternalId)
+                    .param("categoriaId", categoriaInternalId)
+                    .param("marcaId", marcaInternalId)
+                    .param("tipoSku", sku.tipoSku().name())
+                    .param("codigoInterno", sku.codigoInterno())
+                    .param("descripcionComercial", sku.descripcionComercial())
+                    .param("nombreCorto", sku.nombreCorto())
+                    .param("presentacionComercial", sku.presentacionComercial())
+                    .param("unidadVentaCodigo", sku.unidadVentaCodigo())
+                    .param("contenido", sku.contenido())
+                    .param("unidadContenidoCodigo", sku.unidadContenidoCodigo())
+                    .param("pesoGramos", sku.pesoGramos())
+                    .param("altoCm", sku.altoCm())
+                    .param("anchoCm", sku.anchoCm())
+                    .param("largoCm", sku.largoCm())
+                    .param("permiteVentaFraccion", sku.permiteVentaFraccion())
+                    .param("factorFraccion", sku.factorFraccion())
+                    .param("requiereLote", sku.requiereLote())
+                    .param("requiereVencimiento", sku.requiereVencimiento())
+                    .param("afectoIgv", sku.afectoIgv())
+                    .param("stockMinimoDefault", sku.stockMinimoDefault())
+                    .param("stockMaximoDefault", sku.stockMaximoDefault())
+                    .param("imagenUri", sku.imagenUri())
+                    .param("updatedBy", sku.updatedBy())
+                    .param("updatedAt", sku.updatedAt())
+                    .param("skuId", sku.id().value())
+                    .update();
+            skuInternalId = entity.getId();
+        }
+
+        codigoBarraRepository.deleteBySkuId(skuInternalId);
+        for (var codigo : sku.codigosBarra()) {
+            if (codigoBarraRepository.existsByTenantIdAndCodigoBarra(tenantId.get(), codigo.codigoBarra())) {
+                return SaveSkuOutcome.DUPLICATE_CODIGO_BARRA;
+            }
+            codigoBarraRepository.save(new SkuCodigoBarraJpaEntity(
+                    tenantId.get(), skuInternalId, codigo.tipoCodigo(), codigo.codigoBarra(),
+                    codigo.esPrincipal(), codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado().name()));
+        }
+        return existing.isEmpty() ? SaveSkuOutcome.CREATED : SaveSkuOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SKUComercial> findSkuById(UUID tenantId, UUID skuId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return Optional.empty();
+        var entity = skuRepository.findByUuidPublico(skuId);
+        if (entity.isEmpty() || !entity.get().getTenantId().equals(tenantInternalId.get())) {
+            return Optional.empty();
+        }
+
+        var codigos = codigoBarraRepository.findBySkuId(entity.get().getId()).stream()
+                .map(codigoEntity -> new CodigoBarraSku(
+                        codigoEntity.getCodigoBarra(), codigoEntity.getTipoCodigo(), codigoEntity.isEsPrincipal(),
+                        codigoEntity.getVigenteDesde(), codigoEntity.getVigenteHasta(),
+                        EstadoCatalogoSoporte.valueOf(codigoEntity.getEstado())))
+                .toList();
+
+        var productoReguladoId = entity.get().getProductoReguladoId() == null ? null
+                : findProductoReguladoUuid(entity.get().getProductoReguladoId());
+        var categoriaId = entity.get().getCategoriaId() == null ? null
+                : findCategoriaUuid(entity.get().getCategoriaId());
+        var marcaId = entity.get().getMarcaId() == null ? null : findMarcaUuid(entity.get().getMarcaId());
+
+        var sku = SKUComercial.restore(
+                new SkuId(entity.get().getUuidPublico()), new TenantId(tenantId),
+                productoReguladoId == null ? null : new ProductoReguladoId(productoReguladoId),
+                categoriaId == null ? null : new CategoriaProductoId(categoriaId),
+                marcaId == null ? null : new MarcaId(marcaId),
+                TipoSku.valueOf(entity.get().getTipoSku()), entity.get().getCodigoInterno(),
+                entity.get().getDescripcionComercial(), entity.get().getNombreCorto(),
+                entity.get().getPresentacionComercial(), entity.get().getUnidadVentaCodigo(),
+                entity.get().getContenido(), entity.get().getUnidadContenidoCodigo(),
+                entity.get().getPesoGramos(), entity.get().getAltoCm(), entity.get().getAnchoCm(),
+                entity.get().getLargoCm(), entity.get().isPermiteVentaFraccion(), entity.get().getFactorFraccion(),
+                entity.get().isRequiereLote(), entity.get().isRequiereVencimiento(), entity.get().isAfectoIgv(),
+                entity.get().getStockMinimoDefault(), entity.get().getStockMaximoDefault(),
+                entity.get().getImagenUri(), codigos,
+                com.softprimesolutions.catalogo.domain.model.EstadoComercialSku.valueOf(entity.get().getEstadoComercial()),
+                entity.get().getCreatedBy(), entity.get().getCreatedAt(), entity.get().getUpdatedBy(),
+                entity.get().getUpdatedAt());
+        return Optional.of(sku);
+    }
+```
+
+- [ ] **Step 4: Continuar el mismo archivo — `categoriaExists`, `marcaExists`, los `changeXStatus`, y los métodos privados de resolución de ids**
+
+Añadir, dentro de la misma clase:
+
+```java
+    @Override
+    public boolean categoriaExists(UUID tenantId, UUID categoriaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_farmacia.categoria_producto
+                         WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
+                        """)
+                .param("tenantId", tenantInternalId.get()).param("categoriaId", categoriaId)
+                .query(Long.class).single() > 0;
+    }
+
+    @Override
+    public boolean marcaExists(UUID tenantId, UUID marcaId) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        SELECT COUNT(*) FROM sch_farmacia.marca WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
+                        """)
+                .param("tenantId", tenantInternalId.get()).param("marcaId", marcaId)
+                .query(Long.class).single() > 0;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeMarcaStatus(UUID tenantId, UUID marcaId, String status, Instant changedAt) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        UPDATE sch_farmacia.marca SET estado = :status
+                         WHERE tenant_id = :tenantId AND uuid_publico = :marcaId
+                        """)
+                .param("status", status).param("tenantId", tenantInternalId.get()).param("marcaId", marcaId)
+                .update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeCategoriaStatus(UUID tenantId, UUID categoriaId, String status, Instant changedAt) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        UPDATE sch_farmacia.categoria_producto SET estado = :status
+                         WHERE tenant_id = :tenantId AND uuid_publico = :categoriaId
+                        """)
+                .param("status", status).param("tenantId", tenantInternalId.get()).param("categoriaId", categoriaId)
+                .update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeSkuStatus(UUID tenantId, UUID skuId, String status, Instant changedAt) {
+        var tenantInternalId = findTenantId(tenantId);
+        if (tenantInternalId.isEmpty()) return false;
+        return jdbcClient.sql("""
+                        UPDATE sch_farmacia.sku_comercial SET estado_comercial = :status
+                         WHERE tenant_id = :tenantId AND uuid_publico = :skuId
+                        """)
+                .param("status", status).param("tenantId", tenantInternalId.get()).param("skuId", skuId)
+                .update() == 1;
+    }
+
+    private Optional<Long> findTenantId(UUID tenantUuid) {
+        if (tenantUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.tenant WHERE uuid_publico = :tenantUuid")
+                .param("tenantUuid", tenantUuid).query(Long.class).optional();
+    }
+
+    private Optional<Long> findCategoriaInternalId(UUID categoriaUuid) {
+        if (categoriaUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.categoria_producto WHERE uuid_publico = :categoriaUuid")
+                .param("categoriaUuid", categoriaUuid).query(Long.class).optional();
+    }
+
+    private Optional<Long> findMarcaInternalId(UUID marcaUuid) {
+        if (marcaUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.marca WHERE uuid_publico = :marcaUuid")
+                .param("marcaUuid", marcaUuid).query(Long.class).optional();
+    }
+
+    private Optional<Long> findProductoReguladoInternalId(UUID productoReguladoUuid) {
+        if (productoReguladoUuid == null) return Optional.empty();
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.producto_regulado WHERE uuid_publico = :productoReguladoUuid")
+                .param("productoReguladoUuid", productoReguladoUuid).query(Long.class).optional();
+    }
+
+    private UUID findProductoReguladoUuid(Long internalId) {
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.producto_regulado WHERE id = :internalId")
+                .param("internalId", internalId).query(UUID.class).single();
+    }
+
+    private UUID findCategoriaUuid(Long internalId) {
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.categoria_producto WHERE id = :internalId")
+                .param("internalId", internalId).query(UUID.class).single();
+    }
+
+    private UUID findMarcaUuid(Long internalId) {
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.marca WHERE id = :internalId")
+                .param("internalId", internalId).query(UUID.class).single();
+    }
+}
+```
+
+- [ ] **Step 5: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL. Nota: revisar que los imports no utilizados listados al inicio del Step 2 (`ArrayList`, `OffsetDateTime`, `ZoneOffset`) se eliminen si el compilador los marca como no usados — se incluyeron por si acaso al ensamblar el archivo en partes, pero el código final de los Steps 2-4 no los necesita (no hay manipulación manual de listas mutables ni conversión de zona horaria en este adapter, a diferencia de `IamJpaWriteAdapter`).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/CatalogoComercialWriteMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/CatalogoComercialJpaWriteAdapter.java
+git commit -m "feat(catalogo): agregar CatalogoComercialJpaWriteAdapter"
+```
+
+---
+
+### Task 20: `ProductoReguladoJpaWriteAdapter` (con relación N:M a `PrincipioActivo`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/ProductoReguladoWriteMapper.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/ProductoReguladoJpaWriteAdapter.java`
+
+**Interfaces:**
+- Consumes: `ProductoRegulado`, `PrincipioActivoAsociado` (Task 7 del documento anterior), sus entidades JPA y repositorios (Task 17), `ProductoReguladoPort` (Task 10 del documento anterior).
+- Produces: `ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort`, registrado como `@Repository`. Usado por Task 24 (wiring), verificado por Task 25.
+
+- [ ] **Step 1: Crear `ProductoReguladoWriteMapper`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/ProductoReguladoWriteMapper.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper;
+
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoReguladoJpaEntity;
+
+public final class ProductoReguladoWriteMapper {
+
+    private ProductoReguladoWriteMapper() {
+    }
+
+    public static ProductoReguladoJpaEntity toEntity(ProductoRegulado producto) {
+        return new ProductoReguladoJpaEntity(
+                producto.id().value(), producto.tipoProducto(), producto.rubroCodigo(), producto.tipoRegistro(),
+                producto.numeroRegistro(), producto.denominacion(), producto.concentracionTexto(),
+                producto.presentacionRegulatoria(), producto.formaFarmaceuticaCodigo(),
+                producto.viaAdministracionCodigo(), producto.unidadMedidaCodigo(), producto.condicionVentaCodigo(),
+                producto.clasificacionAtc(), producto.clasificacionControladaCodigo(), producto.tipoLiberacion(),
+                producto.origenFabricacion(), producto.paisOrigen(), producto.subpartidaNacional(),
+                producto.titularRegistro(), producto.fabricante(), producto.importador(),
+                producto.establecimientoExpendio(), producto.vigenteDesde(), producto.vigenteHasta(),
+                producto.estado().name(), producto.fuente(), producto.versionFuente(), producto.createdAt(),
+                producto.updatedAt());
+    }
+}
+```
+
+- [ ] **Step 2: Crear `ProductoReguladoJpaWriteAdapter` — `save`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/ProductoReguladoJpaWriteAdapter.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
+
+import com.softprimesolutions.catalogo.application.port.out.ProductoReguladoPort;
+import com.softprimesolutions.catalogo.domain.model.EstadoRegulatorio;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivoAsociado;
+import com.softprimesolutions.catalogo.domain.model.ProductoRegulado;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.catalogo.domain.valueobject.ProductoReguladoId;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.entity.ProductoPrincipioActivoJpaEntity;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.ProductoReguladoWriteMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ProductoPrincipioActivoJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ProductoReguladoJpaRepository;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class ProductoReguladoJpaWriteAdapter implements ProductoReguladoPort {
+
+    private final ProductoReguladoJpaRepository productoReguladoRepository;
+    private final ProductoPrincipioActivoJpaRepository principioActivoAsociadoRepository;
+    private final JdbcClient jdbcClient;
+
+    public ProductoReguladoJpaWriteAdapter(
+            ProductoReguladoJpaRepository productoReguladoRepository,
+            ProductoPrincipioActivoJpaRepository principioActivoAsociadoRepository,
+            JdbcClient jdbcClient) {
+        this.productoReguladoRepository = productoReguladoRepository;
+        this.principioActivoAsociadoRepository = principioActivoAsociadoRepository;
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(ProductoRegulado producto) {
+        if (producto.formaFarmaceuticaCodigo() != null
+                && !existsInSupportTable("forma_farmaceutica", producto.formaFarmaceuticaCodigo())) {
+            return SaveOutcome.FORMA_FARMACEUTICA_NOT_FOUND;
+        }
+        if (producto.viaAdministracionCodigo() != null
+                && !existsInSupportTable("via_administracion", producto.viaAdministracionCodigo())) {
+            return SaveOutcome.VIA_ADMINISTRACION_NOT_FOUND;
+        }
+        if (producto.unidadMedidaCodigo() != null
+                && !existsInSupportTable("unidad_medida", producto.unidadMedidaCodigo())) {
+            return SaveOutcome.UNIDAD_MEDIDA_NOT_FOUND;
+        }
+        if (producto.condicionVentaCodigo() != null
+                && !existsInSupportTable("condicion_venta", producto.condicionVentaCodigo())) {
+            return SaveOutcome.CONDICION_VENTA_NOT_FOUND;
+        }
+        if (producto.clasificacionControladaCodigo() != null
+                && !existsInSupportTable("clasificacion_controlada", producto.clasificacionControladaCodigo())) {
+            return SaveOutcome.CLASIFICACION_CONTROLADA_NOT_FOUND;
+        }
+        for (var asociado : producto.principiosActivos()) {
+            if (findPrincipioActivoInternalId(asociado.principioActivoId().value()).isEmpty()) {
+                return SaveOutcome.PRINCIPIO_ACTIVO_NOT_FOUND;
+            }
+        }
+
+        var existing = productoReguladoRepository.findByUuidPublico(producto.id().value());
+        Long productoInternalId;
+        if (existing.isEmpty()) {
+            var saved = productoReguladoRepository.saveAndFlush(ProductoReguladoWriteMapper.toEntity(producto));
+            productoInternalId = saved.getId();
+        } else {
+            jdbcClient.sql("""
+                            UPDATE sch_farmacia.producto_regulado
+                               SET tipo_producto = :tipoProducto, rubro_codigo = :rubroCodigo,
+                                   tipo_registro = :tipoRegistro, numero_registro = :numeroRegistro,
+                                   denominacion = :denominacion, concentracion_texto = :concentracionTexto,
+                                   presentacion_regulatoria = :presentacionRegulatoria,
+                                   forma_farmaceutica_codigo = :formaFarmaceuticaCodigo,
+                                   via_administracion_codigo = :viaAdministracionCodigo,
+                                   unidad_medida_codigo = :unidadMedidaCodigo,
+                                   condicion_venta_codigo = :condicionVentaCodigo,
+                                   clasificacion_atc = :clasificacionAtc,
+                                   clasificacion_controlada_codigo = :clasificacionControladaCodigo,
+                                   tipo_liberacion = :tipoLiberacion, origen_fabricacion = :origenFabricacion,
+                                   pais_origen = :paisOrigen, subpartida_nacional = :subpartidaNacional,
+                                   titular_registro = :titularRegistro, fabricante = :fabricante,
+                                   importador = :importador, establecimiento_expendio = :establecimientoExpendio,
+                                   vigente_desde = :vigenteDesde, vigente_hasta = :vigenteHasta,
+                                   fuente = :fuente, version_fuente = :versionFuente, updated_at = :updatedAt
+                             WHERE uuid_publico = :productoReguladoId
+                            """)
+                    .param("tipoProducto", producto.tipoProducto())
+                    .param("rubroCodigo", producto.rubroCodigo())
+                    .param("tipoRegistro", producto.tipoRegistro())
+                    .param("numeroRegistro", producto.numeroRegistro())
+                    .param("denominacion", producto.denominacion())
+                    .param("concentracionTexto", producto.concentracionTexto())
+                    .param("presentacionRegulatoria", producto.presentacionRegulatoria())
+                    .param("formaFarmaceuticaCodigo", producto.formaFarmaceuticaCodigo())
+                    .param("viaAdministracionCodigo", producto.viaAdministracionCodigo())
+                    .param("unidadMedidaCodigo", producto.unidadMedidaCodigo())
+                    .param("condicionVentaCodigo", producto.condicionVentaCodigo())
+                    .param("clasificacionAtc", producto.clasificacionAtc())
+                    .param("clasificacionControladaCodigo", producto.clasificacionControladaCodigo())
+                    .param("tipoLiberacion", producto.tipoLiberacion())
+                    .param("origenFabricacion", producto.origenFabricacion())
+                    .param("paisOrigen", producto.paisOrigen())
+                    .param("subpartidaNacional", producto.subpartidaNacional())
+                    .param("titularRegistro", producto.titularRegistro())
+                    .param("fabricante", producto.fabricante())
+                    .param("importador", producto.importador())
+                    .param("establecimientoExpendio", producto.establecimientoExpendio())
+                    .param("vigenteDesde", producto.vigenteDesde())
+                    .param("vigenteHasta", producto.vigenteHasta())
+                    .param("fuente", producto.fuente())
+                    .param("versionFuente", producto.versionFuente())
+                    .param("updatedAt", producto.updatedAt())
+                    .param("productoReguladoId", producto.id().value())
+                    .update();
+            productoInternalId = existing.get().getId();
+        }
+
+        principioActivoAsociadoRepository.deleteByProductoReguladoId(productoInternalId);
+        for (var asociado : producto.principiosActivos()) {
+            var principioActivoInternalId = findPrincipioActivoInternalId(asociado.principioActivoId().value())
+                    .orElseThrow();
+            principioActivoAsociadoRepository.save(new ProductoPrincipioActivoJpaEntity(
+                    productoInternalId, principioActivoInternalId, asociado.concentracionTexto(),
+                    asociado.cantidad(), asociado.unidadMedidaCodigo(), asociado.esPrincipal(),
+                    asociado.orden()));
+        }
+
+        return existing.isEmpty() ? SaveOutcome.CREATED : SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ProductoRegulado> findById(UUID productoReguladoId) {
+        var entity = productoReguladoRepository.findByUuidPublico(productoReguladoId);
+        if (entity.isEmpty()) return Optional.empty();
+
+        var asociaciones = principioActivoAsociadoRepository.findByProductoReguladoId(entity.get().getId())
+                .stream()
+                .map(association -> new PrincipioActivoAsociado(
+                        new PrincipioActivoId(findPrincipioActivoUuid(association.getPrincipioActivoId())),
+                        association.getConcentracionTexto(), association.getCantidad(),
+                        association.getUnidadMedidaCodigo(), association.isEsPrincipal(),
+                        association.getOrden()))
+                .toList();
+
+        return Optional.of(ProductoRegulado.restore(
+                new ProductoReguladoId(entity.get().getUuidPublico()), entity.get().getTipoProducto(),
+                entity.get().getRubroCodigo(), entity.get().getTipoRegistro(), entity.get().getNumeroRegistro(),
+                entity.get().getDenominacion(), entity.get().getConcentracionTexto(),
+                entity.get().getPresentacionRegulatoria(), entity.get().getFormaFarmaceuticaCodigo(),
+                entity.get().getViaAdministracionCodigo(), entity.get().getUnidadMedidaCodigo(),
+                entity.get().getCondicionVentaCodigo(), entity.get().getClasificacionAtc(),
+                entity.get().getClasificacionControladaCodigo(), entity.get().getTipoLiberacion(),
+                entity.get().getOrigenFabricacion(), entity.get().getPaisOrigen(),
+                entity.get().getSubpartidaNacional(), entity.get().getTitularRegistro(),
+                entity.get().getFabricante(), entity.get().getImportador(),
+                entity.get().getEstablecimientoExpendio(), entity.get().getVigenteDesde(),
+                entity.get().getVigenteHasta(), entity.get().getFuente(), entity.get().getVersionFuente(),
+                asociaciones, EstadoRegulatorio.valueOf(entity.get().getEstadoRegulatorio()),
+                entity.get().getCreatedAt(), entity.get().getUpdatedAt()));
+    }
+
+    @Override
+    @Transactional
+    public boolean changeStatus(UUID productoReguladoId, String status, java.time.Instant changedAt) {
+        return jdbcClient.sql("""
+                        UPDATE sch_farmacia.producto_regulado SET estado_regulatorio = :status, updated_at = :changedAt
+                         WHERE uuid_publico = :productoReguladoId
+                        """)
+                .param("status", status).param("changedAt", changedAt).param("productoReguladoId", productoReguladoId)
+                .update() == 1;
+    }
+
+    private boolean existsInSupportTable(String tableName, String codigo) {
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia." + tableName + " WHERE codigo = :codigo")
+                .param("codigo", codigo).query(Long.class).single() > 0;
+    }
+
+    private Optional<Long> findPrincipioActivoInternalId(UUID principioActivoUuid) {
+        return jdbcClient.sql("SELECT id FROM sch_farmacia.principio_activo WHERE uuid_publico = :principioActivoUuid")
+                .param("principioActivoUuid", principioActivoUuid).query(Long.class).optional();
+    }
+
+    private UUID findPrincipioActivoUuid(Long internalId) {
+        return jdbcClient.sql("SELECT uuid_publico FROM sch_farmacia.principio_activo WHERE id = :internalId")
+                .param("internalId", internalId).query(UUID.class).single();
+    }
+}
+```
+
+- [ ] **Step 3: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/mapper/ProductoReguladoWriteMapper.java service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/write/adapter/ProductoReguladoJpaWriteAdapter.java
+git commit -m "feat(catalogo): agregar ProductoReguladoJpaWriteAdapter"
+```
+
+---
+
+### Task 21: Read side completo (`CatalogoJdbcReadAdapter` implementa `CatalogoReadPort`)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/repository/CatalogoJdbcReadRepository.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/adapter/CatalogoJdbcReadAdapter.java`
+
+**Interfaces:**
+- Consumes: `CatalogoReadPort` (Task 10 del documento anterior), DTOs de resultado (Task 9 del documento anterior).
+- Produces: `CatalogoJdbcReadAdapter implements CatalogoReadPort`, registrado como `@Repository`. Usado por Task 24 (wiring), verificado por Task 25.
+
+Este read side no usa projections/mapper intermedios como en `security` porque los resultados ya son los DTOs de aplicación finales (no hay una capa de dominio de lectura separada aquí) — el repositorio JDBC construye directamente los records `*Result`/`*Resumen` desde el `ResultSet`.
+
+- [ ] **Step 1: Crear `CatalogoJdbcReadRepository` — parte 1: los 5 catálogos de soporte + PrincipioActivo**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/repository/CatalogoJdbcReadRepository.java`, empezando con:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.repository;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class CatalogoJdbcReadRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public CatalogoJdbcReadRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    public List<CondicionVentaResult> findCondicionesVenta(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT codigo, denominacion, requiere_receta, requiere_retencion, fuente,
+                               version_fuente, vigente_desde, vigente_hasta, estado
+                          FROM sch_farmacia.condicion_venta
+                         WHERE :estado = '' OR estado = :estado
+                         ORDER BY denominacion
+                        """)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new CondicionVentaResult(
+                        rs.getString("codigo"), rs.getString("denominacion"), rs.getBoolean("requiere_receta"),
+                        rs.getBoolean("requiere_retencion"), rs.getString("fuente"), rs.getString("version_fuente"),
+                        rs.getObject("vigente_desde", java.time.LocalDate.class),
+                        rs.getObject("vigente_hasta", java.time.LocalDate.class), rs.getString("estado")))
+                .list();
+    }
+
+    public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.forma_farmaceutica
+                         WHERE :estado = '' OR estado = :estado
+                         ORDER BY denominacion
+                        """)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new FormaFarmaceuticaResult(
+                        rs.getString("codigo"), rs.getString("denominacion"), rs.getString("fuente"),
+                        rs.getString("estado")))
+                .list();
+    }
+
+    public List<ViaAdministracionResult> findViasAdministracion(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT codigo, denominacion, fuente, estado FROM sch_farmacia.via_administracion
+                         WHERE :estado = '' OR estado = :estado
+                         ORDER BY denominacion
+                        """)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new ViaAdministracionResult(
+                        rs.getString("codigo"), rs.getString("denominacion"), rs.getString("fuente"),
+                        rs.getString("estado")))
+                .list();
+    }
+
+    public List<UnidadMedidaResult> findUnidadesMedida(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT codigo, denominacion, simbolo, permite_decimal, fuente, estado
+                          FROM sch_farmacia.unidad_medida
+                         WHERE :estado = '' OR estado = :estado
+                         ORDER BY denominacion
+                        """)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new UnidadMedidaResult(
+                        rs.getString("codigo"), rs.getString("denominacion"), rs.getString("simbolo"),
+                        rs.getBoolean("permite_decimal"), rs.getString("fuente"), rs.getString("estado")))
+                .list();
+    }
+
+    public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT codigo, denominacion, norma_fuente, requiere_receta_especial, retiene_receta,
+                               vigencia_receta_dias, estado
+                          FROM sch_farmacia.clasificacion_controlada
+                         WHERE :estado = '' OR estado = :estado
+                         ORDER BY denominacion
+                        """)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new ClasificacionControladaResult(
+                        rs.getString("codigo"), rs.getString("denominacion"), rs.getString("norma_fuente"),
+                        rs.getBoolean("requiere_receta_especial"), rs.getBoolean("retiene_receta"),
+                        (Integer) rs.getObject("vigencia_receta_dias"), rs.getString("estado")))
+                .list();
+    }
+
+    public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) {
+        var textFilter = normalizeSearch(texto);
+        var statusFilter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT uuid_publico, codigo_fuente, denominacion, nombre_normalizado, fuente, estado
+                          FROM sch_farmacia.principio_activo
+                         WHERE (:texto = '' OR LOWER(denominacion) LIKE :pattern)
+                           AND (:estado = '' OR estado = :estado)
+                         ORDER BY denominacion
+                        """)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("estado", statusFilter)
+                .query((rs, rowNumber) -> new PrincipioActivoResult(
+                        rs.getObject("uuid_publico", UUID.class), rs.getString("codigo_fuente"),
+                        rs.getString("denominacion"), rs.getString("nombre_normalizado"), rs.getString("fuente"),
+                        rs.getString("estado")))
+                .list();
+    }
+
+    private static String normalizeStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String normalizeSearch(String search) {
+        return search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+    }
+}
+```
+
+- [ ] **Step 2: Continuar el mismo archivo — `findMarcas`, `findCategoriasProducto`**
+
+Añadir, dentro de la misma clase `CatalogoJdbcReadRepository`:
+
+```java
+    public List<MarcaResult> findMarcas(UUID tenantId, String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid, m.codigo, m.nombre,
+                               m.descripcion, m.estado
+                          FROM sch_farmacia.marca m
+                          JOIN sch_farmacia.tenant t ON t.id = m.tenant_id
+                         WHERE t.uuid_publico = :tenantId AND (:estado = '' OR m.estado = :estado)
+                         ORDER BY m.nombre
+                        """)
+                .param("tenantId", tenantId)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new MarcaResult(
+                        rs.getObject("uuid_publico", UUID.class), rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("codigo"), rs.getString("nombre"), rs.getString("descripcion"),
+                        rs.getString("estado")))
+                .list();
+    }
+
+    public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) {
+        var filter = normalizeStatus(estado);
+        return jdbcClient.sql("""
+                        SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               padre.uuid_publico AS categoria_padre_uuid, c.codigo, c.nombre, c.descripcion,
+                               c.nivel, c.orden, c.estado
+                          FROM sch_farmacia.categoria_producto c
+                          JOIN sch_farmacia.tenant t ON t.id = c.tenant_id
+                          LEFT JOIN sch_farmacia.categoria_producto padre ON padre.id = c.categoria_padre_id
+                         WHERE t.uuid_publico = :tenantId
+                           AND (:categoriaPadreId IS NULL OR padre.uuid_publico = :categoriaPadreId)
+                           AND (:estado = '' OR c.estado = :estado)
+                         ORDER BY c.nivel, c.orden, c.nombre
+                        """)
+                .param("tenantId", tenantId)
+                .param("categoriaPadreId", categoriaPadreId)
+                .param("estado", filter)
+                .query((rs, rowNumber) -> new CategoriaProductoResult(
+                        rs.getObject("uuid_publico", UUID.class), rs.getObject("tenant_uuid", UUID.class),
+                        rs.getObject("categoria_padre_uuid", UUID.class), rs.getString("codigo"),
+                        rs.getString("nombre"), rs.getString("descripcion"), rs.getInt("nivel"),
+                        rs.getInt("orden"), rs.getString("estado")))
+                .list();
+    }
+```
+
+- [ ] **Step 3: Continuar el mismo archivo — `findProductosRegulados` (paginado) y `findSkus` (paginado)**
+
+Añadir, dentro de la misma clase `CatalogoJdbcReadRepository`:
+
+```java
+    private static final String PRODUCTO_REGULADO_FILTER = """
+             WHERE (:texto = '' OR LOWER(denominacion) LIKE :pattern)
+               AND (:condicionVentaCodigo = '' OR condicion_venta_codigo = :condicionVentaCodigo)
+               AND (:estadoRegulatorio = '' OR estado_regulatorio = :estadoRegulatorio)
+            """;
+
+    public List<ProductoReguladoResumen> findProductosRegulados(
+            String texto, String condicionVentaCodigo, String estadoRegulatorio, int offset, int limit) {
+        var textFilter = normalizeSearch(texto);
+        return jdbcClient.sql("""
+                        SELECT uuid_publico, denominacion, condicion_venta_codigo, estado_regulatorio
+                          FROM sch_farmacia.producto_regulado
+                        """ + PRODUCTO_REGULADO_FILTER + " ORDER BY denominacion LIMIT :limit OFFSET :offset")
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("condicionVentaCodigo", condicionVentaCodigo == null ? "" : condicionVentaCodigo)
+                .param("estadoRegulatorio", estadoRegulatorio == null ? "" : estadoRegulatorio)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, rowNumber) -> new ProductoReguladoResumen(
+                        rs.getObject("uuid_publico", UUID.class), rs.getString("denominacion"),
+                        rs.getString("condicion_venta_codigo"), rs.getString("estado_regulatorio")))
+                .list();
+    }
+
+    public long countProductosRegulados(String texto, String condicionVentaCodigo, String estadoRegulatorio) {
+        var textFilter = normalizeSearch(texto);
+        return jdbcClient.sql("SELECT COUNT(*) FROM sch_farmacia.producto_regulado" + PRODUCTO_REGULADO_FILTER)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("condicionVentaCodigo", condicionVentaCodigo == null ? "" : condicionVentaCodigo)
+                .param("estadoRegulatorio", estadoRegulatorio == null ? "" : estadoRegulatorio)
+                .query(Long.class).single();
+    }
+
+    private static final String SKU_FROM = """
+            FROM sch_farmacia.sku_comercial s
+            JOIN sch_farmacia.tenant t ON t.id = s.tenant_id
+            """;
+
+    private static final String SKU_FILTER = """
+             WHERE t.uuid_publico = :tenantId
+               AND (:texto = '' OR LOWER(s.descripcion_comercial) LIKE :pattern
+                    OR LOWER(s.codigo_interno) LIKE :pattern)
+               AND (:categoriaId IS NULL OR s.categoria_id = (
+                       SELECT id FROM sch_farmacia.categoria_producto WHERE uuid_publico = :categoriaId))
+               AND (:marcaId IS NULL OR s.marca_id = (
+                       SELECT id FROM sch_farmacia.marca WHERE uuid_publico = :marcaId))
+               AND (:tipoSku = '' OR s.tipo_sku = :tipoSku)
+               AND (:estado = '' OR s.estado_comercial = :estado)
+            """;
+
+    public List<SkuResumen> findSkus(
+            UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado,
+            int offset, int limit) {
+        var textFilter = normalizeSearch(texto);
+        return jdbcClient.sql("SELECT s.uuid_publico, s.codigo_interno, s.descripcion_comercial, s.tipo_sku, "
+                        + "s.estado_comercial " + SKU_FROM + SKU_FILTER
+                        + " ORDER BY s.descripcion_comercial LIMIT :limit OFFSET :offset")
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("categoriaId", categoriaId)
+                .param("marcaId", marcaId)
+                .param("tipoSku", tipoSku == null ? "" : tipoSku)
+                .param("estado", estado == null ? "" : estado)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, rowNumber) -> new SkuResumen(
+                        rs.getObject("uuid_publico", UUID.class), rs.getString("codigo_interno"),
+                        rs.getString("descripcion_comercial"), rs.getString("tipo_sku"),
+                        rs.getString("estado_comercial")))
+                .list();
+    }
+
+    public long countSkus(
+            UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado) {
+        var textFilter = normalizeSearch(texto);
+        return jdbcClient.sql("SELECT COUNT(*) " + SKU_FROM + SKU_FILTER)
+                .param("tenantId", tenantId)
+                .param("texto", textFilter)
+                .param("pattern", '%' + textFilter + '%')
+                .param("categoriaId", categoriaId)
+                .param("marcaId", marcaId)
+                .param("tipoSku", tipoSku == null ? "" : tipoSku)
+                .param("estado", estado == null ? "" : estado)
+                .query(Long.class).single();
+    }
+```
+
+- [ ] **Step 4: Crear `CatalogoJdbcReadAdapter`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/adapter/CatalogoJdbcReadAdapter.java`:
+
+```java
+package com.softprimesolutions.catalogo.infrastructure.persistence.read.adapter;
+
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import com.softprimesolutions.catalogo.application.port.out.CatalogoReadPort;
+import com.softprimesolutions.catalogo.infrastructure.persistence.read.repository.CatalogoJdbcReadRepository;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoJdbcReadAdapter implements CatalogoReadPort {
+
+    private final CatalogoJdbcReadRepository repository;
+
+    public CatalogoJdbcReadAdapter(CatalogoJdbcReadRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CondicionVentaResult> findCondicionesVenta(String estado) {
+        return repository.findCondicionesVenta(estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FormaFarmaceuticaResult> findFormasFarmaceuticas(String estado) {
+        return repository.findFormasFarmaceuticas(estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ViaAdministracionResult> findViasAdministracion(String estado) {
+        return repository.findViasAdministracion(estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UnidadMedidaResult> findUnidadesMedida(String estado) {
+        return repository.findUnidadesMedida(estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClasificacionControladaResult> findClasificacionesControladas(String estado) {
+        return repository.findClasificacionesControladas(estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrincipioActivoResult> findPrincipiosActivos(String texto, String estado) {
+        return repository.findPrincipiosActivos(texto, estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MarcaResult> findMarcas(UUID tenantId, String estado) {
+        return repository.findMarcas(tenantId, estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoriaProductoResult> findCategoriasProducto(UUID tenantId, UUID categoriaPadreId, String estado) {
+        return repository.findCategoriasProducto(tenantId, categoriaPadreId, estado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResult<ProductoReguladoResumen> findProductosRegulados(
+            String texto, String condicionVentaCodigo, String estadoRegulatorio, int page, int size) {
+        var items = repository.findProductosRegulados(texto, condicionVentaCodigo, estadoRegulatorio, page * size, size);
+        var total = repository.countProductosRegulados(texto, condicionVentaCodigo, estadoRegulatorio);
+        return new PaginaResult<>(items, page, size, total);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResult<SkuResumen> findSkus(
+            UUID tenantId, String texto, UUID categoriaId, UUID marcaId, String tipoSku, String estado,
+            int page, int size) {
+        var items = repository.findSkus(tenantId, texto, categoriaId, marcaId, tipoSku, estado, page * size, size);
+        var total = repository.countSkus(tenantId, texto, categoriaId, marcaId, tipoSku, estado);
+        return new PaginaResult<>(items, page, size, total);
+    }
+}
+```
+
+- [ ] **Step 5: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/infrastructure/persistence/read/
+git commit -m "feat(catalogo): agregar read side JDBC completo"
+```
+
+---
+
+## Fase 5 — API REST
+
+### Task 22: DTOs HTTP y `CatalogoApiMapper`
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/` — un record por request (lista completa abajo).
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/` — un record por response.
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`
+
+**Interfaces:**
+- Consumes: DTOs de aplicación (Task 9 del documento anterior).
+- Produces: todos los DTOs HTTP y `CatalogoApiMapper` (métodos estáticos `toCommand`/`toQuery`/`toResponse`). Usado por Task 23 (controllers). Son records/clases de mapeo puro — no requieren test dedicado, se validan indirectamente vía Task 25.
+
+- [ ] **Step 1: Crear los DTOs de `request` para los 5 catálogos de soporte + `CambiarEstadoGlobalRequest`/`CambiarEstadoTenantRequest`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CondicionVentaRequest.java` (usado tanto para crear como actualizar, dado que ambos comandos tienen exactamente los mismos campos):
+
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record CondicionVentaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        boolean requiereReceta,
+        boolean requiereRetencion,
+        @Size(max = 300) String fuente,
+        @Size(max = 100) String versionFuente,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta) {
+}
+```
+
+Crear, con la misma forma (`@NotBlank @Size(max = 30 o 40) codigo`, `@NotBlank @Size(min = 2, max = 200) denominacion`, `@Size(max = 300) fuente`, más los campos propios de cada entidad según su factory en el documento anterior), los siguientes 3 requests:
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/FormaFarmaceuticaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record FormaFarmaceuticaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String fuente) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ViaAdministracionRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ViaAdministracionRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String fuente) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/UnidadMedidaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record UnidadMedidaRequest(
+        @NotBlank @Size(max = 30) String codigo,
+        @NotBlank @Size(min = 2, max = 150) String denominacion,
+        @Size(max = 30) String simbolo,
+        boolean permiteDecimal,
+        @Size(max = 300) String fuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ClasificacionControladaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ClasificacionControladaRequest(
+        @NotBlank @Size(max = 40) String codigo,
+        @NotBlank @Size(min = 2, max = 200) String denominacion,
+        @Size(max = 300) String normaFuente,
+        boolean requiereRecetaEspecial,
+        boolean retieneReceta,
+        Integer vigenciaRecetaDias) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoGlobalRequest.java` (para las entidades sin tenant: soporte, PrincipioActivo, ProductoRegulado):
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record CambiarEstadoGlobalRequest(@NotBlank String status) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CambiarEstadoTenantRequest.java` (para las entidades tenant-scoped: Marca, CategoriaProducto, SKUComercial):
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+
+public record CambiarEstadoTenantRequest(@NotNull UUID tenantId, @NotBlank String status) {
+}
+```
+
+- [ ] **Step 2: Crear los DTOs de `request` de PrincipioActivo, Marca, CategoriaProducto**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/PrincipioActivoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record PrincipioActivoRequest(
+        @Size(max = 80) String codigoFuente,
+        @NotBlank @Size(min = 2, max = 300) String denominacion,
+        @Size(max = 300) String nombreNormalizado,
+        @Size(max = 300) String fuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/MarcaRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record MarcaRequest(
+        @NotNull UUID tenantId,
+        @NotBlank @Size(min = 2, max = 50) String codigo,
+        @NotBlank @Size(min = 2, max = 180) String nombre,
+        @Size(max = 500) String descripcion) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/CategoriaProductoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.UUID;
+
+public record CategoriaProductoRequest(
+        @NotNull UUID tenantId,
+        UUID categoriaPadreId,
+        @NotBlank @Size(min = 2, max = 50) String codigo,
+        @NotBlank @Size(min = 2, max = 180) String nombre,
+        @Size(max = 500) String descripcion,
+        int nivel,
+        int orden) {
+}
+```
+
+- [ ] **Step 3: Crear los DTOs de `request` de ProductoRegulado**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/ProductoReguladoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record ProductoReguladoRequest(
+        @NotBlank @Size(min = 2, max = 40) String tipoProducto,
+        @Size(max = 50) String rubroCodigo,
+        @Size(max = 40) String tipoRegistro,
+        @Size(max = 100) String numeroRegistro,
+        @NotBlank @Size(min = 2, max = 500) String denominacion,
+        @Size(max = 300) String concentracionTexto,
+        @Size(max = 500) String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        @Size(max = 30) String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        @Size(max = 40) String tipoLiberacion,
+        @Size(max = 40) String origenFabricacion,
+        @Size(max = 100) String paisOrigen,
+        @Size(max = 30) String subpartidaNacional,
+        @Size(max = 300) String titularRegistro,
+        @Size(max = 300) String fabricante,
+        @Size(max = 300) String importador,
+        @Size(max = 200) String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        @Size(max = 300) String fuente,
+        @Size(max = 100) String versionFuente) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/AsociarPrincipioActivoRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record AsociarPrincipioActivoRequest(
+        @NotNull UUID principioActivoId, String concentracionTexto, BigDecimal cantidad,
+        String unidadMedidaCodigo, boolean esPrincipal, short orden) {
+}
+```
+
+- [ ] **Step 4: Crear los DTOs de `request` de SKUComercial**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/SkuRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record SkuRequest(
+        @NotNull UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        @NotBlank String tipoSku,
+        @NotBlank @Size(min = 2, max = 60) String codigoInterno,
+        @NotBlank @Size(min = 2, max = 500) String descripcionComercial,
+        @Size(max = 200) String nombreCorto,
+        @Size(max = 300) String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/request/AgregarCodigoBarraRequest.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+
+public record AgregarCodigoBarraRequest(
+        @NotBlank String codigoBarra, String tipoCodigo, LocalDate vigenteDesde, LocalDate vigenteHasta) {
+}
+```
+
+- [ ] **Step 5: Crear los DTOs de `response` y `PaginaResponse`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CondicionVentaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.LocalDate;
+
+public record CondicionVentaResponse(
+        String codigo, String denominacion, boolean requiereReceta, boolean requiereRetencion,
+        String fuente, String versionFuente, LocalDate vigenteDesde, LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear, con la misma forma (mismos campos que su `*Result` de aplicación correspondiente), los siguientes 8 responses:
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/FormaFarmaceuticaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record FormaFarmaceuticaResponse(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ViaAdministracionResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record ViaAdministracionResponse(String codigo, String denominacion, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/UnidadMedidaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record UnidadMedidaResponse(
+        String codigo, String denominacion, String simbolo, boolean permiteDecimal, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ClasificacionControladaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+public record ClasificacionControladaResponse(
+        String codigo, String denominacion, String normaFuente, boolean requiereRecetaEspecial,
+        boolean retieneReceta, Integer vigenciaRecetaDias, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PrincipioActivoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record PrincipioActivoResponse(
+        UUID id, String codigoFuente, String denominacion, String nombreNormalizado, String fuente, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/MarcaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record MarcaResponse(UUID id, UUID tenantId, String codigo, String nombre, String descripcion, String estado) {
+}
+```
+
+`service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CategoriaProductoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record CategoriaProductoResponse(
+        UUID id, UUID tenantId, UUID categoriaPadreId, String codigo, String nombre, String descripcion,
+        int nivel, int orden, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PrincipioActivoAsociadoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record PrincipioActivoAsociadoResponse(
+        UUID principioActivoId, String concentracionTexto, BigDecimal cantidad, String unidadMedidaCodigo,
+        boolean esPrincipal, short orden) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoReguladoResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record ProductoReguladoResponse(
+        UUID id,
+        String tipoProducto,
+        String rubroCodigo,
+        String tipoRegistro,
+        String numeroRegistro,
+        String denominacion,
+        String concentracionTexto,
+        String presentacionRegulatoria,
+        String formaFarmaceuticaCodigo,
+        String viaAdministracionCodigo,
+        String unidadMedidaCodigo,
+        String condicionVentaCodigo,
+        String clasificacionAtc,
+        String clasificacionControladaCodigo,
+        String tipoLiberacion,
+        String origenFabricacion,
+        String paisOrigen,
+        String subpartidaNacional,
+        String titularRegistro,
+        String fabricante,
+        String importador,
+        String establecimientoExpendio,
+        LocalDate vigenteDesde,
+        LocalDate vigenteHasta,
+        String fuente,
+        String versionFuente,
+        List<PrincipioActivoAsociadoResponse> principiosActivos,
+        String estadoRegulatorio,
+        Instant createdAt,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/ProductoReguladoResumenResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record ProductoReguladoResumenResponse(
+        UUID id, String denominacion, String condicionVentaCodigo, String estadoRegulatorio) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/CodigoBarraSkuResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.time.LocalDate;
+
+public record CodigoBarraSkuResponse(
+        String codigoBarra, String tipoCodigo, boolean esPrincipal, LocalDate vigenteDesde,
+        LocalDate vigenteHasta, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/SkuResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+public record SkuResponse(
+        UUID id,
+        UUID tenantId,
+        UUID productoReguladoId,
+        UUID categoriaId,
+        UUID marcaId,
+        String tipoSku,
+        String codigoInterno,
+        String descripcionComercial,
+        String nombreCorto,
+        String presentacionComercial,
+        String unidadVentaCodigo,
+        BigDecimal contenido,
+        String unidadContenidoCodigo,
+        BigDecimal pesoGramos,
+        BigDecimal altoCm,
+        BigDecimal anchoCm,
+        BigDecimal largoCm,
+        boolean permiteVentaFraccion,
+        BigDecimal factorFraccion,
+        boolean requiereLote,
+        boolean requiereVencimiento,
+        boolean afectoIgv,
+        BigDecimal stockMinimoDefault,
+        BigDecimal stockMaximoDefault,
+        String imagenUri,
+        List<CodigoBarraSkuResponse> codigosBarra,
+        String estado,
+        String createdBy,
+        Instant createdAt,
+        String updatedBy,
+        Instant updatedAt) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/SkuResumenResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.UUID;
+
+public record SkuResumenResponse(UUID id, String codigoInterno, String descripcionComercial, String tipoSku, String estado) {
+}
+```
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/response/PaginaResponse.java`:
+```java
+package com.softprimesolutions.catalogo.api.dto.response;
+
+import java.util.List;
+
+public record PaginaResponse<T>(List<T> items, int page, int size, long totalElements) {
+
+    public PaginaResponse {
+        items = List.copyOf(items);
+    }
+}
+```
+
+- [ ] **Step 6: Crear `CatalogoApiMapper` — parte 1: soporte + PrincipioActivo + Marca + CategoriaProducto**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`, empezando con:
+
+```java
+package com.softprimesolutions.catalogo.api.mapper;
+
+import com.softprimesolutions.catalogo.api.dto.request.CategoriaProductoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ClasificacionControladaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CondicionVentaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.MarcaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
+import com.softprimesolutions.catalogo.api.dto.response.CategoriaProductoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ClasificacionControladaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.CondicionVentaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.FormaFarmaceuticaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.MarcaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.UnidadMedidaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ViaAdministracionResponse;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearCategoriaProductoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearClasificacionControladaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearCondicionVentaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearFormaFarmaceuticaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearMarcaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearUnidadMedidaCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearViaAdministracionCommand;
+import com.softprimesolutions.catalogo.application.dto.result.CategoriaProductoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ClasificacionControladaResult;
+import com.softprimesolutions.catalogo.application.dto.result.CondicionVentaResult;
+import com.softprimesolutions.catalogo.application.dto.result.FormaFarmaceuticaResult;
+import com.softprimesolutions.catalogo.application.dto.result.MarcaResult;
+import com.softprimesolutions.catalogo.application.dto.result.PrincipioActivoResult;
+import com.softprimesolutions.catalogo.application.dto.result.UnidadMedidaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ViaAdministracionResult;
+import java.util.UUID;
+
+public final class CatalogoApiMapper {
+
+    private CatalogoApiMapper() {
+    }
+
+    public static CrearCondicionVentaCommand toCreateCommand(CondicionVentaRequest request) {
+        return new CrearCondicionVentaCommand(
+                request.codigo(), request.denominacion(), request.requiereReceta(), request.requiereRetencion(),
+                request.fuente(), request.versionFuente(), request.vigenteDesde(), request.vigenteHasta());
+    }
+
+    public static ActualizarCondicionVentaCommand toUpdateCommand(CondicionVentaRequest request) {
+        return new ActualizarCondicionVentaCommand(
+                request.codigo(), request.denominacion(), request.requiereReceta(), request.requiereRetencion(),
+                request.fuente(), request.versionFuente(), request.vigenteDesde(), request.vigenteHasta());
+    }
+
+    public static CondicionVentaResponse toResponse(CondicionVentaResult result) {
+        return new CondicionVentaResponse(
+                result.codigo(), result.denominacion(), result.requiereReceta(), result.requiereRetencion(),
+                result.fuente(), result.versionFuente(), result.vigenteDesde(), result.vigenteHasta(),
+                result.estado());
+    }
+
+    public static CrearFormaFarmaceuticaCommand toCreateCommand(FormaFarmaceuticaRequest request) {
+        return new CrearFormaFarmaceuticaCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ActualizarFormaFarmaceuticaCommand toUpdateCommand(FormaFarmaceuticaRequest request) {
+        return new ActualizarFormaFarmaceuticaCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static FormaFarmaceuticaResponse toResponse(FormaFarmaceuticaResult result) {
+        return new FormaFarmaceuticaResponse(
+                result.codigo(), result.denominacion(), result.fuente(), result.estado());
+    }
+
+    public static CrearViaAdministracionCommand toCreateCommand(ViaAdministracionRequest request) {
+        return new CrearViaAdministracionCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ActualizarViaAdministracionCommand toUpdateCommand(ViaAdministracionRequest request) {
+        return new ActualizarViaAdministracionCommand(request.codigo(), request.denominacion(), request.fuente());
+    }
+
+    public static ViaAdministracionResponse toResponse(ViaAdministracionResult result) {
+        return new ViaAdministracionResponse(
+                result.codigo(), result.denominacion(), result.fuente(), result.estado());
+    }
+
+    public static CrearUnidadMedidaCommand toCreateCommand(UnidadMedidaRequest request) {
+        return new CrearUnidadMedidaCommand(
+                request.codigo(), request.denominacion(), request.simbolo(), request.permiteDecimal(),
+                request.fuente());
+    }
+
+    public static ActualizarUnidadMedidaCommand toUpdateCommand(UnidadMedidaRequest request) {
+        return new ActualizarUnidadMedidaCommand(
+                request.codigo(), request.denominacion(), request.simbolo(), request.permiteDecimal(),
+                request.fuente());
+    }
+
+    public static UnidadMedidaResponse toResponse(UnidadMedidaResult result) {
+        return new UnidadMedidaResponse(
+                result.codigo(), result.denominacion(), result.simbolo(), result.permiteDecimal(),
+                result.fuente(), result.estado());
+    }
+
+    public static CrearClasificacionControladaCommand toCreateCommand(ClasificacionControladaRequest request) {
+        return new CrearClasificacionControladaCommand(
+                request.codigo(), request.denominacion(), request.normaFuente(),
+                request.requiereRecetaEspecial(), request.retieneReceta(), request.vigenciaRecetaDias());
+    }
+
+    public static ActualizarClasificacionControladaCommand toUpdateCommand(ClasificacionControladaRequest request) {
+        return new ActualizarClasificacionControladaCommand(
+                request.codigo(), request.denominacion(), request.normaFuente(),
+                request.requiereRecetaEspecial(), request.retieneReceta(), request.vigenciaRecetaDias());
+    }
+
+    public static ClasificacionControladaResponse toResponse(ClasificacionControladaResult result) {
+        return new ClasificacionControladaResponse(
+                result.codigo(), result.denominacion(), result.normaFuente(), result.requiereRecetaEspecial(),
+                result.retieneReceta(), result.vigenciaRecetaDias(), result.estado());
+    }
+
+    public static CrearPrincipioActivoCommand toCreateCommand(PrincipioActivoRequest request) {
+        return new CrearPrincipioActivoCommand(
+                request.codigoFuente(), request.denominacion(), request.nombreNormalizado(), request.fuente());
+    }
+
+    public static ActualizarPrincipioActivoCommand toUpdateCommand(UUID principioActivoId, PrincipioActivoRequest request) {
+        return new ActualizarPrincipioActivoCommand(
+                principioActivoId, request.codigoFuente(), request.denominacion(), request.nombreNormalizado(),
+                request.fuente());
+    }
+
+    public static PrincipioActivoResponse toResponse(PrincipioActivoResult result) {
+        return new PrincipioActivoResponse(
+                result.id(), result.codigoFuente(), result.denominacion(), result.nombreNormalizado(),
+                result.fuente(), result.estado());
+    }
+
+    public static CrearMarcaCommand toCreateCommand(MarcaRequest request) {
+        return new CrearMarcaCommand(request.tenantId(), request.codigo(), request.nombre(), request.descripcion());
+    }
+
+    public static ActualizarMarcaCommand toUpdateCommand(UUID marcaId, MarcaRequest request) {
+        return new ActualizarMarcaCommand(
+                request.tenantId(), marcaId, request.codigo(), request.nombre(), request.descripcion());
+    }
+
+    public static MarcaResponse toResponse(MarcaResult result) {
+        return new MarcaResponse(
+                result.id(), result.tenantId(), result.codigo(), result.nombre(), result.descripcion(),
+                result.estado());
+    }
+
+    public static CrearCategoriaProductoCommand toCreateCommand(CategoriaProductoRequest request) {
+        return new CrearCategoriaProductoCommand(
+                request.tenantId(), request.categoriaPadreId(), request.codigo(), request.nombre(),
+                request.descripcion(), request.nivel(), request.orden());
+    }
+
+    public static ActualizarCategoriaProductoCommand toUpdateCommand(UUID categoriaId, CategoriaProductoRequest request) {
+        return new ActualizarCategoriaProductoCommand(
+                request.tenantId(), categoriaId, request.categoriaPadreId(), request.codigo(), request.nombre(),
+                request.descripcion(), request.nivel(), request.orden());
+    }
+
+    public static CategoriaProductoResponse toResponse(CategoriaProductoResult result) {
+        return new CategoriaProductoResponse(
+                result.id(), result.tenantId(), result.categoriaPadreId(), result.codigo(), result.nombre(),
+                result.descripcion(), result.nivel(), result.orden(), result.estado());
+    }
+}
+```
+
+- [ ] **Step 7: Ampliar `CatalogoApiMapper` — parte 2: ProductoRegulado + SKUComercial + paginación**
+
+Añadir a `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/CatalogoApiMapper.java`: los imports adicionales necesarios y los siguientes métodos, dentro de la misma clase (antes del cierre `}`):
+
+```java
+import com.softprimesolutions.catalogo.api.dto.request.AgregarCodigoBarraRequest;
+import com.softprimesolutions.catalogo.api.dto.request.AsociarPrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
+import com.softprimesolutions.catalogo.api.dto.response.CodigoBarraSkuResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PaginaResponse;
+import com.softprimesolutions.catalogo.api.dto.response.PrincipioActivoAsociadoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResponse;
+import com.softprimesolutions.catalogo.api.dto.response.ProductoReguladoResumenResponse;
+import com.softprimesolutions.catalogo.api.dto.response.SkuResponse;
+import com.softprimesolutions.catalogo.api.dto.response.SkuResumenResponse;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.ActualizarSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.command.AgregarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.dto.command.AsociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearProductoReguladoCommand;
+import com.softprimesolutions.catalogo.application.dto.command.CrearSkuCommand;
+import com.softprimesolutions.catalogo.application.dto.result.PaginaResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResult;
+import com.softprimesolutions.catalogo.application.dto.result.ProductoReguladoResumen;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResult;
+import com.softprimesolutions.catalogo.application.dto.result.SkuResumen;
+```
+
+```java
+    public static CrearProductoReguladoCommand toCreateCommand(ProductoReguladoRequest request) {
+        return new CrearProductoReguladoCommand(
+                request.tipoProducto(), request.rubroCodigo(), request.tipoRegistro(), request.numeroRegistro(),
+                request.denominacion(), request.concentracionTexto(), request.presentacionRegulatoria(),
+                request.formaFarmaceuticaCodigo(), request.viaAdministracionCodigo(), request.unidadMedidaCodigo(),
+                request.condicionVentaCodigo(), request.clasificacionAtc(), request.clasificacionControladaCodigo(),
+                request.tipoLiberacion(), request.origenFabricacion(), request.paisOrigen(),
+                request.subpartidaNacional(), request.titularRegistro(), request.fabricante(),
+                request.importador(), request.establecimientoExpendio(), request.vigenteDesde(),
+                request.vigenteHasta(), request.fuente(), request.versionFuente());
+    }
+
+    public static ActualizarProductoReguladoCommand toUpdateCommand(
+            UUID productoReguladoId, ProductoReguladoRequest request) {
+        return new ActualizarProductoReguladoCommand(
+                productoReguladoId, request.tipoProducto(), request.rubroCodigo(), request.tipoRegistro(),
+                request.numeroRegistro(), request.denominacion(), request.concentracionTexto(),
+                request.presentacionRegulatoria(), request.formaFarmaceuticaCodigo(),
+                request.viaAdministracionCodigo(), request.unidadMedidaCodigo(), request.condicionVentaCodigo(),
+                request.clasificacionAtc(), request.clasificacionControladaCodigo(), request.tipoLiberacion(),
+                request.origenFabricacion(), request.paisOrigen(), request.subpartidaNacional(),
+                request.titularRegistro(), request.fabricante(), request.importador(),
+                request.establecimientoExpendio(), request.vigenteDesde(), request.vigenteHasta(),
+                request.fuente(), request.versionFuente());
+    }
+
+    public static AsociarPrincipioActivoCommand toCommand(UUID productoReguladoId, AsociarPrincipioActivoRequest request) {
+        return new AsociarPrincipioActivoCommand(
+                productoReguladoId, request.principioActivoId(), request.concentracionTexto(),
+                request.cantidad(), request.unidadMedidaCodigo(), request.esPrincipal(), request.orden());
+    }
+
+    public static ProductoReguladoResponse toResponse(ProductoReguladoResult result) {
+        return new ProductoReguladoResponse(
+                result.id(), result.tipoProducto(), result.rubroCodigo(), result.tipoRegistro(),
+                result.numeroRegistro(), result.denominacion(), result.concentracionTexto(),
+                result.presentacionRegulatoria(), result.formaFarmaceuticaCodigo(),
+                result.viaAdministracionCodigo(), result.unidadMedidaCodigo(), result.condicionVentaCodigo(),
+                result.clasificacionAtc(), result.clasificacionControladaCodigo(), result.tipoLiberacion(),
+                result.origenFabricacion(), result.paisOrigen(), result.subpartidaNacional(),
+                result.titularRegistro(), result.fabricante(), result.importador(),
+                result.establecimientoExpendio(), result.vigenteDesde(), result.vigenteHasta(), result.fuente(),
+                result.versionFuente(),
+                result.principiosActivos().stream()
+                        .map(asociado -> new PrincipioActivoAsociadoResponse(
+                                asociado.principioActivoId(), asociado.concentracionTexto(), asociado.cantidad(),
+                                asociado.unidadMedidaCodigo(), asociado.esPrincipal(), asociado.orden()))
+                        .toList(),
+                result.estadoRegulatorio(), result.createdAt(), result.updatedAt());
+    }
+
+    public static PaginaResponse<ProductoReguladoResumenResponse> toProductoReguladoPage(
+            PaginaResult<ProductoReguladoResumen> result) {
+        return new PaginaResponse<>(
+                result.items().stream()
+                        .map(resumen -> new ProductoReguladoResumenResponse(
+                                resumen.id(), resumen.denominacion(), resumen.condicionVentaCodigo(),
+                                resumen.estadoRegulatorio()))
+                        .toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static CrearSkuCommand toCreateCommand(SkuRequest request, String createdBy) {
+        return new CrearSkuCommand(
+                request.tenantId(), request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
+                request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
+                request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
+                request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
+                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
+                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), createdBy);
+    }
+
+    public static ActualizarSkuCommand toUpdateCommand(UUID skuId, SkuRequest request, String updatedBy) {
+        return new ActualizarSkuCommand(
+                request.tenantId(), skuId, request.productoReguladoId(), request.categoriaId(), request.marcaId(),
+                request.tipoSku(), request.codigoInterno(), request.descripcionComercial(), request.nombreCorto(),
+                request.presentacionComercial(), request.unidadVentaCodigo(), request.contenido(),
+                request.unidadContenidoCodigo(), request.pesoGramos(), request.altoCm(), request.anchoCm(),
+                request.largoCm(), request.permiteVentaFraccion(), request.factorFraccion(),
+                request.requiereLote(), request.requiereVencimiento(), request.afectoIgv(),
+                request.stockMinimoDefault(), request.stockMaximoDefault(), request.imagenUri(), updatedBy);
+    }
+
+    public static AgregarCodigoBarraCommand toCommand(UUID tenantId, UUID skuId, AgregarCodigoBarraRequest request) {
+        return new AgregarCodigoBarraCommand(
+                tenantId, skuId, request.codigoBarra(), request.tipoCodigo(), request.vigenteDesde(),
+                request.vigenteHasta());
+    }
+
+    public static SkuResponse toResponse(SkuResult result) {
+        return new SkuResponse(
+                result.id(), result.tenantId(), result.productoReguladoId(), result.categoriaId(),
+                result.marcaId(), result.tipoSku(), result.codigoInterno(), result.descripcionComercial(),
+                result.nombreCorto(), result.presentacionComercial(), result.unidadVentaCodigo(),
+                result.contenido(), result.unidadContenidoCodigo(), result.pesoGramos(), result.altoCm(),
+                result.anchoCm(), result.largoCm(), result.permiteVentaFraccion(), result.factorFraccion(),
+                result.requiereLote(), result.requiereVencimiento(), result.afectoIgv(),
+                result.stockMinimoDefault(), result.stockMaximoDefault(), result.imagenUri(),
+                result.codigosBarra().stream()
+                        .map(codigo -> new CodigoBarraSkuResponse(
+                                codigo.codigoBarra(), codigo.tipoCodigo(), codigo.esPrincipal(),
+                                codigo.vigenteDesde(), codigo.vigenteHasta(), codigo.estado()))
+                        .toList(),
+                result.estado(), result.createdBy(), result.createdAt(), result.updatedBy(), result.updatedAt());
+    }
+
+    public static PaginaResponse<SkuResumenResponse> toSkuPage(PaginaResult<SkuResumen> result) {
+        return new PaginaResponse<>(
+                result.items().stream()
+                        .map(resumen -> new SkuResumenResponse(
+                                resumen.id(), resumen.codigoInterno(), resumen.descripcionComercial(),
+                                resumen.tipoSku(), resumen.estado()))
+                        .toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+```
+
+- [ ] **Step 8: Compilar el módulo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/dto/ service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/mapper/
+git commit -m "feat(catalogo): agregar DTOs HTTP y CatalogoApiMapper"
+```
+
+---
+
+### Task 23: Controllers REST (los 6: soporte, principios activos, marcas, categorías, productos regulados, SKUs)
+
+**Files:**
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoControllerSupport.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoSoporteController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/PrincipioActivoController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/MarcaController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CategoriaProductoController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/ProductoReguladoController.java`
+- Create: `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/SkuController.java`
+
+**Interfaces:**
+- Consumes: los puertos `in` (Task 10 del documento anterior, y `CatalogoControlUseCase`), `CatalogoApiMapper` (Task 22), `ApplicationErrorHttpMapper` (shared-web).
+- Produces: los endpoints REST descritos en el spec y en las Global Constraints de este documento. Usados por Task 25 (test de integración).
+
+No hay test unitario dedicado para controllers (se prueban con MockMvc + contexto Spring completo en Task 25); estas clases no tienen lógica propia más allá de delegar a los puertos `in`.
+
+- [ ] **Step 1: Crear `CatalogoControllerSupport`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoControllerSupport.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.shared.application.error.ApplicationError;
+import com.softprimesolutions.shared.web.error.ApplicationErrorHttpMapper;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+
+final class CatalogoControllerSupport {
+
+    private CatalogoControllerSupport() {
+    }
+
+    static ResponseEntity<ProblemDetail> problem(ApplicationError error) {
+        var problem = ApplicationErrorHttpMapper.toProblemDetail(error);
+        return ResponseEntity.status(problem.getStatus()).body(problem);
+    }
+}
+```
+
+- [ ] **Step 2: Crear `CatalogoSoporteController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CatalogoSoporteController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ClasificacionControladaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CondicionVentaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.FormaFarmaceuticaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.UnidadMedidaRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ViaAdministracionRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ListarClasificacionesControladasQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarCondicionesVentaQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarFormasFarmaceuticasQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarUnidadesMedidaQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarViasAdministracionQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarClasificacionControladaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCondicionVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarFormaFarmaceuticaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarUnidadMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarViaAdministracionUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearClasificacionControladaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearCondicionVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearFormaFarmaceuticaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearUnidadMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearViaAdministracionUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarClasificacionesControladasUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarCondicionesVentaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarFormasFarmaceuticasUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarUnidadesMedidaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarViasAdministracionUseCase;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/soporte")
+public class CatalogoSoporteController {
+
+    private final CrearCondicionVentaUseCase crearCondicionVenta;
+    private final ActualizarCondicionVentaUseCase actualizarCondicionVenta;
+    private final ListarCondicionesVentaUseCase listarCondicionesVenta;
+    private final CrearFormaFarmaceuticaUseCase crearFormaFarmaceutica;
+    private final ActualizarFormaFarmaceuticaUseCase actualizarFormaFarmaceutica;
+    private final ListarFormasFarmaceuticasUseCase listarFormasFarmaceuticas;
+    private final CrearViaAdministracionUseCase crearViaAdministracion;
+    private final ActualizarViaAdministracionUseCase actualizarViaAdministracion;
+    private final ListarViasAdministracionUseCase listarViasAdministracion;
+    private final CrearUnidadMedidaUseCase crearUnidadMedida;
+    private final ActualizarUnidadMedidaUseCase actualizarUnidadMedida;
+    private final ListarUnidadesMedidaUseCase listarUnidadesMedida;
+    private final CrearClasificacionControladaUseCase crearClasificacionControlada;
+    private final ActualizarClasificacionControladaUseCase actualizarClasificacionControlada;
+    private final ListarClasificacionesControladasUseCase listarClasificacionesControladas;
+    private final CatalogoControlUseCase control;
+
+    public CatalogoSoporteController(
+            CrearCondicionVentaUseCase crearCondicionVenta,
+            ActualizarCondicionVentaUseCase actualizarCondicionVenta,
+            ListarCondicionesVentaUseCase listarCondicionesVenta,
+            CrearFormaFarmaceuticaUseCase crearFormaFarmaceutica,
+            ActualizarFormaFarmaceuticaUseCase actualizarFormaFarmaceutica,
+            ListarFormasFarmaceuticasUseCase listarFormasFarmaceuticas,
+            CrearViaAdministracionUseCase crearViaAdministracion,
+            ActualizarViaAdministracionUseCase actualizarViaAdministracion,
+            ListarViasAdministracionUseCase listarViasAdministracion,
+            CrearUnidadMedidaUseCase crearUnidadMedida,
+            ActualizarUnidadMedidaUseCase actualizarUnidadMedida,
+            ListarUnidadesMedidaUseCase listarUnidadesMedida,
+            CrearClasificacionControladaUseCase crearClasificacionControlada,
+            ActualizarClasificacionControladaUseCase actualizarClasificacionControlada,
+            ListarClasificacionesControladasUseCase listarClasificacionesControladas,
+            CatalogoControlUseCase control) {
+        this.crearCondicionVenta = crearCondicionVenta;
+        this.actualizarCondicionVenta = actualizarCondicionVenta;
+        this.listarCondicionesVenta = listarCondicionesVenta;
+        this.crearFormaFarmaceutica = crearFormaFarmaceutica;
+        this.actualizarFormaFarmaceutica = actualizarFormaFarmaceutica;
+        this.listarFormasFarmaceuticas = listarFormasFarmaceuticas;
+        this.crearViaAdministracion = crearViaAdministracion;
+        this.actualizarViaAdministracion = actualizarViaAdministracion;
+        this.listarViasAdministracion = listarViasAdministracion;
+        this.crearUnidadMedida = crearUnidadMedida;
+        this.actualizarUnidadMedida = actualizarUnidadMedida;
+        this.listarUnidadesMedida = listarUnidadesMedida;
+        this.crearClasificacionControlada = crearClasificacionControlada;
+        this.actualizarClasificacionControlada = actualizarClasificacionControlada;
+        this.listarClasificacionesControladas = listarClasificacionesControladas;
+        this.control = control;
+    }
+
+    @PostMapping("/condiciones-venta")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> createCondicionVenta(@Valid @RequestBody CondicionVentaRequest request) {
+        return crearCondicionVenta.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/condiciones-venta/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> updateCondicionVenta(
+            @PathVariable String codigo, @Valid @RequestBody CondicionVentaRequest request) {
+        return actualizarCondicionVenta.execute(CatalogoApiMapper.toUpdateCommand(request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/condiciones-venta/{codigo}/estado")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> changeCondicionVentaStatus(
+            @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeCondicionVentaStatus(codigo, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/condiciones-venta")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> listCondicionesVenta(@RequestParam(required = false) String estado) {
+        return listarCondicionesVenta.execute(new ListarCondicionesVentaQuery(estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/formas-farmaceuticas")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> createFormaFarmaceutica(@Valid @RequestBody FormaFarmaceuticaRequest request) {
+        return crearFormaFarmaceutica.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/formas-farmaceuticas/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> updateFormaFarmaceutica(
+            @PathVariable String codigo, @Valid @RequestBody FormaFarmaceuticaRequest request) {
+        return actualizarFormaFarmaceutica.execute(CatalogoApiMapper.toUpdateCommand(request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/formas-farmaceuticas/{codigo}/estado")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> changeFormaFarmaceuticaStatus(
+            @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeFormaFarmaceuticaStatus(codigo, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/formas-farmaceuticas")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> listFormasFarmaceuticas(@RequestParam(required = false) String estado) {
+        return listarFormasFarmaceuticas.execute(new ListarFormasFarmaceuticasQuery(estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/vias-administracion")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> createViaAdministracion(@Valid @RequestBody ViaAdministracionRequest request) {
+        return crearViaAdministracion.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/vias-administracion/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> updateViaAdministracion(
+            @PathVariable String codigo, @Valid @RequestBody ViaAdministracionRequest request) {
+        return actualizarViaAdministracion.execute(CatalogoApiMapper.toUpdateCommand(request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/vias-administracion/{codigo}/estado")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> changeViaAdministracionStatus(
+            @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeViaAdministracionStatus(codigo, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/vias-administracion")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> listViasAdministracion(@RequestParam(required = false) String estado) {
+        return listarViasAdministracion.execute(new ListarViasAdministracionQuery(estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/unidades-medida")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> createUnidadMedida(@Valid @RequestBody UnidadMedidaRequest request) {
+        return crearUnidadMedida.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/unidades-medida/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> updateUnidadMedida(
+            @PathVariable String codigo, @Valid @RequestBody UnidadMedidaRequest request) {
+        return actualizarUnidadMedida.execute(CatalogoApiMapper.toUpdateCommand(request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/unidades-medida/{codigo}/estado")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> changeUnidadMedidaStatus(
+            @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeUnidadMedidaStatus(codigo, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/unidades-medida")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> listUnidadesMedida(@RequestParam(required = false) String estado) {
+        return listarUnidadesMedida.execute(new ListarUnidadesMedidaQuery(estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/clasificaciones-controladas")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> createClasificacionControlada(@Valid @RequestBody ClasificacionControladaRequest request) {
+        return crearClasificacionControlada.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/clasificaciones-controladas/{codigo}")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> updateClasificacionControlada(
+            @PathVariable String codigo, @Valid @RequestBody ClasificacionControladaRequest request) {
+        return actualizarClasificacionControlada.execute(CatalogoApiMapper.toUpdateCommand(request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/clasificaciones-controladas/{codigo}/estado")
+    @PreAuthorize("hasAuthority('catalogo.soporte.gestionar')")
+    public ResponseEntity<?> changeClasificacionControladaStatus(
+            @PathVariable String codigo, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeClasificacionControladaStatus(codigo, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/clasificaciones-controladas")
+    @PreAuthorize("hasAuthority('catalogo.soporte.consultar')")
+    public ResponseEntity<?> listClasificacionesControladas(@RequestParam(required = false) String estado) {
+        return listarClasificacionesControladas.execute(new ListarClasificacionesControladasQuery(estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 3: Ejecutar y verificar que compila**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 4: Crear `PrincipioActivoController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/PrincipioActivoController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
+import com.softprimesolutions.catalogo.api.dto.request.PrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ListarPrincipioActivoQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarPrincipioActivoUseCase;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/principios-activos")
+public class PrincipioActivoController {
+
+    private final CrearPrincipioActivoUseCase createPrincipioActivo;
+    private final ActualizarPrincipioActivoUseCase updatePrincipioActivo;
+    private final ListarPrincipioActivoUseCase listPrincipiosActivos;
+    private final CatalogoControlUseCase control;
+
+    public PrincipioActivoController(
+            CrearPrincipioActivoUseCase createPrincipioActivo,
+            ActualizarPrincipioActivoUseCase updatePrincipioActivo,
+            ListarPrincipioActivoUseCase listPrincipiosActivos,
+            CatalogoControlUseCase control) {
+        this.createPrincipioActivo = createPrincipioActivo;
+        this.updatePrincipioActivo = updatePrincipioActivo;
+        this.listPrincipiosActivos = listPrincipiosActivos;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.principios-activos.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody PrincipioActivoRequest request) {
+        return createPrincipioActivo.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{principioActivoId}")
+    @PreAuthorize("hasAuthority('catalogo.principios-activos.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID principioActivoId, @Valid @RequestBody PrincipioActivoRequest request) {
+        return updatePrincipioActivo.execute(CatalogoApiMapper.toUpdateCommand(principioActivoId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{principioActivoId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.principios-activos.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID principioActivoId, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changePrincipioActivoStatus(principioActivoId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.principios-activos.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam(required = false) String texto, @RequestParam(required = false) String estado) {
+        return listPrincipiosActivos.execute(new ListarPrincipioActivoQuery(texto, estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 5: Crear `MarcaController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/MarcaController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
+import com.softprimesolutions.catalogo.api.dto.request.MarcaRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ListarMarcasQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarMarcaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearMarcaUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarMarcasUseCase;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/marcas")
+public class MarcaController {
+
+    private final CrearMarcaUseCase createMarca;
+    private final ActualizarMarcaUseCase updateMarca;
+    private final ListarMarcasUseCase listMarcas;
+    private final CatalogoControlUseCase control;
+
+    public MarcaController(
+            CrearMarcaUseCase createMarca, ActualizarMarcaUseCase updateMarca, ListarMarcasUseCase listMarcas,
+            CatalogoControlUseCase control) {
+        this.createMarca = createMarca;
+        this.updateMarca = updateMarca;
+        this.listMarcas = listMarcas;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.marcas.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody MarcaRequest request) {
+        return createMarca.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{marcaId}")
+    @PreAuthorize("hasAuthority('catalogo.marcas.gestionar')")
+    public ResponseEntity<?> update(@PathVariable UUID marcaId, @Valid @RequestBody MarcaRequest request) {
+        return updateMarca.execute(CatalogoApiMapper.toUpdateCommand(marcaId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{marcaId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.marcas.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID marcaId, @Valid @RequestBody CambiarEstadoTenantRequest request) {
+        return control.changeMarcaStatus(request.tenantId(), marcaId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.marcas.consultar')")
+    public ResponseEntity<?> list(@RequestParam UUID tenantId, @RequestParam(required = false) String estado) {
+        return listMarcas.execute(new ListarMarcasQuery(tenantId, estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 6: Crear `CategoriaProductoController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/CategoriaProductoController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CategoriaProductoRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.query.ListarCategoriasProductoQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearCategoriaProductoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarCategoriasProductoUseCase;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/categorias")
+public class CategoriaProductoController {
+
+    private final CrearCategoriaProductoUseCase createCategoria;
+    private final ActualizarCategoriaProductoUseCase updateCategoria;
+    private final ListarCategoriasProductoUseCase listCategorias;
+    private final CatalogoControlUseCase control;
+
+    public CategoriaProductoController(
+            CrearCategoriaProductoUseCase createCategoria,
+            ActualizarCategoriaProductoUseCase updateCategoria,
+            ListarCategoriasProductoUseCase listCategorias,
+            CatalogoControlUseCase control) {
+        this.createCategoria = createCategoria;
+        this.updateCategoria = updateCategoria;
+        this.listCategorias = listCategorias;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody CategoriaProductoRequest request) {
+        return createCategoria.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{categoriaId}")
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID categoriaId, @Valid @RequestBody CategoriaProductoRequest request) {
+        return updateCategoria.execute(CatalogoApiMapper.toUpdateCommand(categoriaId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{categoriaId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.categorias.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID categoriaId, @Valid @RequestBody CambiarEstadoTenantRequest request) {
+        return control.changeCategoriaProductoStatus(request.tenantId(), categoriaId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.categorias.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam UUID tenantId, @RequestParam(required = false) UUID categoriaPadreId,
+            @RequestParam(required = false) String estado) {
+        return listCategorias.execute(new ListarCategoriasProductoQuery(tenantId, categoriaPadreId, estado)).fold(
+                result -> ResponseEntity.ok(result.stream().map(CatalogoApiMapper::toResponse).toList()),
+                CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 7: Crear `ProductoReguladoController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/ProductoReguladoController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.AsociarPrincipioActivoRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoGlobalRequest;
+import com.softprimesolutions.catalogo.api.dto.request.ProductoReguladoRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.command.DesasociarPrincipioActivoCommand;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarProductoReguladoQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarProductosReguladosQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.AsociarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearProductoReguladoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.DesasociarPrincipioActivoUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarProductosReguladosUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/productos-regulados")
+public class ProductoReguladoController {
+
+    private final CrearProductoReguladoUseCase createProductoRegulado;
+    private final ActualizarProductoReguladoUseCase updateProductoRegulado;
+    private final ConsultarProductoReguladoUseCase getProductoRegulado;
+    private final ListarProductosReguladosUseCase listProductosRegulados;
+    private final AsociarPrincipioActivoUseCase asociarPrincipioActivo;
+    private final DesasociarPrincipioActivoUseCase desasociarPrincipioActivo;
+    private final CatalogoControlUseCase control;
+
+    public ProductoReguladoController(
+            CrearProductoReguladoUseCase createProductoRegulado,
+            ActualizarProductoReguladoUseCase updateProductoRegulado,
+            ConsultarProductoReguladoUseCase getProductoRegulado,
+            ListarProductosReguladosUseCase listProductosRegulados,
+            AsociarPrincipioActivoUseCase asociarPrincipioActivo,
+            DesasociarPrincipioActivoUseCase desasociarPrincipioActivo,
+            CatalogoControlUseCase control) {
+        this.createProductoRegulado = createProductoRegulado;
+        this.updateProductoRegulado = updateProductoRegulado;
+        this.getProductoRegulado = getProductoRegulado;
+        this.listProductosRegulados = listProductosRegulados;
+        this.asociarPrincipioActivo = asociarPrincipioActivo;
+        this.desasociarPrincipioActivo = desasociarPrincipioActivo;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody ProductoReguladoRequest request) {
+        return createProductoRegulado.execute(CatalogoApiMapper.toCreateCommand(request)).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{productoReguladoId}")
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID productoReguladoId, @Valid @RequestBody ProductoReguladoRequest request) {
+        return updateProductoRegulado.execute(CatalogoApiMapper.toUpdateCommand(productoReguladoId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{productoReguladoId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID productoReguladoId, @Valid @RequestBody CambiarEstadoGlobalRequest request) {
+        return control.changeProductoReguladoStatus(productoReguladoId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{productoReguladoId}")
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.consultar')")
+    public ResponseEntity<?> get(@PathVariable UUID productoReguladoId) {
+        return getProductoRegulado.execute(new ConsultarProductoReguladoQuery(productoReguladoId)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String condicionVentaCodigo,
+            @RequestParam(required = false) String estadoRegulatorio,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return listProductosRegulados.execute(
+                        new ListarProductosReguladosQuery(q, condicionVentaCodigo, estadoRegulatorio, page, size))
+                .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toProductoReguladoPage(result)),
+                        CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/{productoReguladoId}/principios-activos")
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.gestionar')")
+    public ResponseEntity<?> asociarPrincipioActivo(
+            @PathVariable UUID productoReguladoId, @Valid @RequestBody AsociarPrincipioActivoRequest request) {
+        return asociarPrincipioActivo.execute(CatalogoApiMapper.toCommand(productoReguladoId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @DeleteMapping("/{productoReguladoId}/principios-activos/{principioActivoId}")
+    @PreAuthorize("hasAuthority('catalogo.productos-regulados.gestionar')")
+    public ResponseEntity<?> desasociarPrincipioActivo(
+            @PathVariable UUID productoReguladoId, @PathVariable UUID principioActivoId) {
+        return desasociarPrincipioActivo.execute(
+                        new DesasociarPrincipioActivoCommand(productoReguladoId, principioActivoId))
+                .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                        CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 8: Crear `SkuController`**
+
+Crear `service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/SkuController.java`:
+
+```java
+package com.softprimesolutions.catalogo.api.controller;
+
+import com.softprimesolutions.catalogo.api.dto.request.AgregarCodigoBarraRequest;
+import com.softprimesolutions.catalogo.api.dto.request.CambiarEstadoTenantRequest;
+import com.softprimesolutions.catalogo.api.dto.request.SkuRequest;
+import com.softprimesolutions.catalogo.api.mapper.CatalogoApiMapper;
+import com.softprimesolutions.catalogo.application.dto.command.EliminarCodigoBarraCommand;
+import com.softprimesolutions.catalogo.application.dto.command.MarcarCodigoBarraPrincipalCommand;
+import com.softprimesolutions.catalogo.application.dto.query.ConsultarSkuQuery;
+import com.softprimesolutions.catalogo.application.dto.query.ListarSkusQuery;
+import com.softprimesolutions.catalogo.application.port.in.ActualizarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.AgregarCodigoBarraUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CatalogoControlUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ConsultarSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.CrearSkuUseCase;
+import com.softprimesolutions.catalogo.application.port.in.EliminarCodigoBarraUseCase;
+import com.softprimesolutions.catalogo.application.port.in.ListarSkusUseCase;
+import com.softprimesolutions.catalogo.application.port.in.MarcarCodigoBarraPrincipalUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/catalogo/skus")
+public class SkuController {
+
+    private final CrearSkuUseCase createSku;
+    private final ActualizarSkuUseCase updateSku;
+    private final ConsultarSkuUseCase getSku;
+    private final ListarSkusUseCase listSkus;
+    private final AgregarCodigoBarraUseCase agregarCodigoBarra;
+    private final EliminarCodigoBarraUseCase eliminarCodigoBarra;
+    private final MarcarCodigoBarraPrincipalUseCase marcarCodigoBarraPrincipal;
+    private final CatalogoControlUseCase control;
+
+    public SkuController(
+            CrearSkuUseCase createSku,
+            ActualizarSkuUseCase updateSku,
+            ConsultarSkuUseCase getSku,
+            ListarSkusUseCase listSkus,
+            AgregarCodigoBarraUseCase agregarCodigoBarra,
+            EliminarCodigoBarraUseCase eliminarCodigoBarra,
+            MarcarCodigoBarraPrincipalUseCase marcarCodigoBarraPrincipal,
+            CatalogoControlUseCase control) {
+        this.createSku = createSku;
+        this.updateSku = updateSku;
+        this.getSku = getSku;
+        this.listSkus = listSkus;
+        this.agregarCodigoBarra = agregarCodigoBarra;
+        this.eliminarCodigoBarra = eliminarCodigoBarra;
+        this.marcarCodigoBarraPrincipal = marcarCodigoBarraPrincipal;
+        this.control = control;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> create(@Valid @RequestBody SkuRequest request, Authentication authentication) {
+        return createSku.execute(CatalogoApiMapper.toCreateCommand(request, authentication.getName())).fold(
+                result -> ResponseEntity.status(201).body(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PutMapping("/{skuId}")
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> update(
+            @PathVariable UUID skuId, @Valid @RequestBody SkuRequest request, Authentication authentication) {
+        return updateSku.execute(CatalogoApiMapper.toUpdateCommand(skuId, request, authentication.getName())).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{skuId}/estado")
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> changeStatus(
+            @PathVariable UUID skuId, @Valid @RequestBody CambiarEstadoTenantRequest request) {
+        return control.changeSkuStatus(request.tenantId(), skuId, request.status()).fold(
+                ignored -> ResponseEntity.noContent().build(), CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping("/{skuId}")
+    @PreAuthorize("hasAuthority('catalogo.skus.consultar')")
+    public ResponseEntity<?> get(@PathVariable UUID skuId, @RequestParam UUID tenantId) {
+        return getSku.execute(new ConsultarSkuQuery(tenantId, skuId)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('catalogo.skus.consultar')")
+    public ResponseEntity<?> list(
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) UUID categoriaId,
+            @RequestParam(required = false) UUID marcaId,
+            @RequestParam(required = false) String tipoSku,
+            @RequestParam(required = false) String estado,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return listSkus.execute(new ListarSkusQuery(tenantId, q, categoriaId, marcaId, tipoSku, estado, page, size))
+                .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toSkuPage(result)),
+                        CatalogoControllerSupport::problem);
+    }
+
+    @PostMapping("/{skuId}/codigos-barra")
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> agregarCodigoBarra(
+            @PathVariable UUID skuId, @RequestParam UUID tenantId, @Valid @RequestBody AgregarCodigoBarraRequest request) {
+        return agregarCodigoBarra.execute(CatalogoApiMapper.toCommand(tenantId, skuId, request)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @DeleteMapping("/{skuId}/codigos-barra/{codigoBarra}")
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> eliminarCodigoBarra(
+            @PathVariable UUID skuId, @PathVariable String codigoBarra, @RequestParam UUID tenantId) {
+        return eliminarCodigoBarra.execute(new EliminarCodigoBarraCommand(tenantId, skuId, codigoBarra)).fold(
+                result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                CatalogoControllerSupport::problem);
+    }
+
+    @PatchMapping("/{skuId}/codigos-barra/{codigoBarra}/principal")
+    @PreAuthorize("hasAuthority('catalogo.skus.gestionar')")
+    public ResponseEntity<?> marcarCodigoBarraPrincipal(
+            @PathVariable UUID skuId, @PathVariable String codigoBarra, @RequestParam UUID tenantId) {
+        return marcarCodigoBarraPrincipal.execute(
+                        new MarcarCodigoBarraPrincipalCommand(tenantId, skuId, codigoBarra))
+                .fold(result -> ResponseEntity.ok(CatalogoApiMapper.toResponse(result)),
+                        CatalogoControllerSupport::problem);
+    }
+}
+```
+
+- [ ] **Step 9: Compilar el módulo completo**
+
+Run: `cd service-botica && .\gradlew.bat :modules:catalogo:compileJava`
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add service-botica/modules/catalogo/src/main/java/com/softprimesolutions/catalogo/api/controller/
+git commit -m "feat(catalogo): agregar los 6 controllers REST del modulo"
+```
+
+---

@@ -15,23 +15,29 @@ import org.springframework.stereotype.Repository;
 public class IamJdbcReadRepository {
 
     private static final String USER_FILTER = """
-            FROM sch_seguridad.usuario u
-            JOIN sch_farmacia.tenant t ON t.id = u.tenant_id
-            LEFT JOIN sch_seguridad.identidad_externa ie
-              ON ie.usuario_id = u.id
-             AND ie.id = (SELECT MIN(ie2.id) FROM sch_seguridad.identidad_externa ie2 WHERE ie2.usuario_id = u.id)
+            FROM sch_seguridad.membership m
+            JOIN sch_seguridad.identidad i ON i.id = m.identidad_id
+            JOIN sch_admin.tenant t ON t.id = m.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = ''
-                OR LOWER(COALESCE(u.nombre_mostrar, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.email::text, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.username::text, '')) LIKE :pattern
-                OR LOWER(COALESCE(u.numero_documento, '')) LIKE :pattern)
+                OR LOWER(COALESCE(m.nombre_mostrar, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.email::text, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.username::text, '')) LIKE :pattern
+                OR LOWER(COALESCE(i.numero_documento, '')) LIKE :pattern)
             """;
     private static final String ROLE_FILTER = """
             FROM sch_seguridad.rol r
-            JOIN sch_farmacia.tenant t ON t.id = r.tenant_id
+            JOIN sch_admin.tenant t ON t.id = r.tenant_id
             WHERE t.uuid_publico = :tenantId
               AND (:search = '' OR LOWER(r.codigo) LIKE :pattern OR LOWER(r.nombre) LIKE :pattern)
+            """;
+    private static final String PERMISSION_FILTER = """
+            FROM sch_seguridad.permiso p
+            JOIN sch_seguridad.modulo_sistema m ON m.id = p.modulo_id
+            WHERE (:search = ''
+              OR LOWER(p.codigo) LIKE :pattern
+              OR LOWER(p.nombre) LIKE :pattern
+              OR LOWER(m.codigo) LIKE :pattern)
             """;
 
     private final JdbcClient jdbcClient;
@@ -43,13 +49,12 @@ public class IamJdbcReadRepository {
     public List<UsuarioProjection> findUsers(UUID tenantId, String search, int offset, int limit) {
         var filter = normalizeSearch(search);
         return jdbcClient.sql("""
-                        SELECT u.uuid_publico, t.uuid_publico AS tenant_uuid,
-                               ie.provider, ie.issuer, ie.subject, ie.email_claim,
-                               u.tipo_documento, u.numero_documento, u.nombres, u.apellidos,
-                               u.username, u.email, u.nombre_mostrar, u.telefono,
-                               u.requiere_cambio_credencial, u.mfa_requerido,
-                               u.estado, u.created_at, u.updated_at
-                        """ + USER_FILTER + " ORDER BY u.nombre_mostrar, u.id LIMIT :limit OFFSET :offset")
+                        SELECT m.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               i.tipo_documento, i.numero_documento, i.nombres, i.apellidos,
+                               i.username, i.email, m.nombre_mostrar, i.telefono,
+                               m.requiere_cambio_credencial, m.mfa_requerido,
+                               m.estado, m.created_at, m.updated_at
+                        """ + USER_FILTER + " ORDER BY m.nombre_mostrar, m.id LIMIT :limit OFFSET :offset")
                 .param("tenantId", tenantId)
                 .param("search", filter)
                 .param("pattern", '%' + filter + '%')
@@ -58,10 +63,6 @@ public class IamJdbcReadRepository {
                 .query((rs, rowNumber) -> new UsuarioProjection(
                         rs.getObject("uuid_publico", UUID.class),
                         rs.getObject("tenant_uuid", UUID.class),
-                        rs.getString("provider"),
-                        rs.getString("issuer"),
-                        rs.getString("subject"),
-                        rs.getString("email_claim"),
                         rs.getString("tipo_documento"),
                         rs.getString("numero_documento"),
                         rs.getString("nombres"),
@@ -128,28 +129,58 @@ public class IamJdbcReadRepository {
                 .single();
     }
 
-    public List<PermisoProjection> findPermissions(String search) {
+    public java.util.Optional<RolProjection> findRoleById(UUID tenantId, UUID roleId) {
+        return jdbcClient.sql("""
+                        SELECT r.uuid_publico, t.uuid_publico AS tenant_uuid,
+                               r.codigo, r.nombre, r.descripcion, r.tipo_rol, r.es_sistema,
+                               r.estado, r.created_at, r.updated_at
+                        FROM sch_seguridad.rol r
+                        JOIN sch_admin.tenant t ON t.id = r.tenant_id
+                        WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
+                        """)
+                .param("tenantId", tenantId)
+                .param("roleId", roleId)
+                .query((rs, rowNumber) -> new RolProjection(
+                        rs.getObject("uuid_publico", UUID.class),
+                        rs.getObject("tenant_uuid", UUID.class),
+                        rs.getString("codigo"),
+                        rs.getString("nombre"),
+                        rs.getString("descripcion"),
+                        rs.getString("tipo_rol"),
+                        rs.getBoolean("es_sistema"),
+                        findPermissionCodes(roleId),
+                        rs.getString("estado"),
+                        toInstant(rs.getObject("created_at", OffsetDateTime.class)),
+                        toInstant(rs.getObject("updated_at", OffsetDateTime.class))))
+                .optional();
+    }
+
+    public List<PermisoProjection> findPermissions(String search, int offset, int limit) {
         var filter = normalizeSearch(search);
         return jdbcClient.sql("""
                         SELECT m.codigo AS modulo_codigo, m.nombre AS modulo_nombre,
                                p.codigo, p.recurso, p.accion, p.nombre, p.descripcion,
                                p.es_critico, p.estado
-                        FROM sch_seguridad.permiso p
-                        JOIN sch_seguridad.modulo_sistema m ON m.id = p.modulo_id
-                        WHERE (:search = ''
-                          OR LOWER(p.codigo) LIKE :pattern
-                          OR LOWER(p.nombre) LIKE :pattern
-                          OR LOWER(m.codigo) LIKE :pattern)
-                        ORDER BY m.orden, p.codigo
-                        """)
+                        """ + PERMISSION_FILTER + " ORDER BY m.orden, p.codigo LIMIT :limit OFFSET :offset")
                 .param("search", filter)
                 .param("pattern", '%' + filter + '%')
+                .param("limit", limit)
+                .param("offset", offset)
                 .query((rs, rowNumber) -> new PermisoProjection(
                         rs.getString("modulo_codigo"), rs.getString("modulo_nombre"),
                         rs.getString("codigo"), rs.getString("recurso"), rs.getString("accion"),
                         rs.getString("nombre"), rs.getString("descripcion"),
                         rs.getBoolean("es_critico"), rs.getString("estado")))
                 .list();
+    }
+
+    public long countPermissions(String search) {
+        var filter = normalizeSearch(search);
+        return jdbcClient.sql("SELECT COUNT(*) " + PERMISSION_FILTER)
+                .param("search", filter)
+                .param("pattern", '%' + filter + '%')
+                .query(Long.class)
+                .single();
     }
 
     private LinkedHashSet<String> findPermissionCodes(UUID roleId) {

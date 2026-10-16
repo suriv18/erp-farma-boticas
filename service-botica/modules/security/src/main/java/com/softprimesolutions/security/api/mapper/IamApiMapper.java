@@ -1,5 +1,6 @@
 package com.softprimesolutions.security.api.mapper;
 
+import com.softprimesolutions.security.api.dto.request.ActualizarRolRequest;
 import com.softprimesolutions.security.api.dto.request.AsignarRolUsuarioRequest;
 import com.softprimesolutions.security.api.dto.request.CrearRolRequest;
 import com.softprimesolutions.security.api.dto.request.CrearUsuarioRequest;
@@ -9,6 +10,7 @@ import com.softprimesolutions.security.api.dto.response.PaginaResponse;
 import com.softprimesolutions.security.api.dto.response.PermisoResponse;
 import com.softprimesolutions.security.api.dto.response.RolResponse;
 import com.softprimesolutions.security.api.dto.response.UsuarioResponse;
+import com.softprimesolutions.security.application.dto.command.ActualizarRolCommand;
 import com.softprimesolutions.security.application.dto.command.AsignarRolUsuarioCommand;
 import com.softprimesolutions.security.application.dto.command.CrearRolCommand;
 import com.softprimesolutions.security.application.dto.command.CrearUsuarioCommand;
@@ -28,10 +30,9 @@ public final class IamApiMapper {
 
     public static CrearUsuarioCommand toCommand(CrearUsuarioRequest request) {
         return new CrearUsuarioCommand(
-                request.tenantId(), request.identityProvider(), request.identitySubject(),
-                request.identityIssuer(), request.emailClaim(), request.documentType(), request.documentNumber(),
-                request.firstNames(), request.lastNames(), request.username(), request.email(), request.phone(),
-                request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
+                request.tenantId(), request.documentType(), request.documentNumber(),
+                request.firstNames(), request.lastNames(), request.username(), request.email(),
+                request.phone(), request.displayName(), Boolean.TRUE.equals(request.credentialChangeRequired()),
                 Boolean.TRUE.equals(request.mfaRequired()));
     }
 
@@ -39,6 +40,11 @@ public final class IamApiMapper {
         return new CrearRolCommand(
                 request.tenantId(), request.code(), request.name(), request.description(),
                 request.roleType(), Boolean.TRUE.equals(request.systemRole()));
+    }
+
+    public static ActualizarRolCommand toCommand(UUID roleId, UUID tenantId, ActualizarRolRequest request) {
+        return new ActualizarRolCommand(
+                roleId, tenantId, request.code(), request.name(), request.description(), request.roleType());
     }
 
     public static ReemplazarPermisosRolCommand toCommand(
@@ -56,11 +62,10 @@ public final class IamApiMapper {
 
     public static UsuarioResponse toResponse(UsuarioResult result) {
         return new UsuarioResponse(
-                result.id(), result.tenantId(), result.identityProvider(), result.identityIssuer(),
-                result.identitySubject(), result.emailClaim(), result.documentType(), result.documentNumber(),
-                result.firstNames(), result.lastNames(), result.username(), result.email(), result.displayName(),
-                result.phone(), result.credentialChangeRequired(), result.mfaRequired(), result.status(),
-                result.createdAt(), result.updatedAt());
+                result.id(), result.tenantId(), result.documentType(), result.documentNumber(),
+                result.firstNames(), result.lastNames(), result.username(), result.email(),
+                result.displayName(), result.phone(), result.credentialChangeRequired(),
+                result.mfaRequired(), result.status(), result.createdAt(), result.updatedAt());
     }
 
     public static RolResponse toResponse(RolResult result) {
@@ -90,6 +95,12 @@ public final class IamApiMapper {
     }
 
     public static PaginaResponse<RolResponse> toRolPage(PaginaResult<RolResult> result) {
+        return new PaginaResponse<>(
+                result.items().stream().map(IamApiMapper::toResponse).toList(),
+                result.page(), result.size(), result.totalElements());
+    }
+
+    public static PaginaResponse<PermisoResponse> toPermisoPage(PaginaResult<PermisoResult> result) {
         return new PaginaResponse<>(
                 result.items().stream().map(IamApiMapper::toResponse).toList(),
                 result.page(), result.size(), result.totalElements());

@@ -41,3 +41,7 @@ La solución se define como una **plataforma híbrida de retail distribuido**:
 - Azure/AWS documentan CQRS, Transactional Outbox e idempotencia para evitar inconsistencias de dual-write y tolerar entregas duplicadas.
 
 Ver [Referencias](../99-referencias.md).
+
+## Surtido diverso
+
+[ADR-011](adr/ADR-011-surtido-trazabilidad-admisibilidad.md) fija las decisiones de diseño y enlaza diccionario, contratos, migración y pruebas.

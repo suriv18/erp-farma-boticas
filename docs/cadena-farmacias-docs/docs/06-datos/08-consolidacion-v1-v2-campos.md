@@ -71,3 +71,7 @@ Estas capacidades existen en el mapa/roadmap, pero deben entrar mediante su RF/C
 `producto_regulado` incluye ahora, entre otros: registro sanitario, denominación, concentración, presentación, forma farmacéutica, vía, condición de venta, ATC, titular, fabricante, importador, origen, tipo de liberación y clasificación controlada. Los ingredientes activos admiten cantidad/unidad.
 
 Estos atributos se justifican por los campos de consulta/formularios de DIGEMID y no por el V1 por sí solo.
+
+## Actualización posterior — 2026-09-15
+
+La consolidación V1/V2 describe el origen histórico. La referencia actual es el SQL original y su distribución V001–V017 con ajustes de ejecución. El catálogo incorpora rubro_comercial y atributos retail; la evaluación de soporte real está en [DAT-FAR-009](09-adecuacion-surtido-multiproducto-peru.md).

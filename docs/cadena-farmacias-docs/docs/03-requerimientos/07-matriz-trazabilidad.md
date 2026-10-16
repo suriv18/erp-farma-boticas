@@ -35,3 +35,7 @@ Relacionar procesos TO-BE con módulos de requisitos, reglas y futuros casos de 
 ## 3. Próxima extensión
 
 La trazabilidad prioritaria ya usa `RF → RN → CU → CA`; el siguiente incremento es completar sistemáticamente `→ dominio → API → dato → prueba` para todos los módulos.
+
+## Extensión de surtido diverso
+
+La matriz RF → RN → CU → dato/API → prueba para los nueve requisitos adicionales se mantiene en [REQ-FAR-MULTI](09-surtido-multiproducto.md). Estado: diseño definido en ADR-011 y DAT-FAR-010; ejecución todavía no validada.

@@ -113,7 +113,7 @@ Cobro POS
 Salida de inventario
 ```
 
-La Directiva Sanitaria N.° 105-MINSA/2020/DIGEMID sustenta las etapas de recepción/validación, análisis, preparación/selección, registros y entrega/información.
+El Manual de Buenas Prácticas de Dispensación, aprobado por R.M. N.° 013-2009/MINSA [REF-25], sustenta las etapas de recepción/validación, análisis, preparación/selección, registros y entrega/información.
 
 ### P06. Producto controlado
 

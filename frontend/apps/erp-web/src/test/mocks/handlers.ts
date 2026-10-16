@@ -1,6 +1,23 @@
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
+  http.post('*/api/v1/auth/login', async ({ request }) => {
+    const body = (await request.json()) as { login?: string; password?: string };
+    if (body.password !== 'Boticas2026!') {
+      return HttpResponse.json({ title: 'Credenciales incorrectas o cuenta bloqueada.' }, { status: 401 });
+    }
+    return HttpResponse.json({
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      tokenType: 'Bearer',
+      accessExpiresAt: '2026-08-31T12:10:00-05:00',
+      refreshExpiresAt: '2026-09-07T12:00:00-05:00',
+      tenantId: '11111111-1111-1111-1111-111111111111',
+      userId: '22222222-2222-2222-2222-222222222222',
+      sessionId: '33333333-3333-3333-3333-333333333333',
+      passwordChangeRequired: false
+    });
+  }),
   http.get('*/api/v1/dashboard/summary', () =>
     HttpResponse.json({
       salesToday: 8420.5,
@@ -55,5 +72,153 @@ export const handlers = [
         }
       ]
     })
+  ),
+  http.get('*/api/v1/catalogo/marcas', () =>
+    HttpResponse.json({
+      items: [
+        { id: 'marca-1', tenantId: '11111111-1111-1111-1111-111111111111', codigo: 'BAYER', nombre: 'Bayer', descripcion: null, estado: 'ACTIVO' }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/categorias', () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'categoria-1',
+          tenantId: '11111111-1111-1111-1111-111111111111',
+          categoriaPadreId: null,
+          codigo: 'ANALGESICOS',
+          nombre: 'Analgésicos',
+          descripcion: null,
+          nivel: 1,
+          orden: 1,
+          estado: 'ACTIVO'
+        }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/rubros-comerciales', () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'rubro-1',
+          tenantId: '11111111-1111-1111-1111-111111111111',
+          codigo: 'FARMA',
+          nombre: 'Farmacéutico',
+          descripcion: null,
+          esFarmaceutico: true,
+          orden: 1,
+          estado: 'ACTIVO'
+        }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/condiciones-venta', () =>
+    HttpResponse.json([
+      {
+        codigo: 'VL',
+        denominacion: 'Venta libre',
+        requiereReceta: false,
+        requiereRetencion: false,
+        fuente: 'DIGEMID',
+        versionFuente: '2026',
+        vigenteDesde: null,
+        vigenteHasta: null,
+        estado: 'ACTIVO'
+      },
+      {
+        codigo: 'RM',
+        denominacion: 'Con receta médica',
+        requiereReceta: true,
+        requiereRetencion: false,
+        fuente: 'DIGEMID',
+        versionFuente: '2026',
+        vigenteDesde: null,
+        vigenteHasta: null,
+        estado: 'ACTIVO'
+      }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/formas-farmaceuticas', () =>
+    HttpResponse.json([
+      { codigo: 'TAB', denominacion: 'Tableta', fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'JBE', denominacion: 'Jarabe', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/vias-administracion', () =>
+    HttpResponse.json([
+      { codigo: 'ORAL', denominacion: 'Vía oral', fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'IV', denominacion: 'Vía intravenosa', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/unidades-medida', () =>
+    HttpResponse.json([
+      { codigo: 'UND', denominacion: 'Unidad', simbolo: 'u', permiteDecimal: false, fuente: 'DIGEMID', estado: 'ACTIVO' },
+      { codigo: 'MG', denominacion: 'Miligramo', simbolo: 'mg', permiteDecimal: true, fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/tipos-documento-identidad', () =>
+    HttpResponse.json({
+      items: [
+        { codigo: '1', sigla: 'DNI', denominacion: 'Documento Nacional de Identidad', max: 8, min: 8, estado: 'ACTIVO' },
+        { codigo: '4', sigla: 'CE', denominacion: 'Carnet de extranjería', max: null, min: null, estado: 'ACTIVO' },
+        { codigo: '6', sigla: 'RUC', denominacion: 'Registro Unico de Contributentes', max: 11, min: 11, estado: 'ACTIVO' }
+      ],
+      page: 0,
+      size: 100,
+      totalElements: 3
+    })
+  ),
+  http.get('*/api/v1/catalogo/principios-activos', () =>
+    HttpResponse.json([
+      { id: 'principio-1', codigoFuente: 'PA-001', denominacion: 'Paracetamol', nombreNormalizado: 'paracetamol', fuente: 'DIGEMID', estado: 'ACTIVO' }
+    ])
+  ),
+  http.get('*/api/v1/catalogo/productos-regulados', () =>
+    HttpResponse.json({
+      items: [{ id: 'producto-1', denominacion: 'Paracetamol 500 mg', condicionVentaCodigo: 'VL', estadoRegulatorio: 'VIGENTE' }],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/skus', () =>
+    HttpResponse.json({
+      items: [{ id: 'sku-1', codigoInterno: 'SKU-001', descripcionComercial: 'Paracetamol 500 mg x 100', tipoSku: 'REGULADO', estado: 'ACTIVO' }],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    })
+  ),
+  http.get('*/api/v1/catalogo/clasificaciones-controladas', () =>
+    HttpResponse.json([
+      {
+        codigo: 'IIA',
+        denominacion: 'Lista II-A',
+        normaFuente: 'DS 023-2001-SA',
+        requiereRecetaEspecial: true,
+        retieneReceta: true,
+        vigenciaRecetaDias: 30,
+        estado: 'ACTIVO'
+      },
+      {
+        codigo: 'IIIA',
+        denominacion: 'Lista III-A',
+        normaFuente: 'DS 023-2001-SA',
+        requiereRecetaEspecial: false,
+        retieneReceta: false,
+        vigenciaRecetaDias: null,
+        estado: 'ACTIVO'
+      }
+    ])
   )
 ];

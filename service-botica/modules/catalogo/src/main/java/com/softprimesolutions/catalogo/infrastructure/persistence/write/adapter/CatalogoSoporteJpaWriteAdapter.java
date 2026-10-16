@@ -1,0 +1,403 @@
+package com.softprimesolutions.catalogo.infrastructure.persistence.write.adapter;
+
+import com.softprimesolutions.catalogo.application.port.out.CatalogoSoportePort;
+import com.softprimesolutions.catalogo.domain.model.EstadoPrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.PrincipioActivo;
+import com.softprimesolutions.catalogo.domain.model.soporte.ClasificacionControlada;
+import com.softprimesolutions.catalogo.domain.model.soporte.CondicionVenta;
+import com.softprimesolutions.catalogo.domain.model.soporte.EstadoCatalogoSoporte;
+import com.softprimesolutions.catalogo.domain.model.soporte.FormaFarmaceutica;
+import com.softprimesolutions.catalogo.domain.model.soporte.TipoDocumentoIdentidad;
+import com.softprimesolutions.catalogo.domain.model.soporte.UnidadMedida;
+import com.softprimesolutions.catalogo.domain.model.soporte.ViaAdministracion;
+import com.softprimesolutions.catalogo.domain.valueobject.PrincipioActivoId;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.mapper.CatalogoSoporteWriteMapper;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ClasificacionControladaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.CondicionVentaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.FormaFarmaceuticaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.PrincipioActivoJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.TipoDocumentoIdentidadJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.UnidadMedidaJpaRepository;
+import com.softprimesolutions.catalogo.infrastructure.persistence.write.repository.ViaAdministracionJpaRepository;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class CatalogoSoporteJpaWriteAdapter implements CatalogoSoportePort {
+
+    private final CondicionVentaJpaRepository condicionVentaRepository;
+    private final FormaFarmaceuticaJpaRepository formaFarmaceuticaRepository;
+    private final ViaAdministracionJpaRepository viaAdministracionRepository;
+    private final UnidadMedidaJpaRepository unidadMedidaRepository;
+    private final ClasificacionControladaJpaRepository clasificacionControladaRepository;
+    private final TipoDocumentoIdentidadJpaRepository tipoDocumentoIdentidadRepository;
+    private final PrincipioActivoJpaRepository principioActivoRepository;
+    private final JdbcClient jdbcClient;
+
+    public CatalogoSoporteJpaWriteAdapter(
+            CondicionVentaJpaRepository condicionVentaRepository,
+            FormaFarmaceuticaJpaRepository formaFarmaceuticaRepository,
+            ViaAdministracionJpaRepository viaAdministracionRepository,
+            UnidadMedidaJpaRepository unidadMedidaRepository,
+            ClasificacionControladaJpaRepository clasificacionControladaRepository,
+            TipoDocumentoIdentidadJpaRepository tipoDocumentoIdentidadRepository,
+            PrincipioActivoJpaRepository principioActivoRepository,
+            JdbcClient jdbcClient) {
+        this.condicionVentaRepository = condicionVentaRepository;
+        this.formaFarmaceuticaRepository = formaFarmaceuticaRepository;
+        this.viaAdministracionRepository = viaAdministracionRepository;
+        this.unidadMedidaRepository = unidadMedidaRepository;
+        this.clasificacionControladaRepository = clasificacionControladaRepository;
+        this.tipoDocumentoIdentidadRepository = tipoDocumentoIdentidadRepository;
+        this.principioActivoRepository = principioActivoRepository;
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(CondicionVenta condicionVenta) {
+        var existing = condicionVentaRepository.findById(condicionVenta.codigo());
+        if (existing.isEmpty()) {
+            try {
+                condicionVentaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(condicionVenta));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.condicion_venta
+                           SET denominacion = :denominacion, requiere_receta = :requiereReceta,
+                               requiere_retencion = :requiereRetencion, fuente = :fuente,
+                               version_fuente = :versionFuente, vigente_desde = :vigenteDesde,
+                               vigente_hasta = :vigenteHasta
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", condicionVenta.denominacion())
+                .param("requiereReceta", condicionVenta.requiereReceta())
+                .param("requiereRetencion", condicionVenta.requiereRetencion())
+                .param("fuente", condicionVenta.fuente())
+                .param("versionFuente", condicionVenta.versionFuente())
+                .param("vigenteDesde", condicionVenta.vigenteDesde())
+                .param("vigenteHasta", condicionVenta.vigenteHasta())
+                .param("codigo", condicionVenta.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CondicionVenta> findCondicionVentaByCodigo(String codigo) {
+        return condicionVentaRepository.findById(codigo)
+                .map(entity -> CondicionVenta.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.isRequiereReceta(),
+                        entity.isRequiereRetencion(), entity.getFuente(), entity.getVersionFuente(),
+                        entity.getVigenteDesde(), entity.getVigenteHasta(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(FormaFarmaceutica formaFarmaceutica) {
+        var existing = formaFarmaceuticaRepository.findById(formaFarmaceutica.codigo());
+        if (existing.isEmpty()) {
+            try {
+                formaFarmaceuticaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(formaFarmaceutica));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.forma_farmaceutica SET denominacion = :denominacion, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", formaFarmaceutica.denominacion())
+                .param("fuente", formaFarmaceutica.fuente())
+                .param("codigo", formaFarmaceutica.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<FormaFarmaceutica> findFormaFarmaceuticaByCodigo(String codigo) {
+        return formaFarmaceuticaRepository.findById(codigo)
+                .map(entity -> FormaFarmaceutica.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getFuente(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(ViaAdministracion viaAdministracion) {
+        var existing = viaAdministracionRepository.findById(viaAdministracion.codigo());
+        if (existing.isEmpty()) {
+            try {
+                viaAdministracionRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(viaAdministracion));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.via_administracion SET denominacion = :denominacion, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", viaAdministracion.denominacion())
+                .param("fuente", viaAdministracion.fuente())
+                .param("codigo", viaAdministracion.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ViaAdministracion> findViaAdministracionByCodigo(String codigo) {
+        return viaAdministracionRepository.findById(codigo)
+                .map(entity -> ViaAdministracion.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getFuente(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(UnidadMedida unidadMedida) {
+        var existing = unidadMedidaRepository.findById(unidadMedida.codigo());
+        if (existing.isEmpty()) {
+            try {
+                unidadMedidaRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(unidadMedida));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.unidad_medida
+                           SET denominacion = :denominacion, simbolo = :simbolo,
+                               permite_decimal = :permiteDecimal, fuente = :fuente
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", unidadMedida.denominacion())
+                .param("simbolo", unidadMedida.simbolo())
+                .param("permiteDecimal", unidadMedida.permiteDecimal())
+                .param("fuente", unidadMedida.fuente())
+                .param("codigo", unidadMedida.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UnidadMedida> findUnidadMedidaByCodigo(String codigo) {
+        return unidadMedidaRepository.findById(codigo)
+                .map(entity -> UnidadMedida.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getSimbolo(),
+                        entity.isPermiteDecimal(), entity.getFuente(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(ClasificacionControlada clasificacionControlada) {
+        var existing = clasificacionControladaRepository.findById(clasificacionControlada.codigo());
+        if (existing.isEmpty()) {
+            try {
+                clasificacionControladaRepository.saveAndFlush(
+                        CatalogoSoporteWriteMapper.toEntity(clasificacionControlada));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.clasificacion_controlada
+                           SET denominacion = :denominacion, norma_fuente = :normaFuente,
+                               requiere_receta_especial = :requiereRecetaEspecial,
+                               retiene_receta = :retieneReceta, vigencia_receta_dias = :vigenciaRecetaDias
+                         WHERE codigo = :codigo
+                        """)
+                .param("denominacion", clasificacionControlada.denominacion())
+                .param("normaFuente", clasificacionControlada.normaFuente())
+                .param("requiereRecetaEspecial", clasificacionControlada.requiereRecetaEspecial())
+                .param("retieneReceta", clasificacionControlada.retieneReceta())
+                .param("vigenciaRecetaDias", clasificacionControlada.vigenciaRecetaDias())
+                .param("codigo", clasificacionControlada.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ClasificacionControlada> findClasificacionControladaByCodigo(String codigo) {
+        return clasificacionControladaRepository.findById(codigo)
+                .map(entity -> ClasificacionControlada.restore(
+                        entity.getCodigo(), entity.getDenominacion(), entity.getNormaFuente(),
+                        entity.isRequiereRecetaEspecial(), entity.isRetieneReceta(),
+                        entity.getVigenciaRecetaDias(), EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    @Transactional
+    public SavePrincipioActivoOutcome save(PrincipioActivo principioActivo) {
+        var existing = principioActivoRepository.findByUuidPublico(principioActivo.id().value());
+        if (existing.isEmpty()) {
+            try {
+                principioActivoRepository.saveAndFlush(CatalogoSoporteWriteMapper.toEntity(principioActivo));
+                return SavePrincipioActivoOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SavePrincipioActivoOutcome.DUPLICATE_DENOMINACION;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.principio_activo
+                           SET codigo_fuente = :codigoFuente, denominacion = :denominacion,
+                               nombre_normalizado = :nombreNormalizado, fuente = :fuente
+                         WHERE uuid_publico = :principioActivoId
+                        """)
+                .param("codigoFuente", principioActivo.codigoFuente())
+                .param("denominacion", principioActivo.denominacion())
+                .param("nombreNormalizado", principioActivo.nombreNormalizado())
+                .param("fuente", principioActivo.fuente())
+                .param("principioActivoId", principioActivo.id().value())
+                .update();
+        return SavePrincipioActivoOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PrincipioActivo> findPrincipioActivoById(UUID principioActivoId) {
+        return principioActivoRepository.findByUuidPublico(principioActivoId)
+                .map(entity -> PrincipioActivo.restore(
+                        new PrincipioActivoId(entity.getUuidPublico()), entity.getCodigoFuente(),
+                        entity.getDenominacion(), entity.getNombreNormalizado(), entity.getFuente(),
+                        EstadoPrincipioActivo.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    public boolean condicionVentaExists(String codigo) {
+        return condicionVentaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean formaFarmaceuticaExists(String codigo) {
+        return formaFarmaceuticaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean viaAdministracionExists(String codigo) {
+        return viaAdministracionRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean unidadMedidaExists(String codigo) {
+        return unidadMedidaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean clasificacionControladaExists(String codigo) {
+        return clasificacionControladaRepository.existsById(codigo);
+    }
+
+    @Override
+    public boolean principioActivoExists(UUID principioActivoId) {
+        return principioActivoRepository.findByUuidPublico(principioActivoId).isPresent();
+    }
+
+    @Override
+    @Transactional
+    public boolean changeCondicionVentaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.condicion_venta SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeFormaFarmaceuticaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.forma_farmaceutica SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeViaAdministracionStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.via_administracion SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeUnidadMedidaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.unidad_medida SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changeClasificacionControladaStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.clasificacion_controlada SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean changePrincipioActivoStatus(UUID principioActivoId, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.principio_activo SET estado = :status WHERE uuid_publico = :principioActivoId")
+                .param("status", status).param("principioActivoId", principioActivoId).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public SaveOutcome save(TipoDocumentoIdentidad tipoDocumentoIdentidad) {
+        var existing = tipoDocumentoIdentidadRepository.findById(tipoDocumentoIdentidad.codigo());
+        if (existing.isEmpty()) {
+            try {
+                tipoDocumentoIdentidadRepository.saveAndFlush(
+                        CatalogoSoporteWriteMapper.toEntity(tipoDocumentoIdentidad));
+                return SaveOutcome.CREATED;
+            } catch (DataIntegrityViolationException exception) {
+                return SaveOutcome.DUPLICATE_CODIGO;
+            }
+        }
+        jdbcClient.sql("""
+                        UPDATE sch_catalogo.tipo_documento_identidad
+                           SET sigla = :sigla, denominacion = :denominacion, max = :max, min = :min
+                         WHERE codigo = :codigo
+                        """)
+                .param("sigla", tipoDocumentoIdentidad.sigla())
+                .param("denominacion", tipoDocumentoIdentidad.denominacion())
+                .param("max", tipoDocumentoIdentidad.max())
+                .param("min", tipoDocumentoIdentidad.min())
+                .param("codigo", tipoDocumentoIdentidad.codigo())
+                .update();
+        return SaveOutcome.UPDATED;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<TipoDocumentoIdentidad> findTipoDocumentoIdentidadByCodigo(String codigo) {
+        return tipoDocumentoIdentidadRepository.findById(codigo)
+                .map(entity -> TipoDocumentoIdentidad.restore(
+                        entity.getCodigo(), entity.getSigla(), entity.getDenominacion(),
+                        entity.getMax() == null ? null : entity.getMax().intValue(),
+                        entity.getMin() == null ? null : entity.getMin().intValue(),
+                        EstadoCatalogoSoporte.valueOf(entity.getEstado())));
+    }
+
+    @Override
+    public boolean tipoDocumentoIdentidadExists(String codigo) {
+        return tipoDocumentoIdentidadRepository.existsById(codigo);
+    }
+
+    @Override
+    @Transactional
+    public boolean changeTipoDocumentoIdentidadStatus(String codigo, String status, Instant changedAt) {
+        return jdbcClient.sql("UPDATE sch_catalogo.tipo_documento_identidad SET estado = :status WHERE codigo = :codigo")
+                .param("status", status).param("codigo", codigo).update() == 1;
+    }
+}

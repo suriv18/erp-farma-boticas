@@ -36,3 +36,5 @@ Por ello DevOps debe contemplar tanto servicios centrales como despliegues distr
 - OpenTelemetry como estándar vendor-neutral para traces, metrics y logs. [REF-53]
 - Twelve-Factor como referencia de portabilidad/configuración, sin adoptarlo como dogma. [REF-54]
 - CycloneDX/SPDX para SBOM. [REF-55] [REF-56]
+
+- [Migración de surtido: expansión, conciliación y recuperación](10-migracion-surtido.md)
