@@ -2,7 +2,7 @@
 
 **Versión:** 0.1  
 **Estado:** Borrador funcional trazable  
-**Total inicial:** 260 RF
+**Total revisado al 2026-09-15:** 271 RF (incluye nueve requisitos de surtido diverso con diseño documentado).
 
 ## 1. Convenciones
 
@@ -635,3 +635,24 @@ Los códigos usan `RF-<MÓDULO>-NNN`. La prioridad es inicial y deberá validars
 - Los estados históricos cerrados se rectifican/ajustan mediante operaciones trazables; no mediante sobrescritura destructiva.
 - Los requisitos de productos fiscalizados se resuelven por clasificación/lista y versión normativa, no por texto libre del producto.
 - La operación offline es una capacidad candidata: no se da por aceptada hasta ADR y requisitos de recuperación/sincronización.
+
+## Ampliación de surtido — revisión 2026-09-15
+
+Requisitos con diseño documental definido en ADR-011 y DAT-FAR-010; pendientes de implementación y aceptación operativa. Fuentes y alcance en [surtido multiproducto](09-surtido-multiproducto.md).
+
+| Código | Requerimiento | Descripción | Prioridad inicial |
+|---|---|---|---|
+| `RF-CAT-019` | Clasificar surtido | Separar rubro comercial, régimen sanitario y tipo de SKU con evidencia; evitar clasificación por nombre. | Alta |
+| `RF-CAT-020` | Gestionar evidencia sanitaria | Conservar autoridad, tipo/número de autorización o justificación de no aplicabilidad, estado y evidencia verificable. | Alta |
+| `RF-CAT-021` | Validar admisibilidad | Resolver venta por SKU, establecimiento, canal y fecha con política versionada y motivo de bloqueo. | Alta |
+| `RF-CAT-022` | Gestionar variantes | Validar atributos de talla/color/presentación y evitar duplicar variantes vendibles. | Alta |
+| `RF-INV-023` | Operar stock sin lote | Soportar artículos cuya política validada no requiera lote, sin datos ficticios. | Alta |
+| `RF-INV-024` | Separar lote y caducidad | Soportar lote sin fecha cuando corresponda y exigir fecha cuando la política lo requiera. | Alta |
+| `RF-POS-023` | Confirmar venta con surtido diverso | Aplicar admisibilidad y controles farmacéuticos por línea al confirmar una venta combinada. | Alta |
+| `RF-CAT-023` | Preservar decisiones de catálogo | Registrar revisión, motivo y versión de clasificación/admisibilidad sin reescribir ventas históricas. | Alta |
+
+## Trazabilidad unitaria — cierre documental 2026-09-15
+
+| Código | Requerimiento | Descripción | Prioridad inicial |
+|---|---|---|---|
+| `RF-INV-025` | Controlar series por unidad | Identificar, reservar, transferir, vender y devolver unidades serializadas con integridad SKU/lote/posición y sin doble venta. | Alta |

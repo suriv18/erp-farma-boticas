@@ -3258,9 +3258,14 @@ git commit -m "feat(catalogo): registrar rutas y mocks de los catalogos de sopor
 
 ---
 
-### Task 9: Verificación final end-to-end
+### Task 9: Verificación final end-to-end ⚠️ (verificada parcialmente — ver nota)
 
-**Files:** ninguno (solo verificación).
+> **Nota (bloqueo de entorno, no del código):** `vitest run --coverage` sin filtro de proyecto (usado tanto por `pnpm check` como por `pnpm test`) se cuelga de forma reproducible en este entorno Windows — 3 intentos, cada uno con los procesos `node` hijos en ~0% de CPU real durante 10-20 min (confirmado con `Get-Process`, no es lentitud). Coincide con el patrón conocido de Vitest 4 + coverage v8 + pool `forks` (default, sin configurar explícitamente en `vitest.config.ts`) quedando colgado en Windows esperando cierre de handles tras completar el trabajo. Se descartó un loop/bug en el código de la app: se revisó `RolesPage.test.tsx`, `setup-tests.ts` y configs de `react-query` sin hallar causa. En su lugar se verificó por partes:
+> - `pnpm lint` (workspace completo): PASS — 0 errores, 2 warnings preexistentes ajenas a este plan.
+> - `pnpm typecheck` en los 3 paquetes (`api-client`, `ui-web`, `erp-web`): PASS.
+> - `pnpm --filter @boticas/erp-web build`: PASS (verificado en Tasks 7 y 8).
+> - `pnpm vitest run --coverage --project erp-web src/features/catalogo` (Step 2, sí completó): 16 test files, 68 tests, PASS — **ningún archivo de `features/catalogo/` aparece en la lista de incumplimiento del gate 100%**; los únicos archivos reportados por debajo del umbral (`auth/api/auth.api.ts`, `auth/components/...ntication.tsx`, `DataTable.tsx`, `EstadoBadge.tsx`, `ThemeToggle.tsx`, `useTheme.ts`, `api-error.ts`) son ajenos a este plan y quedan así solo porque sus propios `.test.ts` no corrieron bajo el filtro de path — se confirmó que esos tests sí existen.
+> - No se logró correr `vitest run --coverage` de **todo** el workspace (`ui-web` + `api-client` + `erp-web` juntos) por el colgado descrito. Queda pendiente que el usuario lo corra en su propia máquina/CI para confirmar el 100% agregado, si el colgado no reproduce ahí.
 
 - [ ] **Step 1: Ejecutar el pipeline completo**
 
