@@ -39,7 +39,7 @@ public final class IamApiMapper {
     public static CrearRolCommand toCommand(CrearRolRequest request) {
         return new CrearRolCommand(
                 request.tenantId(), request.code(), request.name(), request.description(),
-                request.roleType(), Boolean.TRUE.equals(request.systemRole()));
+                request.roleType(), false);
     }
 
     public static ActualizarRolCommand toCommand(UUID roleId, UUID tenantId, ActualizarRolRequest request) {
