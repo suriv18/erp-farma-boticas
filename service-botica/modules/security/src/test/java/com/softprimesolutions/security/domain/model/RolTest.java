@@ -52,6 +52,40 @@ class RolTest {
     }
 
     @Test
+    void replacesPermissionsKeepingModuleVisibilityCodesWithTheirCatalogCase() {
+        var role = createNonSystemRole();
+
+        var result = role.replacePermissions(
+                Set.of("VENTAS:MODULO:VER", "ventas.turnos.abrir"), UPDATED_AT);
+
+        assertTrue(result.isSuccess());
+        assertEquals(
+                Set.of("VENTAS:MODULO:VER", "ventas.turnos.abrir"),
+                result.getOrElse(error -> null).permissionCodes());
+    }
+
+    @Test
+    void replacesPermissionsNormalizingDottedCodesToLowerCase() {
+        var role = createNonSystemRole();
+
+        var result = role.replacePermissions(Set.of(" Ventas.Turnos.Abrir "), UPDATED_AT);
+
+        assertEquals(Set.of("ventas.turnos.abrir"), result.getOrElse(error -> null).permissionCodes());
+    }
+
+    @Test
+    void rejectsPermissionCodesWithInvalidFormat() {
+        var role = createNonSystemRole();
+
+        for (var invalid : Set.of("ventas", "ventas.turnos", "VENTAS:MODULO", "ventas:modulo:ver", "a b.c.d")) {
+            var result = role.replacePermissions(Set.of(invalid), UPDATED_AT);
+
+            assertTrue(result.isFailure(), invalid);
+            assertEquals("SEC_ROL_INVALIDO", result.fold(value -> null, error -> error.code()), invalid);
+        }
+    }
+
+    @Test
     void rejectsUpdateWhenRoleIsSystemRole() {
         var role = createSystemRole();
 

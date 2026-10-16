@@ -16,7 +16,7 @@ public final class Rol extends AggregateRoot {
 
     private static final Pattern CODE_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]{2,79}");
     private static final Pattern PERMISSION_PATTERN = Pattern.compile(
-            "[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*){2,}");
+            "[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*){2,}|[A-Z][A-Z0-9_]*(:[A-Z][A-Z0-9_]*){2,}");
 
     private final RolId id;
     private final TenantId tenantId;
@@ -121,7 +121,9 @@ public final class Rol extends AggregateRoot {
         var normalized = new java.util.HashSet<String>();
         for (var codeValue : codes) {
             var normalizedCode = normalize(codeValue);
-            normalizedCode = normalizedCode == null ? null : normalizedCode.toLowerCase(Locale.ROOT);
+            if (normalizedCode != null && !normalizedCode.contains(":")) {
+                normalizedCode = normalizedCode.toLowerCase(Locale.ROOT);
+            }
             if (normalizedCode == null || !PERMISSION_PATTERN.matcher(normalizedCode).matches()) {
                 return invalid("permissionCodes", "Existe un código de permiso con formato inválido.");
             }

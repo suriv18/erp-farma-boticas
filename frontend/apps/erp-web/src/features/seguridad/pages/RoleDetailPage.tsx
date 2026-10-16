@@ -37,6 +37,11 @@ export function RoleDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['seguridad', 'roles'] });
     }
   });
+  const savePermissionsError = savePermissionsMutation.error
+    ? savePermissionsMutation.error instanceof ApiError
+      ? savePermissionsMutation.error.message
+      : 'No se pudieron guardar los permisos.'
+    : null;
 
   const toggleStatusMutation = useMutation({
     mutationFn: (status: string) =>
@@ -107,6 +112,16 @@ export function RoleDetailPage() {
             onChange={setSelectedCodes}
           />
         </div>
+        {savePermissionsError && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+            {savePermissionsError}
+          </p>
+        )}
+        {savePermissionsMutation.isSuccess && (
+          <p className="mt-3 text-sm text-green-700 dark:text-green-400" role="status">
+            Permisos guardados.
+          </p>
+        )}
         <div className="mt-4 flex justify-end">
           <Button
             onClick={() => savePermissionsMutation.mutate([...effectiveCodes])}

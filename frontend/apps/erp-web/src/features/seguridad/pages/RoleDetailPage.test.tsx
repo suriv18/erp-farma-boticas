@@ -173,6 +173,75 @@ describe('RoleDetailPage', () => {
     await waitFor(() => expect(permissionsPayload).toEqual(['PERM_A']));
   });
 
+  it('confirma al usuario cuando los permisos se guardan', async () => {
+    server.use(
+      http.get('*/api/v1/roles/rol-1', () => HttpResponse.json(sampleRol)),
+      http.get('*/api/v1/permisos', () =>
+        HttpResponse.json({
+          items: [{ code: 'PERM_A', name: 'Permiso A', moduleName: 'Modulo 1' }],
+          page: 0,
+          size: 100,
+          totalElements: 1
+        })
+      ),
+      http.put('*/api/v1/roles/rol-1/permissions', () => HttpResponse.json(sampleRol))
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('Administrador local');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Permiso A' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar permisos' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Permisos guardados.');
+  });
+
+  it('muestra el error del servidor cuando no se pueden guardar los permisos', async () => {
+    server.use(
+      http.get('*/api/v1/roles/rol-1', () => HttpResponse.json(sampleRol)),
+      http.get('*/api/v1/permisos', () =>
+        HttpResponse.json({
+          items: [{ code: 'PERM_A', name: 'Permiso A', moduleName: 'Modulo 1' }],
+          page: 0,
+          size: 100,
+          totalElements: 1
+        })
+      ),
+      http.put('*/api/v1/roles/rol-1/permissions', () =>
+        HttpResponse.json(
+          { detail: 'Existe un código de permiso con formato inválido.' },
+          { status: 400 }
+        )
+      )
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('Administrador local');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Permiso A' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar permisos' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Existe un código de permiso con formato inválido.'
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('muestra un mensaje generico cuando guardar permisos falla por un error de red', async () => {
+    server.use(
+      http.get('*/api/v1/roles/rol-1', () => HttpResponse.json(sampleRol)),
+      http.get('*/api/v1/permisos', () => HttpResponse.json({ items: [], page: 0, size: 100, totalElements: 0 })),
+      http.put('*/api/v1/roles/rol-1/permissions', () => HttpResponse.error())
+    );
+
+    const { user } = renderPage();
+    await screen.findByText('Administrador local');
+
+    await user.click(screen.getByRole('button', { name: 'Guardar permisos' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron guardar los permisos.');
+  });
+
   it('desactiva un rol activo tras confirmar', async () => {
     let lastStatus: string | undefined;
     server.use(

@@ -297,6 +297,62 @@ class IamApiIntegrationTest {
     }
 
     @Test
+    void persistsModuleVisibilityPermissionsWhenReplacingRolePermissions() throws Exception {
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.permiso
+                            (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
+                        SELECT id, seed.codigo, seed.recurso, seed.accion, seed.nombre, seed.nombre, FALSE, 'ACTIVO'
+                          FROM sch_seguridad.modulo_sistema
+                         CROSS JOIN (VALUES
+                             ('SEGURIDAD:MODULO:VER', 'MODULO', 'VER', 'Ver Seguridad'),
+                             ('seguridad.usuarios.consultar', 'USUARIO', 'CONSULTAR', 'Consultar usuarios')
+                         ) AS seed(codigo, recurso, accion, nombre)
+                         WHERE modulo_sistema.codigo = 'SEGURIDAD'
+                        """)
+                .update();
+        var roleResponse = mockMvc.perform(post("/api/v1/roles")
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "tenantId":"%s",
+                                  "code":"CAJERO",
+                                  "name":"Cajero",
+                                  "roleType":"ESTABLECIMIENTO",
+                                  "systemRole":false
+                                }
+                                """.formatted(TENANT_ID)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String roleId = JsonPath.read(roleResponse, "$.id");
+
+        mockMvc.perform(put("/api/v1/roles/{roleId}/permissions", roleId)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"permissionCodes":["SEGURIDAD:MODULO:VER","seguridad.usuarios.consultar"]}
+                                """))
+                .andExpect(status().isOk());
+
+        var persisted = jdbcClient.sql("""
+                        SELECT p.codigo
+                          FROM sch_seguridad.rol_permiso rp
+                          JOIN sch_seguridad.permiso p ON p.id = rp.permiso_id
+                          JOIN sch_seguridad.rol r ON r.id = rp.rol_id
+                         WHERE r.uuid_publico = :roleId
+                        """)
+                .param("roleId", java.util.UUID.fromString(roleId))
+                .query(String.class)
+                .set();
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.Set.of("SEGURIDAD:MODULO:VER", "seguridad.usuarios.consultar"), persisted);
+    }
+
+    @Test
     void managesUsersRolesPermissionsAndScopedAssignments() throws Exception {
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.permiso
