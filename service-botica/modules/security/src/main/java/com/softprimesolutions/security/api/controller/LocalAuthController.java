@@ -94,11 +94,13 @@ public class LocalAuthController {
     @PreAuthorize("hasAuthority('seguridad.credenciales.gestionar')")
     public ResponseEntity<?> provisionCredential(
             @PathVariable UUID userId,
-            @Valid @RequestBody ProvisionarCredencialLocalRequest request) {
+            @Valid @RequestBody ProvisionarCredencialLocalRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
         var command = new ProvisionCredentialCommand(
                 request.tenantId(), userId, request.password(), request.requireChangeOrDefault());
-        return auth.provisionCredential(command).fold(
-                ignored -> ResponseEntity.noContent().build(), IamControllerSupport::problem);
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                auth.provisionCredential(command).fold(
+                        ignored -> ResponseEntity.noContent().build(), IamControllerSupport::problem));
     }
 
     private static ResponseEntity<AuthTokenResponse> tokenResponse(LocalAuthUseCase.TokenResult result) {

@@ -451,10 +451,16 @@ class IamApiIntegrationTest {
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.permiso
                             (modulo_id, codigo, recurso, accion, nombre, descripcion, es_critico, estado)
-                        SELECT id, 'seguridad.sesiones.consultar', 'SESION', 'CONSULTAR',
-                               'Consultar sesiones', 'Permite consultar las sesiones locales de acceso.',
+                        SELECT m.id, seed.codigo, seed.recurso, seed.accion, seed.nombre, seed.descripcion,
                                TRUE, 'ACTIVO'
-                          FROM sch_seguridad.modulo_sistema WHERE codigo = 'SEGURIDAD'
+                          FROM sch_seguridad.modulo_sistema m
+                         CROSS JOIN (VALUES
+                             ('seguridad.sesiones.consultar', 'SESION', 'CONSULTAR', 'Consultar sesiones',
+                              'Permite consultar las sesiones locales de acceso.'),
+                             ('seguridad.usuarios.gestionar', 'USUARIO', 'GESTIONAR', 'Gestionar usuarios',
+                              'Permite crear usuarios.')
+                         ) AS seed(codigo, recurso, accion, nombre, descripcion)
+                         WHERE m.codigo = 'SEGURIDAD'
                         """).update();
         var cajeroIdentidadId = UUID.randomUUID();
         jdbcClient.sql("""
@@ -484,7 +490,7 @@ class IamApiIntegrationTest {
                         SELECT t.id, r.id, p.id, 'ACTIVO', CURRENT_TIMESTAMP, 'test'
                           FROM sch_admin.tenant t, sch_seguridad.rol r, sch_seguridad.permiso p
                          WHERE t.uuid_publico = :tenantId AND r.uuid_publico = :roleId
-                           AND p.codigo = 'seguridad.sesiones.consultar'
+                           AND p.codigo IN ('seguridad.sesiones.consultar', 'seguridad.usuarios.gestionar')
                         """).param("tenantId", TENANT_ID).param("roleId", roleId).update();
         jdbcClient.sql("""
                         INSERT INTO sch_seguridad.usuario_rol_ambito
@@ -522,6 +528,15 @@ class IamApiIntegrationTest {
         mockMvc.perform(get("/api/v1/sesiones")
                         .header("Authorization", "Bearer " + accessToken)
                         .param("tenantId", UUID.randomUUID().toString()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("SEC_TENANT_NO_COINCIDE"));
+
+        mockMvc.perform(post("/api/v1/usuarios")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantId":"%s","email":"intruso@example.test","displayName":"Intruso"}
+                                """.formatted(UUID.randomUUID())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("SEC_TENANT_NO_COINCIDE"));
 

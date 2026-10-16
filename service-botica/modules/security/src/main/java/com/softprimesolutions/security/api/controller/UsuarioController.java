@@ -14,6 +14,8 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,11 +46,13 @@ public class UsuarioController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('seguridad.usuarios.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody CrearUsuarioRequest request) {
-        return createUser.execute(IamApiMapper.toCommand(request)).fold(
-                result -> ResponseEntity.created(URI.create("/api/v1/usuarios/" + result.id()))
-                        .body(IamApiMapper.toResponse(result)),
-                IamControllerSupport::problem);
+    public ResponseEntity<?> create(
+            @Valid @RequestBody CrearUsuarioRequest request, @AuthenticationPrincipal Jwt jwt) {
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                createUser.execute(IamApiMapper.toCommand(request)).fold(
+                        result -> ResponseEntity.created(URI.create("/api/v1/usuarios/" + result.id()))
+                                .body(IamApiMapper.toResponse(result)),
+                        IamControllerSupport::problem));
     }
 
     @GetMapping
@@ -68,11 +72,13 @@ public class UsuarioController {
     public ResponseEntity<?> assignRole(
             @PathVariable UUID userId,
             @Valid @RequestBody AsignarRolUsuarioRequest request,
-            Authentication authentication) {
-        return assignRole.execute(IamApiMapper.toCommand(userId, request, authentication.getName())).fold(
-                result -> ResponseEntity.created(URI.create(
-                                "/api/v1/usuarios/" + userId + "/role-assignments/" + result.id()))
-                        .body(IamApiMapper.toResponse(result)),
-                IamControllerSupport::problem);
+            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt) {
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                assignRole.execute(IamApiMapper.toCommand(userId, request, authentication.getName())).fold(
+                        result -> ResponseEntity.created(URI.create(
+                                        "/api/v1/usuarios/" + userId + "/role-assignments/" + result.id()))
+                                .body(IamApiMapper.toResponse(result)),
+                        IamControllerSupport::problem));
     }
 }

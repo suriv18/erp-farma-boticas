@@ -18,6 +18,8 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,11 +57,13 @@ public class RolController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('seguridad.roles.gestionar')")
-    public ResponseEntity<?> create(@Valid @RequestBody CrearRolRequest request) {
-        return createRole.execute(IamApiMapper.toCommand(request)).fold(
-                result -> ResponseEntity.created(URI.create("/api/v1/roles/" + result.id()))
-                        .body(IamApiMapper.toResponse(result)),
-                IamControllerSupport::problem);
+    public ResponseEntity<?> create(
+            @Valid @RequestBody CrearRolRequest request, @AuthenticationPrincipal Jwt jwt) {
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                createRole.execute(IamApiMapper.toCommand(request)).fold(
+                        result -> ResponseEntity.created(URI.create("/api/v1/roles/" + result.id()))
+                                .body(IamApiMapper.toResponse(result)),
+                        IamControllerSupport::problem));
     }
 
     @GetMapping
