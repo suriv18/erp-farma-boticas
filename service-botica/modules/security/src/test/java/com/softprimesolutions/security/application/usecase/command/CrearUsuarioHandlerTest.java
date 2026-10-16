@@ -36,6 +36,30 @@ class CrearUsuarioHandlerTest {
     }
 
     @Test
+    void derivesTheDisplayNameFromFirstAndLastNamesWhenItIsMissing() {
+        var handler = new CrearUsuarioHandler(
+                new FakeIamWritePort(), new SequentialIds(), () -> Instant.parse("2026-09-06T10:00:00Z"));
+
+        var result = handler.execute(new CrearUsuarioCommand(
+                TENANT_ID, null, null, "Luis", "Paredes Soto", "luis",
+                "luis@example.test", null, null, false, false));
+
+        assertEquals("Luis Paredes Soto", result.getOrElse(error -> null).displayName());
+    }
+
+    @Test
+    void derivesTheDisplayNameWhenItIsBlankAndOnlyTheFirstNameExists() {
+        var handler = new CrearUsuarioHandler(
+                new FakeIamWritePort(), new SequentialIds(), () -> Instant.parse("2026-09-06T10:00:00Z"));
+
+        var result = handler.execute(new CrearUsuarioCommand(
+                TENANT_ID, null, null, "Luis", null, "luis",
+                "luis@example.test", null, "   ", false, false));
+
+        assertEquals("Luis", result.getOrElse(error -> null).displayName());
+    }
+
+    @Test
     void failsWithConflictWhenEmailAlreadyExists() {
         var writePort = new FakeIamWritePort();
         writePort.saveOutcome = IamWritePort.SaveUsuarioOutcome.DUPLICATE_EMAIL;

@@ -19,6 +19,8 @@ import com.softprimesolutions.shared.kernel.error.ErrorDetail;
 import com.softprimesolutions.shared.kernel.result.Result;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class CrearUsuarioHandler implements CrearUsuarioUseCase {
 
@@ -49,11 +51,22 @@ public final class CrearUsuarioHandler implements CrearUsuarioUseCase {
                 new UsuarioId(identifierGenerator.next()),
                 command.tenantId() == null ? null : new TenantId(command.tenantId()),
                 identidad.id(),
-                command.displayName(),
+                displayNameOf(command),
                 command.credentialChangeRequired(),
                 command.mfaRequired(),
                 clock.now());
         return user.fold(usuario -> persist(identidad, usuario), this::validationFailure);
+    }
+
+    private static String displayNameOf(CrearUsuarioCommand command) {
+        if (command.displayName() != null && !command.displayName().isBlank()) {
+            return command.displayName();
+        }
+        var derived = Stream.of(command.firstNames(), command.lastNames())
+                .filter(part -> part != null && !part.isBlank())
+                .map(String::trim)
+                .collect(Collectors.joining(" "));
+        return derived.isEmpty() ? command.displayName() : derived;
     }
 
     private Result<UsuarioResult, ApplicationError> persist(Identidad identidad, Usuario user) {
