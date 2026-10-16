@@ -59,6 +59,12 @@ public final class SecurityControlService implements SecurityControlUseCase {
     public Result<Unit, ApplicationError> changeRoleStatus(UUID tenantId, UUID roleId, String status) {
         var normalized = normalizeStatus(status);
         if (!ROLE_STATUSES.contains(normalized)) return invalidStatus("rol", ROLE_STATUSES);
+        if (iamPort.findRole(roleId).filter(role -> role.systemRole()).isPresent()) {
+            return Result.failure(new StandardApplicationError(
+                    "SEC_ROL_SISTEMA_NO_EDITABLE",
+                    "Un rol de sistema no puede cambiar de estado.",
+                    ErrorCategory.CONFLICT));
+        }
         return controlPort.updateRoleStatus(tenantId, roleId, normalized, clock.now())
                 ? Result.success(Unit.INSTANCE)
                 : notFound("SEC_ROL_NO_ENCONTRADO", "El rol no existe en el tenant indicado.");

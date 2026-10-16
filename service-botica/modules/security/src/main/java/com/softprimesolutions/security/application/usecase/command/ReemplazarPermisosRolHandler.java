@@ -35,6 +35,12 @@ public final class ReemplazarPermisosRolHandler implements ReemplazarPermisosRol
             return Result.failure(new StandardApplicationError(
                     "SEC_ROL_NO_ENCONTRADO", "El rol indicado no existe.", ErrorCategory.NOT_FOUND));
         }
+        if (role.get().systemRole()) {
+            return Result.failure(new StandardApplicationError(
+                    "SEC_ROL_SISTEMA_NO_EDITABLE",
+                    "Un rol de sistema no puede modificar sus permisos.",
+                    ErrorCategory.CONFLICT));
+        }
         if (!writePort.allPermissionsExist(command.permissionCodes())) {
             return Result.failure(new StandardApplicationError(
                     "SEC_PERMISO_DESCONOCIDO",

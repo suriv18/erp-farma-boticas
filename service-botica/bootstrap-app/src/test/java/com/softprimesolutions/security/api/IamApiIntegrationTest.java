@@ -664,6 +664,38 @@ class IamApiIntegrationTest {
     }
 
     @Test
+    void rejectsChangingPermissionsAndStatusOfASystemRole() throws Exception {
+        var roleId = UUID.randomUUID();
+        jdbcClient.sql("""
+                        INSERT INTO sch_seguridad.rol
+                            (uuid_publico, tenant_id, codigo, nombre, tipo_rol, es_sistema, estado, created_at)
+                        SELECT :roleId, id, 'SISTEMA', 'Rol de sistema', 'GLOBAL', TRUE, 'ACTIVO', CURRENT_TIMESTAMP
+                          FROM sch_admin.tenant WHERE uuid_publico = :tenantId
+                        """).param("roleId", roleId).param("tenantId", TENANT_ID).update();
+
+        mockMvc.perform(put("/api/v1/roles/{roleId}/permissions", roleId)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"permissionCodes":["seguridad.usuarios.consultar"]}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SEC_ROL_SISTEMA_NO_EDITABLE"));
+
+        mockMvc.perform(patch("/api/v1/roles/{roleId}/estado", roleId)
+                        .with(controlAdmin())
+                        .with(csrf())
+                        .param("tenantId", TENANT_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"INACTIVO"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SEC_ROL_SISTEMA_NO_EDITABLE"));
+    }
+
+    @Test
     void returnsNotFoundWhenGettingANonExistentRole() throws Exception {
         mockMvc.perform(get("/api/v1/roles/{roleId}", UUID.randomUUID())
                         .with(admin())
