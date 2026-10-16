@@ -519,6 +519,12 @@ class IamApiIntegrationTest {
                         .param("tenantId", TENANT_ID.toString()))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/v1/sesiones")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("tenantId", UUID.randomUUID().toString()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("SEC_TENANT_NO_COINCIDE"));
+
         mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(userId.toString()))
