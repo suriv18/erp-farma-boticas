@@ -13,6 +13,8 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -144,13 +146,16 @@ public class SecurityControlController {
 
     @PostMapping("/dispositivos")
     @PreAuthorize("hasAuthority('seguridad.dispositivos.gestionar')")
-    public ResponseEntity<?> registerDevice(@Valid @RequestBody RegistrarDispositivoRequest request) {
+    public ResponseEntity<?> registerDevice(
+            @Valid @RequestBody RegistrarDispositivoRequest request, @AuthenticationPrincipal Jwt jwt) {
         var data = new RegisterDeviceData(request.tenantId(), request.companyId(), request.establishmentId(),
                 request.terminalId(), request.fingerprintHash(), request.certificateThumbprint(),
                 request.agentVersion());
-        return control.registerDevice(data).fold(
-                result -> ResponseEntity.created(URI.create("/api/v1/dispositivos/" + result.id())).body(result),
-                IamControllerSupport::problem);
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                control.registerDevice(data).fold(
+                        result -> ResponseEntity.created(URI.create("/api/v1/dispositivos/" + result.id()))
+                                .body(result),
+                        IamControllerSupport::problem));
     }
 
     @PatchMapping("/dispositivos/{deviceId}/estado")

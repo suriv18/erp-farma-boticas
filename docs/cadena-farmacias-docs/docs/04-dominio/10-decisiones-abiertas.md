@@ -1,4 +1,4 @@
-# DOM-FAR-010 — Decisiones Abiertas antes de Arquitectura/Datos
+# DOM-FAR-010 — Decisiones de dominio: estado y pendientes
 
 **Versión:** 0.1  
 **Estado:** No resolver por intuición.
@@ -33,7 +33,7 @@ Alternativas:
 3. event sourcing parcial;
 4. combinación por local/central.
 
-No se decide hasta estudiar concurrencia y performance.
+El baseline central adoptó saldo transaccional, movimientos y version_lock. Las pruebas de concurrencia/performance y la evolución para artículos sin lote continúan pendientes.
 
 ## 3. Granularidad de lote
 
@@ -123,7 +123,7 @@ La política comercial no debe contradecir obligaciones sanitarias.
 
 ## 11. Productos prohibidos/servicios prohibidos
 
-La RM 734-2025/MINSA aprobó una relación de productos y servicios prohibidos en farmacias/boticas. Debe analizarse su anexo antes de cerrar el catálogo de artículos no farmacéuticos que la plataforma permitirá comercializar. [REF-42]
+El anexo de la RM 734-2025/MINSA fue revisado el 2026-09-15. Las restricciones y excepciones relevantes se documentan en [DAT-FAR-009](../06-datos/09-adecuacion-surtido-multiproducto-peru.md). Falta traducirlas a decisiones versionadas por SKU y establecimiento; no son una autorización genérica de artículos retail. [REF-42, REF-64]
 
 ## 12. Privacidad y fidelización
 
@@ -150,7 +150,7 @@ Pueden coincidir, pero tienen finalidades distintas.
 
 ## 14. Arquitectura
 
-Después de validar estas preguntas se evaluará:
+La arquitectura base está recogida en ADR-001 a ADR-010. La siguiente lista conserva los temas del análisis; su estado vigente se consulta en esos ADR:
 
 - monolito modular vs componentes de tienda;
 - multi-módulo DDD;
@@ -160,3 +160,7 @@ Después de validar estas preguntas se evaluará:
 - caché;
 - sincronización tienda-central;
 - arquitectura de alta disponibilidad.
+
+## 15. Cierre de diseño de surtido — 2026-09-15
+
+Las decisiones de granularidad de lote/serie y admisibilidad para este alcance están resueltas en [ADR-011](../05-arquitectura/adr/ADR-011-surtido-trazabilidad-admisibilidad.md). La revisión sanitaria de artículos concretos es una tarea operativa con evidencia; no se sustituye por una decisión global de software.

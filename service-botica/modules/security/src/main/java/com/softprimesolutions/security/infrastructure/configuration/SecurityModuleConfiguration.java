@@ -1,5 +1,6 @@
 package com.softprimesolutions.security.infrastructure.configuration;
 
+import com.softprimesolutions.security.application.port.in.ActualizarRolUseCase;
 import com.softprimesolutions.security.application.port.in.AsignarRolUsuarioUseCase;
 import com.softprimesolutions.security.application.port.in.CrearRolUseCase;
 import com.softprimesolutions.security.application.port.in.CrearUsuarioUseCase;
@@ -7,6 +8,8 @@ import com.softprimesolutions.security.application.port.in.ListarPermisosUseCase
 import com.softprimesolutions.security.application.port.in.ListarRolesUseCase;
 import com.softprimesolutions.security.application.port.in.ListarUsuariosUseCase;
 import com.softprimesolutions.security.application.port.in.LocalAuthUseCase;
+import com.softprimesolutions.security.application.port.in.ObtenerMiPerfilUseCase;
+import com.softprimesolutions.security.application.port.in.ObtenerRolUseCase;
 import com.softprimesolutions.security.application.port.in.ReemplazarPermisosRolUseCase;
 import com.softprimesolutions.security.application.port.in.SecurityControlUseCase;
 import com.softprimesolutions.security.application.port.out.IamReadPort;
@@ -16,6 +19,7 @@ import com.softprimesolutions.security.application.port.out.LocalAuthStorePort;
 import com.softprimesolutions.security.application.port.out.PasswordHashPort;
 import com.softprimesolutions.security.application.port.out.PasswordResetNotificationPort;
 import com.softprimesolutions.security.application.port.out.SecurityControlPort;
+import com.softprimesolutions.security.application.usecase.command.ActualizarRolHandler;
 import com.softprimesolutions.security.application.usecase.command.AsignarRolUsuarioHandler;
 import com.softprimesolutions.security.application.usecase.command.CrearRolHandler;
 import com.softprimesolutions.security.application.usecase.command.CrearUsuarioHandler;
@@ -28,6 +32,8 @@ import com.softprimesolutions.security.application.usecase.command.SecurityContr
 import com.softprimesolutions.security.application.usecase.query.ListarPermisosHandler;
 import com.softprimesolutions.security.application.usecase.query.ListarRolesHandler;
 import com.softprimesolutions.security.application.usecase.query.ListarUsuariosHandler;
+import com.softprimesolutions.security.application.usecase.query.ObtenerMiPerfilHandler;
+import com.softprimesolutions.security.application.usecase.query.ObtenerRolHandler;
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import java.time.Clock;
@@ -82,6 +88,11 @@ public class SecurityModuleConfiguration {
     }
 
     @Bean
+    ActualizarRolUseCase actualizarRolUseCase(IamWritePort writePort, ClockPort iamClockPort) {
+        return new ActualizarRolHandler(writePort, iamClockPort);
+    }
+
+    @Bean
     AsignarRolUsuarioUseCase asignarRolUsuarioUseCase(
             IamWritePort writePort, IdentifierGenerator iamIdentifierGenerator, ClockPort iamClockPort) {
         return new AsignarRolUsuarioHandler(writePort, iamIdentifierGenerator, iamClockPort);
@@ -95,6 +106,16 @@ public class SecurityModuleConfiguration {
     @Bean
     ListarRolesUseCase listarRolesUseCase(IamReadPort readPort) {
         return new ListarRolesHandler(readPort);
+    }
+
+    @Bean
+    ObtenerRolUseCase obtenerRolUseCase(IamReadPort readPort) {
+        return new ObtenerRolHandler(readPort);
+    }
+
+    @Bean
+    ObtenerMiPerfilUseCase obtenerMiPerfilUseCase(IamReadPort readPort) {
+        return new ObtenerMiPerfilHandler(readPort);
     }
 
     @Bean

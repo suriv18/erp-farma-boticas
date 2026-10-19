@@ -7,5 +7,12 @@ export const authRoutes = [
       const { LoginPage } = await import('./pages/LoginPage');
       return { Component: LoginPage };
     }
+  },
+  {
+    path: '/cambiar-contrasena',
+    lazy: async () => {
+      const { ChangePasswordPage } = await import('./pages/ChangePasswordPage');
+      return { Component: ChangePasswordPage };
+    }
   }
 ] satisfies RouteObject[];

@@ -1127,3 +1127,22 @@ Los CU se actualizarán cuando una nueva fuente oficial modifique una regla `NOR
 **Alternos/bloqueos:** aplicación no permitida; sesión inválida; contexto no vigente.
 
 **Postcondición:** el usuario recibe un árbol de navegación coherente; ningún permiso adicional se concede por esta operación.
+
+### CU-CAT-002 — Habilitar y operar un SKU de surtido diverso
+
+**Estado:** diseño definido por ADR-011; implementación pendiente. **Actores:** responsable de catálogo, responsable sanitario y operador autorizado.
+
+**RF:** RF-CAT-019, RF-CAT-020, RF-CAT-021, RF-CAT-022, RF-INV-023, RF-INV-024, RF-POS-023, RF-CAT-023, RF-INV-025.
+**RN:** RN-CAT-005, RN-CAT-006, RN-CAT-007, RN-CAT-008, RN-INV-009, RN-INV-010, RN-POS-010.
+
+**Precondición:** tenant y local identificados, permisos válidos y documentación del artículo disponible.
+
+1. Registrar rubro, régimen, evidencia y variantes sin inferirlos del nombre.
+2. Resolver admisibilidad para el local/canal y documentar resultado.
+3. Configurar necesidad de lote, caducidad o serie; rechazar configuraciones que omitan un control requerido.
+4. Recibir y valorar existencias según esa política.
+5. Publicar precio y confirmar una venta aplicando controles a cada línea.
+6. Registrar snapshot de decisión y trazabilidad; aplicar disposición al devolver.
+
+**Alternos:** evidencia insuficiente, artículo restringido, variante duplicada, stock o capacidad de trazabilidad no soportados: no habilitar la operación dependiente.
+**Postcondición:** operación trazable o rechazo con motivo; las ventas cerradas conservan su interpretación original.

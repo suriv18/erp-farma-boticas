@@ -1,8 +1,10 @@
 package com.softprimesolutions.security.infrastructure.persistence.read.mapper;
 
+import com.softprimesolutions.security.application.dto.result.PerfilResult;
 import com.softprimesolutions.security.application.dto.result.PermisoResult;
 import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
+import com.softprimesolutions.security.infrastructure.persistence.read.projection.PerfilProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.PermisoProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.RolProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.UsuarioProjection;
@@ -14,11 +16,10 @@ public final class IamReadMapper {
 
     public static UsuarioResult toResult(UsuarioProjection value) {
         return new UsuarioResult(
-                value.id(), value.tenantId(), value.identityProvider(), value.identityIssuer(),
-                value.identitySubject(), value.emailClaim(), value.documentType(), value.documentNumber(),
-                value.firstNames(), value.lastNames(), value.username(), value.email(), value.displayName(),
-                value.phone(), value.credentialChangeRequired(), value.mfaRequired(), value.status(),
-                value.createdAt(), value.updatedAt());
+                value.id(), value.tenantId(), value.documentType(), value.documentNumber(),
+                value.firstNames(), value.lastNames(), value.username(), value.email(),
+                value.displayName(), value.phone(), value.credentialChangeRequired(), value.mfaRequired(),
+                value.status(), value.createdAt(), value.updatedAt());
     }
 
     public static RolResult toResult(RolProjection value) {
@@ -32,5 +33,15 @@ public final class IamReadMapper {
         return new PermisoResult(
                 value.moduleCode(), value.moduleName(), value.code(), value.resource(), value.action(),
                 value.name(), value.description(), value.critical(), value.status());
+    }
+
+    public static PerfilResult toResult(PerfilProjection value) {
+        var assignments = value.assignments().stream()
+                .map(item -> new PerfilResult.Asignacion(
+                        item.roleCode(), item.roleName(), item.scopeType(), item.scopeName()))
+                .toList();
+        return new PerfilResult(
+                value.userId(), value.tenantId(), value.displayName(), value.username(), value.email(),
+                assignments);
     }
 }

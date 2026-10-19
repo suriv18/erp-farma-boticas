@@ -1,5 +1,9 @@
 package com.softprimesolutions.security.api.controller;
 
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.sessionId;
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.tenantId;
+import static com.softprimesolutions.security.api.controller.IamControllerSupport.userId;
+
 import com.softprimesolutions.security.api.dto.request.CambiarPasswordRequest;
 import com.softprimesolutions.security.api.dto.request.LoginRequest;
 import com.softprimesolutions.security.api.dto.request.ProvisionarCredencialLocalRequest;
@@ -44,7 +48,7 @@ public class LocalAuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         var command = new LoginCommand(
-                request.tenantId(), request.login(), request.password(), request.channel(),
+                request.login(), request.password(), request.channel(),
                 httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"), request.deviceId());
         return auth.login(command).fold(LocalAuthController::tokenResponse, IamControllerSupport::problem);
     }
@@ -65,7 +69,7 @@ public class LocalAuthController {
     @PostMapping("/auth/password/forgot")
     public ResponseEntity<?> requestPasswordReset(
             @Valid @RequestBody SolicitarRecuperacionPasswordRequest request) {
-        return auth.requestPasswordReset(new PasswordResetRequest(request.tenantId(), request.login())).fold(
+        return auth.requestPasswordReset(new PasswordResetRequest(request.login())).fold(
                 ignored -> ResponseEntity.accepted().build(), IamControllerSupport::problem);
     }
 
@@ -90,11 +94,13 @@ public class LocalAuthController {
     @PreAuthorize("hasAuthority('seguridad.credenciales.gestionar')")
     public ResponseEntity<?> provisionCredential(
             @PathVariable UUID userId,
-            @Valid @RequestBody ProvisionarCredencialLocalRequest request) {
+            @Valid @RequestBody ProvisionarCredencialLocalRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
         var command = new ProvisionCredentialCommand(
                 request.tenantId(), userId, request.password(), request.requireChangeOrDefault());
-        return auth.provisionCredential(command).fold(
-                ignored -> ResponseEntity.noContent().build(), IamControllerSupport::problem);
+        return IamControllerSupport.guardTenant(jwt, request.tenantId(), () ->
+                auth.provisionCredential(command).fold(
+                        ignored -> ResponseEntity.noContent().build(), IamControllerSupport::problem));
     }
 
     private static ResponseEntity<AuthTokenResponse> tokenResponse(LocalAuthUseCase.TokenResult result) {
@@ -106,17 +112,5 @@ public class LocalAuthController {
                 .cacheControl(CacheControl.noStore())
                 .header("Pragma", "no-cache")
                 .body(body);
-    }
-
-    private static UUID tenantId(Jwt jwt) {
-        return UUID.fromString(jwt.getClaimAsString("tid"));
-    }
-
-    private static UUID userId(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
-    }
-
-    private static UUID sessionId(Jwt jwt) {
-        return UUID.fromString(jwt.getClaimAsString("sid"));
     }
 }

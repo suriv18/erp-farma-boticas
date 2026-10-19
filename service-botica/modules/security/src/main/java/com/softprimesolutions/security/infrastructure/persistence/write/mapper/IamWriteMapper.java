@@ -1,14 +1,16 @@
 package com.softprimesolutions.security.infrastructure.persistence.write.mapper;
 
+import com.softprimesolutions.security.domain.model.AsignacionRol;
 import com.softprimesolutions.security.domain.model.EstadoRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.domain.valueobject.RolId;
 import com.softprimesolutions.security.domain.valueobject.TenantId;
 import com.softprimesolutions.security.infrastructure.persistence.write.entity.AsignacionRolJpaEntity;
+import com.softprimesolutions.security.infrastructure.persistence.write.entity.IdentidadJpaEntity;
+import com.softprimesolutions.security.infrastructure.persistence.write.entity.MembershipJpaEntity;
 import com.softprimesolutions.security.infrastructure.persistence.write.entity.RolJpaEntity;
-import com.softprimesolutions.security.infrastructure.persistence.write.entity.UsuarioJpaEntity;
-import com.softprimesolutions.security.domain.model.AsignacionRol;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,11 +19,17 @@ public final class IamWriteMapper {
     private IamWriteMapper() {
     }
 
-    public static UsuarioJpaEntity toEntity(Usuario user, Long tenantId) {
-        return new UsuarioJpaEntity(
-                user.id().value(), tenantId, user.documentType(), user.documentNumber(),
-                user.firstNames(), user.lastNames(), user.username(), user.email(), user.phone(),
-                user.displayName(), user.credentialChangeRequired(), user.mfaRequired(),
+    public static IdentidadJpaEntity toEntity(Identidad identidad) {
+        return new IdentidadJpaEntity(
+                identidad.id().value(), identidad.email(), identidad.username(), identidad.documentType(),
+                identidad.documentNumber(), identidad.firstNames(), identidad.lastNames(),
+                identidad.phone(), identidad.createdAt(), identidad.updatedAt());
+    }
+
+    public static MembershipJpaEntity toEntity(Usuario user, Long tenantId, Long identidadId) {
+        return new MembershipJpaEntity(
+                user.id().value(), tenantId, identidadId, user.displayName(),
+                user.credentialChangeRequired(), user.mfaRequired(),
                 user.status().name(), user.createdAt(), user.updatedAt());
     }
 

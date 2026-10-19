@@ -19,3 +19,11 @@ Los modelos conceptuales/lógicos continúan siendo la referencia de dominio. Po
 
 - [DAT-FAR-007 — Modelo físico PostgreSQL 18](07-modelo-fisico-postgresql18.md)
 - [DAT-FAR-008 — Consolidación V1/V2 y enriquecimiento de campos](08-consolidacion-v1-v2-campos.md)
+
+- [DAT-FAR-009 — Adecuación al surtido diverso en Perú](09-adecuacion-surtido-multiproducto-peru.md)
+
+Revisión documental: 2026-09-15. El SQL original gobierna el modelo físico; las migraciones incorporan los ajustes de ejecución descritos en database/README. Surtido diverso: soporte parcial, con brechas de inventario y admisibilidad.
+
+- [DAT-FAR-010 — Diseño detallado del surtido](10-diseno-detallado-surtido.md)
+
+El diseño del nuevo surtido está definido; su soporte físico permanece pendiente de implementación.

@@ -1,8 +1,8 @@
 # CA-FAR — Criterios de Aceptación
 
-**Versión:** 0.2  
+**Versión:** 0.3  
 **Estado:** Borrador verificable para QA  
-**Fecha de corte:** 2026-08-30
+**Fecha de revisión:** 2026-09-15
 
 ## 1. Convenciones
 
@@ -13,7 +13,7 @@
 
 ## 2. Cobertura
 
-Esta versión cubre **206 RF** vinculados a los 22 casos de uso prioritarios.
+Recuento al 2026-09-15: **651 criterios** (643 asociados a RF y 8 E2E), **217 RF con criterios** de 271 catalogados y **24 casos de uso** documentados. Los criterios son especificaciones; no resultados de pruebas ejecutadas. El resto de RF mantiene cobertura pendiente.
 
 ## 3. Criterios por RF
 
@@ -4347,51 +4347,51 @@ Esta versión cubre **206 RF** vinculados a los 22 casos de uso prioritarios.
 
 ### CA-E2E-FAR-001 — Compra a venta
 
-**Dado** un sku publicado y una oc aprobadan SKU publicado y una OC aprobada  
-**Cuando** se recibe por lote, se publica precio y se vendee recibe por lote, se publica precio y se vende  
-**Entonces** la venta puede rastrearse hasta recepción/proveedor/lote y el inventario/erp reflejan eventos separados y consistentes.a venta puede rastrearse hasta recepción/proveedor/lote y el inventario/ERP reflejan eventos separados y consistentes.
+**Dado** un SKU publicado y una OC aprobada  
+**Cuando** se recibe por lote, se publica precio y se vende  
+**Entonces** la venta puede rastrearse hasta recepción, proveedor y lote; inventario y ERP reflejan hechos separados y consistentes.
 
 ### CA-E2E-FAR-002 — Venta bajo receta
 
-**Dado** un producto cuya condición exige recetan producto cuya condición exige receta  
-**Cuando** el cliente intenta comprarlol cliente intenta comprarlo  
-**Entonces** el pos no cierra la línea sin una dispensación válida ejecutada por actor competente.l POS no cierra la línea sin una dispensación válida ejecutada por actor competente.
+**Dado** un producto cuya condición exige receta  
+**Cuando** el cliente intenta comprarlo  
+**Entonces** el POS no cierra la línea sin una dispensación válida ejecutada por un actor competente.
 
 ### CA-E2E-FAR-003 — Controlado
 
-**Dado** un producto fiscalizado y receta especial aplicablen producto fiscalizado y receta especial aplicable  
-**Cuando** se dispensae dispensa  
-**Entonces** se aplican vigencia/validaciones de su lista, se registra el movimiento controlado y queda conciliable.e aplican vigencia/validaciones de su lista, se registra el movimiento controlado y queda conciliable.
+**Dado** un producto fiscalizado y una receta especial aplicable  
+**Cuando** se dispensa  
+**Entonces** se aplican las validaciones de su lista, se registra el movimiento controlado y queda conciliable.
 
 ### CA-E2E-FAR-004 — Devolución
 
-**Dado** una venta y cpe previosna venta y CPE previos  
-**Cuando** se gestiona una devolucióne gestiona una devolución  
-**Entonces** nota de crédito/reembolso y disposición física son procesos vinculados pero independientes y no reescriben la venta.ota de crédito/reembolso y disposición física son procesos vinculados pero independientes y no reescriben la venta.
+**Dado** una venta y un CPE previos  
+**Cuando** se gestiona una devolución  
+**Entonces** nota de crédito, reembolso y disposición física mantienen su trazabilidad sin reescribir la venta.
 
 ### CA-E2E-FAR-005 — Recall
 
-**Dado** una alerta de lotena alerta de lote  
-**Cuando** se activae activa  
-**Entonces** se bloquean todos los canales, se inmoviliza por local y el cierre exige conciliación.e bloquean todos los canales, se inmoviliza por local y el cierre exige conciliación.
+**Dado** una alerta de lote  
+**Cuando** se activa  
+**Entonces** se bloquean las ventas afectadas, se inmoviliza por local y el cierre exige conciliación.
 
 ### CA-E2E-FAR-006 — FVG sin venta
 
-**Dado** una sram/evento de un producto no vendido por la cadenana SRAM/evento de un producto no vendido por la cadena  
-**Cuando** se reportae reporta  
-**Entonces** se registra y procesa sin exigir ticket pos, preservando privacidad.e registra y procesa sin exigir ticket POS, preservando privacidad.
+**Dado** una sospecha de reacción adversa o evento de un producto no vendido por la cadena  
+**Cuando** se reporta  
+**Entonces** se registra y procesa sin exigir un ticket POS, preservando privacidad.
 
 ### CA-E2E-FAR-007 — Cierre ERP
 
-**Dado** un turno cerrado con transacciones válidasn turno cerrado con transacciones válidas  
-**Cuando** se publica al erp y ocurre un reintentoe publica al ERP y ocurre un reintento  
-**Entonces** una clave idempotente evita doble posting y las correcciones posteriores son reversas/ajustes trazables.na clave idempotente evita doble posting y las correcciones posteriores son reversas/ajustes trazables.
+**Dado** un turno cerrado con transacciones válidas  
+**Cuando** se publica al ERP y ocurre un reintento  
+**Entonces** una clave idempotente evita doble posting; las correcciones posteriores son reversas o ajustes trazables.
 
 ### CA-E2E-FAR-008 — Bloqueo sanitario concurrente
 
-**Dado** una venta en curso y un bloqueo de lote concurrentena venta en curso y un bloqueo de lote concurrente  
-**Cuando** ambas compiten por confirmarmbas compiten por confirmar  
-**Entonces** el sistema no deja una nueva venta cerrada con stock que ya quedó no vendible según el orden transaccional definido.l sistema no deja una nueva venta cerrada con stock que ya quedó no vendible según el orden transaccional definido.
+**Dado** una venta en curso y un bloqueo de lote concurrente  
+**Cuando** ambas operaciones compiten por confirmar  
+**Entonces** no se confirma una nueva venta con stock que ya quedó no vendible según el orden transaccional definido.
 
 ## 5. Gobierno de aceptación
 
@@ -4426,3 +4426,145 @@ Esta versión cubre **206 RF** vinculados a los 22 casos de uso prioritarios.
 **Dado** que una opción aparece en navegación por caché o configuración  
 **Cuando** el usuario ha perdido el permiso antes de ejecutar la operación  
 **Entonces** el endpoint deniega la acción aunque el menú siga temporalmente visible.
+
+## Surtido diverso — diseño documentado 2026-09-15
+
+### RF-CAT-019 — Clasificar surtido
+
+#### CA-RF-CAT-019-01-POS
+
+**Dado** una vitamina y un cosmético con documentación sanitaria  
+**Cuando** se clasifican  
+**Entonces** se asigna el régimen verificado separado del rubro comercial.
+
+#### CA-RF-CAT-019-02-VAL
+
+**Dado** solo un nombre comercial sin evidencia  
+**Cuando** se solicita habilitarlo  
+**Entonces** queda pendiente de revisión y no se publica como NO_REGULADO por defecto.
+
+### RF-CAT-020 — Gestionar evidencia sanitaria
+
+#### CA-RF-CAT-020-01-POS
+
+**Dado** un SKU con autorización verificable  
+**Cuando** se valida su evidencia  
+**Entonces** se conservan autoridad, tipo, número, fuente y estado aplicables.
+
+#### CA-RF-CAT-020-02-VAL
+
+**Dado** un cosmético sin evidencia de NSO aplicable  
+**Cuando** se solicita publicar  
+**Entonces** la operación se rechaza con motivo.
+
+### RF-CAT-021 — Validar admisibilidad
+
+#### CA-RF-CAT-021-01-POS
+
+**Dado** un artículo con excepción documentada y local compatible  
+**Cuando** se evalúa su admisibilidad  
+**Entonces** se conserva una decisión versionada para ese contexto.
+
+#### CA-RF-CAT-021-02-VAL
+
+**Dado** una prenda de moda general  
+**Cuando** se intenta habilitar en una botica  
+**Entonces** se bloquea aunque el rubro sea Cuidado personal.
+
+### RF-CAT-022 — Gestionar variantes
+
+#### CA-RF-CAT-022-01-POS
+
+**Dado** dos variantes válidas de distinta talla  
+**Cuando** se registran  
+**Entonces** mantienen códigos y stock independientes.
+
+#### CA-RF-CAT-022-02-VAL
+
+**Dado** una combinación de atributos ya existente  
+**Cuando** se intenta duplicar  
+**Entonces** se rechaza el duplicado dentro de su contexto comercial.
+
+### RF-INV-023 — Operar stock sin lote
+
+#### CA-RF-INV-023-01-POS
+
+**Dado** un artículo admisible cuya política no requiere lote  
+**Cuando** se recibe y vende  
+**Entonces** posición y kardex funcionan sin lote ni fecha ficticios.
+
+#### CA-RF-INV-023-02-VAL
+
+**Dado** un medicamento que requiere lote  
+**Cuando** se intenta recibir sin ese dato  
+**Entonces** se rechaza la recepción incompleta.
+
+### RF-INV-024 — Separar lote y caducidad
+
+#### CA-RF-INV-024-01-POS
+
+**Dado** un artículo cuya política requiere lote pero no caducidad  
+**Cuando** se recibe  
+**Entonces** se conserva el lote sin inventar vencimiento.
+
+#### CA-RF-INV-024-02-VAL
+
+**Dado** un artículo cuya política requiere vencimiento  
+**Cuando** se recibe sin fecha  
+**Entonces** se rechaza la operación.
+
+### RF-POS-023 — Confirmar venta con surtido diverso
+
+#### CA-RF-POS-023-01-POS
+
+**Dado** una venta con cosmético y medicamento bajo receta  
+**Cuando** se confirma con dispensación válida para el medicamento  
+**Entonces** se valida cada línea y el cosmético no exige una receta ficticia.
+
+#### CA-RF-POS-023-02-VAL
+
+**Dado** un SKU bloqueado después de agregarse al carrito  
+**Cuando** se confirma la venta con caché anterior  
+**Entonces** el backend revalida y rechaza la línea bloqueada.
+
+### RF-CAT-023 — Preservar decisiones de catálogo
+
+#### CA-RF-CAT-023-01-POS
+
+**Dado** una venta cerrada y una clasificación nueva  
+**Cuando** se actualiza el catálogo  
+**Entonces** la venta conserva su snapshot y la nueva versión rige las operaciones posteriores.
+
+#### CA-RF-CAT-023-02-VAL
+
+**Dado** un usuario sin permiso de revisión  
+**Cuando** se intenta cambiar una decisión de admisibilidad  
+**Entonces** se deniega el cambio y queda evidencia de auditoría.
+
+## Series por unidad
+
+### RF-INV-025 — Controlar series por unidad
+
+#### CA-RF-INV-025-01-POS
+
+**Dado** dos unidades con series distintas y política serializada  
+**Cuando** se reciben y vende una  
+**Entonces** el saldo disminuye una unidad y la decisión conserva la serie vendida.
+
+#### CA-RF-INV-025-02-CON
+
+**Dado** dos cajas intentan vender simultáneamente la misma serie  
+**Cuando** compiten por confirmar  
+**Entonces** solo una operación confirma y la otra se rechaza sin salida duplicada.
+
+#### CA-RF-INV-025-03-VAL
+
+**Dado** una serie de otro SKU o tenant  
+**Cuando** se intenta asignar a la línea  
+**Entonces** se rechaza y no se altera ninguna existencia.
+
+#### CA-RF-INV-025-04-HIS
+
+**Dado** una serie vendida con trazabilidad original  
+**Cuando** se devuelve  
+**Entonces** regresa a cuarentena y conserva recepción, venta y devolución sin reciclar su identidad.

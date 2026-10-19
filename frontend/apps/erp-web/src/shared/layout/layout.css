@@ -1,0 +1,49 @@
+/* Shared geometry for every authenticated ERP module. */
+@layer components {
+  .erp-shell {
+    --erp-sidebar-width: 224px;
+    --erp-content-padding: 16px;
+  }
+
+  .erp-sidebar {
+    width: var(--erp-sidebar-width);
+    overflow-y: auto;
+  }
+
+  .erp-workspace {
+    min-width: 0;
+  }
+
+  .erp-topbar {
+    padding-inline: var(--erp-content-padding);
+  }
+
+  .erp-main {
+    min-width: 0;
+    padding: var(--erp-content-padding);
+  }
+
+  .erp-page {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .erp-page > *,
+  .erp-page :where(.grid) > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .erp-shell {
+      --erp-content-padding: 24px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .erp-workspace {
+      padding-inline-start: var(--erp-sidebar-width);
+    }
+  }
+}

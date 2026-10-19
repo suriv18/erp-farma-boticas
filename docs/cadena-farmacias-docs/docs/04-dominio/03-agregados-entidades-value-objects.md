@@ -77,7 +77,9 @@ Representa la unidad/presentación comercial que usa retail.
 Conceptos:
 
 - `SkuId`;
-- `ProductoReguladoId`;
+- `ProductoReguladoId` cuando corresponda;
+- rubro comercial y clasificación sanitaria diferenciados;
+- variantes y política de trazabilidad por SKU;
 - código interno;
 - descripción comercial;
 - presentación;
@@ -474,3 +476,7 @@ El mecanismo de transmisión exacto permanece `POR_VALIDAR`.
 - `Receta` almacenada como simple URL sin metadatos/estado.
 - `stock` como único número global por producto.
 - `lote` solo como texto libre dentro de la venta.
+
+## Revisión del surtido — 2026-09-15
+
+RubroComercial, evidencia sanitaria y decisión de admisibilidad complementan BC-CAT. Su diseño y límites de implementación se describen en [DAT-FAR-009](../06-datos/09-adecuacion-surtido-multiproducto-peru.md). La invariante de identidad regulatoria se aplica cuando existe dicha identidad; no obliga a inventarla para todo artículo.

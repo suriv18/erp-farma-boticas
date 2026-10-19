@@ -19,3 +19,7 @@
 - OpenAPI como contrato independiente del lenguaje; la última publicación es 3.2.0, pero la versión efectiva del proyecto dependerá del toolchain. [REF-45]
 - Richardson Level 2 como objetivo base; hypermedia solo cuando aporte valor.
 - no exponer entidades de persistencia directamente.
+
+- [API-FAR-008 — Contrato documental de surtido](08-contrato-surtido.md)
+
+Este contrato fija operaciones, campos y errores del surtido. No declara publicado un OpenAPI integral de todos los módulos.

@@ -14,7 +14,8 @@ erDiagram
     EMPRESA_OPERADORA ||--o{ ESTABLECIMIENTO_FARMACEUTICO : opera
     ESTABLECIMIENTO_FARMACEUTICO ||--o{ ASIGNACION_PROFESIONAL : tiene
 
-    PRODUCTO_REGULADO ||--o{ SKU_COMERCIAL : se_comercializa_como
+    PRODUCTO_REGULADO |o--o{ SKU_COMERCIAL : se_comercializa_como
+    RUBRO_COMERCIAL |o--o{ SKU_COMERCIAL : agrupa
     SKU_COMERCIAL ||--o{ LOTE : tiene
     LOTE ||--o{ POSICION_INVENTARIO : existe_en
     ESTABLECIMIENTO_FARMACEUTICO ||--o{ POSICION_INVENTARIO : mantiene
@@ -81,3 +82,9 @@ Los hechos cerrados deben conservar snapshots mínimos de la regulación o decis
 - CRM/fidelización permanece fuera del Core actual.
 - e-commerce/delivery tendrá su propio análisis antes de incorporarse.
 - stock offline no se modela todavía como fuente de verdad independiente.
+
+## 6. Surtido diverso
+
+La referencia a ProductoRegulado es opcional para SKU que no la requieran; un producto sanitario no se convierte por ello en un artículo libre de controles. RubroComercial organiza el surtido y es opcional en el DDL actual. El modelo conceptual objetivo admite políticas distintas de lote/caducidad. El modelo físico todavía exige ambos para mantener stock.
+
+Ver [adecuación a Perú](09-adecuacion-surtido-multiproducto-peru.md) para regímenes, admisibilidad, variantes y brechas.
