@@ -3,6 +3,7 @@ package com.softprimesolutions.organizacion.infrastructure.configuration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.softprimesolutions.organizacion.application.port.out.AlcancePuestoPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionReadPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionWritePort;
 import com.softprimesolutions.shared.application.port.ClockPort;
@@ -16,6 +17,7 @@ class OrganizacionModuleConfigurationTest {
     private final OrganizacionModuleConfiguration configuration = new OrganizacionModuleConfiguration();
     private final OrganizacionReadPort readPort = mock(OrganizacionReadPort.class);
     private final OrganizacionWritePort writePort = mock(OrganizacionWritePort.class);
+    private final AlcancePuestoPort alcancePort = mock(AlcancePuestoPort.class);
     private final ClockPort clock = configuration.organizacionClockPort();
     private final IdentifierGenerator identifiers = configuration.organizacionIdentifierGenerator();
 
@@ -50,5 +52,6 @@ class OrganizacionModuleConfigurationTest {
         assertThat(configuration.listarTerminalesUseCase(readPort)).isNotNull();
         assertThat(configuration.obtenerTerminalUseCase(readPort)).isNotNull();
         assertThat(configuration.obtenerEstructuraCorporativaUseCase(readPort)).isNotNull();
+        assertThat(configuration.obtenerMiPuestoUseCase(readPort, alcancePort)).isNotNull();
     }
 }

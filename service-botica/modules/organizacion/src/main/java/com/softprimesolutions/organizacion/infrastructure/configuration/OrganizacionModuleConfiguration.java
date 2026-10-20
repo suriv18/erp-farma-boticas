@@ -19,6 +19,8 @@ import com.softprimesolutions.organizacion.application.port.in.ObtenerEmpresaUse
 import com.softprimesolutions.organizacion.application.port.in.ObtenerEstablecimientoUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ObtenerEstructuraCorporativaUseCase;
 import com.softprimesolutions.organizacion.application.port.in.ObtenerTerminalUseCase;
+import com.softprimesolutions.organizacion.application.port.in.ObtenerMiPuestoUseCase;
+import com.softprimesolutions.organizacion.application.port.out.AlcancePuestoPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionReadPort;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionWritePort;
 import com.softprimesolutions.organizacion.application.usecase.command.ActualizarAlmacenHandler;
@@ -40,6 +42,7 @@ import com.softprimesolutions.organizacion.application.usecase.query.ObtenerEmpr
 import com.softprimesolutions.organizacion.application.usecase.query.ObtenerEstablecimientoHandler;
 import com.softprimesolutions.organizacion.application.usecase.query.ObtenerEstructuraCorporativaHandler;
 import com.softprimesolutions.organizacion.application.usecase.query.ObtenerTerminalHandler;
+import com.softprimesolutions.organizacion.application.usecase.query.ObtenerMiPuestoHandler;
 import com.softprimesolutions.shared.application.port.ClockPort;
 import com.softprimesolutions.shared.application.port.IdentifierGenerator;
 import java.time.Clock;
@@ -173,5 +176,10 @@ public class OrganizacionModuleConfiguration {
     @Bean
     ObtenerEstructuraCorporativaUseCase obtenerEstructuraCorporativaUseCase(OrganizacionReadPort readPort) {
         return new ObtenerEstructuraCorporativaHandler(readPort);
+    }
+
+    @Bean
+    ObtenerMiPuestoUseCase obtenerMiPuestoUseCase(OrganizacionReadPort readPort, AlcancePuestoPort alcancePort) {
+        return new ObtenerMiPuestoHandler(readPort, alcancePort);
     }
 }
