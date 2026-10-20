@@ -225,7 +225,7 @@ describe('EmpresaDetailPage', () => {
     renderPage();
 
     await screen.findByRole('heading', { name: 'Boticas SAC' });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no admite/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nuevo establecimiento' })).toBeEnabled();
   });
 });

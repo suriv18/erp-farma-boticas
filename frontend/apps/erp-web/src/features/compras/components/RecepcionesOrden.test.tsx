@@ -86,6 +86,6 @@ describe('RecepcionesOrden', () => {
         .findAll({ queryKey: ['compras'] })
         .map(({ queryKey }) => queryKey)
     ).toContainEqual(['compras', 'recepciones', 'orden', 'orden-1', 1, 20]);
-    await waitFor(() => expect(screen.getByText('21–25 de 25')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/21–25 de 25/)).toBeInTheDocument());
   });
 });

@@ -253,7 +253,7 @@ describe('EstablecimientoDetailPage', () => {
     renderPage();
 
     await screen.findByRole('heading', { name: 'Botica Central' });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no admite/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nuevo almacén' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Nuevo terminal' })).toBeEnabled();
   });

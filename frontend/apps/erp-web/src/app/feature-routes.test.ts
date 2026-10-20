@@ -7,6 +7,10 @@ describe('featureRoutes', () => {
 
     expect(paths).toEqual([
       'dashboard',
+      'catalogo/productos-regulados/:productoReguladoId/editar',
+      'catalogo/productos-regulados/nuevo',
+      'catalogo/skus/:skuId/editar',
+      'catalogo/skus/nuevo',
       'catalogo',
       'catalogo/marcas',
       'catalogo/categorias',
@@ -61,7 +65,7 @@ describe('featureRoutes', () => {
   });
 
   it('mantiene autenticación fuera del shell privado', () => {
-    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login']);
+    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login', '/cambiar-contrasena']);
     expect(publicFeatureRoutes.every(({ lazy }) => typeof lazy === 'function')).toBe(true);
   });
 });
