@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { AuthSessionContext } from '../../auth/model/auth-session.context';
 import { server } from '../../../test/mocks/server';
+import { servirPerfilSinPermisos } from '../../../test/perfil-sin-permisos';
 import { RolesPage } from './RolesPage';
 
 const authenticatedSession = {
@@ -50,6 +51,23 @@ const sampleRol = {
 };
 
 describe('RolesPage', () => {
+  it('oculta el botón de crear sin el permiso de gestión', async () => {
+    const perfilServido = servirPerfilSinPermisos();
+    server.use(
+      http.get('*/api/v1/roles', () =>
+        HttpResponse.json({ items: [sampleRol], page: 0, size: 20, totalElements: 1 })
+      )
+    );
+
+    renderPage();
+
+    await perfilServido;
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Nuevo rol' })).not.toBeInTheDocument()
+    );
+  });
+
   it('lista los roles del tenant activo', async () => {
     server.use(
       http.get('*/api/v1/roles', () =>

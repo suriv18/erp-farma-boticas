@@ -12,4 +12,5 @@ export type PerfilUsuario = {
   username: string | null;
   email: string | null;
   assignments: PerfilAsignacion[];
+  permissions: string[];
 };

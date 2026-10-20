@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { RequireAuthentication } from '../features/auth';
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
 import { AppShell } from '../shared/layout/AppShell';
+import { RequireSectionAccess } from '../shared/layout/RequireSectionAccess';
 import { erpFeatureRoutes, publicFeatureRoutes } from './feature-routes';
 
 export const router = createBrowserRouter([
@@ -14,8 +15,10 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
-          ...erpFeatureRoutes,
-          { path: '*', element: <NotFoundPage /> }
+          {
+            element: <RequireSectionAccess />,
+            children: [...erpFeatureRoutes, { path: '*', element: <NotFoundPage /> }]
+          }
         ]
       }
     ]

@@ -34,6 +34,7 @@ import {
   Modal
 } from '@boticas/ui-web';
 import { useAuthSession, useProfile } from '../../features/auth';
+import { puedeAcceder } from './acceso-secciones';
 
 type NavigationItem = {
   label: string;
@@ -56,8 +57,10 @@ const navigation: NavigationItem[] = [
 
 function SidebarContent({
   onNavigate,
-  branchLabel
+  branchLabel,
+  items
 }: {
+  items: NavigationItem[];
   onNavigate?: () => void;
   branchLabel: string | null;
 }) {
@@ -77,7 +80,7 @@ function SidebarContent({
         <p className="text-primary-100/70 mb-3 px-3 text-[11px] font-bold tracking-[0.18em] uppercase">
           Operaciones
         </p>
-        {navigation.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
@@ -114,11 +117,12 @@ export function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { signOut } = useAuthSession();
   const profile = useProfile();
+  const items = navigation.filter(({ to }) => puedeAcceder(profile.permissions, to));
 
   return (
     <div className="erp-shell min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <aside className="bg-primary-950 erp-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col lg:flex">
-        <SidebarContent branchLabel={profile.branchLabel} />
+        <SidebarContent items={items} branchLabel={profile.branchLabel} />
       </aside>
 
       <Modal
@@ -129,6 +133,7 @@ export function AppShell() {
       >
         <div className="bg-primary-950 -mx-6 -mb-6 flex min-h-full flex-col">
           <SidebarContent
+            items={items}
             onNavigate={() => setMobileMenuOpen(false)}
             branchLabel={profile.branchLabel}
           />

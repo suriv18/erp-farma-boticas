@@ -29,6 +29,27 @@ export async function mockAuthApi(page: Page): Promise<void> {
   await page.route('**/api/v1/auth/login', (route) => json(route, 200, session));
   await page.route('**/api/v1/auth/refresh', (route) => json(route, 200, session));
   await page.route('**/api/v1/auth/logout', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/auth/me', (route) =>
+    json(route, 200, {
+      userId: session.userId,
+      tenantId: session.tenantId,
+      displayName: 'María Rojas',
+      username: 'mrojas',
+      email: 'maria.rojas@boticas.pe',
+      assignments: [],
+      permissions: [
+        'catalogo.skus.consultar',
+        'inventario.posiciones.consultar',
+        'compras.ordenes.consultar',
+        'ventas.ventas.consultar',
+        'ventas.ventas.registrar',
+        'ventas.turnos.abrir',
+        'seguridad.usuarios.gestionar',
+        'seguridad.roles.gestionar',
+        'organizacion.empresas.gestionar'
+      ]
+    })
+  );
   await page.route('**/api/v1/dashboard/summary', (route) => json(route, 200, dashboardSummary));
 }
 

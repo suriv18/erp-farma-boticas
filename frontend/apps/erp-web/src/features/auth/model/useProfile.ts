@@ -8,6 +8,8 @@ export type ProfileView = {
   initials: string;
   roleLabel: string | null;
   branchLabel: string | null;
+  permissions: string[];
+  permissionsReady: boolean;
 };
 
 const LOADING_NAME = 'Cargando…';
@@ -22,12 +24,21 @@ export function useProfile(): ProfileView {
 
   if (!data) {
     const name = isLoading ? LOADING_NAME : FALLBACK_NAME;
-    return { name, initials: initialsOf(name), roleLabel: null, branchLabel: null };
+    return {
+      name,
+      initials: initialsOf(name),
+      roleLabel: null,
+      branchLabel: null,
+      permissions: [],
+      permissionsReady: !isLoading
+    };
   }
   return {
     name: data.displayName,
     initials: initialsOf(data.displayName),
     roleLabel: roleLabelOf(data.assignments),
-    branchLabel: branchLabelOf(data.assignments)
+    branchLabel: branchLabelOf(data.assignments),
+    permissions: data.permissions,
+    permissionsReady: true
   };
 }

@@ -6,6 +6,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { AuthSessionContext } from '../../auth/model/auth-session.context';
 import { server } from '../../../test/mocks/server';
+import { servirPerfilSinPermisos } from '../../../test/perfil-sin-permisos';
 import { UsersPage } from './UsersPage';
 
 const authenticatedSession = {
@@ -54,6 +55,23 @@ const sampleUsuario = {
 };
 
 describe('UsersPage', () => {
+  it('oculta el botón de crear sin el permiso de gestión', async () => {
+    const perfilServido = servirPerfilSinPermisos();
+    server.use(
+      http.get('*/api/v1/usuarios', () =>
+        HttpResponse.json({ items: [sampleUsuario], page: 0, size: 20, totalElements: 1 })
+      )
+    );
+
+    renderPage();
+
+    await perfilServido;
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Nuevo usuario' })).not.toBeInTheDocument()
+    );
+  });
+
   it('lista los usuarios del tenant activo', async () => {
     server.use(
       http.get('*/api/v1/usuarios', () =>
@@ -115,7 +133,9 @@ describe('UsersPage', () => {
     await user.type(screen.getByLabelText('Correo'), 'ada@boticas.pe');
     await user.click(screen.getByRole('button', { name: 'Crear usuario' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe un usuario con ese correo.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ya existe un usuario con ese correo.'
+    );
   });
 
   it('permite buscar por texto', async () => {

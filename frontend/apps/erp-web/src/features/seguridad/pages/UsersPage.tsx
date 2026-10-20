@@ -12,7 +12,7 @@ import {
   ListFilters,
   iconButtonClassName
 } from '@boticas/ui-web';
-import { useAuthSession } from '../../auth';
+import { useAuthSession, usePermisos } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearUsuario, usuariosQuery } from '../api/usuarios.api';
 import type { Usuario } from '../api/usuarios.types';
@@ -21,6 +21,7 @@ import { UsuarioForm } from '../components/UsuarioForm';
 
 export function UsersPage() {
   const { tenantId } = useAuthSession();
+  const { puede } = usePermisos();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -64,14 +65,16 @@ export function UsersPage() {
         context="Seguridad / Usuarios"
         description="Administra las cuentas de acceso al sistema."
         actions={
-          <Button
-            onClick={() => {
-              setCreateError(null);
-              setCreateOpen(true);
-            }}
-          >
-            Nuevo usuario
-          </Button>
+          puede('seguridad.usuarios.gestionar') ? (
+            <Button
+              onClick={() => {
+                setCreateError(null);
+                setCreateOpen(true);
+              }}
+            >
+              Nuevo usuario
+            </Button>
+          ) : undefined
         }
       />
 

@@ -51,10 +51,22 @@ const cajero = {
       scopeType: 'ESTABLECIMIENTO',
       scopeName: 'Botica Crítica Norte'
     }
-  ]
+  ],
+  permissions: ['ventas.turnos.abrir', 'ventas.ventas.registrar', 'ventas.ventas.consultar']
 };
 
 describe('AppShell', () => {
+  it('muestra en el menú solo las secciones permitidas por los permisos del usuario', async () => {
+    server.use(http.get('*/api/v1/auth/me', () => HttpResponse.json(cajero)));
+    renderShell();
+
+    expect(await screen.findByRole('link', { name: 'Caja' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Punto de venta' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Resumen' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Seguridad' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Organización' })).not.toBeInTheDocument();
+  });
+
   it('muestra el nombre, el rol y la sucursal del usuario autenticado', async () => {
     server.use(http.get('*/api/v1/auth/me', () => HttpResponse.json(cajero)));
 

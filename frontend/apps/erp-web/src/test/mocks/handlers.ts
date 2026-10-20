@@ -32,6 +32,17 @@ export const handlers = [
           scopeType: 'GLOBAL',
           scopeName: null
         }
+      ],
+      permissions: [
+        'catalogo.skus.consultar',
+        'inventario.posiciones.consultar',
+        'compras.ordenes.consultar',
+        'ventas.ventas.consultar',
+        'ventas.ventas.registrar',
+        'ventas.turnos.abrir',
+        'seguridad.usuarios.gestionar',
+        'seguridad.roles.gestionar',
+        'organizacion.empresas.gestionar'
       ]
     })
   ),

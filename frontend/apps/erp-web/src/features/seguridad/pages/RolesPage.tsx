@@ -10,7 +10,7 @@ import {
   PageHeader,
   iconButtonClassName
 } from '@boticas/ui-web';
-import { useAuthSession } from '../../auth';
+import { useAuthSession, usePermisos } from '../../auth';
 import { apiClient } from '../../../app/api';
 import { crearRol, rolesQuery } from '../api/roles.api';
 import type { Rol } from '../api/roles.types';
@@ -19,6 +19,7 @@ import { RolForm } from '../components/RolForm';
 
 export function RolesPage() {
   const { tenantId } = useAuthSession();
+  const { puede } = usePermisos();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -51,7 +52,11 @@ export function RolesPage() {
         title="Roles"
         context="Seguridad / Roles"
         description="Administra los roles y sus permisos asociados."
-        actions={<Button onClick={() => setCreateOpen(true)}>Nuevo rol</Button>}
+        actions={
+          puede('seguridad.roles.gestionar') ? (
+            <Button onClick={() => setCreateOpen(true)}>Nuevo rol</Button>
+          ) : undefined
+        }
       />
 
       <div className="mt-6">

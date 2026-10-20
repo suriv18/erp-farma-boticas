@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
+import { servirPerfilSinPermisos } from '../../../test/perfil-sin-permisos';
 import { pagina, sampleEmpresa } from '../../../test/organizacion-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import { EmpresasPage } from './EmpresasPage';
@@ -12,6 +13,19 @@ function renderPage() {
 }
 
 describe('EmpresasPage', () => {
+  it('oculta el botón de crear sin el permiso de gestión', async () => {
+    const perfilServido = servirPerfilSinPermisos();
+    server.use(http.get(listUrl, () => HttpResponse.json(pagina([sampleEmpresa]))));
+
+    renderPage();
+
+    await perfilServido;
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Nueva empresa' })).not.toBeInTheDocument()
+    );
+  });
+
   it('lista las empresas con acciones, nombre comercial y estado', async () => {
     server.use(
       http.get(listUrl, () =>

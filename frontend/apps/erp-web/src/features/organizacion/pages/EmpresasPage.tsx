@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DataTable, EstadoBadge, ListFilters, Modal, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
+import { usePermisos } from '../../auth';
 import { crearEmpresa, empresasQuery } from '../api/empresas.api';
 import type { Empresa } from '../api/empresas.types';
 import { invalidateOrganizacion } from '../api/invalidate';
@@ -15,6 +16,7 @@ import type { EmpresaFormValues } from '../schemas/empresa.schema';
 
 export function EmpresasPage() {
   const queryClient = useQueryClient();
+  const { puede } = usePermisos();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Empresa | null>(null);
   const [search, setSearch] = useState('');
@@ -43,7 +45,11 @@ export function EmpresasPage() {
         title="Empresas"
         context="Organización / Empresas"
         description="Administra las empresas operadoras del tenant."
-        actions={<Button onClick={() => setCreateOpen(true)}>Nueva empresa</Button>}
+        actions={
+          puede('organizacion.empresas.gestionar') ? (
+            <Button onClick={() => setCreateOpen(true)}>Nueva empresa</Button>
+          ) : undefined
+        }
       />
 
       <ListFilters

@@ -15,7 +15,8 @@ const perfil = {
   displayName: 'Luis Paredes Soto',
   username: 'crit001.manana1',
   email: 'crit001.manana1@boticas.pe',
-  assignments: []
+  assignments: [],
+  permissions: ['ventas.turnos.abrir']
 };
 
 describe('profile api', () => {
