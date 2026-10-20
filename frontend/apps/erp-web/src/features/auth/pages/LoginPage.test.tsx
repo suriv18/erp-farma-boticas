@@ -49,7 +49,7 @@ describe('LoginPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
-    expect(await screen.findByText('Ingresa un correo electrónico válido.')).toBeInTheDocument();
+    expect(await screen.findByText('Ingresa tu usuario o correo electrónico.')).toBeInTheDocument();
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeInTheDocument();
 
     const password = screen.getByLabelText('Contraseña');
@@ -63,6 +63,16 @@ describe('LoginPage', () => {
     const { user } = renderLogin();
 
     await fillValidCredentials(user);
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    expect(await screen.findByRole('heading', { name: 'Resumen operativo' })).toBeInTheDocument();
+  });
+
+  it('inicia sesión con un nombre de usuario', async () => {
+    const { user } = renderLogin();
+
+    await user.type(screen.getByLabelText('Usuario o correo electrónico'), 'crit001.manana1');
+    await user.type(screen.getByLabelText('Contraseña'), 'Boticas2026!');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByRole('heading', { name: 'Resumen operativo' })).toBeInTheDocument();

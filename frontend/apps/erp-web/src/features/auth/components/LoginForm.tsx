@@ -30,7 +30,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
     handleSubmit,
     register
   } = useForm<LoginCredentials>({
-    defaultValues: { email: '', password: '', remember: false },
+    defaultValues: { login: '', password: '', remember: false },
     mode: 'onTouched',
     resolver: zodResolver(loginSchema)
   });
@@ -56,7 +56,7 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
 
       <div>
         <label
-          htmlFor="email"
+          htmlFor="login"
           className="text-sm font-semibold text-neutral-700 dark:text-neutral-200"
         >
           Usuario o correo electrónico
@@ -67,24 +67,24 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
             aria-hidden="true"
           />
           <input
-            id="email"
-            type="email"
+            id="login"
+            type="text"
             autoComplete="username"
             autoFocus
-            placeholder="ej. jperez@farmavita.pe"
-            aria-describedby={errors.email ? 'email-error' : undefined}
-            aria-invalid={Boolean(errors.email)}
+            placeholder="ej. jperez o jperez@farmavita.pe"
+            aria-describedby={errors.login ? 'login-error' : undefined}
+            aria-invalid={Boolean(errors.login)}
             className="focus:border-primary-600 focus:ring-primary-100 aria-invalid:border-danger-400 aria-invalid:focus:ring-danger-100 dark:focus:ring-primary-900/40 h-12 w-full rounded-xl border border-neutral-200 bg-white pr-4 pl-11 text-sm text-neutral-900 shadow-sm transition outline-none placeholder:text-neutral-400 hover:border-neutral-300 focus:ring-4 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-600"
-            {...register('email')}
+            {...register('login')}
           />
         </div>
-        {errors.email ? (
+        {errors.login ? (
           <p
-            id="email-error"
+            id="login-error"
             role="alert"
             className="text-danger-600 dark:text-danger-400 mt-1.5 text-xs font-medium"
           >
-            {errors.email.message}
+            {errors.login.message}
           </p>
         ) : null}
       </div>
@@ -146,10 +146,10 @@ export function LoginForm({ onAuthenticate, submitError }: LoginFormProps) {
         <div
           id="recovery-help"
           role="status"
-          className="border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800/40 dark:text-neutral-300 flex gap-3 rounded-xl border p-3.5 text-xs leading-5"
+          className="flex gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 text-xs leading-5 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800/40 dark:text-neutral-300"
         >
           <CircleHelp
-            className="text-neutral-500 dark:text-neutral-400 mt-0.5 size-4 shrink-0"
+            className="mt-0.5 size-4 shrink-0 text-neutral-500 dark:text-neutral-400"
             aria-hidden="true"
           />
           Solicita el restablecimiento al administrador de tu organización. El enlace se enviará

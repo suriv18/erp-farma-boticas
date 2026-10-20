@@ -38,7 +38,7 @@ function Probe() {
       <span data-testid="userId">{session.userId}</span>
       <button onClick={() => {
         void session.authenticate({
-          email: 'admin@boticas.pe',
+          login: 'admin@boticas.pe',
           password: 'Boticas2026!',
           remember: false
         });

@@ -91,7 +91,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   const authenticate = useCallback(
     async (credentials: LoginCredentials) => {
       const response = await loginRequest(apiClient, {
-        login: credentials.email,
+        login: credentials.login,
         password: credentials.password
       });
       await resetPrivateCache();
