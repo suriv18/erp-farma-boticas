@@ -7,5 +7,5 @@
 @org.springframework.modulith.ApplicationModule(
         id = "security",
         displayName = "Seguridad",
-        allowedDependencies = {"organizacion::api"})
+        allowedDependencies = {})
 package com.softprimesolutions.security;

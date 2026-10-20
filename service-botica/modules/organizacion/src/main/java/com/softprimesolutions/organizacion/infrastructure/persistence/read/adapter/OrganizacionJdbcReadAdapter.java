@@ -3,19 +3,24 @@ package com.softprimesolutions.organizacion.infrastructure.persistence.read.adap
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
+import com.softprimesolutions.organizacion.application.dto.result.AlmacenPuestoResult;
 import com.softprimesolutions.organizacion.application.dto.result.AlmacenResult;
 import com.softprimesolutions.organizacion.application.dto.result.EmpresaNodoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EmpresaOperadoraResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoNodoResult;
+import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoPuestoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstructuraCorporativaResult;
 import com.softprimesolutions.organizacion.application.dto.result.NodoResult;
 import com.softprimesolutions.organizacion.application.dto.result.PaginaResult;
 import com.softprimesolutions.organizacion.application.dto.result.TerminalPosResult;
+import com.softprimesolutions.organizacion.application.dto.result.TerminalPuestoResult;
 import com.softprimesolutions.organizacion.application.port.out.OrganizacionReadPort;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.mapper.OrganizacionReadMapper;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.AlmacenProjection;
+import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.EmpresaProjection;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.EstablecimientoProjection;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.TerminalProjection;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.repository.OrganizacionJdbcReadRepository;
@@ -131,6 +136,35 @@ public class OrganizacionJdbcReadAdapter implements OrganizacionReadPort {
                         establecimientos.getOrDefault(empresa.uuidPublico(), List.of())))
                 .toList();
         return new EstructuraCorporativaResult(Instant.now(), companies);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EstablecimientoPuestoResult> findEstablecimientosPuesto(UUID tenantId) {
+        var empresasActivas = repository.findAllEmpresasActivas(tenantId).stream()
+                .filter(empresa -> "ACTIVO".equals(empresa.estado()))
+                .map(EmpresaProjection::uuidPublico)
+                .collect(toSet());
+        var almacenes = groupedBy(
+                repository.findAllAlmacenes(tenantId).stream().filter(AlmacenProjection::activo).toList(),
+                AlmacenProjection::establecimientoUuid,
+                almacen -> new AlmacenPuestoResult(
+                        almacen.uuidPublico(), almacen.codigo(), almacen.nombre(), almacen.tipo(),
+                        almacen.permiteVenta()));
+        var terminales = groupedBy(
+                repository.findAllTerminalesActivos(tenantId), TerminalProjection::establecimientoUuid,
+                terminal -> new TerminalPuestoResult(
+                        terminal.uuidPublico(), terminal.codigo(), terminal.nombre(), terminal.estado(),
+                        "ACTIVO".equals(terminal.estado())));
+        return repository.findAllEstablecimientosActivos(tenantId).stream()
+                .filter(establecimiento -> "ACTIVO".equals(establecimiento.estadoOperativo()))
+                .filter(establecimiento -> empresasActivas.contains(establecimiento.empresaUuid()))
+                .map(establecimiento -> new EstablecimientoPuestoResult(
+                        establecimiento.uuidPublico(), establecimiento.empresaUuid(), establecimiento.codigo(),
+                        establecimiento.nombre(),
+                        almacenes.getOrDefault(establecimiento.uuidPublico(), List.of()),
+                        terminales.getOrDefault(establecimiento.uuidPublico(), List.of())))
+                .toList();
     }
 
     private static <P, N> Map<UUID, List<N>> groupedBy(

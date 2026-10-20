@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.softprimesolutions.organizacion.application.dto.result.AlmacenPuestoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EmpresaNodoResult;
+import com.softprimesolutions.organizacion.application.dto.result.TerminalPuestoResult;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.AlmacenProjection;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.EmpresaProjection;
 import com.softprimesolutions.organizacion.infrastructure.persistence.read.projection.EstablecimientoProjection;
@@ -217,5 +219,42 @@ class OrganizacionJdbcReadAdapterTest {
         });
         assertThat(structure.companies().get(2).establishments()).isEmpty();
         assertThat(structure.companies().get(2).status()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void listsTheActiveEstablishmentsOfActiveCompaniesWithTheirSellableWarehousesAndOperableTerminals() {
+        var empresaActiva = UUID.randomUUID();
+        var empresaBloqueada = UUID.randomUUID();
+        var estActivo = UUID.randomUUID();
+        var estSuspendido = UUID.randomUUID();
+        var estDeEmpresaBloqueada = UUID.randomUUID();
+        var almacenVenta = UUID.randomUUID();
+        var terminalActiva = UUID.randomUUID();
+        var terminalMantenimiento = UUID.randomUUID();
+        when(repository.findAllEmpresasActivas(TENANT)).thenReturn(List.of(
+                empresa(empresaActiva, "A SAC"), empresa(empresaBloqueada, "B SAC", "BLOQUEADO")));
+        when(repository.findAllEstablecimientosActivos(TENANT)).thenReturn(List.of(
+                establecimiento(estActivo, empresaActiva, "A1"),
+                establecimiento(estSuspendido, empresaActiva, "A2", "SUSPENDIDO"),
+                establecimiento(estDeEmpresaBloqueada, empresaBloqueada, "B1")));
+        when(repository.findAllAlmacenes(TENANT)).thenReturn(List.of(
+                almacen(almacenVenta, estActivo, "Venta", true), almacen(UUID.randomUUID(), estActivo, "Inactivo", false)));
+        when(repository.findAllTerminalesActivos(TENANT)).thenReturn(List.of(
+                terminal(terminalActiva, estActivo, "Caja 1"),
+                terminal(terminalMantenimiento, estActivo, "Caja 2", "MANTENIMIENTO")));
+
+        var puesto = adapter.findEstablecimientosPuesto(TENANT);
+
+        assertThat(puesto).singleElement().satisfies(establecimiento -> {
+            assertThat(establecimiento.id()).isEqualTo(estActivo);
+            assertThat(establecimiento.empresaId()).isEqualTo(empresaActiva);
+            assertThat(establecimiento.almacenes()).extracting(AlmacenPuestoResult::id).containsExactly(almacenVenta);
+            assertThat(establecimiento.terminales()).extracting(TerminalPuestoResult::id)
+                    .containsExactly(terminalActiva, terminalMantenimiento);
+            assertThat(establecimiento.terminales()).extracting(TerminalPuestoResult::operable)
+                    .containsExactly(true, false);
+            assertThat(establecimiento.terminales()).extracting(TerminalPuestoResult::estado)
+                    .containsExactly("ACTIVO", "MANTENIMIENTO");
+        });
     }
 }

@@ -2,10 +2,12 @@ package com.softprimesolutions.organizacion.application.port.out;
 
 import com.softprimesolutions.organizacion.application.dto.result.AlmacenResult;
 import com.softprimesolutions.organizacion.application.dto.result.EmpresaOperadoraResult;
+import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoPuestoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstablecimientoResult;
 import com.softprimesolutions.organizacion.application.dto.result.EstructuraCorporativaResult;
 import com.softprimesolutions.organizacion.application.dto.result.PaginaResult;
 import com.softprimesolutions.organizacion.application.dto.result.TerminalPosResult;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,4 +33,6 @@ public interface OrganizacionReadPort {
     Optional<TerminalPosResult> findTerminalById(UUID tenantId, UUID terminalId);
 
     EstructuraCorporativaResult findEstructuraCorporativa(UUID tenantId);
+
+    List<EstablecimientoPuestoResult> findEstablecimientosPuesto(UUID tenantId);
 }
