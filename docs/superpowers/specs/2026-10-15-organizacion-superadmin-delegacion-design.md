@@ -116,7 +116,7 @@ Reglas:
 
 - **B2:** aislamiento por organización en inventario, compras, catálogo y ventas, y RLS como defensa en profundidad.
 - **C:** turnos laborales rotativos por calendario (definición de turnos, roster y su efecto en caja y acceso).
-- **D:** endpoint "mi puesto de trabajo" para que Caja y POS funcionen con permisos mínimos.
+- **D:** endpoint "mi puesto de trabajo" para que Caja y POS funcionen con permisos mínimos. Resuelto por `docs/superpowers/plans/2026-10-19-mi-puesto-y-acceso-por-permisos.md`.
 - **E:** menú y rutas por permiso, página 403 y asistente de alta de usuarios con plantilla de turnos.
 - Legibilidad de `created_by`/`granted_by` en auditoría (hoy guardan el UUID del actor).
 
