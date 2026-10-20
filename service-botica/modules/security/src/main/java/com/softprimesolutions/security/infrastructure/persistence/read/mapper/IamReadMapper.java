@@ -8,6 +8,7 @@ import com.softprimesolutions.security.infrastructure.persistence.read.projectio
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.PermisoProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.RolProjection;
 import com.softprimesolutions.security.infrastructure.persistence.read.projection.UsuarioProjection;
+import java.util.List;
 
 public final class IamReadMapper {
 
@@ -42,6 +43,6 @@ public final class IamReadMapper {
                 .toList();
         return new PerfilResult(
                 value.userId(), value.tenantId(), value.displayName(), value.username(), value.email(),
-                assignments);
+                assignments, List.of());
     }
 }

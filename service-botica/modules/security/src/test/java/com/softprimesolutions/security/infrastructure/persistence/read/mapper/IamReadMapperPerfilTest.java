@@ -31,7 +31,8 @@ class IamReadMapperPerfilTest {
                                 new PerfilResult.Asignacion(
                                         "CAJERO", "Cajero de establecimiento", "ESTABLECIMIENTO",
                                         "Botica Crítica Norte"),
-                                new PerfilResult.Asignacion("ADMIN", "Administrador global", "GLOBAL", null))),
+                                new PerfilResult.Asignacion("ADMIN", "Administrador global", "GLOBAL", null)),
+                        List.of()),
                 result);
     }
 
@@ -41,5 +42,6 @@ class IamReadMapperPerfilTest {
                 new PerfilProjection(USER_ID, TENANT_ID, "Luis", "luis", "luis@boticas.pe", List.of()));
 
         assertEquals(List.of(), result.assignments());
+        assertEquals(List.of(), result.permissions());
     }
 }

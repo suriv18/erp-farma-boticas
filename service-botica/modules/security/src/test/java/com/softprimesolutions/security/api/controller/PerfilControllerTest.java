@@ -32,7 +32,7 @@ class PerfilControllerTest {
     @Test
     void returnsTheProfileOfTheUserIdentifiedByTheToken() {
         var queries = new ArrayList<ObtenerMiPerfilQuery>();
-        var profile = new PerfilResult(USER_ID, TENANT_ID, "Luis Paredes Soto", "luis", "luis@boticas.pe", List.of());
+        var profile = new PerfilResult(USER_ID, TENANT_ID, "Luis Paredes Soto", "luis", "luis@boticas.pe", List.of(), List.of());
         var controller = new PerfilController(query -> {
             queries.add(query);
             return Result.success(profile);

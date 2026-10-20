@@ -114,8 +114,9 @@ public class SecurityModuleConfiguration {
     }
 
     @Bean
-    ObtenerMiPerfilUseCase obtenerMiPerfilUseCase(IamReadPort readPort) {
-        return new ObtenerMiPerfilHandler(readPort);
+    ObtenerMiPerfilUseCase obtenerMiPerfilUseCase(
+            IamReadPort readPort, SecurityControlPort controlPort, ClockPort iamClockPort) {
+        return new ObtenerMiPerfilHandler(readPort, controlPort, iamClockPort);
     }
 
     @Bean

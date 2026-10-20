@@ -549,7 +549,10 @@ class IamApiIntegrationTest {
                 .andExpect(jsonPath("$.assignments[0].roleCode").value("TIENDA"))
                 .andExpect(jsonPath("$.assignments[0].roleName").value("Tienda"))
                 .andExpect(jsonPath("$.assignments[0].scopeType").value("ESTABLECIMIENTO"))
-                .andExpect(jsonPath("$.assignments[0].scopeName").value("Establecimiento de prueba"));
+                .andExpect(jsonPath("$.assignments[0].scopeName").value("Establecimiento de prueba"))
+                .andExpect(jsonPath("$.permissions.length()").value(2))
+                .andExpect(jsonPath("$.permissions[0]").value("seguridad.sesiones.consultar"))
+                .andExpect(jsonPath("$.permissions[1]").value("seguridad.usuarios.gestionar"));
     }
 
     @Test
