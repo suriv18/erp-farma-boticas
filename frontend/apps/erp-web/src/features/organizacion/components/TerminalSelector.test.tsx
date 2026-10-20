@@ -1,28 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
-import { pagina, sampleTerminal } from '../../../test/organizacion-fixtures';
-import { sampleEstructura } from '../../../test/inventario-fixtures';
+import { miPuestoHandler, sampleMiPuesto } from '../../../test/mi-puesto-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import { TerminalSelector } from './TerminalSelector';
 
 beforeEach(() => {
-  server.use(
-    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura)),
-    http.get('*/api/v1/organizacion/terminales-pos', ({ request }) => {
-      const establecimiento = new URL(request.url).searchParams.get('establecimientoId');
-      return HttpResponse.json(
-        pagina(
-          establecimiento === 'est-1'
-            ? [
-                { ...sampleTerminal, id: 'term-1', nombre: 'Caja 1', estado: 'ACTIVO' },
-                { ...sampleTerminal, id: 'term-2', nombre: 'Caja 2', estado: 'BLOQUEADO' }
-              ]
-            : []
-        )
-      );
-    })
-  );
+  server.use(miPuestoHandler());
 });
 
 function renderSelector(establecimientoId: string, terminalId: string, onChange = vi.fn()) {
@@ -37,7 +20,7 @@ function renderSelector(establecimientoId: string, terminalId: string, onChange 
 }
 
 describe('TerminalSelector', () => {
-  it('lista los establecimientos y, al elegir uno, notifica el cambio sin terminal', async () => {
+  it('lista los establecimientos del puesto y, al elegir uno, notifica el cambio sin terminal', async () => {
     const { onChange, user } = renderSelector('', '');
 
     await screen.findByRole('option', { name: 'Botica Central' });
@@ -46,19 +29,66 @@ describe('TerminalSelector', () => {
     expect(onChange).toHaveBeenCalledWith('est-1', '');
   });
 
-  it('muestra solo las terminales activas del establecimiento y notifica la elegida', async () => {
+  it('deshabilita las terminales no operables indicando el motivo', async () => {
+    renderSelector('est-2', '');
+
+    const enMantenimiento = await screen.findByRole('option', { name: 'Caja 3 (en mantenimiento)' });
+
+    expect(enMantenimiento).toBeDisabled();
+  });
+
+  it('indica el estado en minúsculas cuando el motivo no tiene un texto propio', async () => {
+    server.use(
+      miPuestoHandler({
+        establecimientos: [
+          {
+            ...sampleMiPuesto.establecimientos[1]!,
+            terminales: [
+              { id: 'term-9', codigo: 'POS009', nombre: 'Caja 9', estado: 'INACTIVA', operable: false }
+            ]
+          }
+        ]
+      })
+    );
+    renderSelector('est-2', '');
+
+    expect(await screen.findByRole('option', { name: 'Caja 9 (inactiva)' })).toBeDisabled();
+  });
+
+  it('muestra las terminales operables y notifica la elegida', async () => {
     const { onChange, user } = renderSelector('est-1', '');
 
-    expect(await screen.findByRole('option', { name: 'Caja 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'Caja 2' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'Caja 1' })).toBeEnabled();
     await user.selectOptions(screen.getByLabelText('Terminal'), 'term-1');
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('est-1', 'term-1'));
+  });
+
+  it('descarta un establecimiento recordado que ya no está en el alcance', async () => {
+    const { onChange } = renderSelector('est-x', 'term-x');
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('', ''));
   });
 
   it('deshabilita el selector de terminal mientras no hay establecimiento', async () => {
     renderSelector('', '');
 
     expect(await screen.findByLabelText('Terminal')).toBeDisabled();
+  });
+
+  it('preselecciona el único establecimiento y su única terminal operable', async () => {
+    server.use(
+      miPuestoHandler({
+        establecimientos: [
+          {
+            ...sampleMiPuesto.establecimientos[0]!,
+            terminales: [sampleMiPuesto.establecimientos[0]!.terminales[0]!]
+          }
+        ]
+      })
+    );
+    const { onChange } = renderSelector('', '');
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('est-1', 'term-1'));
   });
 });

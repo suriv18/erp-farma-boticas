@@ -1,8 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
-import { sampleEstructura } from '../../../test/inventario-fixtures';
-import { pagina, sampleTerminal } from '../../../test/organizacion-fixtures';
+import { miPuestoHandler, sampleMiPuesto } from '../../../test/mi-puesto-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import type { PuestoTrabajo } from '../../organizacion';
 import { PuestoVenta } from './PuestoVenta';
@@ -15,15 +13,7 @@ const puestoBase: PuestoTrabajo = {
 
 beforeEach(() => {
   server.use(
-    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura)),
-    http.get('*/api/v1/organizacion/terminales-pos', () =>
-      HttpResponse.json(
-        pagina([
-          { ...sampleTerminal, id: 'term-1', nombre: 'Caja 1', estado: 'ACTIVO' },
-          { ...sampleTerminal, id: 'term-2', nombre: 'Caja 2', estado: 'ACTIVO' }
-        ])
-      )
-    )
+    miPuestoHandler()
   );
 });
 
@@ -80,5 +70,23 @@ describe('PuestoVenta', () => {
     renderPuesto({ establecimientoId: '', terminalId: '', almacenId: '' });
 
     expect(await screen.findByLabelText('Almacén')).toBeDisabled();
+  });
+  it('lista solo los almacenes habilitados para venta y avisa cuando no hay ninguno', async () => {
+    server.use(
+      miPuestoHandler({
+        establecimientos: [
+          {
+            ...sampleMiPuesto.establecimientos[0]!,
+            almacenes: [sampleMiPuesto.establecimientos[0]!.almacenes[2]!]
+          }
+        ]
+      })
+    );
+    renderPuesto({ establecimientoId: 'est-1', terminalId: 'term-1', almacenId: '' });
+
+    expect(
+      await screen.findByText('Este establecimiento no tiene almacenes habilitados para venta.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Almacén Merma' })).not.toBeInTheDocument();
   });
 });

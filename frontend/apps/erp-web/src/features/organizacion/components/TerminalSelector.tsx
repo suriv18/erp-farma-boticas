@@ -1,7 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { SelectField } from '../../../shared/components/FormFields';
-import { terminalesQuery } from '../api/terminales.api';
-import { useEstablecimientos } from '../lib/use-establecimientos';
+import { useMiPuesto } from '../lib/use-mi-puesto';
+import { resolverPuesto } from '../lib/resolver-puesto';
+
+const MOTIVO_NO_OPERABLE: Record<string, string> = {
+  BLOQUEADO: 'bloqueada',
+  MANTENIMIENTO: 'en mantenimiento'
+};
 
 type TerminalSelectorProps = {
   establecimientoId: string;
@@ -14,12 +19,15 @@ export function TerminalSelector({
   terminalId,
   onChange
 }: TerminalSelectorProps) {
-  const establecimientos = useEstablecimientos();
-  const { data: terminales } = useQuery({
-    ...terminalesQuery({ establecimientoId, size: 100 }),
-    enabled: establecimientoId !== ''
-  });
-  const activas = (terminales?.items ?? []).filter(({ estado }) => estado === 'ACTIVO');
+  const { establecimientos, isPending } = useMiPuesto();
+  const terminales =
+    establecimientos.find(({ id }) => id === establecimientoId)?.terminales ?? [];
+
+  useEffect(() => {
+    if (isPending) return;
+    const siguiente = resolverPuesto(establecimientos, { establecimientoId, terminalId });
+    if (siguiente) onChange(siguiente.establecimientoId, siguiente.terminalId);
+  }, [isPending, establecimientos, establecimientoId, terminalId, onChange]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -30,9 +38,9 @@ export function TerminalSelector({
         onChange={(event) => onChange(event.target.value, '')}
       >
         <option value="">Selecciona un establecimiento</option>
-        {establecimientos.map(({ id, name }) => (
+        {establecimientos.map(({ id, nombre }) => (
           <option key={id} value={id}>
-            {name}
+            {nombre}
           </option>
         ))}
       </SelectField>
@@ -44,9 +52,11 @@ export function TerminalSelector({
         onChange={(event) => onChange(establecimientoId, event.target.value)}
       >
         <option value="">Selecciona una terminal</option>
-        {activas.map(({ id, nombre }) => (
-          <option key={id} value={id}>
-            {nombre}
+        {terminales.map(({ id, nombre, estado, operable }) => (
+          <option key={id} value={id} disabled={!operable}>
+            {operable
+              ? nombre
+              : `${nombre} (${MOTIVO_NO_OPERABLE[estado] ?? estado.toLowerCase()})`}
           </option>
         ))}
       </SelectField>

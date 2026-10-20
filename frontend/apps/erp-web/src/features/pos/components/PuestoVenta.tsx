@@ -2,9 +2,8 @@ import { Card } from '@boticas/ui-web';
 import { SelectField } from '../../../shared/components/FormFields';
 import {
   TerminalSelector,
-  almacenesDeEstablecimiento,
   cambiarTerminal,
-  useEstablecimientos,
+  useMiPuesto,
   type PuestoTrabajo
 } from '../../organizacion';
 
@@ -14,7 +13,11 @@ type PuestoVentaProps = {
 };
 
 export function PuestoVenta({ puesto, onChange }: PuestoVentaProps) {
-  const almacenes = almacenesDeEstablecimiento(useEstablecimientos(), puesto.establecimientoId);
+  const { establecimientos, isPending } = useMiPuesto();
+  const almacenes = (
+    establecimientos.find(({ id }) => id === puesto.establecimientoId)?.almacenes ?? []
+  ).filter(({ permiteVenta }) => permiteVenta);
+  const sinAlmacenes = !isPending && puesto.establecimientoId !== '' && almacenes.length === 0;
 
   return (
     <Card className="grid gap-4 p-5 md:grid-cols-3 md:[&>*:first-child]:col-span-2">
@@ -33,12 +36,17 @@ export function PuestoVenta({ puesto, onChange }: PuestoVentaProps) {
         onChange={(event) => onChange({ ...puesto, almacenId: event.target.value })}
       >
         <option value="">Selecciona un almacén</option>
-        {almacenes.map(({ id, name }) => (
+        {almacenes.map(({ id, nombre }) => (
           <option key={id} value={id}>
-            {name}
+            {nombre}
           </option>
         ))}
       </SelectField>
+      {sinAlmacenes ? (
+        <p role="alert" className="text-danger-600 dark:text-danger-400 text-sm md:col-span-3">
+          Este establecimiento no tiene almacenes habilitados para venta.
+        </p>
+      ) : null}
     </Card>
   );
 }

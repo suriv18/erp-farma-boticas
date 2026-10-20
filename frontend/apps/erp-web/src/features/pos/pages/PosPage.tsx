@@ -5,7 +5,7 @@ import { apiClient } from '../../../app/api';
 import { useClaveIdempotencia } from '../../../shared/lib/use-clave-idempotencia';
 import { invalidateCaja, turnoActualQuery } from '../../caja';
 import { invalidateInventario } from '../../inventario';
-import { useEstablecimientos, usePuestoTrabajo, type PuestoTrabajo } from '../../organizacion';
+import { useMiPuesto, usePuestoTrabajo, type PuestoTrabajo } from '../../organizacion';
 import { ComprobanteVenta, invalidateVentas, registrarVenta } from '../../ventas';
 import { AvisoTurno } from '../components/AvisoTurno';
 import { BuscadorProductos } from '../components/BuscadorProductos';
@@ -29,7 +29,7 @@ import { errorLinea } from '../lib/carrito';
 export function PosPage() {
   const queryClient = useQueryClient();
   const { puesto, setPuesto } = usePuestoTrabajo();
-  const establecimientos = useEstablecimientos();
+  const { establecimientos } = useMiPuesto();
   const { claveDe, reiniciar } = useClaveIdempotencia();
   const [carrito, setCarrito] = useState<Carrito>([]);
   const [recibido, setRecibido] = useState('');
@@ -160,7 +160,7 @@ export function PosPage() {
             <ComprobanteVenta
               venta={cobro.data}
               nombreEstablecimiento={
-                establecimientos.find(({ id }) => id === cobro.data.establecimientoId)?.name ?? ''
+                establecimientos.find(({ id }) => id === cobro.data.establecimientoId)?.nombre ?? ''
               }
             />
             <Button onClick={vaciar}>Nueva venta</Button>

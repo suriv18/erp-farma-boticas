@@ -1,8 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
-import { sampleEstructura } from '../../../test/inventario-fixtures';
-import { pagina, sampleTerminal } from '../../../test/organizacion-fixtures';
+import { miPuestoHandler } from '../../../test/mi-puesto-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import { sampleTurno, sampleTurnoCerrado } from '../../../test/ventas-fixtures';
 import { CashRegisterPage } from './CashRegisterPage';
@@ -27,15 +26,7 @@ function renderPage() {
 beforeEach(() => {
   localStorage.clear();
   server.use(
-    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura)),
-    http.get('*/api/v1/organizacion/terminales-pos', () =>
-      HttpResponse.json(
-        pagina([
-          { ...sampleTerminal, id: 'term-1', nombre: 'Caja 1', estado: 'ACTIVO' },
-          { ...sampleTerminal, id: 'term-2', nombre: 'Caja 2', estado: 'ACTIVO' }
-        ])
-      )
-    )
+    miPuestoHandler()
   );
 });
 

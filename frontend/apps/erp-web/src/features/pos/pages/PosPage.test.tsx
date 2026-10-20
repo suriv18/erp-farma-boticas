@@ -1,8 +1,9 @@
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
-import { sampleEstructura, samplePosicion } from '../../../test/inventario-fixtures';
-import { pagina, sampleTerminal } from '../../../test/organizacion-fixtures';
+import { samplePosicion } from '../../../test/inventario-fixtures';
+import { miPuestoHandler } from '../../../test/mi-puesto-fixtures';
+import { pagina } from '../../../test/organizacion-fixtures';
 import { renderRoute } from '../../../test/render-route';
 import { sampleSkuVenta, sampleTurno, sampleVenta } from '../../../test/ventas-fixtures';
 import type { SkuResumen } from '../../catalogo';
@@ -25,15 +26,7 @@ function mockEntorno({
   skus = [sampleSkuVenta]
 }: { turno?: boolean; skus?: SkuResumen[] } = {}) {
   server.use(
-    http.get('*/api/v1/estructura-corporativa', () => HttpResponse.json(sampleEstructura)),
-    http.get('*/api/v1/organizacion/terminales-pos', () =>
-      HttpResponse.json(
-        pagina([
-          { ...sampleTerminal, id: 'term-1', nombre: 'Caja 1', estado: 'ACTIVO' },
-          { ...sampleTerminal, id: 'term-2', nombre: 'Caja 2', estado: 'ACTIVO' }
-        ])
-      )
-    ),
+    miPuestoHandler(),
     http.get('*/api/v1/ventas/turnos/actual', () =>
       turno ? HttpResponse.json(sampleTurno) : sinTurno()
     ),
