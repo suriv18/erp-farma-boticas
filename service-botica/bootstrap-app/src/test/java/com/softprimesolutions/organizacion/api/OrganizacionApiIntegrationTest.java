@@ -428,6 +428,100 @@ class OrganizacionApiIntegrationTest {
                 .hasMessageContaining("uk_terminal_pos_serie_boleta");
     }
 
+    @Test
+    void anEstablishmentCashierSeesOnlyItsOwnEstablishmentWithDisabledTerminalsMarked() throws Exception {
+        var empresaA = createEmpresa("20123456786");
+        var estA = createEstablecimiento(empresaA, "EST001", "DIG001");
+        var almacenA = createAlmacen(estA);
+        var terminalActiva = createTerminal(estA);
+        postTerminal(estA, "POS002", "B002", "F002").andExpect(status().isCreated());
+        jdbcClient.sql("UPDATE sch_organizacion.terminal_pos SET estado = 'MANTENIMIENTO' WHERE codigo = 'POS002'")
+                .update();
+        var empresaB = createEmpresa("20123456794");
+        createEstablecimiento(empresaB, "EST002", "DIG002");
+        var cajero = realLogin.login(TENANT_ID, "cajero.a", "^ventas\\.", estA);
+
+        mockMvc.perform(get(BASE + "/mi-puesto").header("Authorization", cajero.bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.establecimientos.length()").value(1))
+                .andExpect(jsonPath("$.establecimientos[0].id").value(estA.toString()))
+                .andExpect(jsonPath("$.establecimientos[0].almacenes[0].id").value(almacenA.toString()))
+                .andExpect(jsonPath("$.establecimientos[0].almacenes[0].permiteVenta").value(true))
+                .andExpect(jsonPath("$.establecimientos[0].terminales.length()").value(2))
+                .andExpect(jsonPath("$.establecimientos[0].terminales[?(@.id == '%s')].operable"
+                        .formatted(terminalActiva)).value(true))
+                .andExpect(jsonPath("$.establecimientos[0].terminales[?(@.codigo == 'POS002')].operable")
+                        .value(false))
+                .andExpect(jsonPath("$.establecimientos[0].terminales[?(@.codigo == 'POS002')].estado")
+                        .value("MANTENIMIENTO"));
+    }
+
+    @Test
+    void aTerminalScopedCashierSeesOnlyThatTerminal() throws Exception {
+        var empresa = createEmpresa("20123456786");
+        var est = createEstablecimiento(empresa, "EST001", "DIG001");
+        createAlmacen(est);
+        var terminal = createTerminal(est);
+        postTerminal(est, "POS002", "B002", "F002").andExpect(status().isCreated());
+        var cajero = realLogin.login(TENANT_ID, "cajero.t", "^ventas\\.", est);
+        scopeUserToTerminal(cajero.userId(), terminal);
+
+        mockMvc.perform(get(BASE + "/mi-puesto").header("Authorization", cajero.bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.establecimientos.length()").value(1))
+                .andExpect(jsonPath("$.establecimientos[0].terminales.length()").value(1))
+                .andExpect(jsonPath("$.establecimientos[0].terminales[0].id").value(terminal.toString()))
+                .andExpect(jsonPath("$.establecimientos[0].almacenes.length()").value(0));
+    }
+
+    @Test
+    void aGlobalAdministratorSeesEveryEstablishmentOfTheTenant() throws Exception {
+        var empresaA = createEmpresa("20123456786");
+        createEstablecimiento(empresaA, "EST001", "DIG001");
+        var empresaB = createEmpresa("20123456794");
+        createEstablecimiento(empresaB, "EST002", "DIG002");
+
+        mockMvc.perform(get(BASE + "/mi-puesto").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.establecimientos.length()").value(2));
+    }
+
+    @Test
+    void aUserWhoseAssignmentsWereRevokedSeesAnEmptyWorkstation() throws Exception {
+        var empresa = createEmpresa("20123456786");
+        var est = createEstablecimiento(empresa, "EST001", "DIG001");
+        var cajero = realLogin.login(TENANT_ID, "cajero.r", "^ventas\\.", est);
+        revokeAssignments(cajero.userId());
+
+        mockMvc.perform(get(BASE + "/mi-puesto").header("Authorization", cajero.bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.establecimientos.length()").value(0));
+    }
+
+    @Test
+    void theWorkstationRequiresAuthentication() throws Exception {
+        mockMvc.perform(get(BASE + "/mi-puesto")).andExpect(status().isUnauthorized());
+    }
+
+    private void scopeUserToTerminal(UUID userId, UUID terminalId) {
+        jdbcClient.sql("""
+                        UPDATE sch_seguridad.usuario_rol_ambito a
+                           SET tipo_ambito = 'TERMINAL',
+                               terminal_id = (SELECT tp.id FROM sch_organizacion.terminal_pos tp
+                                               WHERE tp.uuid_publico = :terminalId)
+                         WHERE a.membership_id = (SELECT m.id FROM sch_seguridad.membership m
+                                                   WHERE m.uuid_publico = :userId)
+                        """).param("terminalId", terminalId).param("userId", userId).update();
+    }
+
+    private void revokeAssignments(UUID userId) {
+        jdbcClient.sql("""
+                        UPDATE sch_seguridad.usuario_rol_ambito a SET estado = 'REVOCADO'
+                         WHERE a.membership_id = (SELECT m.id FROM sch_seguridad.membership m
+                                                   WHERE m.uuid_publico = :userId)
+                        """).param("userId", userId).update();
+    }
+
     private org.springframework.test.web.servlet.ResultActions patchEstado(String path, UUID id, String estado)
             throws Exception {
         return mockMvc.perform(patch(BASE + path, id).header("Authorization", bearer()).contentType(MediaType.APPLICATION_JSON)

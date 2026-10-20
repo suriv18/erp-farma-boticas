@@ -27,4 +27,8 @@ final class OrganizacionControllerSupport {
     static UUID tenantOf(Jwt jwt) {
         return UUID.fromString(jwt.getClaimAsString(TENANT_CLAIM));
     }
+
+    static UUID actorOf(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
+    }
 }
