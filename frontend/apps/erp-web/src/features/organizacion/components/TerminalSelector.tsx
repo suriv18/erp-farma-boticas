@@ -19,18 +19,22 @@ export function TerminalSelector({
   terminalId,
   onChange
 }: TerminalSelectorProps) {
-  const { establecimientos, isPending } = useMiPuesto();
-  const terminales =
-    establecimientos.find(({ id }) => id === establecimientoId)?.terminales ?? [];
+  const { establecimientos, isPending, isError } = useMiPuesto();
+  const terminales = establecimientos.find(({ id }) => id === establecimientoId)?.terminales ?? [];
 
   useEffect(() => {
-    if (isPending) return;
+    if (isPending || isError) return;
     const siguiente = resolverPuesto(establecimientos, { establecimientoId, terminalId });
     if (siguiente) onChange(siguiente.establecimientoId, siguiente.terminalId);
-  }, [isPending, establecimientos, establecimientoId, terminalId, onChange]);
+  }, [isPending, isError, establecimientos, establecimientoId, terminalId, onChange]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {isError ? (
+        <p role="alert" className="text-danger-600 dark:text-danger-400 text-sm sm:col-span-2">
+          No se pudo cargar tu puesto de trabajo. Intenta nuevamente.
+        </p>
+      ) : null}
       <SelectField
         id="puesto-establecimiento"
         label="Establecimiento"

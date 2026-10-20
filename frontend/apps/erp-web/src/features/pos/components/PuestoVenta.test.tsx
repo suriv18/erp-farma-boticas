@@ -12,9 +12,7 @@ const puestoBase: PuestoTrabajo = {
 };
 
 beforeEach(() => {
-  server.use(
-    miPuestoHandler()
-  );
+  server.use(miPuestoHandler());
 });
 
 function renderPuesto(puesto: PuestoTrabajo) {
@@ -71,6 +69,7 @@ describe('PuestoVenta', () => {
 
     expect(await screen.findByLabelText('Almacén')).toBeDisabled();
   });
+
   it('lista solo los almacenes habilitados para venta y avisa cuando no hay ninguno', async () => {
     server.use(
       miPuestoHandler({

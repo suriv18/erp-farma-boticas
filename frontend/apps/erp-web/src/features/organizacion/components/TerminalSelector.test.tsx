@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/mocks/server';
 import { miPuestoHandler, sampleMiPuesto } from '../../../test/mi-puesto-fixtures';
 import { renderRoute } from '../../../test/render-route';
@@ -32,7 +33,9 @@ describe('TerminalSelector', () => {
   it('deshabilita las terminales no operables indicando el motivo', async () => {
     renderSelector('est-2', '');
 
-    const enMantenimiento = await screen.findByRole('option', { name: 'Caja 3 (en mantenimiento)' });
+    const enMantenimiento = await screen.findByRole('option', {
+      name: 'Caja 3 (en mantenimiento)'
+    });
 
     expect(enMantenimiento).toBeDisabled();
   });
@@ -44,7 +47,13 @@ describe('TerminalSelector', () => {
           {
             ...sampleMiPuesto.establecimientos[1]!,
             terminales: [
-              { id: 'term-9', codigo: 'POS009', nombre: 'Caja 9', estado: 'INACTIVA', operable: false }
+              {
+                id: 'term-9',
+                codigo: 'POS009',
+                nombre: 'Caja 9',
+                estado: 'INACTIVA',
+                operable: false
+              }
             ]
           }
         ]
@@ -90,5 +99,27 @@ describe('TerminalSelector', () => {
     const { onChange } = renderSelector('', '');
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('est-1', 'term-1'));
+  });
+
+  it('avisa cuando no se pudo cargar el puesto', async () => {
+    server.use(
+      http.get('*/api/v1/organizacion/mi-puesto', () => new HttpResponse(null, { status: 500 }))
+    );
+    renderSelector('', '');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo cargar tu puesto de trabajo. Intenta nuevamente.'
+    );
+  });
+
+  it('no borra la selección recordada cuando falla la carga del puesto', async () => {
+    server.use(
+      http.get('*/api/v1/organizacion/mi-puesto', () => new HttpResponse(null, { status: 500 }))
+    );
+    const { onChange } = renderSelector('est-1', 'term-1');
+
+    await screen.findByRole('alert');
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
