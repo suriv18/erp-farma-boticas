@@ -10,6 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class AutorizacionAmbitoJdbcAdapter implements AutorizacionAmbito {
 
+    static final String ASIGNACION_VIGENTE = """
+            a.estado = 'ACTIVO'
+            AND a.vigente_desde <= CURRENT_TIMESTAMP
+            AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= CURRENT_TIMESTAMP)
+            """;
+
     private static final String PERMITE = """
             SELECT EXISTS (
                 SELECT 1
@@ -22,10 +28,9 @@ public class AutorizacionAmbitoJdbcAdapter implements AutorizacionAmbito {
                   LEFT JOIN sch_organizacion.establecimiento_farmaceutico e
                     ON e.tenant_id = a.tenant_id AND e.uuid_publico = :establecimientoId
                  WHERE t.uuid_publico = :tenantId AND m.uuid_publico = :usuarioId AND p.codigo = :permiso
-                   AND m.estado = 'ACTIVO' AND r.estado = 'ACTIVO' AND a.estado = 'ACTIVO'
+                   AND m.estado = 'ACTIVO' AND r.estado = 'ACTIVO'
                    AND rp.estado = 'ACTIVO' AND p.estado = 'ACTIVO'
-                   AND a.vigente_desde <= CURRENT_TIMESTAMP
-                   AND (a.vigente_hasta IS NULL OR a.vigente_hasta >= CURRENT_TIMESTAMP)
+                   AND %s
                    AND (a.tipo_ambito = 'GLOBAL'
                         OR (a.tipo_ambito = 'EMPRESA' AND a.empresa_id = e.empresa_id)
                         OR (a.tipo_ambito = 'ESTABLECIMIENTO' AND a.establecimiento_id = e.id)
@@ -37,7 +42,7 @@ public class AutorizacionAmbitoJdbcAdapter implements AutorizacionAmbito {
                                 SELECT tp.id FROM sch_organizacion.terminal_pos tp
                                  WHERE tp.tenant_id = a.tenant_id AND tp.establecimiento_id = e.id
                                    AND tp.uuid_publico = :terminalId))))
-            """;
+            """.formatted(ASIGNACION_VIGENTE);
 
     private final JdbcClient jdbc;
 
