@@ -13,6 +13,12 @@
 | [ADR-009](ADR-009-domain-events-mensajeria.md) | Domain Events + Outbox; broker no obligatorio | Aceptado |
 | [ADR-010](ADR-010-navegacion-dinamica-rbac.md) | Navegación dinámica desacoplada de RBAC | Aceptado |
 
+## Clientes
+
+| ADR | Decisión | Estado |
+|---|---|---|
+| [ADR-012](ADR-012-clientes-consentimiento-y-alcance.md) | Alcance de la v1, consentimiento por finalidad y permisos de Clientes | Aceptado para diseño; implementación y validaciones externas pendientes |
+
 ## Regla
 
 Un ADR aceptado documenta una decisión técnica. No se debe presentar como requisito normativo sanitario/fiscal salvo que su contexto cite la fuente correspondiente.

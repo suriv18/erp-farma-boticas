@@ -127,6 +127,8 @@ El anexo de la RM 734-2025/MINSA fue revisado el 2026-09-15. Las restricciones y
 
 ## 12. Privacidad y fidelización
 
+**Estado (2026-10-30):** finalidades y consentimiento separado por finalidad decididos en [ADR-012](../05-arquitectura/adr/ADR-012-clientes-consentimiento-y-alcance.md). Siguen `POR_VALIDAR` la base jurídica, la retención y el CRM completo.
+
 Antes de CRM:
 
 - finalidades;
@@ -137,6 +139,8 @@ Antes de CRM:
 - retención de datos.
 
 ## 13. Identidad de paciente/cliente
+
+**Estado (2026-10-30):** decidido en [ADR-012](../05-arquitectura/adr/ADR-012-clientes-consentimiento-y-alcance.md): cliente y paciente son entidades distintas.
 
 No se asumirá que todo comprador debe identificarse ni que `Cliente` y `Paciente` son la misma entidad.
 

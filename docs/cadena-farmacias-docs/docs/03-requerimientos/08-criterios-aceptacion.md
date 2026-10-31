@@ -3124,6 +3124,30 @@ Recuento al 2026-09-15: **651 criterios** (643 asociados a RF y 8 E2E), **217 RF
 **Cuando** se vuelve a ejecutar "Gestionar cliente de venta"  
 **Entonces** no se crea una segunda venta/CPE/movimiento equivalente cuando la operación exige idempotencia
 
+#### CA-RF-POS-006-04-DOC
+
+**Dado** un tipo de documento activo del catálogo y un número con la longitud que exige ese tipo  
+**Cuando** se registra un cliente cuyo documento ya existe en el tenant  
+**Entonces** no se crea un segundo cliente y se devuelve el existente
+
+#### CA-RF-POS-006-05-ANO
+
+**Dado** una venta sin identificación exigida  
+**Cuando** se confirma sin asociar cliente  
+**Entonces** la venta queda anónima y completa, con documento nulo
+
+#### CA-RF-POS-006-06-CON
+
+**Dado** un cliente con consentimiento de identificación para la venta  
+**Cuando** se evalúa su uso para marketing o fidelización  
+**Entonces** no se infiere consentimiento: cada finalidad exige su propio registro vigente
+
+#### CA-RF-POS-006-07-REV
+
+**Dado** un consentimiento otorgado  
+**Cuando** se revoca  
+**Entonces** se registra el estado revocado y se conserva el histórico del otorgamiento
+
 
 ### RF-POS-007 — Gestionar múltiples medios de pago
 
