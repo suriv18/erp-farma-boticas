@@ -50,7 +50,10 @@ Datos lógicos candidatos:
 
 ### `SKUComercial`
 
-- producto regulado;
+- producto regulado cuando corresponda;
+- rubro comercial, régimen sanitario y evidencia aplicable;
+- variantes de talla/color/contenido cuando correspondan;
+- política independiente de lote y vencimiento;
 - código interno;
 - presentación comercial;
 - códigos de barra y vigencia;
@@ -189,3 +192,7 @@ Referencia comprobante previo y motivo fiscal; no altera por sí misma el stock.
 ## 13. BC-IAM / BC-AUD
 
 Se documentan en [Seguridad](../08-seguridad/README.md). No se diseñarán credenciales dentro de tablas del dominio Retail.
+
+## 14. Diferencia con la implementación física
+
+El modelo lógico admite surtido diverso; stock sin lote, lote sin vencimiento y decisión versionada de admisibilidad todavía necesitan evolución física. Ver [DAT-FAR-009](09-adecuacion-surtido-multiproducto-peru.md).

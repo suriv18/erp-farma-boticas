@@ -1,11 +1,13 @@
 package com.softprimesolutions.security.application.usecase.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.softprimesolutions.security.application.dto.command.ReemplazarPermisosRolCommand;
 import com.softprimesolutions.security.application.port.out.IamWritePort;
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 import com.softprimesolutions.security.domain.valueobject.RolId;
@@ -49,17 +51,32 @@ class ReemplazarPermisosRolHandlerTest {
         assertEquals("SEC_PERMISO_DESCONOCIDO", result.fold(value -> null, error -> error.code()));
     }
 
+    @Test
+    void rejectsReplacingThePermissionsOfASystemRole() {
+        var port = new StubWritePort(true);
+        port.systemRole = true;
+        var handler = new ReemplazarPermisosRolHandler(port, () -> NOW);
+
+        var result = handler.execute(new ReemplazarPermisosRolCommand(
+                ROLE_ID, Set.of("seguridad.usuarios.consultar"), "admin"));
+
+        assertTrue(result.isFailure());
+        assertEquals("SEC_ROL_SISTEMA_NO_EDITABLE", result.fold(value -> null, error -> error.code()));
+        assertFalse(port.saved);
+    }
+
     private static final class StubWritePort implements IamWritePort {
 
         private final boolean permissionsExist;
         private boolean saved;
+        private boolean systemRole;
 
         private StubWritePort(boolean permissionsExist) {
             this.permissionsExist = permissionsExist;
         }
 
         @Override
-        public SaveUsuarioOutcome save(Usuario user) {
+        public SaveUsuarioOutcome save(Identidad identidad, Usuario user) {
             throw new UnsupportedOperationException();
         }
 
@@ -78,7 +95,7 @@ class ReemplazarPermisosRolHandlerTest {
         public Optional<Rol> findRole(UUID roleId) {
             return Rol.create(
                     new RolId(roleId), new TenantId(TENANT_ID), "ADMIN_LOCAL", "Administrador local", null,
-                    "ESTABLECIMIENTO", false, NOW)
+                    "ESTABLECIMIENTO", systemRole, NOW)
                     .fold(Optional::of, error -> Optional.empty());
         }
 
@@ -99,6 +116,11 @@ class ReemplazarPermisosRolHandlerTest {
 
         @Override
         public boolean roleBelongsToTenant(UUID roleId, UUID tenantId) {
+            return false;
+        }
+
+        @Override
+        public boolean existsActiveRoleWithCode(UUID tenantId, String code, UUID excludingRoleId) {
             return false;
         }
 

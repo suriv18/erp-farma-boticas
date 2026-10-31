@@ -120,3 +120,7 @@ Capacidades observadas:
 - Modelos de productos controlados de otras jurisdicciones.
 
 Esas capacidades sirven como benchmarking pero deben adaptarse a la normativa peruana.
+
+## 6. Contraste local peruano — 2026-09-15
+
+Se incorpora observación de los sitios oficiales de Inkafarma y Mifarma, separada del benchmarking internacional. El [análisis de surtido](../06-datos/09-adecuacion-surtido-multiproducto-peru.md) documenta categorías observadas, retiro en botica y restricciones aplicables. La observación web no certifica surtido de todos los locales ni revela su implementación interna.

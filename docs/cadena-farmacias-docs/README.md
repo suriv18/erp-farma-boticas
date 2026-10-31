@@ -120,7 +120,7 @@ La especificación funcional ya fue refinada a comportamiento verificable:
 - [Matriz de trazabilidad expandida](docs/03-requerimientos/07-matriz-trazabilidad.md)
 - [Estrategia de pruebas](docs/10-pruebas/01-estrategia-pruebas.md)
 
-Cobertura funcional: 22 CU prioritarios, 206 RF vinculados y 626 criterios de aceptación.
+Cobertura documental revisada al 2026-09-15: 24 CU, 217 RF con criterios de 271 catalogados y 651 criterios de aceptación. Especificaciones pendientes de ejecución.
 
 ## Fase 5 — Modelo de Dominio DDD
 
@@ -201,7 +201,7 @@ Estas secciones no fijan proveedor cloud, Kubernetes, herramienta CI/CD ni stack
 
 ## Fase 9 — Consolidación del modelo físico
 
-Se consolidaron los scripts de referencia aportados posteriormente con el modelo DDD/arquitectónico vigente. La fuente de verdad queda en `database/migrations/V001..V017`; el SQL consolidado es una representación derivada.
+Se consolidaron los scripts de referencia aportados posteriormente con el modelo DDD/arquitectónico vigente. La referencia actual del modelo es `database/cadena_farmacias_postgresql18.sql`; `database/migrations/V001..V017` contiene su distribución modular con ajustes de ejecución documentados.
 
 El enriquecimiento incluye campos adicionales de organización, catálogo regulatorio/SKU, proveedores/compras, lotes/stock/kardex, clientes/POS/pagos, prescripción/dispensación, controlados, CPE, recall/farmacovigilancia, ERP, IAM/RBAC, navegación, auditoría, integración, notificaciones y feature flags.
 
@@ -218,3 +218,11 @@ La línea base física del Core Central se encuentra en [`database/`](database/R
 - [Modelo físico documentado](docs/06-datos/07-modelo-fisico-postgresql18.md)
 - [Consolidación V1/V2 y enriquecimiento de campos](docs/06-datos/08-consolidacion-v1-v2-campos.md)
 - [Validación estática del DDL](docs/10-pruebas/02-validacion-ddl-postgresql18.md)
+
+## Revisión de surtido peruano — 2026-09-15
+
+Se actualizaron documentación física, criterios E2E y referencias sanitarias; se incorporó el [análisis de surtido diverso](docs/06-datos/09-adecuacion-surtido-multiproducto-peru.md) y su [trazabilidad de requisitos](docs/03-requerimientos/09-surtido-multiproducto.md). Resultado: soporte parcial; cambios de inventario y admisibilidad pendientes de implementación.
+
+## Cierre documental de surtido
+
+Completadas las decisiones, diccionario objetivo, contratos, migración y pruebas del surtido diverso. Ver [registro de cierre](docs/12-roadmap/07-cierre-documental-surtido.md). Implementación y ejecución permanecen separadas del cierre documental.

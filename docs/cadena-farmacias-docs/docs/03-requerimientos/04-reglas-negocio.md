@@ -17,7 +17,7 @@
 | `TEC` | Decisión técnica. |
 | `POR_VALIDAR` | Pendiente de evidencia/decisión. |
 
-## 2. Catálogo inicial (87 reglas)
+## 2. Catálogo de reglas (ampliaciones al final)
 
 ### 2.1. ORG
 
@@ -197,3 +197,22 @@
 - `CPE aceptado = venta pagada`: son estados distintos.
 - `Director Técnico = usuario administrador`: incorrecto; rol profesional y rol técnico de plataforma son dimensiones distintas.
 - `offline = siempre habilitado`: requiere ADR, controles de conflicto, seguridad y fiscalidad.
+
+## Reglas de surtido diverso — revisión 2026-09-15
+
+Reglas propuestas de aplicación del análisis [DAT-FAR-009](../06-datos/09-adecuacion-surtido-multiproducto-peru.md). Las restricciones externas y sus excepciones se consultan en esa matriz; las decisiones de almacenamiento son DOM/TEC.
+
+| Código | Regla | Tipo |
+|---|---|---|
+| RN-CAT-005 | Rubro comercial y régimen sanitario son atributos distintos; no clasificar por nombre o marca. | DOM |
+| RN-CAT-006 | Antes de habilitar un SKU, verificar evidencia sanitaria aplicable y admisibilidad para el establecimiento; conservar la fuente. | NORM/DOM |
+| RN-CAT-007 | Un SKU NO_REGULADO no queda exento de evaluar restricciones de surtido. Una autorización sanitaria no omite esa evaluación. | NORM/DOM |
+| RN-CAT-008 | Clasificación, variantes y decisiones de admisibilidad conservan versión y trazabilidad histórica. | DOM/AUD |
+| RN-INV-009 | La política determina lote y caducidad por separado; no inventar datos para satisfacer el almacenamiento. | DOM/TEC |
+| RN-POS-010 | La confirmación aplica validaciones por línea y no permite omitir bloqueos mediante precio, promoción o interfaz. | DOM/SEC |
+
+## Trazabilidad unitaria
+
+| Código | Regla | Tipo |
+|---|---|---|
+| RN-INV-010 | Cada serie identifica una unidad física dentro del tenant/SKU; no se recicla tras baja. Cantidades y asignaciones se actualizan atómicamente; una unidad no se vende dos veces. | DOM/TEC |

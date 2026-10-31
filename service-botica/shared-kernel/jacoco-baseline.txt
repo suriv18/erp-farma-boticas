@@ -1,0 +1,4 @@
+com.softprimesolutions.shared.kernel.domain.AggregateRoot
+com.softprimesolutions.shared.kernel.error.ErrorDetail
+com.softprimesolutions.shared.kernel.result.Result
+com.softprimesolutions.shared.kernel.result.Unit

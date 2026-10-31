@@ -6,8 +6,8 @@ import { createAppQueryClient } from './query-client';
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(createAppQueryClient);
   return (
-    <AuthSessionProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </AuthSessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthSessionProvider>{children}</AuthSessionProvider>
+    </QueryClientProvider>
   );
 }

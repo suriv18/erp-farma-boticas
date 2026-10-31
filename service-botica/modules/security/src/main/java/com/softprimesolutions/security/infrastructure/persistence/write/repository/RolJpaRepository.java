@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RolJpaRepository extends JpaRepository<RolJpaEntity, Long> {
     Optional<RolJpaEntity> findByUuidPublico(UUID uuidPublico);
     boolean existsByTenantIdAndCodigo(Long tenantId, String codigo);
+    boolean existsByTenantIdAndCodigoAndUuidPublicoNot(Long tenantId, String codigo, UUID uuidPublico);
 }

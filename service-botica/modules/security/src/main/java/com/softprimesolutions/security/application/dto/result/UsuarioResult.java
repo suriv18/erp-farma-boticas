@@ -6,10 +6,6 @@ import java.util.UUID;
 public record UsuarioResult(
         UUID id,
         UUID tenantId,
-        String identityProvider,
-        String identityIssuer,
-        String identitySubject,
-        String emailClaim,
         String documentType,
         String documentNumber,
         String firstNames,

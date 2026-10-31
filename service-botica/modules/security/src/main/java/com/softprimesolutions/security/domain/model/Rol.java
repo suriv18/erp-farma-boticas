@@ -16,7 +16,7 @@ public final class Rol extends AggregateRoot {
 
     private static final Pattern CODE_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]{2,79}");
     private static final Pattern PERMISSION_PATTERN = Pattern.compile(
-            "[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*){2,}");
+            "[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*){2,}|[A-Z][A-Z0-9_]*(:[A-Z][A-Z0-9_]*){2,}");
 
     private final RolId id;
     private final TenantId tenantId;
@@ -121,7 +121,9 @@ public final class Rol extends AggregateRoot {
         var normalized = new java.util.HashSet<String>();
         for (var codeValue : codes) {
             var normalizedCode = normalize(codeValue);
-            normalizedCode = normalizedCode == null ? null : normalizedCode.toLowerCase(Locale.ROOT);
+            if (normalizedCode != null && !normalizedCode.contains(":")) {
+                normalizedCode = normalizedCode.toLowerCase(Locale.ROOT);
+            }
             if (normalizedCode == null || !PERMISSION_PATTERN.matcher(normalizedCode).matches()) {
                 return invalid("permissionCodes", "Existe un código de permiso con formato inválido.");
             }
@@ -130,6 +132,44 @@ public final class Rol extends AggregateRoot {
         return Result.success(new Rol(
                 id, tenantId, code, name, description, roleType, systemRole,
                 normalized, status, createdAt, changedAt));
+    }
+
+    public Result<Rol, ErrorDetail> updateDetails(
+            String code, String name, String description, String roleType, Instant updatedAt) {
+        if (this.systemRole) {
+            return Result.failure(new ErrorDetail(
+                    "SEC_ROL_SISTEMA_NO_EDITABLE",
+                    "Un rol de sistema no puede modificar sus datos generales.",
+                    Map.of("field", "systemRole")));
+        }
+        if (updatedAt == null) return invalid("updatedAt", "El instante del cambio es obligatorio.");
+
+        var normalizedCode = normalize(code);
+        normalizedCode = normalizedCode == null ? null : normalizedCode.toUpperCase(Locale.ROOT);
+        if (normalizedCode == null || !CODE_PATTERN.matcher(normalizedCode).matches()) {
+            return invalid("code", "El código debe usar entre 3 y 80 caracteres A-Z, 0-9 o guion bajo.");
+        }
+
+        var normalizedName = normalizeSpaces(name);
+        if (normalizedName == null || normalizedName.length() < 2 || normalizedName.length() > 150) {
+            return invalid("name", "El nombre debe tener entre 2 y 150 caracteres.");
+        }
+
+        var normalizedDescription = normalizeSpaces(description);
+        if (normalizedDescription != null && normalizedDescription.length() > 500) {
+            return invalid("description", "La descripción no debe exceder 500 caracteres.");
+        }
+
+        final TipoRol normalizedRoleType;
+        try {
+            normalizedRoleType = TipoRol.valueOf(roleType == null ? "" : roleType.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return invalid("roleType", "El tipo de rol no es válido.");
+        }
+
+        return Result.success(new Rol(
+                id, tenantId, normalizedCode, normalizedName, normalizedDescription, normalizedRoleType,
+                systemRole, permissionCodes, status, createdAt, updatedAt));
     }
 
     private static <T> Result<T, ErrorDetail> invalid(String field, String message) {

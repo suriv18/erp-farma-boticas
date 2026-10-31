@@ -28,6 +28,8 @@
 | `CU-POS-001` | Abrir turno y registrar venta POS | POS |
 | `CU-POS-002` | Emitir y gestionar comprobante electrónico | POS |
 | `CU-POS-003` | Arqueo y cierre de turno de caja | POS |
+| `CU-POS-004` | Gestionar cliente retail y su consentimiento | POS |
+| `CU-POS-005` | Identificar cliente en la venta | POS |
 | `CU-DSP-001` | Registrar y validar prescripción | DSP |
 | `CU-DSP-002` | Realizar dispensación farmacéutica | DSP |
 | `CU-CTL-001` | Dispensar producto fiscalizado/controlado | CTL |
@@ -1127,3 +1129,81 @@ Los CU se actualizarán cuando una nueva fuente oficial modifique una regla `NOR
 **Alternos/bloqueos:** aplicación no permitida; sesión inválida; contexto no vigente.
 
 **Postcondición:** el usuario recibe un árbol de navegación coherente; ningún permiso adicional se concede por esta operación.
+
+### CU-CAT-002 — Habilitar y operar un SKU de surtido diverso
+
+**Estado:** diseño definido por ADR-011; implementación pendiente. **Actores:** responsable de catálogo, responsable sanitario y operador autorizado.
+
+**RF:** RF-CAT-019, RF-CAT-020, RF-CAT-021, RF-CAT-022, RF-INV-023, RF-INV-024, RF-POS-023, RF-CAT-023, RF-INV-025.
+**RN:** RN-CAT-005, RN-CAT-006, RN-CAT-007, RN-CAT-008, RN-INV-009, RN-INV-010, RN-POS-010.
+
+**Precondición:** tenant y local identificados, permisos válidos y documentación del artículo disponible.
+
+1. Registrar rubro, régimen, evidencia y variantes sin inferirlos del nombre.
+2. Resolver admisibilidad para el local/canal y documentar resultado.
+3. Configurar necesidad de lote, caducidad o serie; rechazar configuraciones que omitan un control requerido.
+4. Recibir y valorar existencias según esa política.
+5. Publicar precio y confirmar una venta aplicando controles a cada línea.
+6. Registrar snapshot de decisión y trazabilidad; aplicar disposición al devolver.
+
+**Alternos:** evidencia insuficiente, artículo restringido, variante duplicada, stock o capacidad de trazabilidad no soportados: no habilitar la operación dependiente.
+**Postcondición:** operación trazable o rechazo con motivo; las ventas cerradas conservan su interpretación original.
+
+### CU-POS-004 — Gestionar cliente retail y su consentimiento
+
+**Estado:** diseño definido por ADR-012; implementación pendiente. **Actor principal:** operador autorizado con permiso de gestión de clientes. **Actores secundarios:** cliente titular de los datos.
+
+**RF:** `RF-POS-006`.
+**RN:** `RN-SEC-001`, `RN-SEC-003`, `RN-FVG-002`.
+**Fuentes/soporte:** ADR-012; Ley 29733 y D.S. 016-2024-JUS vía `RN-SEC-001`.
+
+**Disparador:** se requiere registrar, corregir, bloquear o consultar a un cliente, u otorgar o revocar un consentimiento.
+
+**Precondiciones**
+- El actor está autenticado y posee el permiso de clientes correspondiente a la acción.
+- El tipo de documento existe y está activo en el catálogo `tipo_documento_identidad`.
+
+**Flujo principal**
+1. Elegir tipo de documento e ingresar número; validar la longitud que exige el tipo.
+2. Buscar un cliente activo con el mismo documento en el tenant; si existe, no crear otro.
+3. Registrar datos mínimos (documento y nombres o razón social); contacto y fecha de nacimiento son opcionales.
+4. Registrar por separado cada consentimiento otorgado con su finalidad, versión del texto, canal, fecha, quién lo registró y evidencia.
+5. Para bloquear o desbloquear, registrar el cambio de estado con su motivo.
+6. Para revocar un consentimiento, registrar un nuevo estado revocado sin borrar el histórico.
+
+**Alternos / bloqueos**
+- Documento con formato inválido para su tipo: rechazar con el motivo.
+- Documento ya registrado en el tenant: devolver el cliente existente.
+- Marketing o fidelización no se infieren de una compra, de una receta ni del consentimiento de identificación.
+- Cliente bloqueado: no puede asociarse a una venta nueva.
+
+**Postcondición:** el cliente y cada consentimiento quedan registrados con trazabilidad; ninguna operación borra la evidencia de un consentimiento.
+
+**Seguridad y auditoría:** toda acción conserva actor, tenant, fecha/hora y resultado. Los datos personales se muestran según finalidad, rol y ámbito. La base jurídica por finalidad y los plazos de retención y anonimización son `POR_VALIDAR`.
+
+### CU-POS-005 — Identificar cliente en la venta
+
+**Estado:** diseño definido por ADR-012; implementación pendiente. **Actor principal:** cajero/vendedor autorizado. **Actores secundarios:** cliente.
+
+**RF:** `RF-POS-006`.
+**RN:** `RN-SEC-001`, `RN-SEC-003`, `RN-POS-001`.
+**Fuentes/soporte:** ADR-012.
+
+**Disparador:** durante una venta, el cliente solicita identificarse, o la normativa o la política de la cadena lo exige.
+
+**Precondiciones**
+- Existe una venta en curso en un turno activo.
+- El actor puede consultar clientes.
+
+**Flujo principal**
+1. Buscar al cliente por documento o nombre.
+2. Si existe y está activo, asociarlo a la venta.
+3. Si no existe, registrarlo con los datos mínimos (CU-POS-004) y asociarlo.
+4. Confirmar la venta; el comprobante conserva una copia de los datos del adquirente al momento de la venta.
+
+**Alternos / bloqueos**
+- Cliente sin identificar: la venta continúa con documento nulo cuando no se exige identificación.
+- Identificación exigida por el monto: no confirmar sin documento. El umbral es `POR_VALIDAR` contra la normativa tributaria vigente y no se fija en este CU.
+- Cliente bloqueado: no asociarlo; ofrecer continuar sin identificar.
+
+**Postcondición:** la venta queda con cliente asociado o anónima, sin alterar el resto de su trazabilidad. Las ventas anteriores no se reescriben al editar al cliente.

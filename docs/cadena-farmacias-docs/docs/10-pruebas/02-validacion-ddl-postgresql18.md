@@ -1,6 +1,6 @@
 # TST-DB-FAR-002 — Validación estática del DDL PostgreSQL 18
 
-**Baseline:** v0.3 consolidado  
+**Baseline:** SQL original y V001–V017 sincronizados; revisión 2026-09-15  
 **Alcance:** migraciones `V001` a `V017`.
 
 ## Resultado actual
@@ -8,9 +8,10 @@
 | Control | Resultado |
 |---|---:|
 | Migraciones | 17 |
-| Tablas | 108 |
-| Foreign Keys | 197 |
-| Índices explícitos | 48 |
+| Esquemas | 15 |
+| Tablas | 109 |
+| Foreign Keys | 228 |
+| Índices explícitos | 137 |
 | FK a tabla inexistente | 0 |
 | FK a columna inexistente | 0 |
 | FK a destino sin PK/UNIQUE compatible | 0 |
@@ -38,3 +39,12 @@ Las tablas de catálogo regulatorio global (`condicion_venta`, `forma_farmaceuti
 6. Revisar índices con `EXPLAIN (ANALYZE, BUFFERS)` usando volumen representativo.
 
 El estado continúa como **borrador técnico avanzado**, no `APROBADO`, hasta completar la ejecución real.
+
+## Alcance de la evidencia y brechas
+
+La revisión estática comprueba existencia, orden, columnas y PK/UNIQUE destino de las FKs; no ejecuta PostgreSQL ni demuestra todas las invariantes del negocio. Se compararon las definiciones con las excepciones documentadas en [database/README](../../database/README.md).
+
+Adicionalmente se requieren pruebas de inventario sin lote, lote sin vencimiento y cruce SKU/lote, además de admisibilidad por establecimiento. El DDL actual no soporta todavía los dos primeros flujos. Especificaciones en [REQ-FAR-MULTI](../03-requerimientos/09-surtido-multiproducto.md).
+
+
+Plan de ejecución para la evolución documentada: [TST-MULTI](03-plan-validacion-surtido.md), con 23 escenarios. Su estado es definido, no ejecutado.

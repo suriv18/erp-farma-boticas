@@ -1,7 +1,7 @@
 # DAT-FAR-007 — Modelo Físico PostgreSQL 18
 
-**Versión:** 0.3  
-**Estado:** Borrador técnico avanzado; consolidado con los scripts V1/V2 aportados y pendiente de ejecución real sobre PostgreSQL 18.x.
+**Versión:** 0.4  
+**Estado:** sincronizado documentalmente con el SQL original y las migraciones el 2026-09-15; pendiente de ejecución real sobre PostgreSQL 18.x.
 
 ## 1. Alcance
 
@@ -10,11 +10,21 @@ Implementa el **Core Central**. El Store Edge mantiene su persistencia física p
 ## 2. Esquemas
 
 ```text
-sch_farmacia     dominio funcional central
-sch_seguridad    IAM, RBAC, ámbitos y sesiones
-sch_auditoria    auditoría funcional/seguridad
-sch_integracion  servicios externos, outbox/inbox/sync
-sch_app          navegación, notificaciones, feature flags/versiones
+sch_admin           tenant
+sch_organizacion    empresas, establecimientos, almacenes, profesionales
+sch_catalogo        productos regulados, rubros, categorías, marcas, SKU
+sch_abastecimiento  proveedores, solicitudes, órdenes, recepción
+sch_inventario      lotes, posiciones, kardex, reservas, transferencias, conteos
+sch_precio          listas, versiones, promociones
+sch_venta           clientes, cajas, ventas, pagos, devoluciones
+sch_dispensacion    prescripción, dispensación, controlados
+sch_facturacion     comprobantes, envíos, notas de crédito
+sch_vigilancia      recall, farmacovigilancia
+sch_finanzas        tesorería, CxP, CxC, posting, Observatorio
+sch_seguridad       IAM, RBAC, ámbitos, sesiones
+sch_auditoria       auditoría y acceso a datos
+sch_integracion     servicios, outbox, inbox, checkpoints
+sch_app             menús, notificaciones, flags, versiones
 ```
 
 No se adopta `1 Bounded Context = 1 schema`.
@@ -41,7 +51,7 @@ Además:
 |---|---|
 | V001 | Base, schemas, extensiones, tenant |
 | V002 | Organización, establecimientos, almacenes, terminales, profesionales |
-| V003 | Catálogo regulatorio, categorías/marcas y SKU |
+| V003 | Catálogo regulatorio, rubros comerciales, categorías/marcas y SKU |
 | V004 | Proveedores, compras y recepción |
 | V005 | Lotes, inventario, kardex, reservas, transferencias, conteos |
 | V006 | Precios y promociones |
@@ -51,7 +61,7 @@ Además:
 | V010 | Fiscal/CPE |
 | V011 | Recall/FVG |
 | V012 | ERP financiero/Observatorio |
-| V013 | IAM/RBAC/ámbitos/sesiones |
+| V013 | IAM/RBAC/ámbitos/sesiones; nueve FKs de compras/ventas hacia usuario |
 | V014 | Auditoría |
 | V015 | Integraciones/Outbox/Inbox |
 | V016 | Navegación dinámica RBAC |
@@ -107,3 +117,17 @@ RRHH completo, CRM/CMR avanzado, e-commerce/delivery completo, contabilidad gene
 - [`database/cadena_farmacias_postgresql18.sql`](../../database/cadena_farmacias_postgresql18.sql)
 - [`08-consolidacion-v1-v2-campos.md`](08-consolidacion-v1-v2-campos.md)
 - [`database/propuestas/rls_multitenancy.sql`](../../database/propuestas/rls_multitenancy.sql)
+
+## 9. Fuente y estado de adecuación
+
+El SQL original es la fuente del modelo: [cadena_farmacias_postgresql18.sql](../../database/cadena_farmacias_postgresql18.sql). V001–V017 son su distribución modular con ajustes de ejecución documentados en [database/README](../../database/README.md): nueve FKs diferidas a V013, UNIQUE de establecimiento, tres índices NULLS NOT DISTINCT y cinco ON CONFLICT de seeds.
+
+Recuento: 15 esquemas, 109 tablas, 228 FKs y 137 índices explícitos. Ejecutar la línea base en orden sobre base vacía; para instalaciones que ya aplicaron versiones, preparar cambios incrementales y no reescribir su historial.
+
+El catálogo añade rubro_comercial, rubro_id, codigo_nso y atributos_variante. REGULADO exige producto_regulado_id; NO_REGULADO permite omitirlo, pero el CHECK actual no impide que lo incluya. La clasificación sanitaria de un cosmético o dietético no se decide con ese flag.
+
+El soporte de surtido diverso es parcial: inventario exige lote_id y el lote exige fecha_vencimiento, aunque el SKU permita desactivarlos. Ver [evaluación y modelo objetivo](09-adecuacion-surtido-multiproducto-peru.md). Estos campos propuestos aún no cambian el esquema.
+
+## 10. Especificación del destino
+
+[DAT-FAR-010](10-diseno-detallado-surtido.md) fija las entidades, campos e invariantes que implementará la evolución. No modifica el recuento de tablas actuales ni convierte el plan en una migración ejecutada.

@@ -16,8 +16,8 @@ public class IdentidadExternaJpaEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "usuario_id", nullable = false)
-    private Long usuarioId;
+    @Column(name = "identidad_id", nullable = false)
+    private Long identidadId;
 
     @Column(nullable = false, length = 100)
     private String provider;
@@ -41,9 +41,9 @@ public class IdentidadExternaJpaEntity {
     }
 
     public IdentidadExternaJpaEntity(
-            Long usuarioId, String provider, String subject, String issuer,
+            Long identidadId, String provider, String subject, String issuer,
             String emailClaim, Instant createdAt) {
-        this.usuarioId = usuarioId;
+        this.identidadId = identidadId;
         this.provider = provider;
         this.subject = subject;
         this.issuer = issuer;

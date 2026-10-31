@@ -80,3 +80,16 @@ POST /api/v1/reportes-seguridad
 ## Regla
 
 La API de comando no debe permitir modificar directamente estados internos como `estado=CONFIRMADA`; debe exponer operaciones del lenguaje de negocio.
+
+## Surtido diverso — contratos candidatos
+
+~~~http
+GET/POST /api/v1/rubros-comerciales
+GET/POST /api/v1/skus/{id}/evidencias-sanitarias
+GET /api/v1/skus/{id}/vendibilidad?establecimientoId=...&canal=...
+~~~
+
+Usar UUID públicos y contexto autorizado. La consulta de vendibilidad debe devolver decisión, motivo y versión aplicable; el backend la revalida al confirmar. Evidencias sanitarias y política por local requieren implementación adicional. Ver [trazabilidad](../03-requerimientos/09-surtido-multiproducto.md).
+
+
+El contrato del surtido queda definido en [API-FAR-008](08-contrato-surtido.md); prevalece para campos, permisos, concurrencia, respuestas y errores.

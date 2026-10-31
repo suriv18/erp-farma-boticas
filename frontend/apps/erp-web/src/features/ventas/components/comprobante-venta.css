@@ -1,0 +1,162 @@
+/* The paper preview stays monochrome in both application themes. */
+.comprobante-imprimible {
+  box-sizing: border-box;
+  width: 80mm;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 4mm;
+  border: 1px solid #d5d5d5;
+  background: #fff;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ticket-header,
+.ticket-footer {
+  text-align: center;
+}
+.ticket-store {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.ticket-document {
+  margin-top: 2mm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ticket-section {
+  margin-top: 3mm;
+  padding-top: 3mm;
+  border-top: 1px dashed #555;
+}
+.ticket-metadata {
+  display: grid;
+  gap: 1.5mm;
+}
+.ticket-metadata dt {
+  font-size: 11px;
+}
+.ticket-metadata dd {
+  margin: 0;
+  font-weight: 600;
+}
+.ticket-items-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 3mm;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ticket-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ticket-items li {
+  padding-block: 2.5mm;
+  border-bottom: 1px dotted #aaa;
+}
+.ticket-items li:last-child {
+  border-bottom: 0;
+}
+.ticket-product {
+  margin-bottom: 1mm;
+  font-weight: 600;
+}
+.ticket-amount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3mm;
+}
+.ticket-amount-row > :last-child {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+.ticket-totals {
+  display: grid;
+  gap: 1mm;
+}
+.ticket-total {
+  margin-top: 2mm;
+  padding-top: 2mm;
+  border-top: 1px solid #111;
+  font-size: 18px;
+}
+.ticket-cancelled {
+  margin-top: 3mm;
+  padding: 2mm;
+  border: 2px solid #111;
+  text-align: center;
+}
+.ticket-disclaimer {
+  margin-top: 2mm;
+  font-size: 11px;
+}
+
+@page erp-ticket {
+  size: auto;
+  margin: 0;
+}
+
+@media print {
+  /* Remove the application layout, including modal ancestors in POS. Unlike
+     visibility:hidden alone this does not leave empty pages or clip long tickets. */
+  html:has(.comprobante-imprimible),
+  body:has(.comprobante-imprimible) {
+    width: 80mm !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
+    page: erp-ticket;
+  }
+  body:has(.comprobante-imprimible)
+    *:not(.comprobante-imprimible):not(.comprobante-imprimible *):not(
+      :has(.comprobante-imprimible)
+    ) {
+    display: none !important;
+  }
+  body:has(.comprobante-imprimible) *:has(.comprobante-imprimible) {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  .comprobante-imprimible {
+    width: 80mm;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    color: black;
+    font-size: 9pt;
+  }
+  .ticket-items li,
+  .ticket-total,
+  .ticket-cancelled,
+  .ticket-footer {
+    break-inside: avoid;
+  }
+}

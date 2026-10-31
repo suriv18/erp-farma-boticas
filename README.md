@@ -19,11 +19,24 @@ La documentación de negocio, dominio, arquitectura, seguridad y estándares de 
 
 ## Estado actual
 
-- **`service-botica/`**: monolito modular (17 bounded contexts como subproyectos Gradle). El módulo `security` (IAM: login, JWT con refresh y rotación, RBAC por ámbito organizacional, sesiones, dispositivos) es el más completo y tiene endpoints REST, persistencia JPA/JDBC y migraciones Flyway funcionando contra PostgreSQL real. El módulo `organizacion` tiene un primer slice parcial. El resto de los módulos de negocio (ventas, inventario, compras, etc.) siguen siendo scaffolds sin lógica.
-- **`frontend/`**: scaffold React navegable, no un ERP funcional. El login es simulado (no llama al backend), el dashboard usa datos mock, y la mayoría de los módulos (catálogo, ventas, POS, caja, clientes, seguridad) son placeholders visuales.
+Matriz de capacidades. *Implementado* = existe código con pruebas unitarias; *Integrado* = el frontend lo consume contra el backend real; *Validado* = hay prueba de integración HTTP/PostgreSQL (Testcontainers) o verificación en navegador contra el backend real.
+
+| Área | Implementado | Integrado | Validado | Pendiente |
+| --- | --- | --- | --- | --- |
+| `security` (IAM) | Login local, JWT con refresh rotativo, RBAC por ámbito, sesiones, dispositivos, cambio obligatorio de contraseña | Login, cambio de contraseña, permisos, roles y usuarios | `IamApiIntegrationTest` | Sin pendientes verificados en esta revisión |
+| `organizacion` | CRUD de empresas, establecimientos, almacenes, terminales POS y estructura corporativa | Gestión completa | `OrganizacionApiIntegrationTest` + navegador | Reglas marcadas POR_VALIDAR |
+| `catalogo` | CRUD de 10 de los ~11 catálogos maestros | Categorías y marcas | Solo unitarias; sin `*ApiIntegrationTest` | `tipo_documento_identidad`; UI de los otros 8 catálogos |
+| `inventario` | Lotes, posiciones, movimientos con idempotencia | Posiciones, ingreso, ajustes, lotes | `InventarioApiIntegrationTest`, concurrencia | Capacidades fuera de lo listado (el DDL define más tablas que API) |
+| `compras` | Proveedores, órdenes y recepciones con ingreso a inventario | Órdenes y recepción | `ComprasApiIntegrationTest`, concurrencia | Capacidades fuera de lo listado |
+| `ventas` | Turno de caja, venta presencial en efectivo (FEFO), anulación con turno abierto | Frontend de caja/POS aún sin lógica | `VentaApiIntegrationTest`, concurrencia | IGV, CPE, receta/retención/dispensación (hoy se rechazan SKUs que las exigen), promociones, clientes, otros medios de pago, devolución |
+| Resto de módulos | Scaffold | No | No | Todo |
+
+Alcance de la autorización por ámbito organizacional: las operaciones de `ventas` (venta y turno de caja) validan, además del permiso, que el ámbito asignado al usuario cubra el establecimiento, almacén o terminal del recurso. `organizacion`, `inventario` y `compras` aún validan solo el permiso.
+
+- **Frontend**: React 19 con slices reales integrados contra `packages/api-client` (sin mocks) para auth, seguridad, organización, catálogo (categorías y marcas), inventario y compras. El dashboard sigue usando datos mock; ventas, POS, caja y clientes son placeholders.
 - **Docker**: el backend puede levantarse junto con PostgreSQL con un solo comando (`docker compose up`), ver más abajo.
 
-Una pantalla visible o un módulo detectado en el código no equivalen a una capacidad terminada.
+Una pantalla visible, un controlador o un módulo detectado en el código no equivalen a una capacidad terminada.
 
 ## Cómo levantar el proyecto
 
@@ -60,7 +73,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-La aplicación queda disponible en `http://localhost:5173` (modo mock con MSW, sin necesitar el backend).
+La aplicación queda disponible en `http://localhost:3000` y, por defecto, habla con el backend real (`VITE_API_MODE=http`, con proxy de `/api` hacia `http://localhost:8080`). Para trabajar sin backend, usar `VITE_API_MODE=mock` (ver `frontend/.env.example`).
 
 ## Verificación local
 

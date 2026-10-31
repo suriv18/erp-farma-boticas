@@ -4,6 +4,7 @@ import com.softprimesolutions.security.application.dto.result.AsignacionRolResul
 import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
 import com.softprimesolutions.security.domain.model.AsignacionRol;
+import com.softprimesolutions.security.domain.model.Identidad;
 import com.softprimesolutions.security.domain.model.Rol;
 import com.softprimesolutions.security.domain.model.Usuario;
 
@@ -12,22 +13,18 @@ public final class IamApplicationMapper {
     private IamApplicationMapper() {
     }
 
-    public static UsuarioResult toResult(Usuario user) {
+    public static UsuarioResult toResult(Identidad identidad, Usuario user) {
         return new UsuarioResult(
                 user.id().value(),
                 user.tenantId().value(),
-                user.identity().provider(),
-                user.identity().issuer(),
-                user.identity().subject(),
-                user.identity().emailClaim(),
-                user.documentType(),
-                user.documentNumber(),
-                user.firstNames(),
-                user.lastNames(),
-                user.username(),
-                user.email(),
+                identidad.documentType(),
+                identidad.documentNumber(),
+                identidad.firstNames(),
+                identidad.lastNames(),
+                identidad.username(),
+                identidad.email(),
                 user.displayName(),
-                user.phone(),
+                identidad.phone(),
                 user.credentialChangeRequired(),
                 user.mfaRequired(),
                 user.status().name(),

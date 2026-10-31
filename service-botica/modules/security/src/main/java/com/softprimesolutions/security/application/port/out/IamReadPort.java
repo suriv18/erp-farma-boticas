@@ -1,10 +1,11 @@
 package com.softprimesolutions.security.application.port.out;
 
 import com.softprimesolutions.security.application.dto.result.PaginaResult;
+import com.softprimesolutions.security.application.dto.result.PerfilResult;
 import com.softprimesolutions.security.application.dto.result.PermisoResult;
 import com.softprimesolutions.security.application.dto.result.RolResult;
 import com.softprimesolutions.security.application.dto.result.UsuarioResult;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface IamReadPort {
@@ -13,5 +14,9 @@ public interface IamReadPort {
 
     PaginaResult<RolResult> findRoles(UUID tenantId, String search, int page, int size);
 
-    List<PermisoResult> findPermissions(String search);
+    PaginaResult<PermisoResult> findPermissions(String search, int page, int size);
+
+    Optional<RolResult> findRoleById(UUID tenantId, UUID roleId);
+
+    Optional<PerfilResult> findProfile(UUID tenantId, UUID userId);
 }

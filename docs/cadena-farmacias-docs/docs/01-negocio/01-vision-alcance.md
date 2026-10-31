@@ -88,7 +88,7 @@ La inclusión en el mapa de capacidades **no significa** que todo deba implement
 - D.S. N.° 015-2025-SA: modifica el artículo 43 y el Anexo 01 del Reglamento, incluyendo responsabilidades del personal técnico y Director Técnico.
 - D.S. N.° 016-2011-SA: registro, control y vigilancia sanitaria de productos.
 - D.S. N.° 023-2001-SA: productos/sustancias sujetos a fiscalización sanitaria.
-- Directiva Sanitaria N.° 105-MINSA/2020/DIGEMID: buenas prácticas de dispensación; incluye recepción/validación, análisis, selección, registro, entrega e información al paciente.
+- R.M. N.° 013-2009/MINSA: Manual de Buenas Prácticas de Dispensación [REF-25]. La Directiva Sanitaria 105-MINSA/2020/DIGEMID corresponde al contexto de emergencia COVID-19 [REF-10].
 - DIGEMID: Observatorio de Precios; las farmacias y boticas reportan precios de medicamentos.
 - SUNAT: emisión de comprobantes electrónicos según obligación tributaria vigente.
 
@@ -105,3 +105,7 @@ La inclusión en el mapa de capacidades **no significa** que todo deba implement
 - Si la cadena utilizará una sola razón social o múltiples empresas.
 - Modelo de fidelización.
 - Política de devoluciones por tipo de producto.
+
+## 9. Revisión de surtido — 2026-09-15
+
+Se incluye el análisis de medicamentos, vitaminas, cosméticos, higiene, artículos para bebé y prendas dentro del alcance admisible de una botica/farmacia. El rubro comercial no autoriza por sí solo un SKU. Ver [análisis peruano con fuentes y brechas](../06-datos/09-adecuacion-surtido-multiproducto-peru.md). La implementación sigue parcial.

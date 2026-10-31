@@ -7,4 +7,7 @@ dependencies {
     api project(':shared-application')
     implementation 'org.springframework:spring-context'
     implementation 'org.springframework:spring-web'
+    implementation 'jakarta.validation:jakarta.validation-api'
+
+    testImplementation 'org.mockito:mockito-core'
 }

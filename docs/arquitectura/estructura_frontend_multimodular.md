@@ -751,7 +751,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['react', 'react-dom']
     },
     server: {
-      port: 5173,
+      port: 3000,
       strictPort: true,
       proxy: {
         '/api': {
@@ -839,7 +839,7 @@ Secuencia obligatoria:
 3. Ejecutar pnpm install --frozen-lockfile
 4. Ejecutar pnpm check
 5. Ejecutar pnpm dev
-6. Abrir http://localhost:5173
+6. Abrir http://localhost:3000
 7. Comprobar modo mock sin backend
 8. Comprobar modo http con backend y proxy /api
 9. Ejecutar pnpm build

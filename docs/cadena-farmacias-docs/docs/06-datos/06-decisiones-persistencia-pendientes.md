@@ -37,3 +37,7 @@ El baseline físico del **Core Central** ya existe. Este documento conserva las 
 ## 3. Condición para aprobación del DDL
 
 El DDL central puede evolucionar como baseline, pero no se marcará `APROBADO` hasta ejecutar `V001 → V017` en PostgreSQL 18.x real y superar pruebas de constraints, concurrencia, reconstrucción desde cero e idempotencia.
+
+## Surtido diverso — diseño documental resuelto
+
+ADR-011 y [DAT-FAR-010](10-diseno-detallado-surtido.md) fijan stock sin lote, lote sin caducidad, integridad SKU/lote, series, expediente sanitario canónico y admisibilidad por local. Pendientes de ejecución: implementar, migrar datos y superar pruebas. Las decisiones generales de infraestructura y operación de la sección 2 no forman parte de este cierre.

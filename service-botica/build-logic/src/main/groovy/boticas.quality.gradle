@@ -15,6 +15,37 @@ tasks.named('jacocoTestReport') {
     }
 }
 
+def baselineFile = file("${project.projectDir}/jacoco-baseline.txt")
+def coverageBaseline = baselineFile.exists()
+        ? baselineFile.readLines().collect { it.trim() }.findAll { !it.isEmpty() }
+        : []
+
+tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+    dependsOn tasks.named('jacocoTestReport')
+    executionData.setFrom(tasks.named('jacocoTestReport').get().executionData)
+    sourceDirectories.setFrom(tasks.named('jacocoTestReport').get().sourceDirectories)
+    classDirectories.setFrom(tasks.named('jacocoTestReport').get().classDirectories)
+    violationRules {
+        rule {
+            element = 'CLASS'
+            excludes = coverageBaseline
+            limit {
+                counter = 'LINE'
+                minimum = 1.0
+            }
+        }
+        rule {
+            element = 'CLASS'
+            excludes = coverageBaseline
+            limit {
+                counter = 'BRANCH'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
 tasks.named('check') {
     dependsOn tasks.named('jacocoTestReport')
+    dependsOn tasks.named('jacocoTestCoverageVerification')
 }

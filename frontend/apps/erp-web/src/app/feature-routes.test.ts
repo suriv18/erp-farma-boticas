@@ -7,22 +7,65 @@ describe('featureRoutes', () => {
 
     expect(paths).toEqual([
       'dashboard',
+      'catalogo/productos-regulados/:productoReguladoId/editar',
+      'catalogo/productos-regulados/nuevo',
+      'catalogo/skus/:skuId/editar',
+      'catalogo/skus/nuevo',
       'catalogo',
+      'catalogo/marcas',
+      'catalogo/categorias',
+      'catalogo/rubros-comerciales',
+      'catalogo/condiciones-venta',
+      'catalogo/formas-farmaceuticas',
+      'catalogo/vias-administracion',
+      'catalogo/unidades-medida',
+      'catalogo/clasificaciones-controladas',
+      'catalogo/tipos-documento-identidad',
+      'catalogo/principios-activos',
+      'catalogo/productos-regulados',
+      'catalogo/productos-regulados/:productoReguladoId',
+      'catalogo/skus',
+      'catalogo/skus/:skuId',
       'inventario',
+      'inventario/lotes/:loteId',
       'compras',
+      'compras/proveedores',
+      'compras/proveedores/nuevo',
+      'compras/proveedores/:proveedorId',
+      'compras/ordenes',
+      'compras/ordenes/nueva',
+      'compras/ordenes/:ordenId',
+      'compras/ordenes/:ordenId/recepcion',
       'ventas',
+      'ventas/:ventaId',
       'pos',
       'caja',
       'clientes',
       'seguridad',
-      'organizacion'
+      'seguridad/permisos',
+      'seguridad/usuarios',
+      'seguridad/usuarios/:userId',
+      'seguridad/roles',
+      'seguridad/roles/:roleId',
+      'seguridad/sesiones',
+      'seguridad/dispositivos',
+      'seguridad/modulos',
+      'organizacion',
+      'organizacion/empresas',
+      'organizacion/empresas/:empresaId',
+      'organizacion/establecimientos/:establecimientoId',
+      'perfil',
+      'perfil/seguridad',
+      'perfil/configuraciones',
+      'perfil/sucursal',
+      'perfil/ayuda'
     ]);
     expect(new Set(paths).size).toBe(paths.length);
     expect(erpFeatureRoutes.every(({ lazy }) => typeof lazy === 'function')).toBe(true);
   });
 
   it('mantiene autenticación fuera del shell privado', () => {
-    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login']);
+    expect(publicFeatureRoutes.map(({ path }) => path)).toEqual(['/login', '/cambiar-contrasena']);
     expect(publicFeatureRoutes.every(({ lazy }) => typeof lazy === 'function')).toBe(true);
   });
 });

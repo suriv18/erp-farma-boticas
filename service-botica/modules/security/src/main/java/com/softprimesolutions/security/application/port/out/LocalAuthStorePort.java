@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface LocalAuthStorePort {
 
-    Optional<LocalAccount> findAccountByLogin(UUID tenantId, String login);
+    Optional<LocalAccount> findAccountByLogin(String login);
 
     Optional<LocalAccount> findAccountByUser(UUID tenantId, UUID userId);
 
