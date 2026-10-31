@@ -2,6 +2,8 @@ package com.softprimesolutions.clientes.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.softprimesolutions.clientes.api.dto.request.ActualizarClienteRequest;
+import com.softprimesolutions.clientes.api.dto.request.CambiarEstadoClienteRequest;
 import com.softprimesolutions.clientes.api.dto.request.RegistrarClienteRequest;
 import com.softprimesolutions.clientes.api.dto.response.ClienteResponse;
 import com.softprimesolutions.clientes.api.dto.response.PaginaResponse;
@@ -29,7 +31,7 @@ class ClienteControllerTest {
     private static final Jwt JWT = Jwt.withTokenValue("token").header("alg", "none").claim("tid", TENANT.toString())
             .build();
     private static final ClienteResult RESULT = new ClienteResult(CLIENTE, TENANT, "NATURAL", "1", "12345678", "Ana",
-            "Pérez", null, null, null, null, "ACTIVO", Instant.parse("2026-10-30T15:00:00Z"));
+            "Pérez", null, null, null, null, "ACTIVO", null, Instant.parse("2026-10-30T15:00:00Z"), null);
 
     private static final RegistrarClienteRequest REQUEST = new RegistrarClienteRequest(
             "NATURAL", "1", "12345678", "Ana", "Pérez", null, null, null, null);
@@ -47,15 +49,18 @@ class ClienteControllerTest {
                     return Result.success(new RegistroClienteResult(RESULT, creado));
                 },
                 query -> Result.success(RESULT),
-                query -> Result.success(new PaginaResult<>(List.of(RESULT), query.page(), query.size(), 1)));
+                query -> Result.success(new PaginaResult<>(List.of(RESULT), query.page(), query.size(), 1)),
+                command -> Result.success(RESULT),
+                command -> Result.success(RESULT));
     }
 
     private final ClienteController failing = new ClienteController(
-            command -> conflict(), query -> conflict(), query -> conflict());
+            command -> conflict(), query -> conflict(), query -> conflict(), command -> conflict(),
+            command -> conflict());
 
     private static ClienteResponse response() {
         return new ClienteResponse(CLIENTE, "NATURAL", "1", "12345678", "Ana", "Pérez", null, null, null, null,
-                "ACTIVO", Instant.parse("2026-10-30T15:00:00Z"));
+                "ACTIVO", null, Instant.parse("2026-10-30T15:00:00Z"), null);
     }
 
     @Test
@@ -112,5 +117,27 @@ class ClienteControllerTest {
     @Test
     void mapsGetFailuresToProblemDetails() {
         assertThat(failing.getById(CLIENTE, JWT).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updatesAClient() {
+        var request = new ActualizarClienteRequest("Ana", "Pérez", null, null, null, null);
+
+        var entity = succeeding(true).update(CLIENTE, JWT, request);
+
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(entity.getBody()).isEqualTo(response());
+        assertThat(failing.update(CLIENTE, JWT, request).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void changesTheStatusOfAClient() {
+        var request = new CambiarEstadoClienteRequest("BLOQUEADO", "Fraude");
+
+        var entity = succeeding(true).changeStatus(CLIENTE, JWT, request);
+
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(entity.getBody()).isEqualTo(response());
+        assertThat(failing.changeStatus(CLIENTE, JWT, request).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 }

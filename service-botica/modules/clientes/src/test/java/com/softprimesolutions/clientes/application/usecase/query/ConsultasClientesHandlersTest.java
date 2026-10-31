@@ -36,7 +36,7 @@ class ConsultasClientesHandlersTest {
 
     private static ClienteResult cliente() {
         return new ClienteResult(CLIENTE_ID, TENANT_ID, "NATURAL", "1", "12345678", "Ana", "Pérez",
-                null, null, null, null, "ACTIVO", Instant.parse("2026-10-30T15:00:00Z"));
+                null, null, null, null, "ACTIVO", null, Instant.parse("2026-10-30T15:00:00Z"), null);
     }
 
     @Test

@@ -16,5 +16,7 @@ public record ClienteResponse(
         String telefono,
         LocalDate fechaNacimiento,
         String estado,
-        Instant createdAt) {
+        String motivoBloqueo,
+        Instant createdAt,
+        Instant updatedAt) {
 }

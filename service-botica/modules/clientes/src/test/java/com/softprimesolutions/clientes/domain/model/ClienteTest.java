@@ -159,9 +159,11 @@ class ClienteTest {
     @Test
     void restoresAClientWithoutRevalidating() {
         var cliente = Cliente.restore(ID, TENANT, TipoCliente.NATURAL, "1", "12345678", "Ana", "Pérez",
-                null, null, null, null, EstadoCliente.BLOQUEADO, NOW);
+                null, null, null, null, EstadoCliente.BLOQUEADO, "Fraude", NOW, null);
 
         assertThat(cliente.estado()).isEqualTo(EstadoCliente.BLOQUEADO);
+        assertThat(cliente.motivoBloqueo()).isEqualTo("Fraude");
+        assertThat(cliente.updatedAt()).isNull();
         assertThat(cliente.pullDomainEvents()).isEmpty();
     }
 
@@ -169,5 +171,67 @@ class ClienteTest {
     void identifiersRejectNullValues() {
         assertThatThrownBy(() -> new ClienteId(null)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new TenantId(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    private static final Instant LATER = Instant.parse("2026-11-02T09:00:00Z");
+
+    private static Cliente existente(TipoCliente tipo, String tipoDocumento, String numeroDocumento) {
+        return valid(Cliente.create(ID, TENANT, tipo, tipoDocumento, numeroDocumento, "Ana", "Pérez",
+                tipo == TipoCliente.JURIDICO ? "Botica SAC" : null, null, null, null, NOW));
+    }
+
+    @Test
+    void updatesTheDetailsKeepingTheIdentityDocumentAndState() {
+        var original = existente(TipoCliente.NATURAL, "1", "12345678");
+
+        var cliente = valid(original.updateDetails(" Ana  Lucía ", "Pérez", null, "ana@nuevo.pe", " 988 ",
+                LocalDate.parse("1991-01-02"), LATER));
+
+        assertThat(cliente.nombres()).isEqualTo("Ana Lucía");
+        assertThat(cliente.email()).isEqualTo("ana@nuevo.pe");
+        assertThat(cliente.telefono()).isEqualTo("988");
+        assertThat(cliente.fechaNacimiento()).isEqualTo(LocalDate.parse("1991-01-02"));
+        assertThat(cliente.updatedAt()).isEqualTo(LATER);
+        assertThat(cliente.createdAt()).isEqualTo(NOW);
+        assertThat(cliente.id()).isEqualTo(ID);
+        assertThat(cliente.numeroDocumento()).isEqualTo("12345678");
+        assertThat(cliente.estado()).isEqualTo(EstadoCliente.ACTIVO);
+    }
+
+    @Test
+    void rejectsAnInvalidUpdateOfTheDetails() {
+        var natural = existente(TipoCliente.NATURAL, "1", "12345678");
+        var juridico = existente(TipoCliente.JURIDICO, "6", "20123456789");
+
+        assertInvalid(natural.updateDetails("Ana", "Pérez", null, null, null, null, null), "updatedAt");
+        assertInvalid(natural.updateDetails(null, "Pérez", null, null, null, null, LATER), "nombres");
+        assertInvalid(juridico.updateDetails(null, null, " ", null, null, null, LATER), "razonSocial");
+        assertInvalid(natural.updateDetails("Ana", "Pérez", null, "sin-arroba", null, null, LATER), "email");
+    }
+
+    @Test
+    void blocksAClientWithItsReasonAndUnblocksItClearingTheReason() {
+        var bloqueado = valid(existente(TipoCliente.NATURAL, "1", "12345678")
+                .cambiarEstado(EstadoCliente.BLOQUEADO, "  Fraude   reiterado ", LATER));
+
+        assertThat(bloqueado.estado()).isEqualTo(EstadoCliente.BLOQUEADO);
+        assertThat(bloqueado.motivoBloqueo()).isEqualTo("Fraude reiterado");
+        assertThat(bloqueado.updatedAt()).isEqualTo(LATER);
+
+        var activo = valid(bloqueado.cambiarEstado(EstadoCliente.ACTIVO, "se ignora", LATER.plusSeconds(60)));
+
+        assertThat(activo.estado()).isEqualTo(EstadoCliente.ACTIVO);
+        assertThat(activo.motivoBloqueo()).isNull();
+    }
+
+    @Test
+    void rejectsAnInvalidStatusChange() {
+        var cliente = existente(TipoCliente.NATURAL, "1", "12345678");
+
+        assertInvalid(cliente.cambiarEstado(null, "motivo", LATER), "estado");
+        assertInvalid(cliente.cambiarEstado(EstadoCliente.BLOQUEADO, "motivo", null), "updatedAt");
+        assertInvalid(cliente.cambiarEstado(EstadoCliente.BLOQUEADO, null, LATER), "motivoBloqueo");
+        assertInvalid(cliente.cambiarEstado(EstadoCliente.BLOQUEADO, " ", LATER), "motivoBloqueo");
+        assertInvalid(cliente.cambiarEstado(EstadoCliente.BLOQUEADO, "a".repeat(301), LATER), "motivoBloqueo");
     }
 }

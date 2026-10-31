@@ -17,7 +17,7 @@ public class ClientesJdbcReadAdapter implements ClientesReadPort {
     private static final String SELECT = """
             SELECT c.uuid_publico, t.uuid_publico AS tenant_uuid, c.tipo_cliente, c.tipo_documento,
                    c.numero_documento, c.nombres, c.apellidos, c.razon_social, c.email, c.telefono,
-                   c.fecha_nacimiento, c.estado, c.created_at
+                   c.fecha_nacimiento, c.estado, c.motivo_bloqueo, c.created_at, c.updated_at
             """;
     private static final String FROM = """
             FROM sch_venta.cliente c

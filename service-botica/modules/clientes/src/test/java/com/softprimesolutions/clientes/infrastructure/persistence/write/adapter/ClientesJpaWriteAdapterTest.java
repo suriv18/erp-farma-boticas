@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.softprimesolutions.clientes.application.port.out.ClientesWritePort.SaveClienteOutcome;
+import com.softprimesolutions.clientes.application.port.out.ClientesWritePort.UpdateClienteOutcome;
+import com.softprimesolutions.clientes.domain.model.EstadoCliente;
 import com.softprimesolutions.clientes.domain.model.Cliente;
 import com.softprimesolutions.clientes.domain.model.TipoCliente;
 import com.softprimesolutions.clientes.domain.valueobject.ClienteId;
@@ -111,5 +113,32 @@ class ClientesJpaWriteAdapterTest {
         when(repository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uk_cliente_documento"));
 
         assertThat(adapter.save(identificado())).isEqualTo(SaveClienteOutcome.DUPLICATE_DOCUMENTO);
+    }
+
+    @Test
+    void updatesTheClientScopedToItsTenant() {
+        jdbc.answering(sql -> 1);
+        var cliente = identificado()
+                .cambiarEstado(EstadoCliente.BLOQUEADO, "Fraude", Instant.parse("2026-11-02T09:00:00Z"))
+                .fold(value -> value, error -> null);
+
+        assertThat(adapter.update(cliente)).isEqualTo(UpdateClienteOutcome.UPDATED);
+
+        assertThat(jdbc.boundParams())
+                .containsEntry("clienteId", cliente.id().value())
+                .containsEntry("tenantUuid", TENANT_UUID)
+                .containsEntry("estado", "BLOQUEADO")
+                .containsEntry("motivoBloqueo", "Fraude");
+        assertThat(jdbc.executedSql()).singleElement().asString().contains("UPDATE sch_venta.cliente");
+    }
+
+    @Test
+    void reportsAMissingClientWhenNoRowIsUpdated() {
+        jdbc.answering(sql -> 0);
+        var cliente = identificado()
+                .updateDetails("Ana", "Pérez", null, null, null, null, Instant.parse("2026-11-02T09:00:00Z"))
+                .fold(value -> value, error -> null);
+
+        assertThat(adapter.update(cliente)).isEqualTo(UpdateClienteOutcome.NOT_FOUND);
     }
 }

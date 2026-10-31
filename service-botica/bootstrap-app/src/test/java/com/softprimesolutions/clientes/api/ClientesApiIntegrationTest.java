@@ -1,7 +1,9 @@
 package com.softprimesolutions.clientes.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -177,5 +179,123 @@ class ClientesApiIntegrationTest {
         mockMvc.perform(get(BASE).header("Authorization", otro))
                 .andExpect(jsonPath("$.totalElements").value(0));
         register(otro, ANA);
+    }
+
+    @Test
+    void editsTheDetailsOfAClientKeepingItsDocument() throws Exception {
+        var id = register(admin, ANA);
+
+        mockMvc.perform(put(BASE + "/{id}", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombres":"Ana Lucía","apellidos":"Pérez","telefono":"988777666"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombres").value("Ana Lucía"))
+                .andExpect(jsonPath("$.telefono").value("988777666"))
+                .andExpect(jsonPath("$.numeroDocumento").value("12345678"))
+                .andExpect(jsonPath("$.updatedAt").isNotEmpty());
+        mockMvc.perform(get(BASE + "/{id}", id).header("Authorization", admin))
+                .andExpect(jsonPath("$.nombres").value("Ana Lucía"))
+                .andExpect(jsonPath("$.email").doesNotExist());
+    }
+
+    @Test
+    void rejectsAnInvalidEditAndAnEditOfAMissingClient() throws Exception {
+        var id = register(admin, ANA);
+
+        mockMvc.perform(put(BASE + "/{id}", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"apellidos":"Pérez"}
+                                """))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put(BASE + "/{id}", UUID.randomUUID()).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombres":"Ana","apellidos":"Pérez"}
+                                """))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void blocksAClientWithItsReasonAndUnblocksIt() throws Exception {
+        var id = register(admin, ANA);
+
+        mockMvc.perform(patch(BASE + "/{id}/estado", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"BLOQUEADO","motivo":"Fraude reiterado"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("BLOQUEADO"))
+                .andExpect(jsonPath("$.motivoBloqueo").value("Fraude reiterado"));
+        mockMvc.perform(patch(BASE + "/{id}/estado", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ACTIVO"))
+                .andExpect(jsonPath("$.motivoBloqueo").doesNotExist());
+    }
+
+    @Test
+    void rejectsABlockWithoutReasonAndAnUnknownStatus() throws Exception {
+        var id = register(admin, ANA);
+
+        mockMvc.perform(patch(BASE + "/{id}/estado", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"BLOQUEADO"}
+                                """))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch(BASE + "/{id}/estado", id).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"SUSPENDIDO"}
+                                """))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch(BASE + "/{id}/estado", UUID.randomUUID()).header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aUserWhoOnlyConsultsCannotEditOrBlock() throws Exception {
+        var id = register(admin, ANA);
+        var soloConsulta = realLogin.login(TENANT_ID, "clientes.consulta", "^clientes\\.clientes\\.consultar$").bearer();
+
+        mockMvc.perform(get(BASE + "/{id}", id).header("Authorization", soloConsulta)).andExpect(status().isOk());
+        mockMvc.perform(put(BASE + "/{id}", id).header("Authorization", soloConsulta)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombres":"Ana","apellidos":"Pérez"}
+                                """))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch(BASE + "/{id}/estado", id).header("Authorization", soloConsulta)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"ACTIVO"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void doesNotEditAClientOfAnotherTenant() throws Exception {
+        var id = register(admin, ANA);
+        var otro = provision(OTHER_TENANT_ID, "CLIOTRO", "clientes.otro", "^clientes\\.");
+
+        mockMvc.perform(put(BASE + "/{id}", id).header("Authorization", otro)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombres":"Intruso","apellidos":"Pérez"}
+                                """))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get(BASE + "/{id}", id).header("Authorization", admin))
+                .andExpect(jsonPath("$.nombres").value("Ana"));
     }
 }

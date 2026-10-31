@@ -3,6 +3,7 @@ package com.softprimesolutions.clientes.infrastructure.persistence.read.mapper;
 import com.softprimesolutions.clientes.application.dto.result.ClienteResult;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -17,6 +18,12 @@ public final class ClienteRowMapper implements RowMapper<ClienteResult> {
                 rs.getString("tipo_cliente"), rs.getString("tipo_documento"), rs.getString("numero_documento"),
                 rs.getString("nombres"), rs.getString("apellidos"), rs.getString("razon_social"),
                 rs.getString("email"), rs.getString("telefono"), rs.getObject("fecha_nacimiento", LocalDate.class),
-                rs.getString("estado"), rs.getObject("created_at", OffsetDateTime.class).toInstant());
+                rs.getString("estado"), rs.getString("motivo_bloqueo"),
+                toInstant(rs.getObject("created_at", OffsetDateTime.class)),
+                toInstant(rs.getObject("updated_at", OffsetDateTime.class)));
+    }
+
+    private static Instant toInstant(OffsetDateTime value) {
+        return value == null ? null : value.toInstant();
     }
 }

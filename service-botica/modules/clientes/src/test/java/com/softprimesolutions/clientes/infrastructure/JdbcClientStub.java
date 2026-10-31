@@ -40,7 +40,12 @@ public final class JdbcClientStub {
 
     private JdbcClient.StatementSpec statement(String sql) {
         return mock(JdbcClient.StatementSpec.class, invocation -> {
-            if (invocation.getMethod().getName().equals("query")) return mappedQuery(sql);
+            var method = invocation.getMethod().getName();
+            if (method.equals("query")) return mappedQuery(sql);
+            if (method.equals("update")) {
+                executedSql.add(sql);
+                return results.apply(sql);
+            }
             boundParams.put(invocation.getArgument(0), invocation.getArgument(1));
             return invocation.getMock();
         });

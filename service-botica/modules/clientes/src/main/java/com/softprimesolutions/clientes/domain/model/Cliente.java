@@ -26,32 +26,31 @@ public final class Cliente extends AggregateRoot {
     private final TipoCliente tipoCliente;
     private final String tipoDocumento;
     private final String numeroDocumento;
-    private final String nombres;
-    private final String apellidos;
-    private final String razonSocial;
-    private final String email;
-    private final String telefono;
-    private final LocalDate fechaNacimiento;
+    private final Detalles detalles;
     private final EstadoCliente estado;
+    private final String motivoBloqueo;
     private final Instant createdAt;
+    private final Instant updatedAt;
 
     private Cliente(
             ClienteId id, TenantId tenantId, TipoCliente tipoCliente, String tipoDocumento,
-            String numeroDocumento, String nombres, String apellidos, String razonSocial, String email,
-            String telefono, LocalDate fechaNacimiento, EstadoCliente estado, Instant createdAt) {
+            String numeroDocumento, Detalles detalles, EstadoCliente estado, String motivoBloqueo,
+            Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.tenantId = tenantId;
         this.tipoCliente = tipoCliente;
         this.tipoDocumento = tipoDocumento;
         this.numeroDocumento = numeroDocumento;
-        this.nombres = nombres;
-        this.apellidos = apellidos;
-        this.razonSocial = razonSocial;
-        this.email = email;
-        this.telefono = telefono;
-        this.fechaNacimiento = fechaNacimiento;
+        this.detalles = detalles;
         this.estado = estado;
+        this.motivoBloqueo = motivoBloqueo;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    private record Detalles(
+            String nombres, String apellidos, String razonSocial, String email, String telefono,
+            LocalDate fechaNacimiento) {
     }
 
     public static Result<Cliente, ErrorDetail> create(
@@ -65,12 +64,6 @@ public final class Cliente extends AggregateRoot {
 
         var tipo = normalize(tipoDocumento);
         var numero = normalize(numeroDocumento);
-        var nombresNormalizados = normalizeSpaces(nombres);
-        var apellidosNormalizados = normalizeSpaces(apellidos);
-        var razonSocialNormalizada = normalizeSpaces(razonSocial);
-        var emailNormalizado = normalize(email);
-        var telefonoNormalizado = normalize(telefono);
-
         if ((tipo == null) != (numero == null)) {
             return invalid("numeroDocumento", "El tipo y el número de documento se indican juntos.");
         }
@@ -83,6 +76,56 @@ public final class Cliente extends AggregateRoot {
         if (numero != null && !documentoValido(tipo, numero)) {
             return invalid("numeroDocumento", mensajeDocumento(tipo));
         }
+        return validateDetalles(tipoCliente, nombres, apellidos, razonSocial, email, telefono,
+                fechaNacimiento, createdAt)
+                .map(detalles -> new Cliente(id, tenantId, tipoCliente, tipo, numero, detalles,
+                        EstadoCliente.ACTIVO, null, createdAt, null));
+    }
+
+    public static Cliente restore(
+            ClienteId id, TenantId tenantId, TipoCliente tipoCliente, String tipoDocumento,
+            String numeroDocumento, String nombres, String apellidos, String razonSocial, String email,
+            String telefono, LocalDate fechaNacimiento, EstadoCliente estado, String motivoBloqueo,
+            Instant createdAt, Instant updatedAt) {
+        return new Cliente(
+                id, tenantId, tipoCliente, tipoDocumento, numeroDocumento,
+                new Detalles(nombres, apellidos, razonSocial, email, telefono, fechaNacimiento),
+                estado, motivoBloqueo, createdAt, updatedAt);
+    }
+
+    public Result<Cliente, ErrorDetail> updateDetails(
+            String nombres, String apellidos, String razonSocial, String email, String telefono,
+            LocalDate fechaNacimiento, Instant updatedAt) {
+        if (updatedAt == null) return invalid("updatedAt", "El instante del cambio es obligatorio.");
+        return validateDetalles(tipoCliente, nombres, apellidos, razonSocial, email, telefono,
+                fechaNacimiento, updatedAt)
+                .map(nuevos -> new Cliente(id, tenantId, tipoCliente, tipoDocumento, numeroDocumento, nuevos,
+                        estado, motivoBloqueo, createdAt, updatedAt));
+    }
+
+    public Result<Cliente, ErrorDetail> cambiarEstado(EstadoCliente nuevoEstado, String motivo, Instant updatedAt) {
+        if (nuevoEstado == null) return invalid("estado", "El nuevo estado es obligatorio.");
+        if (updatedAt == null) return invalid("updatedAt", "El instante del cambio es obligatorio.");
+        var motivoNormalizado = nuevoEstado == EstadoCliente.BLOQUEADO ? normalizeSpaces(motivo) : null;
+        if (nuevoEstado == EstadoCliente.BLOQUEADO && motivoNormalizado == null) {
+            return invalid("motivoBloqueo", "El motivo de bloqueo es obligatorio.");
+        }
+        if (excede(motivoNormalizado, 300)) {
+            return invalid("motivoBloqueo", "El motivo de bloqueo no debe exceder 300 caracteres.");
+        }
+        return Result.success(new Cliente(id, tenantId, tipoCliente, tipoDocumento, numeroDocumento, detalles,
+                nuevoEstado, motivoNormalizado, createdAt, updatedAt));
+    }
+
+    private static Result<Detalles, ErrorDetail> validateDetalles(
+            TipoCliente tipoCliente, String nombres, String apellidos, String razonSocial, String email,
+            String telefono, LocalDate fechaNacimiento, Instant referencia) {
+        var nombresNormalizados = normalizeSpaces(nombres);
+        var apellidosNormalizados = normalizeSpaces(apellidos);
+        var razonSocialNormalizada = normalizeSpaces(razonSocial);
+        var emailNormalizado = normalize(email);
+        var telefonoNormalizado = normalize(telefono);
+
         if (tipoCliente == TipoCliente.NATURAL
                 && (nombresNormalizados == null || apellidosNormalizados == null)) {
             return invalid("nombres", "Los nombres y apellidos son obligatorios para un cliente natural.");
@@ -100,23 +143,11 @@ public final class Cliente extends AggregateRoot {
         if (excede(telefonoNormalizado, 40)) {
             return invalid("telefono", "El teléfono no debe exceder 40 caracteres.");
         }
-        if (fechaNacimiento != null && fechaNacimiento.isAfter(LocalDate.ofInstant(createdAt, ZoneOffset.UTC))) {
+        if (fechaNacimiento != null && fechaNacimiento.isAfter(LocalDate.ofInstant(referencia, ZoneOffset.UTC))) {
             return invalid("fechaNacimiento", "La fecha de nacimiento no puede ser futura.");
         }
-
-        return Result.success(new Cliente(
-                id, tenantId, tipoCliente, tipo, numero, nombresNormalizados, apellidosNormalizados,
-                razonSocialNormalizada, emailNormalizado, telefonoNormalizado, fechaNacimiento,
-                EstadoCliente.ACTIVO, createdAt));
-    }
-
-    public static Cliente restore(
-            ClienteId id, TenantId tenantId, TipoCliente tipoCliente, String tipoDocumento,
-            String numeroDocumento, String nombres, String apellidos, String razonSocial, String email,
-            String telefono, LocalDate fechaNacimiento, EstadoCliente estado, Instant createdAt) {
-        return new Cliente(
-                id, tenantId, tipoCliente, tipoDocumento, numeroDocumento, nombres, apellidos,
-                razonSocial, email, telefono, fechaNacimiento, estado, createdAt);
+        return Result.success(new Detalles(nombresNormalizados, apellidosNormalizados, razonSocialNormalizada,
+                emailNormalizado, telefonoNormalizado, fechaNacimiento));
     }
 
     private static boolean documentoValido(String tipo, String numero) {
@@ -157,12 +188,14 @@ public final class Cliente extends AggregateRoot {
     public TipoCliente tipoCliente() { return tipoCliente; }
     public String tipoDocumento() { return tipoDocumento; }
     public String numeroDocumento() { return numeroDocumento; }
-    public String nombres() { return nombres; }
-    public String apellidos() { return apellidos; }
-    public String razonSocial() { return razonSocial; }
-    public String email() { return email; }
-    public String telefono() { return telefono; }
-    public LocalDate fechaNacimiento() { return fechaNacimiento; }
+    public String nombres() { return detalles.nombres(); }
+    public String apellidos() { return detalles.apellidos(); }
+    public String razonSocial() { return detalles.razonSocial(); }
+    public String email() { return detalles.email(); }
+    public String telefono() { return detalles.telefono(); }
+    public LocalDate fechaNacimiento() { return detalles.fechaNacimiento(); }
     public EstadoCliente estado() { return estado; }
+    public String motivoBloqueo() { return motivoBloqueo; }
     public Instant createdAt() { return createdAt; }
+    public Instant updatedAt() { return updatedAt; }
 }

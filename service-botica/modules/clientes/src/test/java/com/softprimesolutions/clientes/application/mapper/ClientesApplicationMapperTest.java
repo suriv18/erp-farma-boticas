@@ -22,7 +22,7 @@ class ClientesApplicationMapperTest {
         var cliente = Cliente.restore(
                 new ClienteId(id), new TenantId(tenantId), TipoCliente.NATURAL, "1", "12345678", "Ana",
                 "Pérez", null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"),
-                EstadoCliente.BLOQUEADO, now);
+                EstadoCliente.BLOQUEADO, "Fraude", now, now.plusSeconds(60));
 
         var result = ClientesApplicationMapper.toResult(cliente);
 
@@ -38,6 +38,26 @@ class ClientesApplicationMapperTest {
         assertThat(result.telefono()).isEqualTo("999");
         assertThat(result.fechaNacimiento()).isEqualTo(LocalDate.parse("1990-05-10"));
         assertThat(result.estado()).isEqualTo("BLOQUEADO");
+        assertThat(result.motivoBloqueo()).isEqualTo("Fraude");
         assertThat(result.createdAt()).isEqualTo(now);
+        assertThat(result.updatedAt()).isEqualTo(now.plusSeconds(60));
+    }
+
+    @Test
+    void restoresTheAggregateFromItsResult() {
+        var now = Instant.parse("2026-10-30T15:00:00Z");
+        var result = new com.softprimesolutions.clientes.application.dto.result.ClienteResult(
+                UUID.randomUUID(), UUID.randomUUID(), "JURIDICO", "6", "20123456789", null, null,
+                "Botica SAC", null, null, null, "BLOQUEADO", "Fraude", now, now.plusSeconds(60));
+
+        var cliente = ClientesApplicationMapper.toDomain(result);
+
+        assertThat(cliente.id().value()).isEqualTo(result.id());
+        assertThat(cliente.tenantId().value()).isEqualTo(result.tenantId());
+        assertThat(cliente.tipoCliente()).isEqualTo(TipoCliente.JURIDICO);
+        assertThat(cliente.estado()).isEqualTo(EstadoCliente.BLOQUEADO);
+        assertThat(cliente.motivoBloqueo()).isEqualTo("Fraude");
+        assertThat(cliente.razonSocial()).isEqualTo("Botica SAC");
+        assertThat(ClientesApplicationMapper.toResult(cliente)).isEqualTo(result);
     }
 }

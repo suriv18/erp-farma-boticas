@@ -25,7 +25,7 @@ class ClientesWritePersistenceTest {
         var cliente = Cliente.restore(
                 new ClienteId(id), new TenantId(UUID.randomUUID()), TipoCliente.NATURAL, "1", "12345678",
                 "Ana", "Pérez", null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"),
-                EstadoCliente.BLOQUEADO, now);
+                EstadoCliente.BLOQUEADO, "Fraude", now, null);
 
         var entity = ClientesWriteMapper.toEntity(cliente, 7L);
 

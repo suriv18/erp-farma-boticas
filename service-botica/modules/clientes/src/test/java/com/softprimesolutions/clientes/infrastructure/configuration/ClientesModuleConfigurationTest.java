@@ -29,6 +29,10 @@ class ClientesModuleConfigurationTest {
         assertThat(configuration.registrarClienteUseCase(
                 writePort, readPort, configuration.clientesIdentifierGenerator(), configuration.clientesClockPort()))
                 .isNotNull();
+        assertThat(configuration.actualizarClienteUseCase(readPort, writePort, configuration.clientesClockPort()))
+                .isNotNull();
+        assertThat(configuration.cambiarEstadoClienteUseCase(readPort, writePort, configuration.clientesClockPort()))
+                .isNotNull();
         assertThat(configuration.obtenerClienteUseCase(readPort)).isNotNull();
         assertThat(configuration.listarClientesUseCase(readPort)).isNotNull();
     }

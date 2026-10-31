@@ -30,7 +30,7 @@ class ClientesReadPersistenceTest {
 
     private static ClienteResult cliente() {
         return new ClienteResult(CLIENTE, TENANT, "NATURAL", "1", "12345678", "Ana", "Pérez", null, null, null,
-                null, "ACTIVO", NOW);
+                null, "ACTIVO", null, NOW, null);
     }
 
     @Test
@@ -53,7 +53,7 @@ class ClientesReadPersistenceTest {
         var result = new ClienteRowMapper().mapRow(rs, 0);
 
         assertThat(result).isEqualTo(new ClienteResult(CLIENTE, TENANT, "NATURAL", "1", "12345678", "Ana", "Pérez",
-                null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"), "ACTIVO", NOW));
+                null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"), "ACTIVO", null, NOW, null));
     }
 
     @Test
@@ -102,5 +102,21 @@ class ClientesReadPersistenceTest {
         assertThat(jdbc.boundParams())
                 .containsEntry("tipoDocumento", "1")
                 .containsEntry("numeroDocumento", "12345678");
+    }
+
+    @Test
+    void mapsTheBlockReasonAndTheUpdateInstant() throws SQLException {
+        var rs = mock(ResultSet.class);
+        when(rs.getString("motivo_bloqueo")).thenReturn("Fraude");
+        when(rs.getString("estado")).thenReturn("BLOQUEADO");
+        when(rs.getObject("created_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        var updated = NOW.plusSeconds(3600);
+        when(rs.getObject("updated_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.ofInstant(updated, ZoneOffset.UTC));
+
+        var result = new ClienteRowMapper().mapRow(rs, 0);
+
+        assertThat(result.estado()).isEqualTo("BLOQUEADO");
+        assertThat(result.motivoBloqueo()).isEqualTo("Fraude");
+        assertThat(result.updatedAt()).isEqualTo(updated);
     }
 }

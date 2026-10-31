@@ -50,7 +50,7 @@ class RegistrarClienteHandlerTest {
 
     private static ClienteResult existente() {
         return new ClienteResult(UUID.randomUUID(), TENANT_ID, "NATURAL", "1", "12345678", "Ana", "Pérez",
-                null, null, null, null, "ACTIVO", NOW);
+                null, null, null, null, "ACTIVO", null, NOW, null);
     }
 
     @Test

@@ -3,6 +3,8 @@ package com.softprimesolutions.clientes.api.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.softprimesolutions.clientes.api.dto.request.ActualizarClienteRequest;
+import com.softprimesolutions.clientes.api.dto.request.CambiarEstadoClienteRequest;
 import com.softprimesolutions.clientes.api.dto.request.RegistrarClienteRequest;
 import com.softprimesolutions.clientes.api.dto.response.PaginaResponse;
 import com.softprimesolutions.clientes.application.dto.result.ClienteResult;
@@ -18,8 +20,8 @@ class ClientesApiMapperTest {
 
     private static final UUID TENANT = UUID.randomUUID();
     private static final ClienteResult RESULT = new ClienteResult(UUID.randomUUID(), TENANT, "NATURAL", "1",
-            "12345678", "Ana", "Pérez", null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"), "ACTIVO",
-            Instant.parse("2026-10-30T15:00:00Z"));
+            "12345678", "Ana", "Pérez", null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10"), "ACTIVO", null,
+            Instant.parse("2026-10-30T15:00:00Z"), null);
 
     @Test
     void mapsTheRequestToACommandWithTheTenantOfTheSession() {
@@ -76,5 +78,28 @@ class ClientesApiMapperTest {
 
         assertThat(page.items()).hasSize(1);
         assertThatThrownBy(() -> page.items().add(null)).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void mapsTheUpdateAndStatusRequestsToCommandsScopedToTheClient() {
+        var clienteId = UUID.randomUUID();
+
+        var actualizar = ClientesApiMapper.toCommand(TENANT, clienteId, new ActualizarClienteRequest(
+                "Ana", "Pérez", null, "ana@correo.pe", "999", LocalDate.parse("1990-05-10")));
+        var estado = ClientesApiMapper.toCommand(TENANT, clienteId,
+                new CambiarEstadoClienteRequest("BLOQUEADO", "Fraude"));
+
+        assertThat(actualizar.tenantId()).isEqualTo(TENANT);
+        assertThat(actualizar.clienteId()).isEqualTo(clienteId);
+        assertThat(actualizar.nombres()).isEqualTo("Ana");
+        assertThat(actualizar.apellidos()).isEqualTo("Pérez");
+        assertThat(actualizar.razonSocial()).isNull();
+        assertThat(actualizar.email()).isEqualTo("ana@correo.pe");
+        assertThat(actualizar.telefono()).isEqualTo("999");
+        assertThat(actualizar.fechaNacimiento()).isEqualTo(LocalDate.parse("1990-05-10"));
+        assertThat(estado.tenantId()).isEqualTo(TENANT);
+        assertThat(estado.clienteId()).isEqualTo(clienteId);
+        assertThat(estado.estado()).isEqualTo("BLOQUEADO");
+        assertThat(estado.motivo()).isEqualTo("Fraude");
     }
 }
