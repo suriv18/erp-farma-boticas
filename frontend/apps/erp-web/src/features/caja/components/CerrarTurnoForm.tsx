@@ -53,7 +53,7 @@ export function CerrarTurnoForm({
       />
       {PATRON_MONTO.test(totalDeclarado) ? (
         <p
-          className={`rounded-xl bg-neutral-50 px-4 py-3 text-sm dark:bg-neutral-800/60 ${claseDiferencia(diferenciaArqueo(totalEstimado, Number(totalDeclarado)))}`}
+          className={`rounded-xl bg-neutral-50 px-4 py-3 text-lg tabular-nums dark:bg-neutral-800/60 ${claseDiferencia(diferenciaArqueo(totalEstimado, Number(totalDeclarado)))}`}
         >
           {`Diferencia estimada: ${formatoMoneda(diferenciaArqueo(totalEstimado, Number(totalDeclarado)))}`}
         </p>

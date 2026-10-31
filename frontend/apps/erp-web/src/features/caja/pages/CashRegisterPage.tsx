@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Card, PageHeader } from '@boticas/ui-web';
+import { Badge, Card, PageHeader } from '@boticas/ui-web';
 import { apiClient } from '../../../app/api';
 import { TerminalSelector, cambiarTerminal, usePuestoTrabajo } from '../../organizacion';
 import { abrirTurno, cerrarTurno, turnoActualQuery } from '../api/turnos.api';
@@ -80,8 +80,15 @@ export function CashRegisterPage() {
         title="Caja"
         context="Operaciones / Caja"
         description="Apertura y cierre del turno de la terminal."
+        actions={
+          turno === undefined ? null : (
+            <Badge tone={turno === null ? 'warning' : 'success'}>
+              {turno === null ? 'Sin turno' : 'Turno abierto'}
+            </Badge>
+          )
+        }
       />
-      <Card className="p-5">
+      <Card className="p-4">
         <TerminalSelector
           establecimientoId={puesto.establecimientoId}
           terminalId={puesto.terminalId}

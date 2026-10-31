@@ -25,9 +25,7 @@ function renderPage() {
 
 beforeEach(() => {
   localStorage.clear();
-  server.use(
-    miPuestoHandler()
-  );
+  server.use(miPuestoHandler());
 });
 
 describe('CashRegisterPage', () => {

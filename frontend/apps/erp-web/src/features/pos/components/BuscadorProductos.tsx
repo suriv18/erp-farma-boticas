@@ -102,7 +102,7 @@ export function BuscadorProductos({ almacenId, deshabilitado, onElegir }: Buscad
             <li key={sku.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
               <span className="min-w-0 flex-1 basis-56 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                 <span className="block break-words">{sku.descripcionComercial}</span>
-                <span className="block text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                <span className="block font-mono text-xs font-normal text-neutral-500 dark:text-neutral-400">
                   {sku.codigoInterno} · {sku.unidadVentaCodigo ?? 'UND'}
                 </span>
               </span>
